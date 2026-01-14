@@ -296,6 +296,10 @@
                     render: function (data) { return data === null || data === undefined ? '' : formatAmount(data); }
                   },
                   {
+                    data: 'processed_by',
+                    render: function (data) { return data || ''; }
+                  },
+                  {
                     data: 'remarks',
                     render: function (data) { return data || ''; }
                   }

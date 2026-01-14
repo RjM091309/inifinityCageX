@@ -886,10 +886,12 @@ router.get('/account_transaction_history', async (req, res) => {
 			SELECT
 				h.*,
 				agent.NAME AS agent_name,
-				agent.AGENT_CODE AS agent_code
+				agent.AGENT_CODE AS agent_code,
+				COALESCE(CONCAT(ui.FIRSTNAME, ' ', ui.LASTNAME), ui.USERNAME, '') AS processed_by
 			FROM account_transaction_history h
 			JOIN account ON account.IDNo = h.account_id
 			JOIN agent ON agent.IDNo = account.AGENT_ID
+			LEFT JOIN user_info ui ON ui.IDNo = h.encoded_by
 			WHERE 1 = 1
 		`;
 		const params = [];
