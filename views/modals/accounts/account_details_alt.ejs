@@ -1,0 +1,241 @@
+<!-- Cloned and Enhanced Modal -->
+<div class="modal fade" id="modal-account-details-alt" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabelAlt" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header bg-primary">
+          <h5 class="modal-title text-white" id="staticBackdropLiveLabelAlt">Guest Portal</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <!-- Left Side: Account Photo & Details -->
+            <div class="col-xl-3 col-lg-4">
+              <div class="card">
+                <div class="header-title d-flex justify-content-center">
+                  <h4 class="card-title">
+                    <span id="agent_code_alt"></span> - <span id="account_name_alt"></span>
+                  </h4>
+                </div>
+                <div class="card-body">
+                  <form id="add_new_account_details_alt">
+                    <input type="hidden" id="account_id_add_alt" name="txtAccountId">
+                    <input type="hidden" id="total_balanceGuest_alt" name="totalBalanceGuest" />
+                    <img id="zoomed-image-alt" src="" alt="Zoomed Account Photo">
+                    <div class="form-group">
+                      <div class="d-flex justify-content-center align-items-center">
+                        <div class="profile-img-edit position-relative d-flex justify-content-center align-items-center flex-wrap">
+                          <img id="account_photo_alt" src="/PassportUpload/DEFAULT.png" alt="Account Photo" class="theme-color-default-img profile-pic rounded avatar-100">
+                          <div class="upload-icone bg-primary">
+                            <svg class="upload-button icon-14" width="14" viewBox="0 0 24 24">
+                              <path fill="#ffffff" d="M14.06,9L15,9.94L5.92,19H5V18.08L14.06,9M17.66,3C17.41,3 17.15,3.1 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18.17,3.09 17.92,3 17.66,3M14.06,6.19L3,17.25V21H6.75L17.81,9.94L14.06,6.19Z" />
+                            </svg>
+                            <input class="file-upload" type="file" accept="image/*">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+  
+                    <div class="form-group">
+                      <table class="table table-vcenter table-hover" style="background-color: #f9f9f9; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        <thead>
+                          <tr>
+                            <th class="text-center bg-secondary text-white" style="width: 100%; font-size: 12px; padding: 10px 0;">Total Balance</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td class="fw-bold text-center" style="font-size: 24px; color: #333;">
+                              <span class="total_balance_alt">₱0</span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+  
+                    <div class="form-group">
+                      <div class="form-check">
+                        <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash_trans_alt" name="txtTrans">
+                        <label class="form-check-label" for="cash_trans_alt">Deposit</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="withdraw_trans_alt" name="txtTrans">
+                        <label class="form-check-label" for="withdraw_trans_alt">Withdraw</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="credit_trans_alt" name="txtTrans">
+                        <label class="form-check-label" for="credit_trans_alt">Credit</label>
+                      </div>
+                    </div>
+  
+                    <div class="form-group">
+                      <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control txtAmount txtAmount_alt" name="txtAmount" placeholder="Enter amount" required>
+                    </div>
+                    <div class="form-group">
+                      <input type="text" name="txtRemarks" class="form-control remarks remarks_alt" placeholder="Remarks">
+                    </div>
+  
+                    <div class="form-group">
+                      <input class="form-check-input mb-3" type="checkbox" id="sendToTelegram_alt" name="sendToTelegram" style="display: none;" checked>
+                      <label class="form-check-label ms-2" for="sendToTelegram_alt" style="display: none;">Send to Telegram</label>
+                      <button type="submit" class="btn btn-primary-subtle w-100">
+                        <i class="fa fa-check-circle me-1"></i> Update
+                      </button>
+                    </div>
+  
+                    <div class="form-group mb-0">
+                      <button type="button" class="btn btn-info-subtle w-100" id="balanceCheckBtn_alt">
+                        <i class="fa fa-exclamation-circle me-1"></i> Balance Check
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+  
+            <div class="col-xl-9 col-lg-8">
+              <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <div class="header-title">
+                    <h4 class="card-title">Transaction History</h4>
+                  </div>
+                  <div class="text-end">
+                    <button class="btn btn-sm btn-info" onclick="transfer_account()">Transfer Account</button>
+                    <button class="btn btn-sm btn-success" onclick="export_data()">Export</button>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <input type="hidden" id="account_id_alt">
+                  <table id="accountDetailsAlt" class="table table-bordered nowrap table-responsive" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th class="text-center" style="width: 150px;">Date</th>
+                        <th class="text-center" style="width: 200px;">Transaction</th>
+                        <th class="text-center" style="width: 100px;">Amount</th>
+                        <th class="text-center" style="width: 150px;">Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Zoom Script -->
+  <script>
+    const accountPhotoAlt = document.getElementById('account_photo_alt');
+    const zoomedImageAlt = document.getElementById('zoomed-image-alt');
+  
+    accountPhotoAlt.addEventListener('mouseover', () => {
+      zoomedImageAlt.src = accountPhotoAlt.src;
+      zoomedImageAlt.classList.add('show');
+    });
+  
+    accountPhotoAlt.addEventListener('mouseout', () => {
+      zoomedImageAlt.classList.remove('show');
+    });
+  </script>
+  
+  <!-- Styles -->
+  <style>
+    .highlighted-row {
+      background-color: #fff3cd !important;
+      border-left: 4px solid #ffc107;
+    }
+  
+    #account_photo_alt {
+      width: 150px;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 50%;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+  
+    #account_photo_alt:hover {
+      transform: scale(1.1);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+  
+    #zoomed-image-alt {
+      display: none;
+      position: fixed;
+      z-index: 2;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 500px;
+      height: 300px;
+      border-radius: 5px;
+      object-fit: cover;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+  
+    #zoomed-image-alt.show {
+      display: block;
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.1);
+    }
+  
+    #accountDetailsAlt {
+      width: 100%;
+      font-size: 13px;
+      border-collapse: collapse;
+    }
+  
+    #accountDetailsAlt thead th {
+      background: var(--bs-primary-bg-subtle);
+      color: var(--bs-primary);
+      font-weight: 500;
+      padding: 12px 15px;
+      text-align: left;
+      border: none;
+    }
+  
+    #accountDetailsAlt tbody tr {
+      border-bottom: 1px solid #eee;
+    }
+  
+    #accountDetailsAlt td {
+      padding: 12px 15px;
+      color: #666;
+    }
+  
+    #accountDetailsAlt tbody tr:hover {
+      background-color: #f5f5f5 !important;
+    }
+  
+    #accountDetailsAlt td:last-child {
+      text-align: right;
+      color: #333;
+    }
+  
+    #accountDetailsAlt tfoot th {
+      padding: 10px;
+      font-weight: 600;
+      color: #333;
+      background-color: #f4f6fa;
+      border-top: 2px solid #dee2e6;
+    }
+  
+    @media (max-width: 768px) {
+      #accountDetailsAlt {
+        font-size: 10px;
+      }
+  
+      #accountDetailsAlt th,
+      #accountDetailsAlt td {
+        padding: 5px;
+      }
+    }
+  </style>
+  

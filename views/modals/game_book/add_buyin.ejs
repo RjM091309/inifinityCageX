@@ -1,0 +1,78 @@
+<div class="modal fade" id="modal-add-buyin" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+					<div class="modal-header bg-primary">
+						<h5 class="modal-title text-white" id="staticBackdropLiveLabel">Add Buy In</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+					<form id="add_buyin">
+					<div class="modal-body">
+						<input type="hidden" id="total_amount_addbuyin" name="txtTotalAmountBuyin" />
+						
+						<input type="hidden" name="game_id" class="game_list_id">
+						<input type="hidden" name="txtAccountCode" class="txtAccountCode">
+
+						<div class="row mb-4">
+							<div class="col-sm-12">
+								<input type="hidden" class="form-control text-center"  id="total_balanceGuest2" name="totalBalanceGuest2" readonly/>
+								<input type="text" class="form-control text-center"  id="total_balanceGuest2GameList"  readonly/>
+							</div>
+						</div>
+
+							<div class="row mb-4">
+								<div class="col-sm-6">
+									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+										class="form-control text-center txtNN" placeholder="NN Chips" name="txtNN">
+								</div>
+
+								<div class="col-sm-6">
+									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+										class="form-control text-center txtCC" placeholder="CC Chips" name="txtCC">
+								</div>
+							</div>
+
+							<div class="row mb-2">
+								<div class="col-sm-4">
+									<div class="form-check">
+										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash" name="txtTransType">
+										<label class="form-check-label" for="cash">
+											<span class="d-flex align-items-center">
+												Cash
+											</span>
+										</label>
+									</div>
+								</div>
+								<div class="col-sm-4">
+									<div class="form-check">
+										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="deposit" name="txtTransType">
+										<label class="form-check-label" for="deposit">
+											<span class="d-flex align-items-center">
+												Deposit
+											</span>
+										</label>
+									</div>
+								</div>
+								<div class="col-sm-4">
+									<div class="form-check">
+										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="marker" name="txtTransType">
+										<label class="form-check-label" for="marker">
+											<span class="d-flex align-items-center">
+												Credit
+											</span>
+										</label>
+									</div>
+								</div>
+							</div>
+					</div>
+					<div class="modal-footer">
+						<button type="submit" id="submit-buyin-btn" class="btn btn-sm btn-primary" >
+							Save
+						</button>
+						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+							Close
+						</button>
+					</div>
+				</form>
+		</div>
+	</div>
+</div>

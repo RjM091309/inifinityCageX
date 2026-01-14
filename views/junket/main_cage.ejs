@@ -1,0 +1,98 @@
+<%- include ('../partials/header_html'); -%>
+
+<head>
+	<%- include ('../partials/title_meta'); -%>
+
+	<%- include ('../partials/header_css'); -%>
+</head>
+
+<body>
+	<div id="page-container"
+		class="sidebar-o sidebar-scroll page-header-dark enable-page-overlay side-scroll page-header-fixed">
+
+		<%- include ('../partials/sidebar'); -%>
+		<%- include ('../partials/topbar'); -%>
+
+		<!-- Main Container -->
+		<main id="main-container">
+			<div class="content">
+				<!-- Dynamic Table Responsive -->
+				<div class="block block-rounded">
+					<div class="block-header block-header-default">
+						<h3 class="block-title">
+							<small>Junket / Main Cage</small>
+						</h3>
+						<nav class="flex-shrink-0 my-2 my-sm-0 ms-sm-3" aria-label="breadcrumb">
+							<ol class="breadcrumb">
+								<button type="button" class="btn btn-primary" onclick="addMainCage()">
+									<i class="fa fa-plus" aria-hidden="true"></i> New Record
+								</button>
+							</ol>
+						</nav>
+					</div>
+					<div class="block-content block-content-full">
+
+						<table id="#dataTable" class="table table-bordered table-vcenter">
+							<thead>
+								<tr>
+									<th class="text-center" style="width: 150px;"></th>
+									<th class="text-center" style="width: 150px;">BUY IN</th>
+									<th class="text-center" style="width: 150px;">CASH OUT</th>
+									<th class="text-center" style="width: 150px;">ROLLING</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td class="fw-bold text-center">DEPOSIT</td>
+									<td class="fw-bold text-center"><span class="total_deposit_buy"></span></td>
+									<td class="fw-bold text-center"><span class="total_deposit_cash"></span></td>
+									<td class="fw-bold text-center"><span class="total_deposit_rolling"></span></td>
+								</tr>
+								<tr>
+									<td class="fw-bold text-center">WITHDRAW</td>
+									<td class="fw-bold text-center"><span class="total_withdraw_buy"></span></td>
+									<td class="fw-bold text-center"><span class="total_withdraw_cash"></span></td>
+									<td class="fw-bold text-center"><span class="total_withdraw_rolling"></span></td>
+								</tr>
+								<tr>
+									<td class="fw-bold text-center">BALANCE</td>
+									<td class="fw-bold text-center"><span class="total_balance_buy"></span></td>
+									<td class="fw-bold text-center"><span class="total_balance_cash"></span></td>
+									<td class="fw-bold text-center"><span class="total_balance_rolling"></span></td>
+								</tr>
+							</tbody>
+						</table>
+
+						<!-- DataTables init on table by adding .js-dataTable-responsive class, functionality is initialized in js/pages/be_tables_datatables.min.js which was auto compiled from _js/pages/be_tables_datatables.js -->
+						<table id="cage-tbl" class="table table-bordered table-vcenter js-dataTable-responsive">
+							<thead>
+								<tr>
+									<th class="d-none d-sm-table-cell" style="width: 150px;">CATEGORY</th>
+									<th class="d-none d-sm-table-cell">DATE</th>
+									<th class="d-none d-sm-table-cell">TRANS TYPE</th>
+									<th class="d-none d-sm-table-cell">AMOUNT</th>
+									<th class="text-center" style="width: 150px;">STATUS</th>
+									<th class="text-center" style="width: 100px;">ACTION</th>
+								</tr>
+							</thead>
+							<tbody>
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<!-- Dynamic Table Responsive -->
+			</div>
+			<!-- END Page Content -->
+		</main>
+		<!-- END Main Container -->
+
+		<%- include ('../modals/junket/new_main_cage') %>
+		<%- include ('../modals/junket/edit_main_cage') %>
+
+		<%- include ('../partials/footer'); -%>
+
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+		<script src="/assets/js/datatables/main_cage_tables_datatables.min.js"></script>
+		<script src="/assets/js/functions/main_cage.js"></script>
+
+		<%- include ('../partials/footer_html'); -%>

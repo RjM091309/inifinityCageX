@@ -1,0 +1,472 @@
+
+
+	<head>
+	
+				<link rel="stylesheet" href="assets/js/plugins/select2/css/select2.min.css">
+				<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+				<!-- SweetAlert2 JS -->
+				<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+
+	</head>
+
+	<body>
+		<div class="loading-screen">
+			<a href="#" target="_blank" class="logo"></a>
+		</div>
+		<div id="page-container"
+			class="sidebar-o sidebar-scroll page-header-dark enable-page-overlay side-scroll page-header-fixed">
+
+
+					<!-- Main Container -->
+					<main id="main-container">
+						<div id="user-role" data-permissions="<%= permissions %>"></div>
+						<!-- Page Content -->
+						<div class="content">
+							<form id="expense-form" action="/insert-dash-history" method="POST">
+								<div class="row">
+									<div class="col-md-6 col-xl-3">
+										<!-- Default Position -->
+										<div class="block block-rounded position-relative">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.house_balance') %>
+												</div>
+												<div class="text-center py-4">
+														<i id="unique-icon-id"
+														class="fa fa-money-bill-wave fa-3x text-muted push"></i>
+													<h4 class="mb-0">
+														<span id="cash-balance-value">
+															<%- parseFloat(sqlCashDeposit[0].CASH_DEPOSIT +
+																sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT -
+																sqlCashWithdraw[0].CASH_WITHDRAW -
+																sqlNNChipsBuyin[0].NNChipsBuyin +
+																sqlNNChipsReturn[0].NNChipsReturn +
+																sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER -
+																sqlAccountSettlement[0].ACCOUNT_SETTLEMENT +
+																sqlMArkerReturnCash[0].MARKER_RETURN_CASH -
+																sqlAccountDeduct[0].ACCOUNT_DEDUCT +
+																sqlAccountMarkerReturn[0].MARKER_RETURN -
+																sqlJunketExpense[0].JUNKET_EXPENSE +
+																sqlNNChipsBuyinCashDeposit[0].NN_CHIPS_BUYIN_CASH_DEPOSIT
+																+
+																sqlCCChipsBuyinCashDeposit[0].CC_CHIPS_BUYIN_CASH_DEPOSIT
+																- sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD -
+																sqlTotalCashOut[0].TOTAL_CASHOUT +
+																sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT +
+																sqlAccountTransfer[0].ACCOUNT_TRANSFER).toLocaleString()
+																%>
+														</span>
+													</h4>
+												</div>
+												<!-- See more button positioned at bottom-right -->
+												<div class="position-absolute bottom-0 end-0 p-2">
+													<button type="button"
+														class="btn btn-xs rounded-pill px-2 py-1 text-black"
+														style="background: white; border: 1px solid black; font-size: 12px;"
+														data-bs-toggle="modal" data-bs-target="#modal-new-capital">
+														<i class="fas fa-expand-alt me-1" style="font-size: 10px;"></i>
+														View Details
+													</button>
+												</div>
+											</div>
+										</div>
+										<!-- END Default Position -->
+									</div>
+									<div class="col-md-6 col-xl-3">
+										<!-- Bottom Right -->
+										<div class="block block-rounded position-relative">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.cc_chips') %>
+												</div>
+												<div class="text-center py-4">
+													<i id="unique-icon-id"
+														class="fa fa-coins fa-3x text-muted push"></i>
+													<h4 class="mb-0">
+														<span>
+															<%- parseFloat(sqlCCChipsBuyin[0].CCChipsBuyin -
+																sqlCCChipsReturn[0].CCChipsReturn +
+																sqlTotalRealRolling[0].TOTAL_REAL_ROLLING +
+																sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN -
+																sqlCCChipsBuyinGame[0].TOTAL_CC + sqlCCBuyin[0].CCBuyin
+																- sqlCCReturn[0].CCReturn).toLocaleString() %>
+														</span>
+													</h4>
+												</div>
+											
+												<div class="position-absolute bottom-0 end-0 p-2">
+													<button type="button"
+														class="btn btn-xs rounded-pill px-2 py-1 text-black"
+														style="background: white; border: 1px solid black; font-size: 12px;"
+														data-bs-toggle="modal" data-bs-target="#modal-new-cc-chips">
+														<i class="fas fa-expand-alt me-1" style="font-size: 10px;"></i>
+														View Details
+													</button>
+												</div>
+											</div>
+										</div>
+										<!-- END Bottom Right -->
+									</div>
+									<div class="col-md-6 col-xl-3">
+										<!-- Top Left -->
+										<div class="block block-rounded position-relative">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.nn_chips') %>
+												</div>
+												<div class="text-center py-4">
+													<!-- <img src="/images/NN_CHIPS.png" alt="Custom Icon" class="icon-class" style="max-width: 85px; height: auto; opacity: 0.5;"> -->
+													<i id="unique-icon-id"
+														class="fa fa-coins fa-3x text-muted push"></i>
+													<h4 class="mb-0">
+														<span>
+															<%- parseFloat(sqlNNChipsBuyin[0].NNChipsBuyin -
+																sqlNNChipsReturn[0].NNChipsReturn -
+																sqlAccountNNChips[0].TOTAL_NN +
+																sqlTotalCashOutRolling[0].TOTAL_CASHOUT -
+																sqlTotalRealRolling[0].TOTAL_REAL_ROLLING -
+																sqlCCChipsBuyin[0].CCChipsBuyin +
+																sqlCCChipsReturn[0].CCChipsReturn +
+																sqlNNBuyin[0].NNBuyin -
+																sqlNNReturn[0].NNReturn).toLocaleString() %>
+														</span>
+													</h4>
+												</div>
+												<div class="position-absolute bottom-0 end-0 p-2">
+													<button type="button"
+														class="btn btn-xs rounded-pill px-2 py-1 text-black"
+														style="background: white; border: 1px solid black; font-size: 12px;"
+														data-bs-toggle="modal" data-bs-target="#modal-new-nn-chips">
+														<i class="fas fa-expand-alt me-1" style="font-size: 10px;"></i>
+														View Details
+													</button>
+												</div>
+											</div>
+										</div>
+										<!-- END Top Left -->
+									</div>
+									<div class="col-md-6 col-xl-3">
+										<!-- Bottom Right -->
+										<div class="block block-rounded">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.total_chips') %>
+												</div>
+												<div class="text-center py-4">
+													<!-- <img src="/images/TOTAL_CHIPS.png" alt="Custom Icon" class="icon-class" style="max-width: 85px; height: auto; opacity: 0.5;"> -->
+													<i id="unique-icon-id"
+														class="fa fa-equals fa-3x text-muted push"></i>
+													<h4 class="mb-0">
+														<h4 class="mb-0">
+															<span>
+																<%- parseFloat(sqlTotalChipsBuyin[0].TotalChipsBuyin -
+																	sqlTotalChipsReturn[0].TotalChipsReturn -
+																	sqlAccountNNChips[0].TOTAL_NN +
+																	sqlTotalCashOutRolling[0].TOTAL_CASHOUT +
+																	sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN -
+																	sqlCCChipsBuyin[0].CCChipsBuyin +
+																	sqlCCChipsReturn[0].CCChipsReturn -
+																	sqlCCChipsBuyinGame[0].TOTAL_CC +
+																	sqlCCBuyin[0].CCBuyin - sqlCCReturn[0].CCReturn +
+																	sqlNNBuyin[0].NNBuyin -
+																	sqlNNReturn[0].NNReturn).toLocaleString() %>
+															</span>
+														</h4>
+												</div>
+												<div class="position-absolute bottom-0 end-0 p-2">
+													<button type="button"
+														class="btn btn-xs rounded-pill px-2 py-1 text-black"
+														style="background: white; border: 1px solid black; font-size: 12px;"
+														data-bs-toggle="modal" data-bs-target="#modal-new-total-chips">
+														<i class="fas fa-expand-alt me-1" style="font-size: 10px;"></i>
+														View Details
+													</button>
+												</div>
+											</div>
+										</div>
+										<!-- END Bottom Right -->
+
+									</div>
+									<div class="col-md-6 col-xl-3">
+										<!-- Success Color -->
+										<div class="block block-rounded">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.expense') %>
+												</div>
+												<div class="text-center py-4">
+													<i id="unique-icon-id"
+														class="fa fa-wallet fa-3x text-muted push"></i>
+
+													<h4 id="expense" class="mb-0"><%-
+															parseFloat(sqlJunketExpenseReset[0].RESET_EXPENSE ||
+															0).toLocaleString() %></h4>
+													<input type="hidden" name="EXPENSE_HISTORY"
+														value="<%- sqlJunketExpenseReset[0].RESET_EXPENSE || 0 %>">
+
+												</div>
+											</div>
+										</div>
+										<!-- END Success Color -->
+									</div>
+									<div class="col-md-6 col-xl-3">
+										<!-- Success Color -->
+										<div class="block block-rounded">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.guest_balance') %>
+												</div>
+												<div class="text-center py-4">
+													<i id="unique-icon-id"
+														class="fas fa-user-tie fa-3x text-muted push"></i>
+													<h4 class="mb-0">
+														<%- Math.round(parseFloat(sqlAccountDeposit[0].ACCOUNT_DEPOSIT +
+															sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT -
+															sqlAccountWithdraw[0].ACCOUNT_WITHDRAW
+															-sqlAccountDeduct[0].ACCOUNT_DEDUCT +
+															sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD -
+															sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT)).toLocaleString()
+															%>
+													</h4>
+												</div>
+											</div>
+										</div>
+										<!-- END Success Color -->
+									</div>
+									<div class="col-md-6 col-xl-3">
+										<!-- Success Color -->
+										<div class="block block-rounded">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.iou') %>
+												</div>
+												<div class="text-center py-4">
+													<!-- <img src="/images/IOU.png" alt="Custom Icon" class="icon-class" style="max-width: 85px; height: auto; opacity: 0.5;"> -->
+													<i id="unique-icon-id"
+														class="fa fa-money-check fa-3x text-muted push"></i>
+													<h4 class="mb-0">
+														<span>
+															<%- parseFloat(sqlMarkerIssueGame[0].TOTAL_ISSUE_GAME +
+																sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD -
+																sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER -
+																sqlMArkerReturnCash[0].MARKER_RETURN_CASH -
+																sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT -
+																sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER).toLocaleString()
+																%>
+														</span>
+													</h4>
+												</div>
+												<div class="position-absolute bottom-0 end-0 p-2">
+													<button type="button"
+														class="btn btn-xs rounded-pill px-2 py-1 text-black"
+														style="background: white; border: 1px solid black; font-size: 12px;"
+														data-bs-toggle="modal" data-bs-target="#modal-new-marker">
+														<i class="fas fa-expand-alt me-1" style="font-size: 10px;"></i>
+														View Details
+													</button>
+												</div>
+											</div>
+										</div>
+										<!-- END Success Color -->
+
+									</div>
+									<div class="col-md-6 col-xl-3">
+										<!-- Success Color -->
+										<div class="block block-rounded">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.commission') %>
+												</div>
+												<div class="text-center py-4">
+													<i id="unique-icon-id"
+														class="fab fa-percentage fa-3x text-muted push"></i>
+
+													<h4 id="comms" class="mb-0"><%-
+															Math.round(parseFloat(sqlCommissionReset +
+															sqlSharedReset)).toLocaleString() %></h4>
+													<input type="hidden" name="COMMISSION_HISTORY"
+														value="<%- Math.round(parseFloat(sqlCommissionReset + sqlSharedReset)) %>">
+
+												</div>
+											</div>
+										</div>
+										<!-- END Success Color -->
+									</div>
+
+
+									<div class="col-md-6 col-xl-3">
+										<!-- Success Color -->
+										<div class="block block-rounded">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.total_rolling') %>
+												</div>
+												<div class="text-center py-4">
+													<i id="unique-icon-id"
+														class="fa fa-sync-alt fa-3x text-muted push"></i>
+													<h4 id="totalrolling" class="mb-0">
+														<%- parseFloat(sqlTotalRollingReset[0].RESET_ROLLING -
+															sqlTotalCashOutRollingReset[0].RESET_CASHOUT +
+															sqlTotalRollingManual[0].TOTAL_ROLLING).toLocaleString() %>
+													</h4>
+													<input type="hidden" name="TOTAL_ROLLING_HISTORY"
+														value="<%- parseFloat(sqlTotalRollingReset[0].RESET_ROLLING - sqlTotalCashOutRollingReset[0].RESET_CASHOUT + sqlTotalRollingManual[0].TOTAL_ROLLING) %>">
+
+												</div>
+											</div>
+										</div>
+										<!-- END Success Color -->
+									</div>
+
+
+									<div class="col-md-6 col-xl-3">
+										<!-- Success Color -->
+										<div class="block block-rounded">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.house_rolling') %>
+												</div>
+												<div class="text-center py-4">
+													<i id="unique-icon-id"
+														class="fa fa-building fa-3x text-muted push"></i>
+													<!-- <a href="#modal-new-rolling" data-bs-toggle="modal">  -->
+													<h4 id="totalhouserolling" class="mb-0">
+														<%- parseFloat(sqlCCChipsReturnReset[0].CCResetReturn ||
+															0).toLocaleString() %>
+													</h4>
+
+													<input type="hidden" name="HOUSE_ROLLING_HISTORY"
+														value="<%- parseFloat(sqlCCChipsReturnReset[0].CCResetReturn || 0) %>">
+
+													<!-- </a> -->
+												</div>
+											</div>
+										</div>
+										<!-- END Success Color -->
+									</div>
+
+
+									<div class="col-md-6 col-xl-3">
+										<!-- Success Color -->
+										<div class="block block-rounded">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.house_win_loss') %>
+												</div>
+												<div class="text-center py-4">
+													<i id="unique-icon-id"
+														class="fa fa-arrow-down-up-across-line fa-3x text-muted push"></i>
+													<h4 id="winloss" class="mb-0"><%-
+															parseFloat(sqlWinLossReset[0].RESET_CASHIN -
+															sqlTotalCashOutReset[0].CASHOUT_RESET +
+															sqlWinlossManual[0].WINLOSS).toLocaleString() %></h4>
+													<input type="hidden" name="WINLOSS_HISTORY"
+														value="<%- parseFloat(sqlWinLossReset[0].RESET_CASHIN - sqlTotalCashOutReset[0].CASHOUT_RESET + sqlWinlossManual[0].WINLOSS) %>">
+
+												</div>
+											</div>
+										</div>
+										<!-- END Success Color -->
+									</div>
+
+									<div class="col-md-6 col-xl-3">
+										<!-- Success Color -->
+										<div class="block block-rounded">
+											<div
+												class="block-content block-content-full ribbon ribbon-bookmark ribbon-info ribbon-clip">
+												<div class="ribbon-box">
+													<%= __('dashboard.ngr') %>
+												</div>
+												<div class="text-center py-4">
+													<i id="unique-icon-id"
+														class="fa fa-bar-chart fa-3x text-muted push"></i>
+													<h4 id="ngr" class="mb-0">
+														<%- parseFloat(sqlWinLossLive + sqlWinLossTelebet -
+															sqlCommissionReset - sqlSharedReset).toLocaleString() %>
+															<input type="hidden" name="NGR_HISTORY"
+																value="<%-  parseFloat(sqlWinLossLive + sqlWinLossTelebet - sqlCommissionReset - sqlSharedReset) %>">
+													</h4>
+												</div>
+											</div>
+										</div>
+										<!-- END Success Color -->
+									</div>
+
+								</div>
+						</div>
+						</form>
+						<!-- END Page Content -->
+
+					</main>
+				
+
+						<%- include ('modals/junket/new_capital') %>
+							<%- include ('modals/dashboard/new_total_chips') %>
+								<%- include ('modals/dashboard/ccchips') %>
+									<%- include ('modals/dashboard/nnchips') %>
+										<%- include ('modals/dashboard/marker') %>
+
+
+
+
+
+											<script>
+												document.addEventListener('DOMContentLoaded', function () {
+													// Retrieve user permissions from the HTML element
+													var userPermissions = parseInt(document.getElementById('user-role').getAttribute('data-permissions'), 10);
+
+													document.getElementById('cash-balance-link').addEventListener('click', function (event) {
+														// Use the permissions to determine if the user can access the feature
+														if (userPermissions !== 11 && userPermissions !== 1 && userPermissions !== 2) { // 11 indicates manager
+															event.preventDefault(); // Prevent the link's default action (opening the modal)
+
+															Swal.fire({
+																icon: 'warning',
+																title: 'No Permission',
+																text: 'You do not have permission to access this feature.',
+																confirmButtonText: 'OK',
+																confirmButtonColor: '#6f9c40'
+															});
+														} else {
+															// If the user is a manager, manually open the modal
+															var modal = new bootstrap.Modal(document.getElementById('modal-new-capital'));
+															modal.show();
+														}
+													});
+												});
+											</script>
+
+											<script src="/assets/js/functions/capital.js"></script>
+											<script src="/assets/js/functions/reset.js"></script>
+											<script>
+												$(document).ready(function () {
+
+													// Retrieve the value from localStorage
+													var totalNGR = localStorage.getItem('globalTotalNgr');
+
+													console.log("Retrieved Total NGR from localStorage:", totalNGR); // Check what is retrieved
+
+													// Display it in an element
+													$('#total-ngr-value-in-other-ejs').text(Math.round(totalNGR).toLocaleString());
+
+													if (totalNGR > 0) {
+														console.log("Current Global Total NGR:", totalNGR);
+													} else {
+														console.log("No NGR value found or globalTotalNgr is 0");
+													}
+												});
+											</script>
+
+									

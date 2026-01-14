@@ -1,0 +1,274 @@
+<!-- Account Details Modal -->
+<div class="modal fade" id="modal-account-details" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="staticBackdropLiveLabel">Guest Portal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- Left Side: Account Photo & Details -->
+                    <div class="col-xl-3 col-lg-4">
+                        <div class="card">
+                            <div class="header-title d-flex justify-content-center">
+                                <h4 class="card-title">
+                                    <span id="agent_code"></span> - <span id="account_name"></span>
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <form id="add_new_account_details_alt">
+                                    <input type="hidden" id="account_id_add" name="txtAccountId">
+                                    <input type="hidden" id="total_balanceGuest" name="totalBalanceGuest" />
+                                    <img id="zoomed-image" src="" alt="Zoomed Account Photo"> 
+                                    <div class="form-group">
+                                        <div class="d-flex justify-content-center align-items-center">
+                                            <div class="profile-img-edit position-relative d-flex justify-content-center align-items-center flex-wrap">
+                                                <!-- Primary account photo -->
+                                                <img id="account_photo" src="../../assets/images/avatars/01.png" alt="Account Photo" class="theme-color-default-img profile-pic rounded avatar-100"> 
+                                                <!-- Iba pang avatar options... -->
+                                                <div class="upload-icone bg-primary">
+                                                    <svg class="upload-button icon-14" width="14" viewBox="0 0 24 24">
+                                                        <path fill="#ffffff" d="M14.06,9L15,9.94L5.92,19H5V18.08L14.06,9M17.66,3C17.41,3 17.15,3.1 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18.17,3.09 17.92,3 17.66,3M14.06,6.19L3,17.25V21H6.75L17.81,9.94L14.06,6.19Z" />
+                                                    </svg>
+                                                    <input class="file-upload" type="file" accept="image/*">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <table id="dataTable" class="table table-vcenter table-hover" style="background-color: #f9f9f9; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                                            <thead>
+                                                <tr>
+                                                    <th class="text-center bg-secondary text-white" style="width: 100%; font-size: 12px; padding: 10px 0;"><%= __('modal_account_details.total_balance') %></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td class="fw-bold text-center" style="font-size: 24px; color: #333;">
+                                                        <span class="total_balance"></span>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <div class="form-check">
+                                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash_trans" name="txtTrans">
+                                            <label class="form-check-label" for="cash_trans">
+                                                <span class="d-flex align-items-center"><%= __('modal_account_details.deposit') %></span>
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="deposit_trans" name="txtTrans">
+                                            <label class="form-check-label" for="deposit_trans">
+                                                <span class="d-flex align-items-center"><%= __('modal_account_details.withdraw') %></span>
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="issue_trans" name="txtTrans">
+                                            <label class="form-check-label" for="issue_trans">
+                                                <span class="d-flex align-items-center"><%= __('modal_account_details.credit') %></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+                                               class="form-control txtAmount txtAmount_alt" name="txtAmount" placeholder="<%= __('modal_account_details.amount_placeholder') %>" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <input type="text" name="txtRemarks" class="form-control remarks remarks_alt" placeholder="<%= __('modal_account_details.remarks_placeholder') %>">
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <input class="form-check-input mb-3" type="checkbox" id="sendToTelegram" name="sendToTelegram" style="display: none;" checked>
+                                        <label class="form-check-label ms-2" for="sendToTelegram" style="display: none;">
+                                            <%= __('modal_account_details.send_to_telegram') %>
+                                        </label>
+                                        <button type="submit" class="btn btn-primary-subtle w-100">
+                                            <i class="fa fa-check-circle me-1"></i><%= __('modal_account_details.update') %>
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="form-group mb-0">
+                                        <button type="button" class="btn btn-info-subtle w-100" id="balanceCheckBtn">
+                                            <i class="fa fa-exclamation-circle me-1"></i> <%= __('modal_account_details.balance_check') %>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-9 col-lg-8">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div class="header-title">
+                                    <h4 class="card-title"><%= __('modal_account_details.transaction_history') %></h4>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <!-- Removed daterangepicker input and filter button -->
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-end mb-4">
+                                    <button class="btn btn-sm btn-info" onclick="transfer_account()"><%= __('modal_account_details.transfer_account') %></button>
+                                    <button class="btn btn-sm btn-success" onclick="export_data()"><%= __('modal_account_details.export') %></button>
+                                </div>
+                                <input type="hidden" id="account_id">
+                                <table id="accountDetails" class="table table-bordered nowrap table-responsive" style="width: 100%;">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center" style="width: 150px;"><%= __('modal_account_details.date') %></th>
+                                            <th class="text-center" style="width: 200px;"><%= __('modal_account_details.transaction') %></th>
+                                            <th class="text-center" style="width: 100px;"><%= __('modal_account_details.amount') %></th>
+                                            <th class="text-center" style="width: 150px;"><%= __('modal_account_details.remarks') %></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+                        <%= __('modal_account_details.close') %>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<style>
+
+    /* Zoomed image styles */
+#zoomed-image {
+    display: none;
+    position: fixed;
+    z-index: 2;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    max-width: none;
+    max-height: none;
+    pointer-events: none;
+    width: 500px;
+    height: 300px;
+    border-radius: 5px;
+    object-fit: cover;
+    opacity: 0; /* Initial opacity for fade effect */
+    transition: opacity 0.3s ease, transform 0.3s ease; /* Smooth transition */
+}
+
+#zoomed-image.show {
+    display: block;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1); /* Zoom effect */
+}
+
+/* Image hover effect */
+#account_photo {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 50%;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Smooth transition for zoom */
+}
+
+#account_photo:hover {
+    transform: scale(1.1); /* Slight zoom effect on hover */
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Increase shadow on hover */
+}
+
+
+#accountDetails {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+}
+
+/* Header styles */
+#accountDetails thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    text-align: left;
+    border: none;
+}
+
+/* Row styles */
+#accountDetails tbody tr {
+    border-bottom: 1px solid #eee;
+}
+
+/* Cell styles */
+#accountDetails td {
+    padding: 12px 15px;
+    color: #666;
+}
+
+#accountDetails tbody tr:hover {
+  background-color: #f5f5f5 !important;
+}
+
+
+
+/* Balance column */
+#accountDetails td:last-child {
+    text-align: right;
+    color: #333;
+}
+
+
+/* Footer total row */
+
+
+#accountDetails tfoot th {
+    padding: 10px;
+    font-weight: 600;
+  
+    color: #333;
+    background-color: #f4f6fa;
+    border-top: 2px solid #dee2e6;
+}
+@media (max-width: 768px) {
+    #accountDetails {
+        font-size: 10px; /* Mas maliit sa mobile */
+    }
+
+    #accountDetails th,
+    #accountDetails td {
+        padding: 5px;
+    }
+}
+/* Override Bootstrap .table-info to light-blue */
+.table-info {
+  background-color: #cce5ff !important;
+}
+</style>
+
+
+<script>
+   const accountPhoto = document.getElementById('account_photo');
+const zoomedImage = document.getElementById('zoomed-image');
+
+accountPhoto.addEventListener('mouseover', () => {
+    zoomedImage.src = accountPhoto.src; // Set zoomed image source
+    zoomedImage.classList.add('show');
+});
+
+accountPhoto.addEventListener('mouseout', () => {
+    zoomedImage.classList.remove('show');
+});
+
+</script>
+

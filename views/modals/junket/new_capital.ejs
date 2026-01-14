@@ -1,0 +1,256 @@
+<!-- Flatpickr CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+<!-- jQuery (must be loaded before other scripts that use it) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Flatpickr JS -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<style>
+	.modal-lg {
+		max-width: 65% !important; /* Adjust percentage as needed */
+	}
+
+	#capital-tbl {
+width: 100%;
+font-size: 13px;
+border-collapse: collapse;
+}
+
+/* Header styles */
+#capital-tbl thead th {
+background: var(--bs-primary-bg-subtle);
+color: var(--bs-primary);
+font-weight: 500;
+padding: 12px 15px;
+text-align: left;
+border: none;
+}
+
+/* Row styles */
+#capital-tbl tbody tr {
+border-bottom: 1px solid #eee;
+}
+
+/* Cell styles */
+#capital-tbl td {
+padding: 12px 15px;
+color: #666;
+}
+
+#capital-tbl tbody tr:hover {
+background-color: #f5f5f5 !important;
+}
+
+
+
+/* Balance column */
+#capital-tbl td:last-child {
+text-align: right;
+color: #333;
+}
+
+
+/* Footer total row */
+
+
+#capital-tbl tfoot th {
+padding: 10px;
+font-weight: 600;
+
+color: #333;
+background-color: #f4f6fa;
+border-top: 2px solid #dee2e6;
+}
+
+
+
+
+</style>
+
+<div class="modal fade" id="modal-new-capital" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+	data-keyboard="false" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable  modal-lg">
+		<div class="modal-content">
+			
+				<div class="modal-header bg-primary ">
+					<h5 class="block-title text-white"><%= __('dashboard_new_capital.house_balance') %></h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="loading-overlay" style="display: none;">
+                    <div class="progress-container">
+                        <div class="progress-bar"></div>
+                        <p><%= __('dashboard_new_capital.loading_house_balance') %></p>
+                    </div>
+                </div>
+			
+				
+				<div class="modal-body">
+					<form id="add_junket_capital" action="/add_junket_capital" method="POST">
+						<div class="row">
+							<div class="col-4">
+								<input type="text" id="txtAmount" name="txtAmount" class="form-control" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
+							</div>
+							<div class="col-sm-4">
+								<input type="text" id="main-daterange" name="daterange" class="input-daterange input-group" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
+							</div>
+							<div class="col-sm-12 mt-2">
+								<textarea class="form-control" name="Remarks" placeholder="<%= __('dashboard_new_capital.remarks_placeholder') %>" cols="10" rows="2"></textarea>
+							</div>
+						</div>
+						
+						<div class="row mb-2 align-items-center mt-3 justify-content-end">
+							<div class="col-auto">
+								<div class="form-check">
+									<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="deposit" name="optWithdrawDeposit" value="1" onclick="updateDescription()" required>
+									<label class="form-check-label" for="deposit"><%= __('dashboard_new_capital.cash_in') %></label>
+								</div>
+							</div>
+							<div class="col-auto">
+								<div class="form-check">
+									<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="withdraw" name="optWithdrawDeposit" value="2" onclick="updateDescription()" required>
+									<label class="form-check-label" for="withdraw"><%= __('dashboard_new_capital.cash_out') %></label>
+								</div>
+							</div>
+							<div class="col-auto">
+								<button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check-circle me-1"></i><%= __('dashboard_new_capital.save') %></button>
+							</div>
+						</div>
+						
+						
+						
+						
+						<input type="hidden" value=" <%- (
+							(+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
+							(+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
+							(+sqlCashWithdraw[0].CASH_WITHDRAW || 0) -
+							(+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +
+							(+sqlNNChipsReturn[0].NNChipsReturn || 0) +
+							(+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
+							(+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
+							(+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
+							(+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) +
+							(+sqlAccountMarkerReturn[0].MARKER_RETURN || 0) -
+							(+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+							(+sqlNNChipsBuyinCashDeposit[0].NN_CHIPS_BUYIN_CASH_DEPOSIT || 0) +
+							(+sqlCCChipsBuyinCashDeposit[0].CC_CHIPS_BUYIN_CASH_DEPOSIT || 0) -
+							(+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
+							(+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
+							(+sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT || 0) +
+							(+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0)
+						 ).toLocaleString() %>" id="cashbal" name="txtcashbal"/>
+						
+						<input type="hidden" name="description" id="description" value="Cash-in">
+						
+						<hr style="border: none; border-top: 0.2rem solid black;">
+						<div class="custom-datatable-entries">
+							<table
+							id="capital-tbl"
+							class="table table-bordered table-hover"
+							style="width:100%"
+						  >							<thead>
+								<tr>
+									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.encoded_by') %></th>
+									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.amount') %></th>
+									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.type') %></th>
+									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.remarks') %></th>
+									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.date') %></th>
+									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.action') %></th>
+								</tr>
+							</thead>
+							<tbody>
+							</tbody>
+						</table>
+					</form>
+				</div>
+				</div>
+				
+				<div class="modal-footer">
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('dashboard_new_capital.close') %></button>
+				</div>
+			
+		</div>
+	</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+<script>
+	$(document).ready(function() {
+		// Retrieve the permissions value from the data attribute
+		const permissions = parseInt($('#user-role').data('permissions'));
+
+		// Disable the submit button if permissions are 2
+		if (permissions === 2) {
+			$('#add_junket_capital button[type="submit"]').prop('disabled', true);
+		}
+
+		$('#add_junket_capital').on('submit', function(e) {
+			// Retrieve the values of txtAmount and cashbal
+			const txtAmount = parseFloat($('#txtAmount').val().replace(/,/g, '')) || 0;
+			const cashbal = parseFloat($('#cashbal').val().replace(/,/g, '')) || 0;
+
+			function formatNumberWithCommas(x) {
+				return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+			}
+
+			// Check if Cash-out is selected
+			const isCashOutSelected = document.querySelector('input[name="optWithdrawDeposit"]:checked').value === "2";
+
+			// Validate if the withdrawal amount exceeds the cash balance
+			if (isCashOutSelected && txtAmount > cashbal) {
+				e.preventDefault();
+				Swal.fire({
+					icon: 'error',
+					title: 'Insufficient Balance',
+					text: 'The amount exceeds the available cash balance of ' + formatNumberWithCommas(cashbal) + '.',
+					confirmButtonText: 'OK'
+				});
+				return false;
+			}
+			
+			// Disable the submit button and show spinner while processing
+			var $btn = $(this).find("button[type='submit']");
+			$btn.prop('disabled', true).html(`
+				<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+				Loading...
+			`);
+		});
+		
+		// Initialize Flatpickr for the date range picker
+		flatpickr("#daterange", {
+			mode: "range",
+			dateFormat: "Y-m-d"
+		});
+	});
+
+	function updateDescription() {
+	  const isCashIn = document.getElementById('deposit').checked;
+	  document.getElementById('description').value = isCashIn ? 
+	  '<span class="css-blue">Cash-in</span>' 
+	  : '<span class="css-blue">Cash-out</span>';
+	}
+</script>
+
+
+<script>
+	$(document).ready(function () {
+		$("input[data-type='number']").keyup(function (event) {
+			// skip for arrow keys
+			if (event.which >= 37 && event.which <= 40) {
+				event.preventDefault();
+			}
+			var $this = $(this);
+			var num = $this.val().replace(/,/gi, "");
+			var num2 = num.split(/(?=(?:\d{3})+$)/).join(",");
+			$this.val(num2);
+		});
+	});
+
+	function onlyNumberKey(evt) {
+		let ASCIICode = (evt.which) ? evt.which : evt.keyCode;
+		if (ASCIICode > 31 && (ASCIICode < 48 || ASCIICode > 57))
+			return false;
+		return true;
+	}
+</script>

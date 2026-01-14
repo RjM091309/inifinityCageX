@@ -1,0 +1,63 @@
+<%- include ('../partial/header') %>
+
+<!-- Main Container -->
+<main id="main-container">
+	<div class="content">
+		<!-- Dynamic Table Responsive -->
+		<div class="block block-rounded">
+			<div class="block-header block-header-default">
+				<h3 class="block-title">
+					<small><a href="/game_list">Game List</a> / Game Record </small>
+				</h3>
+				<nav class="flex-shrink-0 my-2 my-sm-0 ms-sm-3" aria-label="breadcrumb">
+					<ol class="breadcrumb">
+						<button type="button" class="btn btn-primary" onclick="addGameRecord(<%= page_id %>)">
+							<i class="fa fa-plus" aria-hidden="true"></i> New Record
+						</button>
+					</ol>
+				</nav>
+			</div>
+			<div class="block-content block-content-full">
+
+				<h3>Game Reference: <%= reference %></h3>
+				<!-- DataTables init on table by adding .js-dataTable-responsive class, functionality is initialized in js/pages/be_tables_datatables.min.js which was auto compiled from _js/pages/be_tables_datatables.js -->
+				<table id="game_record-tbl" class="table table-bordered table-vcenter js-dataTable-responsive">
+					<thead>
+						<tr>
+							<th class="d-none d-sm-table-cell">TRADING DATE</th>
+							<th class="d-none d-sm-table-cell">BUY IN</th>
+							<th class="d-none d-sm-table-cell">CASH OUT</th>
+							<th class="d-none d-sm-table-cell">ROLLING</th>
+							<th class="d-none d-sm-table-cell">REMARKS</th>
+							<th class="text-center" style="width: 100px;">ACTION</th>
+						</tr>
+					</thead>
+					<tbody>
+					</tbody>
+				</table>
+			</div>
+		</div>
+		<!-- Dynamic Table Responsive -->
+	</div>
+	<!-- END Page Content -->
+</main>
+<!-- END Main Container -->
+
+<%- include ('../modals/game_book/new_game_record') %>
+
+<%- include ('../partial/footer') %>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+<script src="/assets/js/datatables/game_list_tables_datatables.min.js"></script>
+<script src="/assets/js/functions/game_record.js"></script>
+
+<script src="assets/js/plugins/select2/js/select2.full.min.js"></script>
+
+<script>
+	$('.js-select2').select2({
+		placeholder: 'Select an option',
+		dropdownParent: '#modal-new-game-record'
+	});
+</script>
+
+<%- include ('../partial/ending') %>

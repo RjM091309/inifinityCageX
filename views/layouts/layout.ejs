@@ -1,0 +1,34 @@
+<!-- views/layouts/layout.ejs -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>DEMO</title>
+    <!-- Ilagay dito ang global CSS, meta tags, at iba pang head elements -->
+  </head>
+  <body>
+    <!-- Header laging naka-include -->
+    <%- include('../partials/header') %>
+
+    <% 
+      var hideSidebar = typeof hideSidebar !== 'undefined' ? hideSidebar : false;
+      var hideTopbar  = typeof hideTopbar  !== 'undefined' ? hideTopbar  : false;
+      var hideFooter  = typeof hideFooter  !== 'undefined' ? hideFooter  : false;
+    %>
+
+    <% if (!hideSidebar) { %>
+      <%- include('../partials/sidebar') %>
+    <% } %>
+
+    <% if (!hideTopbar) { %>
+      <%- include('../partials/topbar') %>
+    <% } %>
+
+    <main>
+      <%- body %>
+    </main>
+
+    <% if (!hideFooter) { %>
+      <%- include('../partials/footer') %>
+    <% } %>
+  </body>
+</html>

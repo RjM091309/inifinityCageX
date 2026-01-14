@@ -1,0 +1,41 @@
+<div class="modal fade" id="modal-change_status" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+		<div class="modal-header bg-primary">
+			<h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_change_status.change_status') %></h5>
+			<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+		</div>
+		<form id="edit_status">
+		<div class="modal-body">
+			<input type="hidden" name="txtGameId" class="txtGameId" >
+			<input type="hidden" name="txtAccountCode" class="txtAccountCode" >
+			<input type="hidden" name="txtCapital" class="txtCapital">
+			<input type="hidden" name="txtFinalChips" class="txtFinalChips">
+			<input type="hidden" name="txtTotalRolling" class="txtTotalRolling">
+			<input type="hidden" name="txtWinloss" class="txtWinloss">
+			<div class="row mb-2">
+				<div class="col-sm-12">
+					<select class=" form-select" name="txtStatus" style="width: 100%;" data-placeholder="Choose a status..."
+						id="status">
+						<option selected disabled><%= __('modal_change_status.select_status_placeholder') %></option>
+						<option value="2"><%= __('modal_change_status.on_game_option') %></option>
+						<!-- <option value="3">FINISH</option> -->
+						<option value="1"><%= __('modal_change_status.end_game_option') %></option>
+					</select>
+				</div>
+			</div>
+		</div>
+		<div class="modal-footer">
+			<button type="submit" class="btn btn-sm btn-primary" id="submit-status-btn">
+				<%= __('modal_change_status.save') %>
+			</button>
+			
+			
+			<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+				<%= __('modal_change_status.close') %>
+			</button>
+		</div>
+		</div>
+	</div>
+	</form>
+	</div>

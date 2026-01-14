@@ -1,0 +1,457 @@
+.css-blue1 {
+    max-width: 100%;
+    font-family: Inter, sans-serif;
+    font-size: 0.75rem; /* Slightly smaller font */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px; /* Reduced height for a badge-like appearance */
+    cursor: pointer; /* Changed to pointer for better UX */
+    vertical-align: middle;
+    box-sizing: border-box;
+    padding: 2px 10px; /* Reduced padding for a thinner look */
+    color: var(--bs-primary);
+    background-color: var(--bs-primary-bg-subtle);
+    white-space: nowrap;
+    transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    outline: 0px;
+    text-decoration: none;
+    border-radius: 999px; /* Make it oblong */
+}
+
+.css-blue1:hover {
+    color: var(--bs-white);
+    background-color: var(--bs-primary-hover-bg);
+}
+
+.css-blue1:active {
+    background-color: var(--bs-primary-active-bg);
+}
+
+.css-blue1:disabled {
+    background-color: var(--bs-primary);
+    opacity: 0.65;
+    pointer-events: none;
+}
+
+.css-red {
+    max-width: 100%;
+    font-family: Inter, sans-serif;
+    font-size: 0.75rem; /* Slightly smaller font */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px; /* Reduced height for a badge-like appearance */
+    cursor: unset;
+    vertical-align: middle;
+    box-sizing: border-box;
+    padding: 2px 10px; /* Reduced padding for a thinner look */
+    color: rgb(255, 87, 51);
+    background-color: rgba(255, 87, 51, 0.12);
+    white-space: nowrap;
+    transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    outline: 0px;
+    text-decoration: none;
+    border-radius: 999px; /* Make it oblong */
+}
+
+.css-red1 {
+    max-width: 100%;
+    font-family: Inter, sans-serif;
+    font-size: 0.75rem; /* Slightly smaller font */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px; /* Reduced height for a badge-like appearance */
+    cursor: unset;
+    vertical-align: middle;
+    box-sizing: border-box;
+    padding: 2px 10px; /* Reduced padding for a thinner look */
+    color: rgb(135,38,75);
+    background-color: rgba(135,38,75, 0.12);
+    white-space: nowrap;
+    transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    outline: 0px;
+    text-decoration: none;
+    border-radius: 999px; /* Make it oblong */
+}
+
+.css-blue {
+    max-width: 100%;
+    font-family: Inter, sans-serif;
+    font-size: 0.75rem; /* Slightly smaller font */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px; /* Reduced height for a badge-like appearance */
+    cursor: unset;
+    vertical-align: middle;
+    box-sizing: border-box;
+    padding: 2px 10px; /* Reduced padding for a thinner look */
+    color: rgb(32, 174, 243);
+    background-color: rgba(32, 174, 243, 0.12);
+    white-space: nowrap;
+    transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    outline: 0px;
+    text-decoration: none;
+    border-radius: 999px;
+}
+
+.css-green {
+    max-width: 100%;
+    font-family: Inter, sans-serif;
+    font-size: 0.75rem; /* Slightly smaller font */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px; /* Reduced height for a badge-like appearance */
+    cursor: unset;
+    vertical-align: middle;
+    box-sizing: border-box;
+    padding: 2px 10px; /* Reduced padding for a thinner look */
+    color: rgb(255, 255, 255);
+    background-color: rgba(255, 255, 255, 0.12);
+    white-space: nowrap;
+    transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    outline: 0px;
+    text-decoration: none;
+    border-radius: 999px;
+}
+
+.css-yellow {
+    max-width: 100%;
+    font-family: Inter, sans-serif;
+    font-size: 0.75rem; /* Slightly smaller font */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px; /* Reduced height for a badge-like appearance */
+    cursor: unset;
+    vertical-align: middle;
+    box-sizing: border-box;
+    padding: 2px 10px; /* Reduced padding for a thinner look */
+    color: rgb(252, 184, 89);
+    background-color: rgba(252, 184, 89, 0.12);
+    white-space: nowrap;
+    transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    outline: 0px;
+    text-decoration: none;
+    border-radius: 999px;
+}
+
+.css-violet {
+    max-width: 100%;
+    font-family: Inter, sans-serif;
+    font-size: 0.75rem; /* Slightly smaller font */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px; /* Reduced height for a badge-like appearance */
+    cursor: unset;
+    vertical-align: middle;
+    box-sizing: border-box;
+    padding: 2px 10px; /* Reduced padding for a thinner look */
+    color: rgb(192,150,232);
+    background-color: rgba(192,150,232, 0.12);
+    white-space: nowrap;
+    transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    outline: 0px;
+    text-decoration: none;
+    border-radius: 999px;
+}
+
+.btn-alt-secondary {
+    --bs-btn-color: #212529;
+    --bs-btn-bg: #f0f1f7;
+    --bs-btn-border-color: #f0f1f7;
+    --bs-btn-hover-color: #1c1f23;
+    --bs-btn-hover-bg: #d8d9de;
+    --bs-btn-hover-border-color: #d8d9de;
+    --bs-btn-focus-shadow-rgb: 209, 210, 216;
+    --bs-btn-active-color: #000;
+    --bs-btn-active-bg: #f3f4f9;
+    --bs-btn-active-border-color: #f2f2f8;
+    --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+    --bs-btn-disabled-color: #000;
+    --bs-btn-disabled-bg: #f0f1f7;
+    --bs-btn-disabled-border-color: #f0f1f7;
+    
+    /* Shadow and animation */
+  
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-alt-secondary:hover {
+    background-color: var(--bs-btn-hover-bg);
+    color: var(--bs-btn-hover-color);
+   
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn-alt-secondary:active {
+ 
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.btn-alt-danger {
+  --bs-btn-color: #862f10;
+  --bs-btn-bg: #f7d3c6;
+  --bs-btn-border-color: #f7d3c6;
+  --bs-btn-hover-color: #5a200a;
+  --bs-btn-hover-bg: #f0a78d;
+  --bs-btn-hover-border-color: #f0a78d;
+  --bs-btn-focus-shadow-rgb: 230, 186, 171;
+  --bs-btn-active-color: #000;
+  --bs-btn-active-bg: #f9dcd1;
+  --bs-btn-active-border-color: #f8d7cc;
+  --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+  --bs-btn-disabled-color: #000;
+  --bs-btn-disabled-bg: #f7d3c6;
+  --bs-btn-disabled-border-color: #f7d3c6;
+  
+  /* Shadow and animation */
+
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-alt-danger:hover {
+  background-color: var(--bs-btn-hover-bg);
+  color: var(--bs-btn-hover-color);
+
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn-alt-danger:active {
+  
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.modal.fade .modal-dialog {
+  transform: translateX(100%);
+  opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease-out;
+}
+
+.modal.show .modal-dialog {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.modal-header {
+  background-color: #f0f1f7;
+  border-bottom: 1px solid #d8d9de;
+}
+
+.modal-header .btn-close {
+  color: #212529;
+  opacity: 0.5;
+}
+
+.modal-header .btn-close:hover {
+  color: #212529;
+  opacity: 1;
+}
+
+.modal-header .btn-close:focus {
+  box-shadow: none;
+}
+
+.modal-header .btn-close:active {
+  background-color: #f0f1f7;
+}
+.modal-content {
+  border-radius: 12px;
+}
+
+.breadcrumb1 {
+	/*centering*/
+	display: inline-block;
+	box-shadow: 0 0 15px 1px rgba(0, 0, 0, 0.25);
+	overflow: hidden;
+	border-radius: 5px;
+	/*Lets add the numbers for each link using CSS counters. flag is the name of the counter. to be defined using counter-reset in the parent element of the links*/
+	counter-reset: flag; 
+}
+
+.breadcrumb1 a {
+	text-decoration: none;
+	outline: none;
+	display: block;
+	float: left;
+	font-size: 12px;
+	line-height: 36px;
+	color: var(--bs-white);
+	/*need more margin on the left of links to accomodate the numbers*/
+	padding: 0 10px 0 60px;
+	background: var(--bs-primary-bg-subtle);
+	position: relative;
+}
+/*since the first link does not have a triangle before it we can reduce the left padding to make it look consistent with other links*/
+.breadcrumb1 a:first-child {
+	padding-left: 46px;
+	border-radius: 5px 0 0 5px; /*to match with the parent's radius*/
+}
+.breadcrumb1 a:first-child:before {
+	left: 14px;
+}
+.breadcrumb1 a:last-child {
+	border-radius: 0 5px 5px 0; /*this was to prevent glitches on hover*/
+	padding-right: 20px;
+}
+
+/*hover/active styles*/
+.breadcrumb1 a.active, .breadcrumb1 a:hover {
+  background: var(--bs-primary-hover-bg);
+  color: var(--bs-white);
+}
+
+.breadcrumb1 a.active:after, .breadcrumb1 a:hover:after {
+  background: var(--bs-primary-hover-bg);
+}
+
+/*adding the arrows for the breadcrumbs using rotated pseudo elements*/
+.breadcrumb1 a:after {
+	content: '';
+	position: absolute;
+	top: 0; 
+	right: -18px; 
+	width: 36px; 
+	height: 36px;
+  border-color: var(--bs-primary-bg-subtle);
+	transform: scale(0.707) rotate(45deg);
+	/*we need to prevent the arrows from getting buried under the next link*/
+	z-index: 1;
+	/*background same as links but the gradient will be rotated to compensate with the transform applied*/
+	box-shadow: 
+		2px -2px 0 2px rgba(var(--bs-primary-rgb), 0.4), 
+		3px -3px 0 2px rgba(255, 255, 255, 0.1);
+
+	border-radius: 0 5px 0 50px;
+}
+/*we dont need an arrow after the last link*/
+.breadcrumb1 a:last-child:after {
+	content: none;
+}
+
+.flat a, .flat a:after {
+	background: var(--bs-primary-bg-subtle);
+	color: var(--bs-primary);
+	transition: all 0.5s;
+}
+.flat a:before {
+	background: var(--bs-primary);
+	box-shadow: 0 0 0 1px #ccc;
+}
+.flat a:hover, .flat a.active, 
+.flat a:hover:after, .flat a.active:after {
+	background: var(--bs-primary-hover-bg);
+	color: var(--bs-white);
+}
+
+.flat a:active, .flat a:active:after {
+    background: var(--bs-primary-active-bg);
+}
+
+/* Color Picker Styles */
+#custom-color-picker {
+    display: inline-block;
+}
+
+#picker-container {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    width: 300px;
+}
+
+#picker-container.show {
+    display: block !important;
+}
+
+.iro__box {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+#custom-color-picker {
+    position: relative;
+}
+
+#color-picker-btn {
+    padding: 8px;
+    border: 1px solid #ddd;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+#color-picker-btn:hover {
+    background: rgba(0,0,0,0.05);
+}
+
+/* Ensure color picker components are visible */
+.iro__box, .iro__slider {
+    margin-bottom: 15px;
+}
+
+/* Style labels */
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+/* Style apply button */
+#apply-colors {
+    width: 100%;
+    padding: 8px;
+    border: none;
+    border-radius: 4px;
+    background: var(--primary-color, #0d6efd);
+    color: white;
+    cursor: pointer;
+}
+
+#apply-colors:hover {
+    opacity: 0.9;
+}
+
+.IroBox {
+    border-radius: 0.25rem;
+    overflow: hidden;
+}
+
+.IroSlider {
+    border-radius: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+/* Custom color picker button styles */
+#color-picker-btn {
+    padding: 0.375rem;
+    border: 1px solid var(--bs-border-color);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#color-picker-btn:hover {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+#color-picker-btn.active {
+    border-color: var(--bs-primary);
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+}
+
+
+
+
+

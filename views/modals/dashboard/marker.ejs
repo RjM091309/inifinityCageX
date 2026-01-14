@@ -1,0 +1,487 @@
+<div class="modal fade" id="modal-new-marker" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg2" role="document">
+        <div class="modal-content">
+        <div class="modal-header bg-primary">
+            <h5 class="modal-title text-white" id="staticBackdropLiveLabel">Credits</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="add_marker_settlement" action="/" method="POST">
+        <div class="modal-body">
+             <div id="core-container">
+                <div class="row mb-3 d-flex justify-content-center">
+                    <span class="section-header text-center"><%= __('dashboard_marker.total_credits_issue') %></span>
+                     <input  type="hidden"  id="AgentBalance" name="AgentBalance">
+                    <div class="col-sm-12 mb-3">
+                        <input type="text" class="form-control text-center" name="txtTotalMarkerIssue" id="txtTotalMarkerIssue" 
+                        value="  <%- ( (+sqlMarkerIssueGame[0].TOTAL_ISSUE_GAME || 0) +
+                        (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
+                        (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
+                        (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
+                        (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
+                        (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0) ).toLocaleString() %>" readonly/>    
+                    </div>
+                </div>
+
+                <!-- Account # -->
+                <div class="row justify-content-center mb-2">
+                    <div class="col-sm-6">
+                      
+                            <select class="form-select" name="txtAccountMarker" id="txtAccountMarker">
+                                <option value="" disabled selected><%= __('dashboard_marker.please_select') %></option>
+                                <option value="option1"><%= __('dashboard_marker.option_1') %></option>
+                                <option value="option2"><%= __('dashboard_marker.option_2') %></option>
+                            </select>
+                       
+                    </div>
+                    <div class="col-sm-6">
+                      
+                            <input type="text" class="form-control" placeholder="<%= __('dashboard_marker.credits_issue') %>" name="txtMarkerIssue" id="txtMarkerIssue" readonly />
+                           
+                      
+                    </div>
+                </div>
+                <div class="row d-flex justify-content-center mb-2">
+                    <div class="col-sm-6">
+                    
+                            <input type="text" class="form-control" placeholder="<%= __('dashboard_marker.credits_return') %>" name="txtMarkerReturn" id="txtMarkerReturn" required autocomplete="off" />
+                      
+                       
+                    </div>
+                    <div class="col-sm-6">
+                       
+                            <input type="text" class="form-control" placeholder="<%= __('dashboard_marker.balance') %>" name="txtMarkerBalance" id="txtMarkerBalance" readonly style="color: #0665d0;"/>
+                           
+                       
+                    </div>
+                </div>
+            </div>
+                
+            
+                <!-- Radio Buttons -->
+                <div class="row d-flex justify-content-center ">
+                    <div class="col-sm-3 d-flex justify-content-center">
+                        <div class="form-check">
+                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="cash" name="optTransType" value="11">
+                            <label class="form-check-label" for="cash"><%= __('dashboard_marker.cash') %></label>
+                        </div>
+                    </div>
+                    <div class="col-sm-3 d-flex justify-content-center">
+                        <div class="form-check">
+                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="deposit" name="optTransType" value="12">
+                            <label class="form-check-label" for="deposit"><%= __('dashboard_marker.deposit') %></label>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+           
+
+            <hr style="border: none; border-top: 0.2rem solid black;">
+            
+            <!-- EXPORT -->
+                    <div class="dataTables_wrapper">
+                        <div class="row mb-2">
+                            <div class="col-sm-4">
+                                <div>
+                                    <button type="button" id="export-excel" class="btn btn-sm btn-success-subtle"><%= __('dashboard_marker.export') %></button>
+                                    </div>
+                            </div>
+                        </div>
+                    </div>
+            
+            <table id="marker-tbl" class="table table-bordered table-responsive" style=" width: 100%; ">
+                <thead>
+                    <tr>
+                        <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.account_name') %></th>
+                        <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.amount') %></th>
+                        <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.transaction_type') %></th>
+                        <th class="d-none d-sm-table-cell" style="width: 200px !important;"><%= __('dashboard_marker.date') %></th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button id="submit_marker_settlement" type="submit" class="btn btn-sm btn-primary"><%= __('dashboard_marker.save') %></button>
+                    <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('dashboard_marker.close') %></button>
+        </div>
+        </div>
+        </form>
+    </div>
+    </div>
+
+    <style>
+        .modal-lg2 {
+            max-width: 45% !important;
+        }
+
+         /* Base table styles */
+  #marker-tbl {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+}
+
+/* Header styles */
+#marker-tbl thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    text-align: left;
+    border: none;
+}
+
+/* Row styles */
+#marker-tbl tbody tr {
+    border-bottom: 1px solid #eee;
+}
+
+/* Cell styles */
+#marker-tbl td {
+    padding: 12px 15px;
+    color: #666;
+}
+
+#marker-tbl tbody tr:hover {
+  background-color: #f5f5f5 !important;
+}
+
+
+
+/* Balance column */
+#marker-tbl td:last-child {
+    text-align: right;
+    color: #333;
+}
+
+
+/* Footer total row */
+
+
+#marker-tbl tfoot th {
+    padding: 10px;
+    font-weight: 600;
+    text-align: right;
+    color: #333;
+    background-color: #f4f6fa;
+    border-top: 2px solid #dee2e6;
+}
+
+#marker-tbl tfoot td {
+    padding: 15px;
+    font-weight: 600;
+    text-align: right;
+    color: var(--bs-primary);
+}
+    </style>
+
+<!--EXCEL MIN JS-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+
+
+<script>
+
+ $(document).ready(function() {
+
+   // Retrieve the permissions value from the data attribute
+   const permissions = parseInt($('#user-role').data('permissions'));
+
+// Disable the submit button if permissions are 2 for both forms
+if (permissions === 2) {
+    $('#submit_marker_settlement').prop('disabled', true); 
+    $('#export-excel').prop('disabled', true); 
+}
+
+   
+    let markerData = [];
+    
+    const table = $('#marker-tbl').DataTable({
+        "order": [[3, 'desc']], // Set the first column (index 0) to be sorted in descending order
+        ajax: {
+            url: '/marker_history', // Endpoint to fetch data
+            dataSrc: function(json) {
+                // Format the date for each entry before displaying
+                return json.map(function(row) {
+                    row.ENCODED_DT = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
+                    return row;
+                });
+            }
+        },
+        columns: [
+        {
+            data: null, // No direct data source; using render for AGENT_CODE and AGENT_NAME
+            render: function(row) {
+                return `${row.AGENT_CODE} (${row.AGENT_NAME})`;
+            }
+        },
+        {
+            data: 'AMOUNT',
+            render: function(data) {
+                return data.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); // Format with commas
+            }
+        },
+        {
+            data: 'TRANSACTION_INFO',
+            render: function(data) {
+                // Extract TRANSACTION_ID and TRANSACTION_TYPE from combined field
+                var parts = data.split('-');
+                var transactionId = parseInt(parts[0]);
+                var transactionType = parseInt(parts[1]);
+
+                switch (transactionId) {
+                    case 3:
+                    return 'Credit Cash';
+                    case 11:
+                        return 'Credit Returned thru Cash';
+                    case 12:
+                        return 'Credit Returned thru Deposit';
+                    case 10:
+                        return 'Buy-in thru Credit';
+                    default:
+                        if (transactionType === 4) {
+                            return 'Chips Return thru Credit';
+                        } else {
+                            return 'Unknown Transaction';
+                        }
+                }
+            }
+        },
+        { data: 'ENCODED_DT' } // This column will also be modified by columnDefs for the date rendering logic
+    ],
+    columnDefs: [
+        {
+            targets: 3, // Adjust this index if ENCODED_DT isn't the 4th column
+            render: function(data, type, row) {
+                if (type === 'sort') {
+                    return moment.utc(data, 'MMMM DD, YYYY HH:mm:ss').format('YYYY-MM-DD HH:mm:ss'); // Raw date for sorting
+                }
+
+                const dateMoment = moment(data, 'MMMM DD, YYYY HH:mm:ss'); // Parse with format specification
+
+                if (dateMoment.isValid()) {
+                    return dateMoment.local().format('DD MMM, YYYY HH:mm:ss'); // Localized display
+                } else {
+                    return 'Invalid Date'; // Placeholder for invalid dates
+                }
+            },
+            createdCell: function(cell, cellData, rowData, rowIndex, colIndex) {
+                $(cell).addClass('text-center'); // Apply class for styling
+            }
+        }
+    ]
+
+
+
+        // Additional options if needed
+    });
+
+    // Populate account data in the modal
+    $('#modal-new-marker').on('show.bs.modal', function() {
+        $('#txtAccountMarker').empty().append('<option value="" disabled selected><%= __("dashboard_marker.select_account") %></option>');
+
+        $.ajax({
+            url: '/marker_data',
+            method: 'GET',
+            success: function(data) {
+                markerData = data;
+                data.forEach(function(account) {
+                    $('#txtAccountMarker').append(
+                        `<option value="${account.ACCOUNT_ID}">${account.AGENT_CODE} - ${account.AGENT_NAME}</option>`
+                    );
+                });
+            },
+            error: function(err) {
+                console.error('Error fetching marker data:', err);
+            }
+        });
+    });
+
+    // Update marker issue and balance when an account is selected
+    $('#txtAccountMarker').change(function() {
+        const selectedAccountId = $(this).val();
+        const selectedAccount = markerData.find(account => account.ACCOUNT_ID == selectedAccountId);
+
+        if (selectedAccount) {
+            const totalIssue = selectedAccount.TOTAL_AMOUNT || 0; // Ensure fallback if undefined
+            $('#txtMarkerIssue').val(totalIssue.toLocaleString());
+            $('#txtMarkerBalance').val(totalIssue.toLocaleString());
+        }
+    });
+
+    // Format input with commas
+function formatWithCommas(value) {
+    // Check if the value is a valid number
+    if (isNaN(value) || value === '') {
+        return value; // Return original value if not a number
+    }
+    // Convert the value to a number and format it
+    return Number(value).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 0 });
+}
+
+// Calculate marker balance and validate the return
+$('#txtMarkerReturn').on('input', function() {
+    // Get the marker issue value
+    const markerIssue = parseFloat($('#txtMarkerIssue').val().replace(/,/g, '')) || 0;
+    
+    // Get the raw marker return value (removing commas for parsing)
+    const markerReturnRaw = $(this).val().replace(/,/g, ''); // Remove commas
+    const markerReturn = parseFloat(markerReturnRaw) || 0;
+
+    if (markerReturn > markerIssue) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Invalid Return',
+            text: 'Marker Return cannot be greater than Marker Issue!'
+        });
+        $(this).val(formatWithCommas(markerIssue)); // Set value to marker issue with formatting
+        $('#txtMarkerBalance').val(formatWithCommas(0)); // Reset balance
+    } else {
+        const balance = markerIssue - markerReturn;
+        $('#txtMarkerBalance').val(formatWithCommas(balance)); // Format balance with commas
+    }
+
+    // Format the marker return input with commas
+    $(this).val(formatWithCommas(markerReturnRaw)); // Update input with formatted value
+});
+
+// Additionally, format the initial marker return input value when it is focused out
+$('#txtMarkerReturn').on('focusout', function() {
+    const rawValue = $(this).val().replace(/,/g, ''); // Remove commas
+    $(this).val(formatWithCommas(rawValue)); // Set formatted value on focus out
+});
+
+    // Handle the form submission for marker settlement
+    $('#add_marker_settlement').on('submit', function(event) {
+        event.preventDefault();
+
+        const formData = $(this).serialize();
+
+        $.ajax({
+            url: '/add_marker_settlement',
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Marker Return Successfully!'
+                    }).then(() => {
+                        // Reset the form
+                    $('#add_marker_settlement')[0].reset(); // Reset the form
+                    $('#modal-new-marker').modal('hide'); // Hide the modal
+                    table.ajax.reload(); // Reload the DataTable
+
+                   // Add an event listener to reload the page when the modal is closed
+				   $('#modal-new-marker').on('hidden.bs.modal', function () {
+                        window.location.reload();
+                    });
+
+                    reloadData();  // Call reloadData function if needed
+                });
+                } else if (response.error === 'Insufficient balance for this deposit transaction.') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Insufficient Balance',
+                        text: response.error
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message || 'Error processing your request.'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Insufficient Balance',
+                    text: 'Insufficient balance for this deposit transaction.'
+                });
+            }
+        });
+    });
+    
+    
+         // Export to Excel function
+        $('#export-excel').on('click', function() {
+            // Get data from DataTable
+            const data = table.rows().data().toArray();
+        
+            // Prepare the worksheet
+            const wsData = [];
+            const header = ["ACCOUNT NAME", "AMOUNT", "TRANSACTION TYPE", "DATE"];
+            wsData.push(header);
+        
+            // Add each row to the worksheet data
+            data.forEach(row => {
+                const rowData = [
+                    `${row.AGENT_CODE} (${row.AGENT_NAME})`, // Combine AGENT_CODE and AGENT_NAME
+                    row.AMOUNT.toLocaleString(), // Format amount with comma separator
+                    row.TRANSACTION_ID === 11 ? 'Marker Returned Cash' :
+                    row.TRANSACTION_ID === 12 ? 'Marker Returned Deposit' :
+                    row.TRANSACTION_ID === 10 ? 'Buy-in thru Marker' : 'Chips Return thru Credit',
+                    row.ENCODED_DT
+                ];
+                wsData.push(rowData);
+            });
+        
+            // Create a new workbook and add the worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb, ws, 'Marker Data');
+        
+            // Export the workbook
+            XLSX.writeFile(wb, 'Marker_Data.xlsx');
+        });
+
+});
+
+// Trigger when account is selected from dropdown
+$('#txtAccountMarker').on('change', function () {
+    var account_id = $(this).val();  // Get the selected account ID
+
+    if (account_id) {
+        // Make an AJAX call to fetch account details
+        $.ajax({
+            url: '/account_details_data_deposit/' + account_id,  // Pass the selected account ID
+            method: 'GET',
+            success: function (data) {
+                // Initialize amounts
+                var deposit_amount = 0;
+                var withdraw_amount = 0;
+                var marker_issue_amount = 0;
+                var marker_deposit_amount = 0;
+                var marker_return = 0;
+
+                 // Iterate through data and calculate totals
+              data.forEach(function (row) {
+					const amount = parseFloat(row.AMOUNT) || 0; // Ensure numeric
+		
+					if (row.TRANSACTION === 'DEPOSIT') {
+                        deposit_amount += amount;
+                    } else if (row.TRANSACTION === 'WITHDRAW') {
+                        withdraw_amount += amount;
+                    } else if (row.TRANSACTION === 'IOU CASH') {
+                        marker_issue_amount += amount;
+                    } else if (row.TRANSACTION === 'MARKER REDEEM') {
+                        marker_deposit_amount += amount;
+                    } else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
+                    marker_return += amount;
+               		}
+				});
+		
+				const totalBalance = deposit_amount - withdraw_amount - marker_return + marker_issue_amount;
+                $('#AgentBalance').val(totalBalance);
+            },
+            error: function (xhr, status, error) {
+                console.error('Error fetching account details:', error);
+            }
+        });
+    }
+});
+
+</script>

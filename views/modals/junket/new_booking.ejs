@@ -1,0 +1,122 @@
+<div class="modal fade" id="modal-new-booking" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+    data-keyboard="false" data-backdrop="static">
+    <div class="modal-dialog modal-dialog-popout" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="block-title text-white"><%= __('modal_new_booking.add_booking') %></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <form id="add_booking_form" novalidate>
+                    <div class="block-content">
+                        <!-- Confirmation Number -->
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control" name="txtConfirmationNumber"
+                                    placeholder="<%= __('modal_new_booking.confirmation_number_placeholder') %>" required />
+                            </div>
+                        </div>
+
+                        <!-- Check-in Date -->
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <!-- Change input type to date -->
+                                <label for="checkIn" class="form-label"><%= __('modal_new_booking.check_in') %></label>
+                                <input type="date" class="form-control" name="txtCheckInDate"
+                                    placeholder="Check-in Date" />
+                            </div>
+                        </div>
+
+                        <!-- Check-out Date -->
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <!-- Change input type to date -->
+                                <label for="checkIn" class="form-label"><%= __('modal_new_booking.check_out') %></label>
+                                <input type="date" class="form-control" name="txtCheckOutDate"
+                                    placeholder="Check-out Date" />
+                            </div>
+                        </div>
+
+                        <!-- Account Number -->
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control" name="txtAccountNumber"
+                                    placeholder="<%= __('modal_new_booking.account_number_placeholder') %>" required />
+                            </div>
+                        </div>
+
+                        <!-- Guest Name -->
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control" name="txtGuestName"
+                                    placeholder="<%= __('modal_new_booking.guest_name_placeholder') %>" required />
+                            </div>
+                        </div>
+
+                        <!-- Hotel Fee -->
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control" onkeypress="return onlyNumberKey(event)"
+                                    data-type="number" name="txtHotelFee"
+                                    placeholder="<%= __('modal_new_booking.hotel_fee_placeholder') %>"
+                                    onkeypress="return onlyNumberKey(event)" required />
+                            </div>
+                        </div>
+
+                        <!-- Additional Fee (IRD) -->
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control" onkeypress="return onlyNumberKey(event)"
+                                    data-type="number" name="txtAddFee"
+                                    placeholder="<%= __('modal_new_booking.addt_l_fee_placeholder') %>"
+                                    onkeypress="return onlyNumberKey(event)" required />
+                            </div>
+                        </div>
+
+                        <!-- Total Amount -->
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control" name="txtTotalAmount"
+                                    placeholder="<%= __('modal_new_booking.total_amount_placeholder') %>"
+                                    readOnly required />
+                            </div>
+                        </div>
+
+                        <!-- Remarks -->
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <textarea class="form-control" name="txtRemarks"
+                                    placeholder="<%= __('modal_new_booking.remarks_placeholder') %>" rows="5"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <%= __('modal_new_booking.save') %>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+                            <%= __('modal_new_booking.close') %>
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Function to calculate total amount
+    function calculateTotal() {
+        const hotelFee = parseFloat($('input[name="txtHotelFee"]').val().replace(/,/g, '') || 0);
+        const addFee = parseFloat($('input[name="txtAddFee"]').val().replace(/,/g, '') || 0);
+        const totalAmount = hotelFee + addFee;
+
+        $('input[name="txtTotalAmount"]').val(totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    }
+
+    // Attach event listeners to input fields
+    $('input[name="txtHotelFee"], input[name="txtAddFee"]').on('input', calculateTotal);
+</script>

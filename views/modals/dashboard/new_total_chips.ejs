@@ -1,0 +1,263 @@
+<!-- Modal -->
+<div class="modal fade" id="modal-new-total-chips" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+    aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('dashboard_total_chips.total_chips') %></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="add_junket_total_chips" action="/add_junket_total_chips" method="POST">
+
+          <!-- NN Chips -->
+          <div class="row mb-2">
+            <div class="col-sm-12">
+              <input 
+                type="text"
+                class="form-control"
+                placeholder="<%= __('dashboard_total_chips.nn_chips') %>"
+                id="nnChips"
+                name="txtNNChips"
+                onkeypress="return onlyNumberKey(event)"
+                data-type="number"
+                autocomplete="off" 
+              />
+            </div>
+          </div>
+
+          <!-- CC Chips -->
+          <div class="row mb-2">
+            <div class="col-sm-12">
+              <input
+                type="text"
+                class="form-control"
+                placeholder="<%= __('dashboard_total_chips.cc_chips') %>"
+                id="ccChips"
+                name="txtCCChips"
+                onkeypress="return onlyNumberKey(event)"
+                data-type="number"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <!-- Total Chips (read-only) -->
+          <div class="row mb-2">
+            <div class="col-sm-12">
+              <input 
+                type="text"
+                placeholder="<%= __('dashboard_total_chips.total_chips') %>"
+                class="form-control"
+                id="totalChips"
+                name="txtTotalChips"
+                disabled
+              />
+            </div>
+          </div>
+
+          <!-- Hidden fields for balances -->
+          <input type="hidden" value="<%-  parseFloat(sqlCCChipsBuyin[0].CCChipsBuyin - sqlCCChipsReturn[0].CCChipsReturn + sqlTotalRealRolling[0].TOTAL_REAL_ROLLING + sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN - sqlCCChipsBuyinGame[0].TOTAL_CC + sqlCCBuyin[0].CCBuyin - sqlCCReturn[0].CCReturn).toLocaleString()  %>
+                                " id="ccbalance" name="txtccbalance" />
+
+                        <input type="hidden" value="<%-  parseFloat(sqlNNChipsBuyin[0].NNChipsBuyin - sqlNNChipsReturn[0].NNChipsReturn - sqlAccountNNChips[0].TOTAL_NN + sqlTotalCashOutRolling[0].TOTAL_CASHOUT - sqlTotalRealRolling[0].TOTAL_REAL_ROLLING - sqlCCChipsBuyin[0].CCChipsBuyin + sqlCCChipsReturn[0].CCChipsReturn + sqlNNBuyin[0].NNBuyin - sqlNNReturn[0].NNReturn).toLocaleString()  %>
+                                " id="nnbalance" name="txtnnbalance" />
+
+                        <input type="hidden" value="  <%-  parseFloat(sqlCashDeposit[0].CASH_DEPOSIT  - sqlCashWithdraw[0].CASH_WITHDRAW - sqlNNChipsBuyin[0].NNChipsBuyin + sqlNNChipsReturn[0].NNChipsReturn + sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER - sqlAccountSettlement[0].ACCOUNT_SETTLEMENT + sqlMArkerReturnCash[0].MARKER_RETURN_CASH -sqlAccountWithdraw[0].ACCOUNT_WITHDRAW + sqlAccountMarkerReturn[0].MARKER_RETURN - sqlJunketExpense[0].JUNKET_EXPENSE ).toLocaleString()  %>
+                                " id="cashbal" name="txtcashbal" />
+
+                        <input type="hidden" name="typedescription" id="typedescription" value="Chips Buy-in">
+
+          <!-- Radio Buttons -->
+          <div class="row mb-2 align-items-center d-flex justify-content-center">
+            <div class="col-sm-6 d-flex justify-content-center">
+              <div class="form-check">
+                <input 
+                  class="form-check-input" style="border-color: #8a92a6 !important;"
+                  type="radio"
+                  id="add"
+                  name="optBuyinReturn"
+                  value="1"
+                  onclick="updatetypeDescription()"
+                  required
+                >
+                <label class="form-check-label" for="add"><%= __('dashboard_total_chips.chips_buyin') %></label>
+              </div>
+            </div>
+            <div class="col-sm-6 d-flex justify-content-center">
+              <div class="form-check">
+                <input
+                  class="form-check-input" style="border-color: #8a92a6 !important;"
+                  type="radio"
+                  id="deduct"
+                  name="optBuyinReturn"
+                  value="2"
+                  onclick="updatetypeDescription()"
+                  required
+                >
+                <label class="form-check-label" for="deduct"><%= __('dashboard_total_chips.chips_return') %></label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer">
+            <!-- NOTE: Removed onclick from here -->
+            <button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check-circle me-1"></i>
+              <%= __('dashboard_total_chips.save') %>
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-alt-secondary"
+              data-bs-dismiss="modal"
+            >
+              <%= __('dashboard_total_chips.close') %>
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+$(document).ready(function() {
+  // 1) Permissions
+  const permissions = parseInt($('#user-role').data('permissions')) || 0;
+  if (permissions === 2) {
+    $('#add_junket_total_chips button[type="submit"]').prop('disabled', true);
+  }
+
+  // 2) Update typedescription on radio change
+  window.updatetypeDescription = function() {
+    const isBuyin = document.getElementById('add').checked;
+    document.getElementById('typedescription').value = isBuyin
+      ? '<span class="css-red">Chips Buy-in</span>'
+      : '<span class="css-red">Chips Return</span>';
+  }
+
+  // 3) Only number key
+  window.onlyNumberKey = function(evt) {
+    let charCode = (evt.which) ? evt.which : evt.keyCode;
+    if (charCode > 31 && (charCode < 48 || charCode > 57)) {
+      return false;
+    }
+    return true;
+  }
+
+  // 4) Format numbers with commas
+  window.formatNumberWithCommas = function(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  // // 5) validateChips function
+  // window.validateChips = function() {
+  //   const nnChips    = parseFloat($('#nnChips').val()) || 0;
+  //   const ccChips    = parseFloat($('#ccChips').val()) || 0;
+  //   const nnbalance  = parseFloat($('#nnbalance').val().replace(/,/g, '')) || 0;
+  //   const ccbalance  = parseFloat($('#ccbalance').val().replace(/,/g, '')) || 0;
+  //   const cashbal    = parseFloat($('#cashbal').val().replace(/,/g, '')) || 0;
+
+  //   // Check which radio is selected
+  //   const chipsBuyinSelected  = $('input[name="optBuyinReturn"]:checked').val() === "1";
+  //   const chipsReturnSelected = $('input[name="optBuyinReturn"]:checked').val() === "2";
+
+  //   // Buy-in
+  //   if (chipsBuyinSelected) {
+  //     if (nnChips > cashbal) {
+  //       Swal.fire({
+  //         icon: 'error',
+  //         title: 'Insufficient Cash Balance',
+  //         text: 'The total NN Chips cannot exceed ' + formatNumberWithCommas(cashbal) + '.'
+  //       });
+  //       return false;
+  //     }
+  //     if (ccChips > nnbalance) {
+  //       Swal.fire({
+  //         icon: 'error',
+  //         title: 'Insufficient NN Balance',
+  //         text: 'The total CC Chips cannot exceed ' + formatNumberWithCommas(nnbalance) + '.'
+  //       });
+  //       return false;
+  //     }
+  //   }
+
+  //   // Return
+  //   if (chipsReturnSelected) {
+  //     if (ccbalance <= 0 && ccChips > 0) {
+  //       Swal.fire({
+  //         icon: 'error',
+  //         title: 'Invalid Transaction',
+  //         text: 'CC Chips Return cannot proceed. Current CC balance is 0 or negative.'
+  //       });
+  //       return false;
+  //     }
+  //     if (nnbalance <= 0 && nnChips > 0) {
+  //       Swal.fire({
+  //         icon: 'error',
+  //         title: 'Invalid Transaction',
+  //         text: 'NN Chips Return cannot proceed. Current NN balance is 0 or negative.'
+  //       });
+  //       return false;
+  //     }
+  //     if (nnChips > nnbalance) {
+  //       Swal.fire({
+  //         icon: 'warning',
+  //         title: 'Exceeds NN Balance',
+  //         text: 'NN Chips cannot exceed ' + formatNumberWithCommas(nnbalance) + '.'
+  //       });
+  //       return false;
+  //     }
+  //     if (ccChips > ccbalance) {
+  //       Swal.fire({
+  //         icon: 'warning',
+  //         title: 'Exceeds CC Balance',
+  //         text: 'CC Chips cannot exceed ' + formatNumberWithCommas(ccbalance) + '.'
+  //       });
+  //       return false;
+  //     }
+  //   }
+
+  //   return true;
+  // }
+
+  // 6) Calculate total chips on input
+  window.calculateTotalChips = function() {
+    const nnChips = parseFloat($('#nnChips').val().replace(/,/g, '')) || 0;
+    const ccChips = parseFloat($('#ccChips').val().replace(/,/g, '')) || 0;
+    const totalChips = nnChips + ccChips;
+    $('#totalChips').val(totalChips.toLocaleString());
+  }
+
+  $('#nnChips').on('input', calculateTotalChips);
+  $('#ccChips').on('input', calculateTotalChips);
+
+  // 7) Spinner logic on form submit
+  $('#add_junket_total_chips').on('submit', function(e) {
+    // If validation fails, stop
+    if (!validateChips()) {
+      e.preventDefault();
+      return false;
+    }
+
+    // Show spinner
+    const $btn = $(this).find("button[type='submit']");
+    console.log("Submit button before update:", $btn);
+
+    $btn.prop('disabled', true).html(`
+      <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      Loading...
+    `);
+
+    console.log("Spinner added, waiting 1 second before submitting form");
+
+    // Delay so you can actually see the spinner
+    e.preventDefault();
+    setTimeout(() => {
+      this.submit();
+    }, 1000);
+  });
+});
+</script>

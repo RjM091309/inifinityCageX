@@ -1,0 +1,67 @@
+<div class="modal fade" id="modal-edit-concierge" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+    data-keyboard="false" data-backdrop="static">
+    <div class="modal-dialog modal-dialog-popout" role="document">
+        <div class="modal-content">
+            <div class="block block-rounded block-themed block-transparent mb-0">
+                <div class="block-header bg-primary-dark">
+                    <h3 class="block-title">Edit Concierge</h3>
+                    <div class="block-options">
+                        <button type="button" class="btn-block-option" data-bs-dismiss="modal" aria-label="Close">
+                            <i class="fa fa-fw fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <form id="edit_junket_concierge">
+                    <div class="block-content">
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <select class="select2 form-select txtCategory" id="agency" name="txtCategory" style="width: 100%;"
+                                    data-placeholder="Category">
+                                    <option>--- Category ---</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="date" class="form-control txtDateTime" name="txtDateTime"
+                                    placeholder="Date and Time" />
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control txtDescription" name="txtDescription"
+                                    placeholder="Description" />
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <select class="select2 form-select txtTransaction" id="agency" name="txtTransaction"
+                                    style="width: 100%;" data-placeholder="Transaction">
+                                    <option>--- Transaction ---</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control txtAmount" name="txtAmount" placeholder="Amount" />
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="block-content block-content-full text-end bg-body">
+                        <button type="submit" class="btn btn-sm btn-primary" data-bs-dismiss="modal">
+                            Save
+                        </button>
+                        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+                            Close
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

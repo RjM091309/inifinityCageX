@@ -1,0 +1,267 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+  <%- include('../partials/sidebar') %>
+
+    <%- include('../partials/topbar') %>
+
+	
+
+		
+				<div class="container-fluid content-inner mt-4">
+					<div class="row">
+						<div class="col-sm-12">
+							<div class="card">
+								<div id="user-role" data-permissions="<%= permissions %>"></div>
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<h3 class="card-title"><div class="breadcrumb1 flat">
+										<a href="/dashboard" ><span class="fa fa-home"></span></a>
+										<a href="#" >Accounts</a>
+										<a href="/account_ledger"class="active">Records</a>
+									</div></h3>
+								
+								</div>
+								
+								<div class="card-body">
+									<table id="account-tbl" class="table table-bordered table-responsive">
+										<thead>
+											<tr>
+												
+												<th >AGENT</th>
+												<th >ACCOUNT #</th>
+												<th >NAME</th>
+											
+												<th >TOTAL BALANCE</th>
+												<th >STATUS</th>
+												<th >ACTION</th>
+											</tr>
+										</thead>
+										<tfoot>
+											<tr>
+												<th colspan="3">GRAND TOTAL</th>
+												<th colspan="3" id="TOTAL_SUM_VALUE">0.00</th>
+											</tr>
+										</tfoot>
+									</table>
+								</div>
+								<!-- BODY END -->
+							</div>
+						</div>
+					</div>
+				</div>
+				<style>
+					.select2-container .select2-selection--single {
+				  height: calc(1.5em + 0.75rem + 2px);
+				}
+				.select2-container .select2-search--inline .select2-search__field {
+				  margin-top: 0;
+				  margin: 0.25rem 0.25rem 0.25rem 0;
+				  height: 1.375rem;
+				  line-height: 1.375rem;
+				}
+				
+				.select2-container--default .select2-selection--single {
+				  border-color: #eee;
+				
+				}
+				.select2-container--default .select2-selection--single .select2-selection__rendered {
+				  display: flex;
+				  align-items: center;
+				  padding-left: 0.75rem;
+				  height: calc(1.5em + 0.75rem + 2px);
+				  line-height: 1.5;
+				}
+				.select2-container--default .select2-selection--single .select2-selection__arrow {
+				  height: calc(1.5em + 0.75rem + 2px);
+				}
+				.select2-container--default .select2-selection--single .select2-selection__placeholder {
+				  color: #8A92A6;
+				}
+				
+				.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+				  padding-right: 0.75rem;
+				  padding-left: 0.75rem;
+				}
+				#account-tbl {
+								font-size: 12px; /* Bawasan ang laki ng font */
+								width: 100%; /* Para magkasya sa container */
+								table-layout: fixed; /* Para hindi lumagpas ang mga column */
+								word-wrap: break-word; /* Para hindi lumampas ang text */
+							}
+							
+							#account-tbl th,
+							#account-tbl td {
+								padding: 8px; /* Mas maliit na padding */
+								text-align: center; /* Center ang text */
+								white-space: nowrap; /* Para hindi mag-wrap ang text */
+								overflow: hidden;
+								text-overflow: ellipsis; /* Dagdag truncation kung may sobrang haba */
+							}
+							
+							#account-tbl th {
+								background-color: #8A92A6; /* Para may contrast */
+								font-weight: bold;
+								color: white;
+							}
+							
+							@media (max-width: 768px) {
+										#account-tbl {
+									font-size: 10px; /* Mas maliit sa mobile */
+								}
+							
+								#account-tbl th,
+								#account-tbl td {
+									padding: 5px;
+								}
+							}
+							/* Itago ang text na "Show" at "entries" sa DataTables */
+							.dataTables_length label {
+								font-size: 0; /* Itatago ang text */
+							}
+							
+							/* Panatilihin ang dropdown na nakikita */
+							.dataTables_length select {
+								font-size: 12px; /* Ibalik ang font size ng dropdown */
+							}
+							
+							
+							
+								/* Adjust spacing and alignment for date range picker */
+							.dataTables_wrapper .row {
+								margin-bottom: 15px;
+								font-size: 12px; /* Pareho sa commission-tbl */
+							}
+							
+							/* Flexbox layout for the date range picker */
+							.input-daterange {
+								display: flex;
+								justify-content: space-between;
+								position: relative;
+								left: 7.5rem;
+								top: 4rem;
+								max-width: 300px;
+								font-size: 12px; /* Pareho sa commission-tbl */
+							}
+							
+							/* Styling for form controls */
+							.input-daterange .form-control {
+								flex: 1;
+								margin-right: 5px;
+								max-width: 120px;
+								font-size: 12px; /* Pareho sa commission-tbl */
+								padding: 8px; /* Pareho sa cell padding ng table */
+							}
+							
+							/* Remove margin from the last input */
+							.input-daterange .form-control:last-child {
+								margin-right: 0;
+							}
+							
+							/* Responsive tweaks */
+							@media (max-width: 768px) {
+								.dataTables_wrapper .row,
+								.input-daterange,
+								.input-daterange .form-control {
+									font-size: 10px; /* Mas maliit sa mobile */
+								}
+							
+								.input-daterange .form-control {
+									padding: 5px; /* Mas maliit na padding */
+								}
+							}
+				
+						</style>
+			<%- include ('../modals/accounts/new_account') %>
+				<%- include ('../modals/accounts/edit_account') %>
+					<%- include ('../modals/accounts/account_details'); %>
+						<%- include ('../modals/accounts/add_account_details'); %>
+							<%- include ('../modals/accounts/transfer_account'); %>
+
+								<%- include ('../partials/footer'); -%>
+
+								
+
+									
+									<script src="/assets/js/functions/account.js"></script>
+									
+
+							
+									<script>
+										$(document).ready(function () {
+											function initializeDataTable() {
+												if ($.fn.DataTable.isDataTable('#account-tbl')) {
+													$('#account-tbl').DataTable().destroy();
+												}
+
+												$('#account-tbl').DataTable({
+													"ajax": {
+														"url": "/account_data",
+														"dataSrc": function (json) {
+															console.log("Data received from server:", json);
+															return json;
+														}
+													},
+													"columns": [
+														{ "data": "agency_name" },
+														{ "data": "agent_code" },
+														{ "data": "agent_name" },
+														{ "data": "total_ledger_amount" },
+														{ "data": "account_id" },
+														{ "data": "AGENT_ID" }
+													],
+													"drawCallback": function () {
+														calculateTotal();
+													}
+												});
+											}
+
+											initializeDataTable();
+
+											function calculateTotal() {
+												var totalAmount = 0;
+
+												var table = $('#account-tbl').DataTable();
+												table.rows({ search: 'applied' }).every(function () {
+													var data = this.data();
+													console.log("Processing object:", data);
+
+													// Support object- or array-based rows
+													var value = data.total_balance ?? data.total_ledger_amount ?? data[3] ?? 0;
+
+													// Clean and parse the amount value
+													var cleanedValue = value.toString().replace(/[^0-9.-]/g, '');
+													var numericValue = parseFloat(cleanedValue);
+
+													if (!isNaN(numericValue)) {
+														totalAmount += numericValue;
+													}
+												});
+
+												// Format the totalAmount with comma separators and include the ₱ symbol
+												var formattedTotal = '₱' + totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+												// Update the content of the th element
+												$('#account-tbl tfoot #TOTAL_SUM_VALUE').text(formattedTotal);
+												console.log("Total amount:", formattedTotal);
+											}
+
+											$('#account-tbl').on('search.dt', function () {
+												console.log("Search event triggered");
+												calculateTotal();
+											});
+
+											$('#account-tbl').on('draw.dt', function () {
+												console.log("Draw event triggered");
+												calculateTotal();
+											});
+										});
+
+										$('.js-select2').select2({
+											placeholder: 'Select an option',
+											dropdownParent: '#modal-transfer_account'
+										});
+
+										$('.js-select2').select2({
+											placeholder: 'Select an option',
+											dropdownParent: '#modal-add-account-details'
+										});
+									</script>

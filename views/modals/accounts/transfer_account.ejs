@@ -1,0 +1,97 @@
+
+
+<div class="modal fade" id="modal-transfer_account" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered" role="document">">
+		<div class="modal-content">
+		<div class="modal-header bg-primary">
+			<h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_transfer_account.transfer_account') %> <span id="account_name_transfer"></span></h5>
+			<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+		</div>
+
+		<div class="row mb-2">
+			<div class="col-sm-12">
+				<table id="#dataTable" class="table table-bordered table-vcenter">
+					<thead>
+						<tr>
+							<!-- <th class="text-center" style="width: 150px;">TOTAL DEPOSIT</th>
+							<th class="text-center" style="width: 150px;">TOTAL WITHDRAW</th> -->
+							<th class="text-center" style="width: 150px; font-size: 15px;"><%= __('modal_transfer_account.total_balance') %></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<!-- <td class="fw-bold text-end"><span class="total_deposit"></span></td>
+							<td class="fw-bold text-end"><span class="total_withdraw"></span></td> -->
+							<td class="fw-bold text-end text-center"><span class="total_balance" style="width: 150px; font-size: 15px;"></span></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<form id="add_transfer_account">
+			<input type="hidden" id="account_id_add_trans" name="txtAccountId">
+			
+			<input type="hidden" id="TransferToBalance" name="txtTransferToBalance">
+			<input type="hidden" id="TransferFromBalance" name="txtTransferFromBalance">
+		<div class="modal-body">
+			<div class="mb-3">
+				<select class="js-select2 form-select" id="txtAccount" name="txtAccount" style="width: 100%;"
+					data-placeholder="<%= __('modal_transfer_account.choose_account_placeholder') %>" required>
+					<option></option>
+				</select>
+			</div>
+			<div class="row mb-2">
+				<div class="col-sm-12">
+					<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+						class="form-control txtAmount" name="txtAmount" placeholder="<%= __('modal_transfer_account.amount') %>" required>
+				</div>
+			</div>
+		</div>
+		<div class="modal-footer">
+			<button type="submit" class="btn btn-sm btn-primary"><%= __('modal_transfer_account.save') %></button>
+			<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_transfer_account.close') %></button>
+		</div>
+		</div>
+		</form>
+	</div>
+	</div>
+
+	<style>
+		.select2-container .select2-selection--single {
+			height: calc(1.5em + 0.75rem + 2px);
+		}
+
+		.select2-container .select2-search--inline .select2-search__field {
+			margin-top: 0;
+			margin: 0.25rem 0.25rem 0.25rem 0;
+			height: 1.375rem;
+			line-height: 1.375rem;
+		}
+
+		.select2-container--default .select2-selection--single {
+			border-color: #eee;
+
+		}
+
+		.select2-container--default .select2-selection--single .select2-selection__rendered {
+			display: flex;
+			align-items: center;
+			padding-left: 0.75rem;
+			height: calc(1.5em + 0.75rem + 2px);
+			line-height: 1.5;
+		}
+
+		.select2-container--default .select2-selection--single .select2-selection__arrow {
+			height: calc(1.5em + 0.75rem + 2px);
+		}
+
+		.select2-container--default .select2-selection--single .select2-selection__placeholder {
+			color: #8A92A6;
+		}
+
+		.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+			padding-right: 0.75rem;
+			padding-left: 0.75rem;
+		}
+	</style>

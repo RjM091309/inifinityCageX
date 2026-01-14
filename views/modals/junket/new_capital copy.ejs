@@ -1,0 +1,207 @@
+
+<!-- Flatpickr CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+<!-- Flatpickr JS -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+
+<div class="modal fade" id="modal-new-capital" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+	data-keyboard="false" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+		<div class="modal-content">
+			<div class="block block-rounded block-themed block-transparent mb-0">
+				<div class="loading-overlay" style="display: none;">
+                    <div class="progress-container">
+                        <div class="progress-bar"></div>
+                        <p>Loading, please wait...</p>
+                    </div>
+                </div>
+				<div class="block-header bg-primary-dark">
+					<h3 class="block-title">House Balance</h3>
+					<div class="block-options">
+						<button type="button" class="btn-block-option" data-bs-dismiss="modal" aria-label="Close">
+							<i class="fa fa-fw fa-times"></i>
+						</button>
+					</div>
+				</div>
+				<style>
+					
+
+					.modal-lg {
+						max-width: 50% !important; /* Adjust percentage as needed */
+						}
+				</style>
+				<form id="add_junket_capital" action="/add_junket_capital" method="POST">
+					<div class="block-content">
+						
+						
+						<div id="core-container"> 
+					<div class="row mb-3">
+                            <div class="form-group col-sm-4 ms-3">
+                                <label class="legend-top">
+                                    <input type="text" placeholder=" " id="txtAmount" name="txtAmount" required 
+									onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
+                                    <span>Cash Balance Amount</span>
+                                </label>
+                            </div>
+							
+							<div class="form-group col-sm-4 ms-3">
+								<label class="legend-top">
+									<input type="text" id="daterange" class="custom-daterange" placeholder=" " autocomplete="off"/>
+									<span>Select Date Range</span>
+								</label>
+							</div>
+							
+						<style>
+							/* Custom styling for the date range picker */
+.custom-daterange {
+    border: 1px solid transparent; /* Remove visible border */
+    outline: none; /* Remove focus outline */
+    box-shadow: none; /* Remove any shadow */
+    border-radius: 4px; /* Optional: adjust border radius */
+}
+
+/* Remove border when input is focused */
+.custom-daterange:focus {
+    border: 1px solid transparent; /* Ensure no border on focus */
+    box-shadow: none; /* Remove focus shadow */
+}
+
+/* Optional: Add placeholder styling */
+.custom-daterange::placeholder {
+    color: #aaa; /* Lighter placeholder text */
+    font-style: italic; /* Optional styling */
+}
+
+						</style>
+							<div class="col-sm-12">
+								<textarea class="form-control" name="Remarks" placeholder="Remarks" cols="10" rows="2"></textarea>
+							</div>
+						</div>
+                    </div>
+
+					<div class="row mb-2 align-items-center">
+						<div class="col-sm-3">
+							<div class="form-check">
+								<input class="form-check-input" type="radio" id="deposit" name="optWithdrawDeposit" value="1" onclick="updateDescription()" required>
+								<label class="form-check-label ms-2" for="deposit">Cash-in</label>
+							</div>
+						</div>
+						<div class="col-sm-3">
+							<div class="form-check">
+								<input class="form-check-input" type="radio" id="withdraw" name="optWithdrawDeposit" value="2" onclick="updateDescription()" required>
+								<label class="form-check-label ms-2" for="withdraw">Cash-out</label>
+							</div>
+						</div>
+						<div class="col-sm-6 text-end "> <!-- Added margin-top for spacing -->
+							<button type="submit" class="btn btn-sm btn-primary">Save</button>
+						</div>
+					</div>
+			
+					
+					<input type="hidden" value="  <%-  parseFloat(sqlCashDeposit[0].CASH_DEPOSIT + sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT  - sqlCashWithdraw[0].CASH_WITHDRAW - sqlNNChipsBuyin[0].NNChipsBuyin + sqlNNChipsReturn[0].NNChipsReturn + sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER - sqlAccountSettlement[0].ACCOUNT_SETTLEMENT + sqlMArkerReturnCash[0].MARKER_RETURN_CASH - sqlAccountDeduct[0].ACCOUNT_DEDUCT + sqlAccountMarkerReturn[0].MARKER_RETURN - sqlJunketExpense[0].JUNKET_EXPENSE + sqlNNChipsBuyinCashDeposit[0].NN_CHIPS_BUYIN_CASH_DEPOSIT + sqlCCChipsBuyinCashDeposit[0].CC_CHIPS_BUYIN_CASH_DEPOSIT - sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD - sqlTotalCashOut[0].TOTAL_CASHOUT + sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT + sqlAccountTransfer[0].ACCOUNT_TRANSFER).toLocaleString()  %>" id="cashbal" name="txtcashbal"/>
+							
+						<input type="hidden" name="description" id="description" value="Cash-in">
+						
+						
+						<hr style="border: none; border-top: 0.2rem solid black;">
+
+						<table id="capital-tbl" class="table table-bordered table-vcenter js-dataTable-responsive" style="font-size: 13px !important;">
+							<thead>
+								<tr>
+									<th class="d-none d-sm-table-cell">ENCODED BY</th>
+									<th class="d-none d-sm-table-cell">AMOUNT</th>
+									<th class="d-none d-sm-table-cell">TYPE</th>
+									<th class="d-none d-sm-table-cell">REMARKS</th>
+									<th class="d-none d-sm-table-cell">DATE</th>
+									<th class="d-none d-sm-table-cell">ACTION</th>
+								</tr>
+							</thead>
+							<tbody>
+							</tbody>
+						</table>
+					</div>
+					<div class="block-content block-content-full text-end bg-body">
+						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+					</div>
+				</form>
+				<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+			</div>
+		</div>
+	</div>
+</div>
+<script>
+	
+
+	$(document).ready(function() {
+    // Retrieve the permissions value from the data attribute
+    const permissions = parseInt($('#user-role').data('permissions'));
+
+    // Disable the submit button if permissions are 2
+    if (permissions === 2) {
+        $('#add_junket_capital button[type="submit"]').prop('disabled', true);
+    }
+
+    $('#add_junket_capital').on('submit', function(e) {
+        // Retrieve the values of txtAmount and cashbal
+        const txtAmount = parseFloat($('#txtAmount').val().replace(/,/g, '')) || 0;
+        const cashbal = parseFloat($('#cashbal').val().replace(/,/g, '')) || 0; // Parse cash balance to float
+
+        function formatNumberWithCommas(x) {
+            return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // Check if Cash-out is selected
+        const isCashOutSelected = document.querySelector('input[name="optWithdrawDeposit"]:checked').value === "2";
+
+        // Validate if the withdrawal amount exceeds the cash balance
+        if (isCashOutSelected && txtAmount > cashbal) {
+            e.preventDefault(); // Prevent form submission
+            Swal.fire({
+                icon: 'error',
+                title: 'Insufficient Balance',
+                text: 'The amount exceeds the available cash balance of ' + formatNumberWithCommas(cashbal) + '.',
+                confirmButtonText: 'OK'
+            });
+            return false; // Block form submission
+        }
+
+        // If validation passes, the form will be submitted normally without AJAX
+    });
+});
+
+
+
+
+	function updateDescription() {
+	  const isCashIn = document.getElementById('deposit').checked;
+	  document.getElementById('description').value = isCashIn ? 
+	  '<span class="css-blue">Cash-in</span>' 
+	  : '<span class="css-blue">Cash-out</span>';
+	}
+</script>
+
+
+<script>
+	$(document).ready(function () {
+  $("input[data-type='number']").keyup(function (event) {
+    // skip for arrow keys
+    if (event.which >= 37 && event.which <= 40) {
+      event.preventDefault();
+    }
+    var $this = $(this);
+    var num = $this.val().replace(/,/gi, "");
+    var num2 = num.split(/(?=(?:\d{3})+$)/).join(",");
+    $this.val(num2);
+  });
+})
+
+function onlyNumberKey(evt) {
+
+  let ASCIICode = (evt.which) ? evt.which : evt.keyCode
+  if (ASCIICode > 31 && (ASCIICode < 48 || ASCIICode > 57))
+    return false;
+  return true;
+}
+</script>

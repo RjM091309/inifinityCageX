@@ -1,0 +1,272 @@
+<div class="modal fade" id="modal-new-game-list" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+        <div class="modal-header bg-primary">
+            <h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_new_game_list.new_game') %></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="add_game_list">
+        <div class="modal-body">
+            <h6 class="counter d-none" id="availableNN">₱ <%- ( 
+                (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
+                (+sqlNNChipsReturn[0].NNChipsReturn || 0) -
+                (+sqlAccountNNChips[0].TOTAL_NN || 0) +
+                (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
+                (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
+                (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
+                (+sqlCCChipsReturn[0].CCChipsReturn || 0) +
+                (+sqlNNBuyin[0].NNBuyin || 0) -
+                (+sqlNNReturn[0].NNReturn || 0)
+            ).toLocaleString() %></h6>
+            <h6 id="availableCC" class="counter d-none">₱ <%- (
+                (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
+                (+sqlCCChipsReturn[0].CCChipsReturn || 0) +
+                (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
+                (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
+                (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) +
+                (+sqlCCBuyin[0].CCBuyin || 0) -
+                (+sqlCCReturn[0].CCReturn || 0)
+             ).toLocaleString() %></h6>
+             
+          
+                <!-- Total Balance Display -->
+                <div class="row mb-2">
+                    <div class="col-sm-12">
+                        <input type="hidden" id="total_balanceGuest1" placeholder="Total Balance" name="totalBalanceGuest1" readonly/>
+                        <input type="text" class="form-control text-center" id="total_balanceGuestGameList" placeholder="Total Balance" readonly/>
+                    </div>
+                </div>
+           
+              <div class="row mb-3">
+                  <div class="col-sm-12">
+                      <div class="d-flex align-items-center">
+                          <label class="me-4"><strong><%= __('modal_new_game_list.game_type') %></strong></label>
+                          <div class="form-check me-4">
+                              <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="live" name="txtGameType" value="LIVE" required>
+                              <label class="form-check-label" for="live"><%= __('modal_new_game_list.live') %></label>
+                          </div>
+                          <div class="form-check">
+                              <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="telebet" name="txtGameType" value="TELEBET" required>
+                              <label class="form-check-label" for="telebet"><%= __('modal_new_game_list.telebet') %></label>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="row mb-3">
+                  <div class="col-sm-12">
+                      <select class="js-select2 form-select" id="txtTrans" name="txtAccountCode" style="width: 100%;" data-placeholder="<%= __('modal_new_game_list.choose_account_placeholder') %>" required>
+                      </select>
+                  </div>
+              </div>
+
+              <div class="row mb-2">
+                  <div class="col-sm-6">
+                      <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtNN" id="txtNN" placeholder="<%= __('modal_new_game_list.nn_placeholder') %>" />
+                  </div>
+                  <div class="col-sm-6">
+                      <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtCC" id="txtCC" placeholder="<%= __('modal_new_game_list.cc_placeholder') %>" />
+                  </div>
+              </div>
+
+              <hr style="border: 1px solid">
+              <div class="row mb-2">
+                  <div class="col-sm-12">
+                      <div class="row mb-2">
+                          <div class="col-sm-4">
+                              <div class="form-check">
+                                  <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash_game" name="txtTransType" >
+                                  <label class="form-check-label" for="cash_game"><%= __('modal_new_game_list.cash_game') %></label>
+                              </div>
+                          </div>
+                          <div class="col-sm-4">
+                              <div class="form-check">
+                                  <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="deposit_game" name="txtTransType" >
+                                  <label class="form-check-label" for="deposit_game"><%= __('modal_new_game_list.deposit_game') %></label>
+                              </div>
+                          </div>
+                          <div class="col-sm-4">
+                              <div class="form-check">
+                                  <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="marker_game" name="txtTransType" >
+                                  <label class="form-check-label" for="marker_game"><%= __('modal_new_game_list.marker_game') %></label>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <hr style="border: 1px solid">
+              <div class="row mb-2">
+                  <div class="col-sm-5">
+                      <select class="form-select" name="txtCommisionType" id="commissionType" style="width: 100%;" required>
+                          <option value="" disabled selected><%= __('modal_new_game_list.select_game') %></option>
+                          <option value="1"><%= __('modal_new_game_list.rolling_game') %></option>
+                          <option value="2"><%= __('modal_new_game_list.shared_game') %></option>
+                          <option value="3"><%= __('modal_new_game_list.loosing_game') %></option>
+                      </select>
+                  </div>
+
+                  <div class="col-sm-3">
+                      <input type="number" class="form-control" step="0.1" min="0" max="100" name="txtCommisionRate" id="commissionRate" placeholder="%" />
+                  </div>
+              </div>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" id="submit-game-list-btn" class="btn btn-sm btn-primary"><%= __('modal_new_game_list.save') %></button>
+            <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_new_game_list.close') %></button>
+        </div>
+        </div>
+    </form>
+    </div>
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+    const txtNN = document.getElementById("txtNN");
+    const availableNN = document.getElementById("availableNN");
+
+    function getAvailableChips() {
+        if (!availableNN) return 0;
+        const raw = availableNN.innerText.replace(/[^0-9.-]+/g, ''); // Remove ₱ and commas
+        return parseFloat(raw) || 0;
+    }
+
+    txtNN.addEventListener("input", function () {
+        const inputVal = parseFloat(this.value.replace(/,/g, "")) || 0;
+        const available = getAvailableChips();
+
+        if (inputVal > available) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Exceeds Available NN Chips',
+                text: `You only have ${available.toLocaleString()} Chips available.`,
+                confirmButtonColor: '#3a57e8'
+            });
+
+            this.value = ""; // clear input
+            this.focus();
+        }
+    });
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+    const txtCC = document.getElementById("txtCC");
+    const availableCC = document.getElementById("availableCC");
+
+    function getAvailableCCChips() {
+        if (!availableCC) return 0;
+        const raw = availableCC.innerText.replace(/[^0-9.-]+/g, ''); // Remove ₱ and commas
+        return parseFloat(raw) || 0;
+    }
+
+    txtCC.addEventListener("input", function () {
+        const inputVal = parseFloat(this.value.replace(/,/g, "")) || 0;
+        const available = getAvailableCCChips();
+
+        if (inputVal > available) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Exceeds Available CC Chips',
+                text: `You only have ${available.toLocaleString()} Chips available.`,
+                confirmButtonColor: '#3a57e8'
+            });
+
+            this.value = ""; // clear the input
+            this.focus();
+        }
+    });
+});
+    
+document.addEventListener('DOMContentLoaded', function () {
+    const commissionType = document.getElementById('commissionType');
+    const commissionRate = document.getElementById('commissionRate');
+    const form = document.getElementById('add_game_list');
+
+    // Set default commission rates
+    let defaultRollingGameRate = 1.4;  // Default for Rolling Game (CASH/DEPOSIT)
+    let defaultSharedGameRate = 45;    // Default for Shared Game (CASH/DEPOSIT and Marker)
+    let defaultMarkerRollingRate = 0;  // Default for Rolling Game (Marker)
+
+    // Initialize commission rate based on selected commission type
+    const setCommissionRate = () => {
+        const selectedTransaction = document.querySelector('input[name="txtTransType"]:checked').value;
+
+        // Handle different commission type logic based on transaction
+        if (commissionType.value === "1") { // Rolling Game
+            if (selectedTransaction === "3") { // Marker selected
+                commissionRate.value = defaultMarkerRollingRate; // Set to 0% for Marker
+                commissionRate.setAttribute("min", "0"); // Minimum 0% for Marker
+            } else {
+                commissionRate.value = defaultRollingGameRate; // Default 1.5% for CASH/DEPOSIT
+                commissionRate.setAttribute("min", "0"); // Minimum 1.4% for Rolling Game (CASH/DEPOSIT)
+            }
+        } else if (commissionType.value === "2") { // Shared Game
+            commissionRate.value = defaultSharedGameRate; // Default 45% for both CASH/DEPOSIT and Marker
+            commissionRate.setAttribute("min", "45"); // Minimum 45% for Shared Game
+        }
+    };
+
+    // Listen to commission type changes (Rolling, Shared, etc.)
+    if (commissionType && commissionRate) {
+        commissionType.addEventListener('change', function () {
+            setCommissionRate();
+        });
+    }
+
+    // Listen to transaction type changes (CASH/DEPOSIT or MARKER)
+    const transactionTypeRadios = document.querySelectorAll('input[name="txtTransType"]');
+    transactionTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function () {
+            setCommissionRate();
+        });
+    });
+
+    // Event listener for keydown (Arrow Up & Arrow Down for Shared Game)
+    commissionRate.addEventListener('keydown', function (event) {
+        if (commissionType.value === "2") { // Only apply to Shared Game
+            if (event.key === "ArrowUp") { // Increment by 2.5% with Arrow Up
+                event.preventDefault();
+                incrementSharedGameRate();
+            } else if (event.key === "ArrowDown") { // Decrement by 2.5% with Arrow Down
+                event.preventDefault();
+                decrementSharedGameRate();
+            }
+        }
+    });
+
+    // Function to increment Shared Game commission rate by 2.5%
+    const incrementSharedGameRate = () => {
+        let currentRate = parseFloat(commissionRate.value);
+        let newRate = currentRate + 2.5;
+        if (newRate <= 100) { // Limit to max 100%
+            commissionRate.value = newRate.toFixed(1);
+        }
+    };
+
+    // Function to decrement Shared Game commission rate by 2.5%
+    const decrementSharedGameRate = () => {
+        let currentRate = parseFloat(commissionRate.value);
+        let newRate = currentRate - 2.5;
+        if (newRate >= 45) { // Limit to min 45%
+            commissionRate.value = newRate.toFixed(1);
+        }
+    };
+
+    // Handle form submission (if needed)
+    form.addEventListener('submit', function (event) {
+        event.preventDefault(); // Prevent default form submission
+        // Perform your submit logic here, e.g., using AJAX
+        // Swal.fire('Game added successfully!'); // Show success message
+        // Close the modal if needed
+        // $('#modal-new-game-list').modal('hide'); // Uncomment if using Bootstrap modal
+    });
+});
+
+
+</script>
+
+
+

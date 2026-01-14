@@ -1,0 +1,424 @@
+<%- include('../partials/header') %>
+<%- include ('../partials/sidebar'); -%>
+<%- include ('../partials/topbar'); -%>
+
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!--DATEPICKER-->
+  <link href="assets/libs/bootstrap-datepicker/css/bootstrap-datepicker.min.css" rel="stylesheet">
+
+
+     
+    
+			<div id="user-role" data-permissions="<%= permissions %>"></div>
+			<div class="conatiner-fluid content-inner mt-n5 py-0">
+				<div class="row">
+					<div class="col-sm-12">
+						<div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                  <h3 class="card-title">
+                    <div class="breadcrumb1 flat">
+                      <a href="/dashboard"><span class="fa fa-home"></span></a>
+                      <a href="/game_statistic">Statistics</a>
+                      <a href="/game_statistic" class="active">Game</a>
+                      
+                    </div>
+                    <button class="btn btn-primary " data-bs-toggle="modal" data-bs-target="#modal-stats">
+                      <i class="fa fa-plus" aria-hidden="true"></i>Create
+                    </button>
+                  </h3>
+              </div>
+      <div class="card-body">
+          <div class="tab-pane active p-3" id="home2" role="tabpanel">
+        
+              <table id="game_statistic-tbl" class="table table-responsive" style="width: 100%;">
+                <thead>
+                  <!-- Ito ang GRAND TOTAL row nasa THEAD, hindi TFOOT -->
+                  <tr id="grand_total_game_statistic-tbl" style="background-color: #f7f8fb;">
+                    <th style="width: 170px;">GRAND TOTAL</th>
+                    <th class="d-none d-sm-table-cell text-center" style="width: 125px;" id="GRAND_TOTAL_AMOUNT">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" style="width: 155px;" id="GRAND_TOTAL_ROLLING">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" style="width: 140px;" id="GRAND_TOTAL_CHIPS_RETURN">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" style="width: 185px;" id="GRAND_TOTAL_WIN_LOSS">0.00</th>
+                    <th style="width: 150px;"></th>
+                    <th class="d-none d-sm-table-cell text-center" style="width: 100px;" id="GRAND_TOTAL_NGR">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" style="width: 97px;" id="GRAND_TOTAL_RTP">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" style="width: 90px;" id="GRAND_TOTAL_RM">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" style="width: 145px;" id="GRAND_TOTAL_EXPENSE">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="GRAND_TOTAL_PROFIT">0.00</th>
+                  </tr>
+                  <!-- Normal header row -->
+                  <tr>
+                    <th class="d-none d-sm-table-cell text-center">GAME TYPE</th>
+                    <th class="d-none d-sm-table-cell text-center">BUY-IN</th>
+                    <th class="d-none d-sm-table-cell text-center">WIN/LOSS</th>
+                    <th class="d-none d-sm-table-cell text-center">ROLLING</th>
+                    <th class="d-none d-sm-table-cell text-center">COMMISSION</th>
+                    <th class="d-none d-sm-table-cell text-center" style="width: 50px !important;">HOUSE SHARE(%)</th>
+                    <th class="d-none d-sm-table-cell text-center">NGR</th>
+                    <th class="d-none d-sm-table-cell text-center">RTP</th>
+                    <th class="d-none d-sm-table-cell text-center">RM</th>
+                    <th class="d-none d-sm-table-cell text-center">EXPENSE</th>
+                    <th class="d-none d-sm-table-cell text-center">PROFIT</th>
+                  </tr>
+                </thead>
+                <tbody class="text-center">
+                  <!-- Data will be populated here -->
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th>SUB TOTAL</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_TOTAL1_AMOUNT">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_TOTAL1_ROLLING">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_TOTAL1_CHIPS_RETURN">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_TOTAL1_WIN_LOSS">0.00</th>
+                    <th></th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_TOTAL1_NGR">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_TOTAL1_RTP">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_TOTAL1_RM">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_TOTAL1_EXPENSE">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_TOTAL1_PROFIT">0.00</th>
+                  </tr>
+                </tfoot>
+              </table>
+            
+
+
+              <!-- TABLE 2 -->
+              <table id="game_stats-tbl" class="table table-responsive" style="width: 100%;">
+                <thead>
+                  <tr>
+                    <th class="d-none d-sm-table-cell text-center">GAME TYPE</th>
+                    <th class="d-none d-sm-table-cell text-center">BUY-IN</th>
+                    <th class="d-none d-sm-table-cell text-center">WIN/LOSS</th>
+                    <th class="d-none d-sm-table-cell text-center">ROLLING</th>
+                    <th class="d-none d-sm-table-cell text-center">COMMISSION</th>
+                    <th class="d-none d-sm-table-cell text-center" style="width: 50px !important;">HOUSE SHARE(%)</th>
+                    <th class="d-none d-sm-table-cell text-center">NGR</th>
+                    <th class="d-none d-sm-table-cell text-center">RTP</th>
+                    <th class="d-none d-sm-table-cell text-center">RM</th>
+                    <th class="d-none d-sm-table-cell text-center">EXPENSE</th>
+                    <th class="d-none d-sm-table-cell text-center">PROFIT</th>
+                    <th class="d-none d-sm-table-cell text-center">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody class="text-center">
+                  <!-- Data will be populated here -->
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th>SUB TOTAL</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_TOTAL_AMOUNT">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_TOTAL_ROLLING">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_CHIPS_RETURN">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_WIN_LOSS">0.00</th>
+                    <th></th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_NGR">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_RTP">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_RM">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_EXPENSE">0.00</th>
+                    <th class="d-none d-sm-table-cell text-center" id="SUB_PROFIT">0.00</th>
+                    <th></th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <%- include ('add_house_share') %>
+    <%- include ('../partials/footer'); -%>
+    <%- include ('../modals/statistics/game_stats'); -%>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="/assets/js/datatables/game_list_tables_datatables.min.js"></script>
+    <script src="/assets/js/functions/game_stats.js"></script>
+    <script src="assets/libs/bootstrap-datepicker/js/bootstrap-datepicker.min.js"></script>
+
+    <script>
+      $(document).ready(function() {
+        function initializeDataTable() {
+          if (!$.fn.DataTable.isDataTable('#game_statistic-tbl')) {
+            $('#game_statistic-tbl').DataTable();
+          }
+          if (!$.fn.DataTable.isDataTable('#game_stats-tbl')) {
+            $('#game_stats-tbl').DataTable();
+          }
+        }
+
+        initializeDataTable();
+
+        // Tawagin agad pag na-initialize na ang tables,
+        // para magpakita ng tamang GRAND TOTAL kahit walang search/draw event.
+        calculateGameStatsTotal();
+
+        // ---------------------------------------------------------
+        // Gamitin ang function para i-calculate ang subtotals at grand total
+        // ---------------------------------------------------------
+        function calculateGameStatsTotal() {
+          // Initialize totals
+          var totalAmount = 0;
+          var totalRolling = 0;
+          var totalChipsReturn = 0;
+          var totalWinLoss = 0;
+          var totalNGR = 0;
+          var totalRTP = 0;
+          var totalRM = 0;
+          var totalExpense = 0;
+          var totalProfit = 0;
+
+          var total1Amount = 0;
+          var total1Rolling = 0;
+          var total1ChipsReturn = 0;
+          var total1WinLoss = 0;
+          var total1NGR = 0;
+          var total1RTP = 0;
+          var total1RM = 0;
+          var total1Expense = 0;
+          var total1Profit = 0;
+
+          // =========== Table #2 (game_stats-tbl) =============
+          var table2 = $('#game_stats-tbl').DataTable();
+          table2.rows({ search: 'applied' }).every(function() {
+            var data = this.data();
+            totalAmount     += parseFloat(data[1].replace(/,/g, '')) || 0;
+            totalRolling    += parseFloat(data[2].replace(/,/g, '')) || 0;
+            totalChipsReturn+= parseFloat(data[3].replace(/,/g, '')) || 0;
+            totalWinLoss    += parseFloat(data[4].replace(/,/g, '')) || 0;
+            totalNGR        += parseFloat(data[6].replace(/,/g, '')) || 0;
+            totalRTP        += parseFloat(data[7].replace(/,/g, '')) || 0;
+            totalRM         += parseFloat(data[8].replace(/,/g, '')) || 0;
+            totalExpense    += parseFloat(data[9].replace(/,/g, '')) || 0;
+            totalProfit     += parseFloat(data[10].replace(/,/g, '')) || 0;
+          });
+
+          // Update subtotal for game_stats-tbl
+          $('#game_stats-tbl tfoot #SUB_TOTAL_AMOUNT').text(totalAmount.toLocaleString('en-US'));
+          $('#game_stats-tbl tfoot #SUB_TOTAL_ROLLING').text(totalRolling.toLocaleString('en-US'));
+          $('#game_stats-tbl tfoot #SUB_CHIPS_RETURN').text(totalChipsReturn.toLocaleString('en-US'));
+          $('#game_stats-tbl tfoot #SUB_WIN_LOSS').text(totalWinLoss.toLocaleString('en-US'));
+          $('#game_stats-tbl tfoot #SUB_NGR').text(totalNGR.toLocaleString('en-US'));
+          $('#game_stats-tbl tfoot #SUB_RTP').text(totalRTP.toLocaleString('en-US'));
+          $('#game_stats-tbl tfoot #SUB_RM').text(totalRM.toLocaleString('en-US'));
+          $('#game_stats-tbl tfoot #SUB_EXPENSE').text(totalExpense.toLocaleString('en-US'));
+          $('#game_stats-tbl tfoot #SUB_PROFIT').text(totalProfit.toLocaleString('en-US'));
+
+          // =========== Table #1 (game_statistic-tbl) =============
+          var table1 = $('#game_statistic-tbl').DataTable();
+          table1.rows({ search: 'applied' }).every(function() {
+            var data = this.data();
+            total1Amount      += parseFloat(data[1].replace(/,/g, '')) || 0;
+            total1Rolling     += parseFloat(data[2].replace(/,/g, '')) || 0;
+            total1ChipsReturn += parseFloat(data[3].replace(/,/g, '')) || 0;
+            total1WinLoss     += parseFloat(data[4].replace(/,/g, '')) || 0;
+            total1NGR         += parseFloat(data[6].replace(/,/g, '')) || 0;
+            total1RTP         += parseFloat(data[7].replace(/,/g, '')) || 0;
+            total1RM          += parseFloat(data[8].replace(/,/g, '')) || 0;
+            total1Expense     += parseFloat(data[9].replace(/,/g, '')) || 0;
+            total1Profit      += parseFloat(data[10].replace(/,/g, '')) || 0;
+          });
+
+          // Update subtotal for game_statistic-tbl
+          $('#game_statistic-tbl tfoot #SUB_TOTAL1_AMOUNT').text(total1Amount.toLocaleString('en-US'));
+          $('#game_statistic-tbl tfoot #SUB_TOTAL1_ROLLING').text(total1Rolling.toLocaleString('en-US'));
+          $('#game_statistic-tbl tfoot #SUB_TOTAL1_CHIPS_RETURN').text(total1ChipsReturn.toLocaleString('en-US'));
+          $('#game_statistic-tbl tfoot #SUB_TOTAL1_WIN_LOSS').text(total1WinLoss.toLocaleString('en-US'));
+          $('#game_statistic-tbl tfoot #SUB_TOTAL1_NGR').text(total1NGR.toLocaleString('en-US'));
+          $('#game_statistic-tbl tfoot #SUB_TOTAL1_RTP').text(total1RTP.toLocaleString('en-US'));
+          $('#game_statistic-tbl tfoot #SUB_TOTAL1_RM').text(total1RM.toLocaleString('en-US'));
+          $('#game_statistic-tbl tfoot #SUB_TOTAL1_EXPENSE').text(total1Expense.toLocaleString('en-US'));
+          $('#game_statistic-tbl tfoot #SUB_TOTAL1_PROFIT').text(total1Profit.toLocaleString('en-US'));
+
+          // =========== Calculate GRAND TOTAL ===========
+          calculateGrandTotal(
+            totalAmount, total1Amount,
+            totalRolling, total1Rolling,
+            totalChipsReturn, total1ChipsReturn,
+            totalWinLoss, total1WinLoss,
+            totalNGR, total1NGR,
+            totalRTP, total1RTP,
+            totalRM, total1RM,
+            totalExpense, total1Expense,
+            totalProfit, total1Profit
+          );
+        }
+
+        // ---------------------------------------------------------
+        // Pag-compute at display ng GRAND TOTAL (nasa THEAD)
+        // ---------------------------------------------------------
+        function calculateGrandTotal(
+          totalAmount, total1Amount,
+          totalRolling, total1Rolling,
+          totalChipsReturn, total1ChipsReturn,
+          totalWinLoss, total1WinLoss,
+          totalNGR, total1NGR,
+          totalRTP, total1RTP,
+          totalRM, total1RM,
+          totalExpense, total1Expense,
+          totalProfit, total1Profit
+        ) {
+          // Compute
+          var grandTotalAmount      = totalAmount + total1Amount;
+          var grandTotalRolling     = totalRolling + total1Rolling;
+          var grandTotalChipsReturn = totalChipsReturn + total1ChipsReturn;
+          var grandTotalWinLoss     = totalWinLoss + total1WinLoss;
+          var grandTotalNGR         = totalNGR + total1NGR;
+          var grandTotalRTP         = totalRTP + total1RTP;
+          var grandTotalRM          = totalRM + total1RM;
+          var grandTotalExpense     = totalExpense + total1Expense;
+          var grandTotalProfit      = totalProfit + total1Profit;
+
+          // **Note**: Nasa THEAD ang "grand_total_game_statistic-tbl", kaya alisin ang `tfoot`.
+          $('#grand_total_game_statistic-tbl #GRAND_TOTAL_AMOUNT').text(grandTotalAmount.toLocaleString('en-US'));
+          $('#grand_total_game_statistic-tbl #GRAND_TOTAL_ROLLING').text(grandTotalRolling.toLocaleString('en-US'));
+          $('#grand_total_game_statistic-tbl #GRAND_TOTAL_CHIPS_RETURN').text(grandTotalChipsReturn.toLocaleString('en-US'));
+          $('#grand_total_game_statistic-tbl #GRAND_TOTAL_WIN_LOSS').text(grandTotalWinLoss.toLocaleString('en-US'));
+          $('#grand_total_game_statistic-tbl #GRAND_TOTAL_NGR').text(grandTotalNGR.toLocaleString('en-US'));
+          $('#grand_total_game_statistic-tbl #GRAND_TOTAL_RTP').text(grandTotalRTP.toLocaleString('en-US'));
+          $('#grand_total_game_statistic-tbl #GRAND_TOTAL_RM').text(grandTotalRM.toLocaleString('en-US'));
+          $('#grand_total_game_statistic-tbl #GRAND_TOTAL_EXPENSE').text(grandTotalExpense.toLocaleString('en-US'));
+          $('#grand_total_game_statistic-tbl #GRAND_TOTAL_PROFIT').text(grandTotalProfit.toLocaleString('en-US'));
+        }
+
+        // Recompute totals pag may search o draw event
+        $('#game_statistic-tbl').on('search.dt draw.dt', function () {
+          calculateGameStatsTotal();
+        });
+
+        // Permissions logic
+        const permissions = parseInt($('#user-role').data('permissions'));
+        if (permissions === 2) {
+          $('.wrap .button').prop('disabled', true);
+        } else {
+          $('.wrap .button').prop('disabled', false);
+        }
+      });
+    </script>
+
+    <style>
+      #game_statistic-tbl {
+								font-size: 12px; /* Bawasan ang laki ng font */
+								width: 100%; /* Para magkasya sa container */
+								table-layout: fixed; /* Para hindi lumagpas ang mga column */
+								word-wrap: break-word; /* Para hindi lumampas ang text */
+							}
+							
+							#game_statistic-tbl th,
+							#game_statistic-tbl td {
+								padding: 8px; /* Mas maliit na padding */
+								text-align: center; /* Center ang text */
+								white-space: nowrap; /* Para hindi mag-wrap ang text */
+								overflow: hidden;
+								text-overflow: ellipsis; /* Dagdag truncation kung may sobrang haba */
+							}
+							
+							#game_statistic-tbl th {
+								background-color: #8A92A6; /* Para may contrast */
+								font-weight: bold;
+								color: white;
+							}
+							
+							@media (max-width: 768px) {
+										#game_statistic-tbl {
+									font-size: 10px; /* Mas maliit sa mobile */
+								}
+							
+								#game_statistic-tbl th,
+								#game_statistic-tbl td {
+									padding: 5px;
+								}
+							}
+
+
+              #game_stats-tbll {
+								font-size: 12px; /* Bawasan ang laki ng font */
+								width: 100%; /* Para magkasya sa container */
+								table-layout: fixed; /* Para hindi lumagpas ang mga column */
+								word-wrap: break-word; /* Para hindi lumampas ang text */
+							}
+							
+							#game_stats-tbl th,
+							#game_stats-tbl td {
+								padding: 8px; /* Mas maliit na padding */
+								text-align: center; /* Center ang text */
+								white-space: nowrap; /* Para hindi mag-wrap ang text */
+								overflow: hidden;
+								text-overflow: ellipsis; /* Dagdag truncation kung may sobrang haba */
+							}
+							
+							#game_stats-tbl th {
+								background-color: #8A92A6; /* Para may contrast */
+								font-weight: bold;
+								color: white;
+							}
+							
+							@media (max-width: 768px) {
+										#game_stats-tbl {
+									font-size: 10px; /* Mas maliit sa mobile */
+								}
+							
+								#game_stats-tbl th,
+								#game_stats-tbl td {
+									padding: 5px;
+								}
+							}
+							/* Itago ang text na "Show" at "entries" sa DataTables */
+							.dataTables_length label {
+								font-size: 0; /* Itatago ang text */
+							}
+							
+							/* Panatilihin ang dropdown na nakikita */
+							.dataTables_length select {
+								font-size: 12px; /* Ibalik ang font size ng dropdown */
+							}
+							
+							
+							
+								/* Adjust spacing and alignment for date range picker */
+							.dataTables_wrapper .row {
+								margin-bottom: 15px;
+								font-size: 12px; /* Pareho sa commission-tbl */
+							}
+							
+							/* Flexbox layout for the date range picker */
+							.input-daterange {
+								display: flex;
+								justify-content: space-between;
+								position: relative;
+								left: 7.5rem;
+								top: 4rem;
+								max-width: 300px;
+								font-size: 12px; /* Pareho sa commission-tbl */
+							}
+							
+							/* Styling for form controls */
+							.input-daterange .form-control {
+								flex: 1;
+								margin-right: 5px;
+								max-width: 120px;
+								font-size: 12px; /* Pareho sa commission-tbl */
+								padding: 8px; /* Pareho sa cell padding ng table */
+							}
+							
+							/* Remove margin from the last input */
+							.input-daterange .form-control:last-child {
+								margin-right: 0;
+							}
+							
+							/* Responsive tweaks */
+							@media (max-width: 768px) {
+								.dataTables_wrapper .row,
+								.input-daterange,
+								.input-daterange .form-control {
+									font-size: 10px; /* Mas maliit sa mobile */
+								}
+							
+								.input-daterange .form-control {
+									padding: 5px; /* Mas maliit na padding */
+								}
+							}
+    </style>
+

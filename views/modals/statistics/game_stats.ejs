@@ -1,0 +1,53 @@
+<div class="modal fade" id="modal-stats" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title" id="staticBackdropLiveLabel">CREATE</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="add_stats"  method="POST">
+        <div class="modal-body">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th class="text-center">GAME TYPE</th>
+                        <th class="text-center">BUY-IN</th>
+                        <th class="text-center">WIN/LOSS</th>
+                        <th class="text-center">ROLLING</th>
+                        <th class="text-center">COMMISSION</th>
+                        <th class="text-center">HOUSE SHARE(%)</th>
+                        
+                        <th class="text-center">EXPENSE</th>
+                       
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><input type="text" class="form-control" name="game_type" required></td>
+                        <td><input type="text" class="form-control" name="buy_in" required></td>
+                        <td><input type="text" class="form-control" name="win_loss" required></td>
+                        <td><input type="text" class="form-control" name="rolling" required></td>
+                        <td><input type="text" class="form-control" name="commission" required></td>
+                        <td><input type="text" class="form-control" name="house_share" required></td>
+                       
+                        <td><input type="text" class="form-control" name="expense" required></td> 
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-sm btn-primary">Save</button>
+            <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+        </div>
+        </form>
+    </div>
+    </div>
+
+    <style>
+        .modal-lg {
+            max-width: 70%; /* Adjust the width as needed */
+            width: auto; /* Optional: let it auto adjust */
+            margin: auto; /* Center the modal */
+        }
+    </style>

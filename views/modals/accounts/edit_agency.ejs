@@ -1,0 +1,36 @@
+<div class="modal fade" id="modal-edit-agency" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+	data-keyboard="false" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+
+			<div class="modal-header bg-primary">
+				<h5 class="block-title text-white"><%= __('modal_edit_agency.edit_agency') %></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+				</button>
+			</div>
+
+			<div class="modal-body">
+				<form id="edit_agency">
+					<div class="block-content">
+						<div class="row mb-2">
+							<div class="col-sm-12 mb-2">
+								<input type="text" class="form-control" name="txtAgency"
+									placeholder="<%= __('modal_edit_agency.agency_name_placeholder') %>" id="agency"
+									required>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="submit" class="btn btn-sm btn-primary">
+							<%= __('modal_edit_agency.save') %>
+						</button>
+						<button type="button" class="btn btn-sm btn-alt-secondary"
+							data-bs-dismiss="modal">
+							<%= __('modal_edit_agency.close') %>
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>

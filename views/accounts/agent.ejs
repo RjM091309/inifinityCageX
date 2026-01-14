@@ -1,0 +1,225 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+  <%- include('../partials/sidebar') %>
+
+    <%- include('../partials/topbar') %>
+
+  
+
+  
+        <div class="container-fluid content-inner mt-4">
+          <div class="row">
+            <div class="col-sm-12">
+              <div class="card">
+                <div id="user-role" data-permissions="<%= permissions %>"></div>
+                <div class="card-header d-flex justify-content-between align-items-center">
+					<h3 class="card-title"><div class="breadcrumb1 flat">
+						<a href="/dashboard" ><span class="fa fa-home"></span></a>
+						<a href="#" ><%= __('agent.accounts') %></a>
+						<a href="/account_ledger"class="active"><%= __('agent.guests') %></a>
+					</div></h3>
+                  <!-- <button class="btn btn-primary" onclick="addAgent()">
+                    <i class="fa fa-plus"></i> <%= __('agent.new_guest') %>
+                  </button> -->
+                </div>
+
+                <div class="card-body">
+                               
+                  <table id="agent-tbl"  class="table  nowrap small-text" style="width:100%">
+
+                    <thead>
+                      <tr>
+                        <th ><%= __('agent.name') %></th>
+                        <th ><%= __('agent.account_no') %></th>
+                        <th ><%= __('agent.agent') %></th>
+                         <th ><%= __('agent.contact_no') %></th>
+                        <th ><%= __('agent.telegram_chat_id') %></th>
+                        <th ><%= __('agent.remarks') %></th>
+                        <th >LATEST GAME</th>
+                        <th ><%= __('agent.status') %></th>
+                        <th ><%= __('agent.action') %></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <style>
+	.select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 2px);
+}
+.select2-container .select2-search--inline .select2-search__field {
+  margin-top: 0;
+  margin: 0.25rem 0.25rem 0.25rem 0;
+  height: 1.375rem;
+  line-height: 1.375rem;
+}
+
+.select2-container--default .select2-selection--single {
+  border-color: #eee;
+
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  display: flex;
+  align-items: center;
+  padding-left: 0.75rem;
+  height: calc(1.5em + 0.75rem + 2px);
+  line-height: 1.5;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: calc(1.5em + 0.75rem + 2px);
+}
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+  color: #8A92A6;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+}
+.card-body {
+  overflow-x: auto;
+}
+#agent-tbl {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+}
+
+/* Header styles */
+#agent-tbl thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    text-align: left;
+    border: none;
+}
+
+/* Row styles */
+#agent-tbl tbody tr {
+    border-bottom: 1px solid #eee;
+}
+
+/* Cell styles */
+    #agent-tbl td {
+    padding: 12px 15px;
+    color: #666;
+}
+
+#agent-tbl tbody tr:hover {
+  background-color: #f5f5f5 !important;
+}
+
+
+
+/* Balance column */
+#agent-tbl td:last-child {
+    text-align: right;
+    color: #333;
+}
+
+
+/* Footer total row */
+
+
+#agent-tbl tfoot th {
+    padding: 10px;
+    font-weight: 600;
+   
+    color: #333;
+    background-color: #f4f6fa;
+    border-top: 2px solid #dee2e6;
+}
+
+            
+            @media (max-width: 768px) {
+                #agent-tbl {
+                    font-size: 10px; /* Mas maliit sa mobile */
+                }
+            
+                #expense-tbl th,
+                #expense-tbl td {
+                    padding: 5px;
+                }
+            }
+							/* Itago ang text na "Show" at "entries" sa DataTables */
+							.dataTables_length label {
+								font-size: 0; /* Itatago ang text */
+							}
+							
+							/* Panatilihin ang dropdown na nakikita */
+							.dataTables_length select {
+								font-size: 12px; /* Ibalik ang font size ng dropdown */
+							}
+							
+							
+							
+								/* Adjust spacing and alignment for date range picker */
+							.dataTables_wrapper .row {
+								margin-bottom: 15px;
+								font-size: 12px; /* Pareho sa commission-tbl */
+							}
+							
+							/* Flexbox layout for the date range picker */
+							.input-daterange {
+								display: flex;
+								justify-content: space-between;
+								position: relative;
+								left: 7.5rem;
+								top: 4rem;
+								max-width: 300px;
+								font-size: 12px; /* Pareho sa commission-tbl */
+							}
+							
+							/* Styling for form controls */
+							.input-daterange .form-control {
+								flex: 1;
+								margin-right: 5px;
+								max-width: 120px;
+								font-size: 12px; /* Pareho sa commission-tbl */
+								padding: 8px; /* Pareho sa cell padding ng table */
+							}
+							
+							/* Remove margin from the last input */
+							.input-daterange .form-control:last-child {
+								margin-right: 0;
+							}
+							
+							/* Responsive tweaks */
+							@media (max-width: 768px) {
+								.dataTables_wrapper .row,
+								.input-daterange,
+								.input-daterange .form-control {
+									font-size: 10px; /* Mas maliit sa mobile */
+								}
+							
+								.input-daterange .form-control {
+									padding: 5px; /* Mas maliit na padding */
+								}
+							}
+        </style>
+
+
+
+      <%- include('../partials/footer') %>
+      <%- include ('../modals/accounts/new_agent') %>
+      <%- include ('../modals/accounts/edit_agent') %>
+      <%- include ('../modals/accounts/account_details') %>
+      <%- include ('../modals/accounts/transfer_account') %>
+
+        <script src="/assets/js/functions/agent.js"></script>
+        <script src="/assets/js/functions/account.js"></script>
+        <script>
+          $('.js-select2').select2({
+            dropdownParent: '#modal-new-agent'
+          });
+    
+          $('.edit_agency').select2({
+            dropdownParent: '#modal-edit-agent'
+          });
+        </script>

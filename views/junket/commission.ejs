@@ -1,0 +1,365 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include ('../partials/sidebar'); -%>
+<%- include ('../partials/topbar'); -%>
+
+
+  <!-- Include jQuery -->
+ 
+<!-- Main Container -->		
+	<div class="container-fluid content-inner mt-4">
+		<div class="row">
+			<div class="col-sm-12">
+				<div class="card">
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<h3 class="card-title">
+							<div class="breadcrumb1 flat">
+							<a href="/dashboard" ><span class="fa fa-home"></span></a>
+							<a href="#" ><%= __('commission.junket') %></a>
+							<a href="/commission"class="active"><%= __('commission.commission') %></a>
+							</div>
+						</h3>
+						
+					</div>
+					<!-- DATE FILTER -->
+					<div class="dataTables_wrapper">
+						<div class="row mb-2">
+							<div class="col-sm-4">
+								<input type="text" id="daterange" class="input-daterange input-group" placeholder="Select Date Range" autocomplete="off"/>
+							</div>
+						</div>
+					</div>
+							<div class="card-body">
+								<!-- DataTables init on table by adding .js-dataTable-responsive class, functionality is initialized in js/pages/be_tables_datatables.min.js which was auto compiled from _js/pages/be_tables_datatables.js -->
+								<table id="commission-tbl" class="table  nowrap small-text" style="width:100%">
+									<thead>
+										<tr>
+										<th class="d-none d-sm-table-cell" style="width: 75px;"><%= __('commission.game_no') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('commission.account_name') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('commission.total_buyin') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('commission.chips_return') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('commission.win_loss') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('commission.total_rolling') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('commission.rolling_rate') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('commission.settlement') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('commission.fb') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('commission.payment') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('commission.date_time') %></th>
+										</tr>
+									</thead>
+									<tbody>
+									</tbody>
+									<tfoot>
+										<tr>
+										<th colspan="2"><%= __('commission.grand_total') %></th>
+										<th id="GRAND_TOTAL_AMOUNT">0.00</th>
+										<th id="GRAND_CHIPS_RETURN">0.00</th>
+										<th id="GRAND_WIN_LOSS">0.00</th>
+										<th id="GRAND_TOTAL_ROLLING">0.00</th>
+										<th></th>
+										<th id="GRAND_ROLLING_SETTLEMENT">0.00</th>
+										<th id="GRAND_FNB">0.00</th>
+										<th id="GRAND_PAYMENT">0.00</th>
+										<th></th>
+										</tr>
+									</tfoot>
+								</table>
+								
+							</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+		<script>
+			$(document).ready(function() {
+				function initializeDataTable() {
+					if ($.fn.DataTable.isDataTable('#commission-tbl')) {
+						$('#commission-tbl').DataTable().destroy();
+					}
+
+					$('#commission-tbl').DataTable({
+						"ajax": {
+							"url": "/commission_data",
+							"dataSrc": function (json) {
+								console.log("Data received from server:", json);
+								return json.data || []; // Default to empty array if no data
+							}
+						},
+						"columns": [
+							{ "data": "game_no" },
+							{ "data": "account_name" },
+							{ "data": "total_buy_in" },
+							{ "data": "chips_return" },
+							{ "data": "win_loss" },
+							{ "data": "total_rolling" },
+							{ "data": "rolling_rate" },
+							{ "data": "rolling_settlement" },
+							{ "data": "fnb" },
+							{ "data": "payment" },
+							{ "data": "date_time" } // Changed to match your column name
+						],
+						"drawCallback": function() {
+							calculateTotal();
+						}
+					});
+				}
+
+				initializeDataTable();
+
+				// Set default "From" date to the 1st day of the current month
+					var currentDate = new Date();
+					var firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+					var today = new Date();
+
+					// Function to format the date as 'dd Mmmm yyyy' (e.g., '01 Sept 2024')
+					var formatDate = function (date) {
+						var day = ("0" + date.getDate()).slice(-2); // Add leading zero for day
+						var monthNames = ["Jan,", "Feb,", "Mar,", "Apr,", "May,", "Jun,", "Jul,", "Aug,", "Sep,", "Oct,", "Nov,", "Dec,"];
+						var month = monthNames[date.getMonth()]; // Get the abbreviated month name
+						var year = date.getFullYear();
+						return day + ' ' + month + ' ' + year;
+					};
+
+					// Set default values for date inputs
+					$('#from-date').val(formatDate(firstDayOfMonth)); // 1st of the current month
+					$('#to-date').val(formatDate(today)); // Today's date
+
+					// Custom filtering function for date range
+					$.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+						var minDate = $('#from-date').val() ? new Date($('#from-date').val()) : null;
+						var maxDate = $('#to-date').val() ? new Date($('#to-date').val()) : null;
+						var dateTime = new Date(data[10]); // Column index for "DATE & TIME"
+
+						// Strip time from the date by setting time to midnight
+						if (minDate !== null) {
+							minDate.setHours(0, 0, 0, 0);
+						}
+						if (maxDate !== null) {
+							maxDate.setHours(23, 59, 59, 999); // Include the whole day for "To" date
+						}
+						dateTime.setHours(0, 0, 0, 0); // Ignore time for dateTime as well
+
+						// Apply filtering logic
+						if ((minDate === null && maxDate === null) ||
+							(minDate === null && dateTime <= maxDate) ||
+							(minDate <= dateTime && maxDate === null) ||
+							(minDate <= dateTime && dateTime <= maxDate)) {
+							return true;
+						}
+						return false;
+					});
+
+					// Redraw DataTable when the date inputs change
+					$('#from-date, #to-date').change(function () {
+						$('#commission-tbl').DataTable().draw();
+					});
+
+					// Trigger the initial draw on page load
+					$('#commission-tbl').DataTable().draw();
+
+				function calculateTotal() {
+					var totalBuyIn = 0;
+					var totalChipsReturn = 0;
+					var totalWinLoss = 0;
+					var totalRolling = 0;
+					var totalRollingSettlement = 0;
+					var totalFnb = 0;
+					var totalPayment = 0;
+
+					var table = $('#commission-tbl').DataTable();
+					table.rows({ search: 'applied' }).every(function() {
+						var data = this.data();
+						console.log("Processing object:", data);
+
+						// Adjust these indices based on your columns configuration
+						var buyInIndex = 2;
+						var chipsReturnIndex = 3;
+						var winLossIndex = 4;
+						var rollingIndex = 5;
+						var rollingSettlementIndex = 7;
+						var fnbIndex = 8;
+						var paymentIndex = 9;
+
+						var buyInValue = data[buyInIndex] || '0';
+						var chipsReturnValue = data[chipsReturnIndex] || '0';
+						var winLossValue = data[winLossIndex] || '0';
+						var rollingValue = data[rollingIndex] || '0';
+						var rollingSettlementValue = data[rollingSettlementIndex] || '0';
+						var fnbValue = data[fnbIndex] || '0';
+						var paymentValue = data[paymentIndex] || '0';
+
+						// Remove HTML tags and clean values
+						var cleanedBuyInValue = parseFloat(buyInValue.replace(/[^0-9.-]/g, '')) || 0;
+						var cleanedChipsReturnValue = parseFloat(chipsReturnValue.replace(/[^0-9.-]/g, '')) || 0;
+						var cleanedWinLossValue = parseFloat(winLossValue.replace(/[^0-9.-]/g, '')) || 0;
+						var cleanedRollingValue = parseFloat(rollingValue.replace(/[^0-9.-]/g, '')) || 0;
+						var cleanedRollingSettlementValue = parseFloat(rollingSettlementValue.replace(/[^0-9.-]/g, '')) || 0;
+						var cleanedFnbValue = parseFloat(fnbValue.replace(/[^0-9.-]/g, '')) || 0;
+						var cleanedPaymentValue = parseFloat(paymentValue.replace(/[^0-9.-]/g, '')) || 0;
+
+						totalBuyIn += cleanedBuyInValue;
+						totalChipsReturn += cleanedChipsReturnValue;
+						totalWinLoss += cleanedWinLossValue;
+						totalRolling += cleanedRollingValue;
+						totalRollingSettlement += cleanedRollingSettlementValue;
+						totalFnb += cleanedFnbValue;
+						totalPayment += cleanedPaymentValue;
+					});
+
+					// Format numbers with commas
+					function formatNumber(num) {
+						return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+					}
+
+					// Update the footer
+					$('#GRAND_TOTAL_AMOUNT').text(formatNumber(totalBuyIn));
+					$('#GRAND_CHIPS_RETURN').text(formatNumber(totalChipsReturn));
+					$('#GRAND_WIN_LOSS').text(formatNumber(totalWinLoss));
+					$('#GRAND_TOTAL_ROLLING').text(formatNumber(totalRolling));
+					$('#GRAND_ROLLING_SETTLEMENT').text(formatNumber(totalRollingSettlement));
+					$('#GRAND_FNB').text(formatNumber(totalFnb));
+					$('#GRAND_PAYMENT').text(formatNumber(totalPayment));
+				}
+
+				// Attach events to recalculate totals on search and draw
+				$('#commission-tbl').on('draw.dt', function () {
+					calculateTotal();
+				});
+			});
+
+		</script>
+
+		<%- include ('../modals/junket/edit_commission') %>
+
+		<%- include ('../partials/footer'); -%>
+
+		<script src="/assets/js/functions/commission.js"></script>
+		
+		
+		
+		<style>
+.card-body {
+  overflow-x: auto;
+}
+
+
+ /* Base table styles */
+ #commission-tbl {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+}
+
+/* Header styles */
+#commission-tbl thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    text-align: left;
+    border: none;
+}
+
+/* Row styles */
+#commission-tbl tbody tr {
+    border-bottom: 1px solid #eee;
+}
+
+/* Cell styles */
+#commission-tbl td {
+    padding: 12px 15px;
+    color: #666;
+}
+
+#commission-tbl tbody tr:hover {
+  background-color: #f5f5f5 !important;
+}
+
+
+
+/* Balance column */
+#commission-tbl td:last-child {
+    text-align: right;
+    color: #333;
+}
+
+
+/* Footer total row */
+
+
+#commission-tbl tfoot th {
+    padding: 10px;
+    font-weight: 600;
+  
+    color: #333;
+    background-color: #f4f6fa;
+    border-top: 2px solid #dee2e6;
+}
+@media (max-width: 768px) {
+    #commission-tbl {
+        font-size: 10px; /* Mas maliit sa mobile */
+    }
+
+    #commission-tbl th,
+    #commission-tbl td {
+        padding: 5px;
+    }
+}
+/* Itago ang text na "Show" at "entries" sa DataTables */
+.dataTables_length label {
+    font-size: 0; /* Itatago ang text */
+}
+
+/* Panatilihin ang dropdown na nakikita */
+.dataTables_length select {
+    font-size: 12px; /* Ibalik ang font size ng dropdown */
+}
+
+
+
+	/* Adjust spacing and alignment for date range picker */
+.dataTables_wrapper .row {
+    margin-bottom: 15px;
+    font-size: 12px; /* Pareho sa commission-tbl */
+}
+
+/* Flexbox layout for the date range picker */
+.input-daterange {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    left: 7.5rem;
+    top: 4rem;
+    max-width: 300px;
+    font-size: 12px; /* Pareho sa commission-tbl */
+}
+
+/* Styling for form controls */
+.input-daterange .form-control {
+    flex: 1;
+    margin-right: 5px;
+    max-width: 120px;
+    font-size: 12px; /* Pareho sa commission-tbl */
+    padding: 8px; /* Pareho sa cell padding ng table */
+}
+
+/* Remove margin from the last input */
+.input-daterange .form-control:last-child {
+    margin-right: 0;
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+    .dataTables_wrapper .row,
+    .input-daterange,
+    .input-daterange .form-control {
+        font-size: 10px; /* Mas maliit sa mobile */
+    }
+
+    .input-daterange .form-control {
+        padding: 5px; /* Mas maliit na padding */
+    }
+}
+
+		 </style>

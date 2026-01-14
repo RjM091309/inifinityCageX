@@ -1,0 +1,27 @@
+/* Common in-range styling */
+.flatpickr-day.inRange,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+  background: var(--bs-primary-bg-subtle) !important;
+  border-color: var(--bs-primary-bg-subtle) !important;
+  color: var(--bs-primary) !important;
+}
+
+/* Remove the border radius of the middle days */
+.flatpickr-day.inRange {
+  box-shadow: -5px 0 0 var(--bs-primary-bg-subtle), 5px 0 0 var(--bs-primary-bg-subtle);
+  border-radius: 0 !important;
+}
+
+/* Round the start and end of the range */
+.flatpickr-day.startRange {
+  border-top-left-radius: 50% !important;
+  border-bottom-left-radius: 50% !important;
+  box-shadow: 5px 0 0 var(--bs-primary-bg-subtle) !important;
+}
+
+.flatpickr-day.endRange {
+  border-top-right-radius: 50% !important;
+  border-bottom-right-radius: 50% !important;
+  box-shadow: -5px 0 0 var(--bs-primary-bg-subtle) !important;
+}

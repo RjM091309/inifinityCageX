@@ -1,0 +1,380 @@
+<%- include ('partials/header_html'); -%>
+
+<head>
+	<%- include ('partials/title_meta'); -%>
+
+	<%- include ('partials/header_css'); -%>
+</head>
+
+<body>
+	<div id="page-container"
+		class="sidebar-o sidebar-scroll page-header-dark enable-page-overlay side-scroll page-header-fixed">
+
+		<%- include ('partials/sidebar'); -%>
+		<%- include ('partials/topbar'); -%>
+
+		<!-- Main Container -->
+		<main id="main-container">
+			<!-- Page Content -->
+			<div class="content">
+				<!-- Bank Accounts -->
+				<div class="row">
+					<div class="col-lg-12">
+						<!-- Bank Account #2 -->
+						<a class="block block-rounded block-link-shadow" href="javascript:void(0)">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<!-- <div class="ribbon-box">0.00</div> -->
+								<div class="row block-content">
+									<div class="col-lg-3 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Working Chip</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+									<div class="col-lg-3 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Balance Discrepancy</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+									<div class="col-lg-3 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">W/L Discrepancy</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+									<div class="col-lg-3 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Rolling Discrepancy</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+								</div>
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">Balance Checker</span>
+							</div>
+						</a>
+					</div>
+					<!-- END Bank Account #2 -->
+
+				</div>
+				<!-- END Bank Accounts -->
+
+				<div class="row">
+					<!-- C&C System -->
+					<div class="col-lg-6">
+						<a class="block block-rounded block-link-shadow" href="javascript:void(0)">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<div class="ribbon-box">0.00</div>
+								<div class="row block-content">
+									<div class="col-lg-4 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Cash Balance</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+									<div class="col-lg-4 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">CC Balance</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+									<div class="col-lg-4 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">NN Balance</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+								</div>
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">Cash and Chip Balance (System)</span>
+							</div>
+						</a>
+					</div>
+					<!-- End C&C System -->
+
+					<!-- C&C Actual -->
+					<div class="col-lg-6">
+						<a class="block block-rounded block-link-shadow" href="javascript:void(0)">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<div class="ribbon-box">0.00</div>
+								<div class="row block-content">
+									<div class="col-lg-4 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Cash Balance</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+									<div class="col-lg-4 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">CC Balance</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+									<div class="col-lg-4 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">NN Balance</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+								</div>
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">Cash and Chip (Actual)</span>
+							</div>
+						</a>
+					</div>
+					<!-- End C&C System -->
+				</div>
+
+				<div class="row">
+					<div class="col-lg-3">
+						<a class="block block-rounded block-link-shadow" href="/capital">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<div class="ribbon-box">
+									<%-  parseFloat(junketCapitalDeposit[0].cash_in - junketCapitalWithdraw[0].cash_out).toLocaleString() %>
+								</div>
+								<div class="row block-content">
+									<div class="col-lg-6 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Capital In</span>
+										</p>
+										<p class="text-muted mb-0"><%- parseFloat(junketCapitalDeposit[0].cash_in).toLocaleString() %></p>
+									</div>
+									<div class="col-lg-6 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Capital Out</span>
+										</p>
+										<p class="text-muted mb-0"><%- parseFloat(junketCapitalWithdraw[0].cash_out).toLocaleString() %></p>
+									</div>
+								</div>
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">Junket Capital</span>
+							</div>
+						</a>
+					</div>
+
+					<div class="col-lg-3">
+						<a class="block block-rounded block-link-shadow" href="/account_ledger">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<div class="ribbon-box">
+									<%-  parseFloat(accountDeposit[0].account_deposit - accountWithdraw[0].account_withdraw).toLocaleString() %>
+								</div>
+								<div class="row block-content">
+									<div class="col-lg-6 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Total Deposit</span>
+										</p>
+										<p class="text-muted mb-0"><%- parseFloat(accountDeposit[0].account_deposit).toLocaleString() %></p>
+									</div>
+									<div class="col-lg-6 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Total Withdraw</span>
+										</p>
+										<p class="text-muted mb-0"><%- parseFloat(accountWithdraw[0].account_withdraw).toLocaleString() %>
+										</p>
+									</div>
+								</div>
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">Account Transaction</span>
+							</div>
+						</a>
+					</div>
+
+					<div class="col-lg-3">
+						<a class="block block-rounded block-link-shadow" href="/main_cage">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<div class="ribbon-box">0.00</div>
+								<div class="row block-content">
+									<div class="col-lg-6 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Buy In</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+									<div class="col-lg-6 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Buy Out</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+								</div>
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">Main Cage Transaction</span>
+							</div>
+						</a>
+					</div>
+
+					<div class="col-lg-3">
+						<a class="block block-rounded block-link-shadow" href="/concierge">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<div class="ribbon-box">
+									<%-  parseFloat(conciergeIn[0].concierge_in - conciergeOut[0].concierge_out).toLocaleString() %></div>
+								<div class="row block-content">
+									<div class="col-lg-6 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Buy In</span>
+										</p>
+										<p class="text-muted mb-0"><%- parseFloat(conciergeIn[0].concierge_in).toLocaleString() %></p>
+									</div>
+									<div class="col-lg-6 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Buy Out</span>
+										</p>
+										<p class="text-muted mb-0"><%- parseFloat(conciergeOut[0].concierge_out).toLocaleString() %></p>
+									</div>
+									<!-- <div class="col-lg-4 text-center">
+												<p class="fs-sm fw-semibold mb-0">
+													<span class="text-default">NN Balance</span>
+												</p>
+												<p class="text-muted mb-0">
+													0.00
+												</p>
+											</div> -->
+								</div>
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">Concierge Fund</span>
+							</div>
+						</a>
+					</div>
+				</div>
+
+				<div class="row">
+					<div class="col-lg-9">
+						<a class="block block-rounded block-link-shadow" href="/capital">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<div class="ribbon-box">0.00</div>
+								<div class="row block-content">
+									<div class="col-lg-6 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Credit Issued</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+									<div class="col-lg-6 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Credit Redeemed</span>
+										</p>
+										<p class="text-muted mb-0">0.00</p>
+									</div>
+								</div>
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">Credit (Marker)</span>
+							</div>
+						</a>
+					</div>
+
+					<div class="col-lg-3">
+						<!-- Bank Account #2 -->
+						<a class="block block-rounded block-link-shadow" href="/house_expense">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<div class="ribbon-box"><%- parseFloat(houseExpense[0].total_expense).toLocaleString() %></div>
+								<div class="row block-content">
+									<div class="col-lg-12 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default">Total House Expense</span>
+										</p>
+										<p class="text-muted mb-0"><%- parseFloat(houseExpense[0].total_expense).toLocaleString() %></p>
+									</div>
+								</div>
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">House Expense</span>
+							</div>
+						</a>
+					</div>
+				</div>
+
+				<div class="row">
+					<div class="col-lg-12">
+						<a class="block block-rounded block-link-shadow" href="/cash">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<div class="row block-content">
+									<% let totalCash = 0; %>
+									<% cashDeno.forEach(row => { %>
+									<div class="col-lg-3 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default"><%- parseFloat(row.DENOMINATION).toLocaleString() %></span>
+										</p>
+										<p class="text-muted mb-0">(<%= row.QTY %>)</p>
+										<p class="fw-bold"><%- parseFloat(row.DENOMINATION * row.QTY).toLocaleString() %></p>
+										<% totalCash = totalCash + (row.DENOMINATION * row.QTY) %>
+									</div>
+									<% }); %>
+								</div>
+								<div class="ribbon-box"><%- parseFloat(totalCash).toLocaleString() %></div>
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">Cash Denominations</span>
+							</div>
+						</a>
+					</div>
+				</div>
+
+				<div class="row">
+					<div class="col-lg-12">
+						<a class="block block-rounded block-link-shadow" href="/cash_chips">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<div class="row block-content">
+									<% let totalChips = 0; %>
+									<% cashChips.forEach(row => { %>
+									<div class="col-lg-3 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default"><%- parseFloat(row.DENOMINATION).toLocaleString() %></span>
+										</p>
+										<p class="text-muted mb-0">(<%= row.QTY %>)</p>
+										<p class="fw-bold"><%- parseFloat(row.DENOMINATION * row.QTY).toLocaleString() %></p>
+										<% totalChips = totalChips + (row.DENOMINATION * row.QTY) %>
+									</div>
+									<% }); %>
+								</div>
+								<div class="ribbon-box"><%- parseFloat(totalChips).toLocaleString() %></div>
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">Cash Chip</span>
+							</div>
+						</a>
+					</div>
+				</div>
+
+				<div class="row">
+					<div class="col-lg-12">
+						<a class="block block-rounded block-link-shadow" href="/non_negotiable_chips">
+							<div class="block-content block-content-full ribbon ribbon-dark ribbon-modern ribbon-primary">
+								<div class="row block-content">
+									<% let totalNego = 0; %>
+									<% nonNego.forEach(row => { %>
+									<div class="col-lg-3 text-center">
+										<p class="fs-sm fw-semibold mb-0">
+											<span class="text-default"><%- parseFloat(row.DENOMINATION).toLocaleString() %></span>
+										</p>
+										<p class="text-muted mb-0">(<%= row.QTY %>)</p>
+										<p class="fw-bold"><%- parseFloat(row.DENOMINATION * row.QTY).toLocaleString() %></p>
+										<% totalNego = totalNego + (row.DENOMINATION * row.QTY) %>
+									</div>
+									<% }); %>
+								</div>
+								<div class="ribbon-box"><%- parseFloat(totalNego).toLocaleString() %></div>
+
+							</div>
+							<div class="block-content block-content-full block-content-sm text-center bg-body-light">
+								<span class="text-default">Non Negotiable Chip</span>
+							</div>
+						</a>
+					</div>
+				</div>
+			</div>
+			<!-- END Page Content -->
+		</main>
+		<!-- END Main Container -->
+
+		<%- include ('partials/footer'); -%>
+
+		<%- include ('partials/footer_html'); -%>

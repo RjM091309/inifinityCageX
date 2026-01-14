@@ -1,0 +1,268 @@
+<%- include ('../partials/header'); -%>
+    <%- include('../partials/loader') %>
+        <%- include ('../partials/sidebar'); -%>
+            <%- include ('../partials/topbar'); -%>
+
+
+
+                <div class="container-fluid content-inner mt-4">
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+
+                                    <h3 class="card-title">
+                                        <div class="breadcrumb1 flat">
+                                            <a href="/dashboard"><span class="fa fa-home"></span></a>
+                                            <a href="/Change_Game_No" class="active">
+                                                <%= __('change_game_no.modify_game') %>
+                                            </a>
+                                        </div>
+                                    </h3>
+                                </div>
+
+                                <!-- Main Container -->
+                                <div id="user-role" data-permissions="<%= permissions %>"></div>
+
+
+                                <div class="card-body">
+                                    <div class="row justify-content-center">
+                                        <div class="col-lg-6 col-md-8 col-sm-10 text-center">
+                                            <!-- Display Current Game Number -->
+                                            <div class="d-flex flex-column align-items-center">
+                                                <table id="gameNumberTable" class="table table-bordered table-sm mt-3"
+                                                    style="max-width: 350px; width: 100%;">
+                                                    <thead>
+                                                        <tr>
+                                                            <th class="text-center">
+                                                                <%= __('change_game_no.current_game_number') %>
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="gameNumberData">
+                                                        <tr>
+                                                            <td class="text-center fw-bold text-primary">
+                                                                <%= __('change_game_no.loading_game_number') %>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+
+                                                <!-- Input and Button Centered -->
+                                                <div class="mt-3 d-flex gap-2">
+                                                    <input type="number" id="newGameNumber"
+                                                        class="form-control text-center" style="max-width: 200px;"
+                                                        placeholder="<%= __('change_game_no.new_game_number') %>">
+                                                    <button id="updateGameNumber" class="btn btn-primary-subtle">
+                                                        <%= __('change_game_no.update_game_number') %>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Warning Message -->
+                                            <p class="text-danger mt-2" id="warningText" style="display: none;">⚠ <%=
+                                                    __('change_game_no.warning_text') %>
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="card-body">
+                                        <!-- Table Log Section -->
+                                        <div class="mt-5">
+                                            <table class="table text-center  nowrap small-text" style="width:100%">
+                                                <thead>
+                                                    <tr>
+                                                        <th>
+                                                            <%= __('change_game_no.previous_game_no') %>
+                                                        </th>
+                                                        <th>
+                                                            <%= __('change_game_no.new_game_no') %>
+                                                        </th>
+                                                        <th>
+                                                            <%= __('change_game_no.changed_by') %>
+                                                        </th>
+                                                        <th>
+                                                            <%= __('change_game_no.date_time') %>
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="gameLogData">
+                                                    <tr>
+                                                        <td colspan="4" class="text-center">
+                                                            <%= __('change_game_no.loading_game_number') %>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <%- include ('../partials/footer'); -%>
+
+                    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+                    <script>
+                        $(document).ready(function () {
+                            console.log("Fetching latest game number...");
+                            let latestGameNo = 0;
+
+                            // ✅ Fetch user permissions from hidden div
+                            let userPermissions = parseInt($('#user-role').attr('data-permissions'));
+
+                            // ✅ Disable input and button if the user lacks permission
+                            if (userPermissions !== 11 && userPermissions !== 1 && userPermissions !== 2) {
+                                $('#newGameNumber').prop('disabled', true);
+                                $('#updateGameNumber').prop('disabled', true);
+                            }
+
+                            // ✅ Fetch the latest game number on page load
+                            function fetchGameNumber() {
+                                $.ajax({
+                                    url: `/game_list/latest/game_number`,
+                                    type: 'GET',
+                                    success: function (response) {
+                                        let gameTable = $('#gameNumberData');
+                                        gameTable.empty();
+
+                                        if (!response.success) {
+                                            gameTable.append(`<tr><td class="text-center text-danger">${response.message}</td></tr>`);
+                                            return;
+                                        }
+
+                                        latestGameNo = response.gameNumber; // Store latest game number
+                                        gameTable.append(`<tr><td class="text-center fw-bold text-primary">${latestGameNo}</td></tr>`);
+                                    },
+                                    error: function () {
+                                        Swal.fire('Error', 'Failed to fetch game number. Please try again.', 'error');
+                                    }
+                                });
+                            }
+
+                            // ✅ Format DateTime Function
+                            function formatDateTime(timestamp) {
+                                let date = new Date(timestamp);
+                                return date.toLocaleString('en-US', {
+                                    year: 'numeric', month: 'long', day: '2-digit',
+                                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                                    hour12: true
+                                });
+                            }
+
+                            // ✅ Fetch Game Logs for Display
+                            function fetchGameLogs() {
+                                $.ajax({
+                                    url: '/game_list/logs',
+                                    type: 'GET',
+                                    success: function (response) {
+                                        let logTable = $('#gameLogData');
+                                        logTable.empty();
+
+                                        if (response.length === 0) {
+                                            logTable.append(`<tr><td colspan="4" class="text-center">No records found.</td></tr>`);
+                                            return;
+                                        }
+
+                                        response.forEach(log => {
+                                            logTable.append(`
+                        <tr>
+                            <td class="text-center">${log.PREVIOUS_GAME_NUMBER}</td>
+                            <td class="text-center">${log.NEW_GAME_NUMBER}</td>
+                            <td class="text-center">${log.FIRSTNAME}</td>
+                            <td class="text-center">${formatDateTime(log.ENCODED_DT)}</td>
+                        </tr>
+                    `);
+                                        });
+                                    }
+                                });
+                            }
+
+                            // ✅ Load game number and logs on page load
+                            fetchGameNumber();
+                            fetchGameLogs();
+
+                            // ✅ Validate input before updating
+                            $('#newGameNumber').on('input', function () {
+                                let newGameNo = parseInt($(this).val());
+
+                                if (newGameNo < latestGameNo) {
+                                    $('#warningText').show(); // Show warning message
+                                } else {
+                                    $('#warningText').hide(); // Hide warning if valid
+                                }
+                            });
+
+                            // ✅ Handle game number update
+                            $('#updateGameNumber').click(function () {
+                                // ❌ Restrict unauthorized users
+                                if (userPermissions !== 11 && userPermissions !== 1 && userPermissions !== 2) {
+                                    Swal.fire({
+                                        icon: 'warning',
+                                        title: 'No Permission',
+                                        text: 'You do not have permission to access this feature.',
+                                        confirmButtonText: 'OK',
+                                        confirmButtonColor: '#6f9c40'
+                                    });
+                                    return;
+                                }
+
+                                let newGameNo = $('#newGameNumber').val().trim();
+                                let encodedBy = $('#userID').val() || 1;
+
+                                if (!newGameNo || isNaN(newGameNo) || parseInt(newGameNo) <= latestGameNo) {
+                                    Swal.fire('Error', `Invalid input! Enter a number greater than ${latestGameNo}.`, 'error');
+                                    return;
+                                }
+
+                                Swal.fire({
+                                    title: "Are you sure?",
+                                    text: `You are about to set the game number to ${newGameNo}. This action cannot be undone.`,
+                                    icon: "warning",
+                                    showCancelButton: true,
+                                    confirmButtonColor: "#28a745",
+                                    cancelButtonColor: "#d33",
+                                    confirmButtonText: "Yes, update it!"
+                                }).then((result) => {
+                                    if (result.isConfirmed) {
+                                        $.ajax({
+                                            url: `/game_list/update_game_number`,
+                                            type: 'POST',
+                                            contentType: 'application/json',
+                                            data: JSON.stringify({ newGameNo: parseInt(newGameNo), encodedBy }),
+                                            success: function (response) {
+                                                if (response.success) {
+                                                    Swal.fire('Success', response.message, 'success').then(() => {
+                                                        fetchGameNumber(); // ✅ Refresh game number after update
+                                                        fetchGameLogs(); // ✅ Refresh logs after update
+                                                        $('#newGameNumber').val(''); // Clear input field
+                                                    });
+                                                } else {
+                                                    Swal.fire('Error', response.message, 'error');
+                                                }
+                                            },
+                                            error: function () {
+                                                Swal.fire('Error', 'Failed to update game number. Please try again.', 'error');
+                                            }
+                                        });
+                                    }
+                                });
+                            });
+                        });
+
+
+
+
+
+                    </script>
+                    <style>
+                        .card-body {
+  overflow-x: auto;
+}
+                    </style>

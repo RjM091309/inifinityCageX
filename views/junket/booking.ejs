@@ -1,0 +1,324 @@
+<%- include ('../partials/header'); -%>
+	<%- include('../partials/loader') %>
+		<%- include ('../partials/sidebar'); -%>
+			<%- include ('../partials/topbar'); -%>
+
+				<head>
+
+					<!-- Include jQuery -->
+					<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+					<!-- DATEPICKER -->
+
+				</head>
+				<div id="user-role" data-permissions="<%= permissions %>"></div>
+
+				<div class="container-fluid content-inner mt-n5 py-0">
+					<div class="row">
+						<div class="col-sm-12">
+							<div class="card">
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<h3 class="card-title">
+										<div class="breadcrumb1 flat">
+											<a href="/dashboard"><span class="fa fa-home"></span></a>
+											<a href="#">
+												<%= __('hotel_booking.junket') %>
+											</a>
+											<a href="/booking" class=" active">
+												<%= __('hotel_booking.hotel_booking') %>
+											</a>
+										</div>
+									</h3>
+									<button class="btn btn-primary" onclick="addBooking()">
+										<i class="fa fa-plus"></i>
+										<%= __('hotel_booking.new_booking') %>
+									</button>
+								</div>
+
+								<!-- DataTables init on table by adding .js-dataTable-responsive class, functionality is initialized in js/pages/be_tables_datatables.min.js which was auto compiled from _js/pages/be_tables_datatables.js -->
+
+								<div class="card-body">
+									<table id="booking-tbl" class="table nowrap small-text" style="width:100%">
+										<thead>
+											<tr>
+												<th class="d-none d-sm-table-cell">
+													
+												</th>
+												
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.encoded_date') %>
+												</th>
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.confirmation_no') %>
+												</th>
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.check_in') %>
+												</th>
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.check_out') %>
+												</th>
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.account_no') %>
+												</th>
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.guest_name') %>
+												</th>
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.hotel_fee') %>
+												</th>
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.addt_l_fee') %>
+												</th>
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.total') %>
+												</th>
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.payment_status') %>
+												</th>
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.remarks') %>
+												</th>
+												<th class="d-none d-sm-table-cell">
+													<%= __('hotel_booking.encoded_by') %>
+												</th>
+												<th class="text-center" style="width: 100px;">
+													<%= __('hotel_booking.action') %>
+												</th>
+											</tr>
+										</thead>
+										<tbody>
+										</tbody>
+										<tfoot>
+											<tr>
+												<th colspan="9" style="text-align: left;"><strong>
+														<%= __('hotel_booking.grand_total') %>:
+													</strong>
+												</th>
+												<th colspan="1" id="GRAND_TOTAL_AMOUNT">₱0.00</th>
+												<th colspan="4"></th>
+
+
+											</tr>
+										</tfoot>
+									</table>
+
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+
+
+
+				<script>
+					// $(document).ready(function () {
+					// 	function initializeBookingTable() {
+					// 		// Destroy any existing DataTable instance
+					// 		if ($.fn.DataTable.isDataTable('#booking-tbl')) {
+					// 			$('#booking-tbl').DataTable().destroy();
+					// 		}
+
+
+
+					// 		// Set default "From" and "To" dates
+					// 		var currentDate = new Date();
+					// 		var firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+
+
+					// 		// Trigger the initial draw to apply the default date filtering on page load
+					// 		$('#booking-tbl').DataTable().draw();
+
+					// 		function calculateBookingTotal() {
+					// 			var totalAmount = 0;
+					// 			var table = $('#booking-tbl').DataTable();
+
+					// 			// Only consider rows visible on the current page
+					// 			table.rows({ page: 'current' }).every(function () {
+					// 				var data = this.data();
+					// 				// 			console.log("Processing object:", data);
+
+					// 				var amountIndex = 8; // Assuming "TOTAL AMOUNT" is at index 8
+					// 				var amountValue = data[amountIndex] || '0';
+
+					// 				// Remove HTML tags and clean values
+					// 				var cleanedAmountValue = parseFloat(amountValue.replace(/[^0-9.-]/g, '')) || 0;
+
+					// 				totalAmount += cleanedAmountValue;
+					// 			});
+
+					// 			// Format the total
+					// 			var formattedAmount = '₱' + totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+					// 			// Update the footer content if a footer exists
+					// 			$('#booking-tbl tfoot #GRAND_TOTAL_AMOUNT').text(formattedAmount);
+					// 			// 		console.log("Subtotal Amount for current page:", formattedAmount);
+					// 		}
+
+					// 		// Attach events to recalculate totals on search and draw
+					// 		$('#booking-tbl').on('search.dt draw.dt', function () {
+					// 			// 		console.log("Search or draw event triggered");
+					// 			calculateBookingTotal();
+					// 		});
+					// 	}
+
+					// 	// Call the function to initialize the DataTable
+					// 	initializeBookingTable();
+					// });
+
+					// const permissions = parseInt($('#user-role').data('permissions'));
+
+					// if (permissions === 2) {
+					// 	$('.wrap .button').prop('disabled', true);
+					// } else {
+					// 	$('.wrap .button').prop('disabled', false);
+					// }
+				</script>
+
+				<%- include ('../modals/junket/new_booking') %>
+					<%- include ('../modals/junket/edit_booking') %>
+
+
+						<%- include ('../partials/footer'); -%>
+
+
+					
+							<script src="/assets/js/functions/booking.js"></script>
+							<!-- TIME ZONE -->
+					
+							<style>
+							
+								
+
+								.dataTables_wrapper .dataTables_scrollBody,
+								.dataTables_wrapper .dataTables_scroll {
+									overflow: visible !important;
+								}
+
+
+								/* Base table styles */
+								#booking-tbl {
+									width: 100%;
+									font-size: 13px;
+									border-collapse: collapse;
+								}
+
+								/* Header styles */
+								#booking-tbl thead th {
+									background: var(--bs-primary-bg-subtle);
+									color: var(--bs-primary);
+									font-weight: 500;
+									padding: 12px 15px;
+									text-align: left;
+									border: none;
+								}
+
+								/* Row styles */
+								#booking-tbl tbody tr {
+									border-bottom: 1px solid #eee;
+								}
+
+								/* Cell styles */
+								#booking-tbl td {
+									padding: 12px 15px;
+									color: #666;
+								}
+
+								#booking-tbl tbody tr:hover {
+									background-color: #f5f5f5 !important;
+								}
+
+
+
+								/* Balance column */
+								#booking-tbl td:last-child {
+									text-align: right;
+									color: #333;
+								}
+
+
+								/* Footer total row */
+
+
+								#booking-tbl tfoot th {
+									padding: 10px;
+									font-weight: 600;
+
+									color: #333;
+									background-color: #f4f6fa;
+									border-top: 2px solid #dee2e6;
+								}
+
+								@media (max-width: 768px) {
+									#booking-tbl {
+										font-size: 10px;
+										/* Mas maliit sa mobile */
+									}
+
+									#booking-tbl th,
+									#booking-tbl td {
+										padding: 5px;
+									}
+								}
+
+								/* Itago ang text na "Show" at "entries" sa DataTables */
+								.dataTables_length label {
+									font-size: 0;
+									/* Itatago ang text */
+								}
+
+								/* Panatilihin ang dropdown na nakikita */
+								.dataTables_length select {
+									font-size: 12px;
+									/* Ibalik ang font size ng dropdown */
+								}
+
+								/* Adjust spacing and alignment for date range picker */
+								.dataTables_wrapper .row {
+									margin-bottom: 15px;
+									/* Adjust spacing as needed */
+								}
+
+								/* Flexbox layout for the date range picker */
+								.input-daterange {
+									display: flex;
+									justify-content: space-between;
+									position: relative;
+									left: 1rem;
+									/* Adjust this value as needed */
+									top: 1rem;
+								}
+
+
+								/* Styling for form controls */
+								.input-daterange .form-control {
+									flex: 1;
+									margin-right: 5px;
+									/* Adjust spacing between input fields */
+								}
+
+								/* Remove margin from the last input */
+								.input-daterange .form-control:last-child {
+									margin-right: 0;
+								}
+
+								/* Halimbawa lang — palitan mo depende sa aktwal na klase o ID */
+								.dataTables_wrapper .dataTables_scrollBody,
+								.dataTables_wrapper .dataTables_scroll {
+									overflow: visible !important;
+								}
+
+								.highlight-row td {
+									background-color: #CFE2FF !important;
+									/* Default highlight color */
+									color: #000 !important;
+									transition: background-color 0.5s ease-out;
+									/* Magkakaroon ng fade effect */
+								}
+
+								/* Kapag naka-hover, magbabago ang background-color. Palitan mo ang kulay ayon sa gusto mo. */
+								.highlight-row:hover td {
+									background-color: #E6EFF9 !important;
+									/* Mas mapusyaw na shade ng blue */
+								}
+							</style>

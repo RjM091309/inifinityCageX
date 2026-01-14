@@ -1,0 +1,29 @@
+/* SELECT2 Stylesheet */
+
+.select2-selection__rendered {
+	line-height: 31px !important;
+}
+
+.select2-container .select2-selection--single {
+	height: 35px !important;
+	color: aliceblue !important;
+}
+
+.select2-selection__arrow {
+	height: 34px !important;
+}
+
+.select2-container–classic.select2-container–open .select2-dropdown {
+	border-color: #ffffff !important;
+	-webkit-box-shadow: 0 0 0 0.2rem rgba(51, 32, 220, 0.25);
+	box-shadow: 0 0 0 0.2rem rgba(218, 77, 77, 0.25);
+}
+
+#game_list-tbl1_wrapper .row.dt-row .col-sm-12 {
+	overflow: auto;
+}
+
+/* Table Modificaton */
+.table {
+	font-size: 12.5px;
+}

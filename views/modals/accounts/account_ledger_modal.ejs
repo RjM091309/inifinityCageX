@@ -1,0 +1,199 @@
+<!-- MODAL: Account Ledger -->
+<div class="modal fade" id="modal-account-ledger" tabindex="-1" aria-labelledby="modal-account-ledgerLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+       <div class="modal-content">
+         
+         <!-- Modal Header -->
+         <div class="modal-header bg-primary">
+          <h5 class="modal-title text-white" id="modal-account-ledgerLabel">
+            Records | <span id="agency_name_modal"></span>
+          </h5>
+          
+           <div class="d-flex align-items-center ms-auto gap-2">
+             <button class="btn btn-primary-subtle" onclick="addAgent()">
+               <i class="fa fa-plus"></i> New Guest
+             </button>
+             
+           </div>
+         </div>
+         
+         <!-- Modal Body -->
+         <div class="modal-body">
+           
+           <!-- Dito natin ilalagay ang table at ibang elemento -->
+           
+           <!-- Kung kailangan mo pa rin ng permissions -->
+           <div id="user-role" data-permissions="<%= permissions %>"></div>
+           
+           <table id="modal-account-tbl" class="table table-bordered table-responsive">
+             <thead>
+               <tr>
+                 <th>NAME</th>
+                 <th>ACCOUNT #</th>
+             
+                 <th>TELEGRAM CHAT ID</th>
+                 <th>CONTACT #</th>
+                 <th>REMARKS</th>
+                 <th>TOTAL BALANCE</th>
+                 <th>ACTION</th>
+               </tr>
+             </thead>
+             <tfoot>
+              <tr>
+                <th colspan="5">SUB TOTAL</th>
+                <th colspan="1" id="SUB_TOTAL_SUM_VALUE">0.00</th>
+                <th colspan="1"></th>
+              </tr>
+               <tr>
+                 <th colspan="5">GRAND TOTAL</th>
+                 <th colspan="1" id="TOTAL_SUM_VALUE">0.00</th>
+                 <th colspan="1"></th>
+               </tr>
+             </tfoot>
+           </table>
+         </div>
+         <div class="modal-footer">
+				
+					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+				</div>
+       </div>
+     </div>
+   </div>
+   
+   <!-- Kung gusto mo isama pa rin ang iba pang modals (new_account, edit_account, etc.) -->
+  
+   
+   <!-- CUSTOM STYLES para sa table mo -->
+   <style>
+    #modal-account-tbl {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+}
+
+/* Header styles */
+#modal-account-tbl thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    text-align: left;
+    border: none;
+}
+
+/* Row styles */
+#modal-account-tbl tbody tr {
+    border-bottom: 1px solid #eee;
+}
+
+/* Cell styles */
+    #modal-account-tbl td {
+    padding: 12px 15px;
+    color: #666;
+}
+
+#modal-account-tbl tbody tr:hover {
+  background-color: #f5f5f5 !important;
+}
+
+
+
+/* Balance column */
+#modal-account-tbl td:last-child {
+    text-align: right;
+    color: #333;
+}
+
+
+/* Footer total row */
+
+
+#modal-account-tbl tfoot th {
+    padding: 10px;
+    font-weight: 600;
+   
+    color: #333;
+    background-color: #f4f6fa;
+    border-top: 2px solid #dee2e6;
+}
+
+            
+            @media (max-width: 768px) {
+                #modal-account-tbl {
+                    font-size: 10px; /* Mas maliit sa mobile */
+                }
+            
+                #modal-account-tbl th,
+                #modal-account-tbl td {
+                    padding: 5px;
+                }
+            }
+
+     table {
+   table-layout: fixed;
+   word-wrap: break-word;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+ }
+     
+     /* Itago ang text na "Show" at "entries" sa DataTables */
+     .dataTables_length label {
+       font-size: 0; /* Itatago ang text */
+     }
+     
+     /* Panatilihin ang dropdown na nakikita */
+     .dataTables_length select {
+       font-size: 12px; /* Ibalik ang font size ng dropdown */
+     }
+     
+     /* Adjust spacing and alignment for date range picker */
+     .dataTables_wrapper .row {
+       margin-bottom: 15px;
+       font-size: 12px; /* Pareho sa commission-tbl */
+     }
+     
+     /* Flexbox layout for the date range picker */
+     .input-daterange {
+       display: flex;
+       justify-content: space-between;
+       position: relative;
+       left: 7.5rem;
+       top: 4rem;
+       max-width: 300px;
+       font-size: 12px; /* Pareho sa commission-tbl */
+     }
+     
+     /* Styling for form controls */
+     .input-daterange .form-control {
+       flex: 1;
+       margin-right: 5px;
+       max-width: 120px;
+       font-size: 12px; /* Pareho sa commission-tbl */
+       padding: 8px; /* Pareho sa cell padding ng table */
+     }
+     
+     /* Remove margin from the last input */
+     .input-daterange .form-control:last-child {
+       margin-right: 0;
+     }
+     
+     /* Responsive tweaks */
+     @media (max-width: 768px) {
+       .dataTables_wrapper .row,
+       .input-daterange,
+       .input-daterange .form-control {
+         font-size: 10px; /* Mas maliit sa mobile */
+       }
+       
+       .input-daterange .form-control {
+         padding: 5px; /* Mas maliit na padding */
+       }
+     }
+
+
+   </style>
+   
+   
+ 
+   

@@ -1,0 +1,65 @@
+<div class="modal fade" id="modal-edit-house-expense" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+    aria-labelledby="modal-default-popout" aria-hidden="true" style="z-index: 1060 !important;">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="block-title text-white"><%= __('modal_edit_house_expense.edit_house_expense') %></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit_junket_house_expense">
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <select class="select2 form-select txtCategory" id="txtCategory" name="txtCategory" style="width: 100%;"
+                                data-placeholder="<%= __('modal_edit_house_expense.category') %>">
+                                <option><%= __('modal_edit_house_expense.category') %></option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <input type="file" name="photo" id="photo" class="form-control" />
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <input type="text" class="form-control" name="txtReceiptNo" id="txtReceiptNo"
+                                placeholder="<%= __('modal_edit_house_expense.receipt_no_placeholder') %>" />
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <input type="text" class="form-control" name="txtDateandTime" id="txtDateandTime"
+                                placeholder="<%= __('modal_edit_house_expense.date_and_time_placeholder') %>" />
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <input type="text" class="form-control" name="txtDescription" id="txtDescription"
+                                placeholder="<%= __('modal_edit_house_expense.description_placeholder') %>" />
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <input type="text" class="form-control" name="txtAmount" id="txtAmount" placeholder="<%= __('modal_edit_house_expense.amount_placeholder') %>"
+                                onkeypress="return onlyNumberKey(event)" data-type="number" />
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button id="btn-save-edit-expense" type="submit" class="btn btn-sm btn-primary">
+                            <span class="btn-label"><%= __('modal_edit_house_expense.save') %></span>
+                          </button>                               
+                        <button type="button" class="btn btn-sm btn-alt-secondary"
+                            data-bs-dismiss="modal"><%= __('modal_edit_house_expense.close') %></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

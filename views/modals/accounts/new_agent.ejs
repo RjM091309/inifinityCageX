@@ -1,0 +1,73 @@
+<div class="modal fade" id="modal-new-agent" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+	data-keyboard="false" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+
+			<div class="modal-header bg-primary">
+				<h5 class="block-title text-white"><%= __('modal_new_agent.new_guest') %></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+
+			<div class="modal-body">
+				<form id="add_new_agent" enctype="multipart/form-data" method="POST" action="/add_agent">
+					<input type="hidden" name="txtAgencyLine" id="txtAgencyLine">
+					<div class="block-content">
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="file" name="photo" class="form-control" />
+							</div>
+						</div>
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="text" class="form-control" name="txtAgenctCode" placeholder="<%= __('modal_new_agent.Account_No_placeholder') %>" required />
+							</div>
+						</div>
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="text" class="form-control" name="txtName" placeholder="<%= __('modal_new_agent.Name_placeholder') %>" required />
+							</div>
+						</div>
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="text" class="form-control" name="txtTelegram" placeholder="<%= __('modal_new_agent.Telegram_placeholder') %>" />
+							</div>
+						</div>
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="text" class="form-control" name="txtContact" placeholder="<%= __('modal_new_agent.Contact_placeholder') %>" />
+							</div>
+						</div>
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<textarea name="txtRemarks" class="form-control remarks" placeholder="<%= __('modal_new_agent.Remarks_placeholder') %>"></textarea>
+							</div>
+						</div>
+					</div>
+
+					<div class="modal-footer">
+						<button type="submit" id="submit-new-agent-btn" class="btn btn-sm btn-primary" data-bs-dismiss="modal">
+							<%= __('modal_new_agent.save') %>
+						</button>
+						
+						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_new_agent.close') %></button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+	document.querySelector('input[name="txtContact"]').addEventListener('input', function (e) {
+		this.value = this.value.replace(/\D/g, '');
+	});
+	document.querySelector('input[name="txtTelegram"]').addEventListener('input', function (e) {
+		this.value = this.value.replace(/\D/g, '');
+	});
+</script>

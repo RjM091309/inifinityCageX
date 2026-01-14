@@ -1,0 +1,58 @@
+<div class="modal fade" id="modal-new-game-record" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+    data-keyboard="false" data-backdrop="static">
+    <div class="modal-dialog modal-dialog-popout" role="document">
+        <div class="modal-content">
+            <div class="block block-rounded block-themed block-transparent mb-0">
+                <div class="block-header bg-primary-dark">
+                    <h3 class="block-title">New Game Record</h3>
+                    <div class="block-options">
+                        <button type="button" class="btn-block-option" data-bs-dismiss="modal" aria-label="Close">
+                            <i class="fa fa-fw fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <form id="add_game_record">
+                    <div class="block-content">
+                        <input type="hidden" name="game_id" id="game_id" value="<%= page_id %>">
+                        <!-- <div class="row mb-2">
+                            <div class="col-sm-12">
+                                TRADING DATE
+                                <input type="date" class="form-control" name="txtTradingDate" placeholder="Date " />
+                            </div>
+                        </div> -->
+                     
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <select class="select2 form-select" id="txtCategory" name="txtCategory" style="width: 100%;"
+                                    data-placeholder="Transaction">
+                                    <option>--- Type ---</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="number" class="form-control txtAmount" name="txtAmount" placeholder="Amount" />
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <textarea name="txtRemarks" placeholder="REMARKS" class="form-control"></textarea>
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="block-content block-content-full text-end bg-body">
+                        <button type="submit" class="btn btn-sm btn-primary" data-bs-dismiss="modal">
+                            Save
+                        </button>
+                        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+                            Close
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

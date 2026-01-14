@@ -1,0 +1,306 @@
+<div class="modal fade" id="modal-new-cc-chips" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+    aria-labelledby="modal-default-popout" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable " role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="update_cc_chips"><%= __('dashboard_update_cc_chips.update_cc_chips') %></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <form id="add_cc_chips" action="/add_cc_chips" method="POST">
+                    <div class="row mb-4">
+                        <div class="col-sm-12">
+                            <input type="text" placeholder="<%= __('dashboard_update_cc_chips.cc_amount') %>" class="form-control" id="ccChips"
+                                name="txtCCChips" onkeypress="return onlyNumberKey(event)" data-type="number"
+                                autocomplete="off" required />
+                        </div>
+                    </div>
+
+                    <input type="hidden" value="<%- parseFloat(sqlCCChipsBuyin[0].CCChipsBuyin - sqlCCChipsReturn[0].CCChipsReturn + sqlTotalRealRolling[0].TOTAL_REAL_ROLLING + sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN - sqlCCChipsBuyinGame[0].TOTAL_CC + sqlCCBuyin[0].CCBuyin - sqlCCReturn[0].CCReturn).toLocaleString() %>" 
+                        id="ccbalance" name="txtccbalance"/>
+
+                    <input type="hidden" name="typedescription" id="typedescription" value="Chips Buy-in">
+
+                    <div class="row mb-2 ">
+                        <div class="col-sm-3 ">
+                            <div class="form-check">
+                                <input class="form-check-input" style="border-color: #8a92a6 !important;"  type="radio" id="add" name="optBuyinReturn" value="1"
+                                    required>
+                                <label class="form-check-label" for="add"><%= __('dashboard_update_cc_chips.add') %></label>
+                            </div>
+                        </div>
+                        <div class="col-sm-3 ">
+                            <div class="form-check">
+                                <input class="form-check-input" style="border-color: #8a92a6 !important;"  type="radio" id="deduct" name="optBuyinReturn" value="2"
+                                    required>
+                                <label class="form-check-label" for="deduct"><%= __('dashboard_update_cc_chips.deduct') %></label>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 text-end">
+                            <button type="submit" class="btn btn-sm btn-primary" id="updateBtn">
+                                <i class="fa fa-check-circle me-1"></i> <%= __('dashboard_update_cc_chips.update') %>
+                            </button>
+                        </div>
+                    </div>
+                    <hr style="border: none; border-top: 0.2rem solid black;">
+
+                    <div id="loading-spinner" class="text-center d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden"><%= __('dashboard_update_cc_chips.loading_update_cc_chips') %></span>
+                        </div>
+                    </div>
+
+                    <div class="cc-chips-scroll-container">
+                        <div class="cc-chips-grid" id="cc-chips-container">
+                            <!-- Cards will be dynamically inserted here -->
+                        </div>
+                    </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('dashboard_update_cc_chips.close') %></button>
+            </div>
+        </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function onlyNumberKey(evt) {
+        let charCode = (evt.which) ? evt.which : evt.keyCode;
+        if (charCode > 31 && (charCode < 48 || charCode > 57) && !(charCode >= 37 && charCode <= 40) && charCode !== 8 && charCode !== 9 && charCode !== 46) {
+            return false;
+        }
+        return true;
+    }
+
+    $(document).ready(function () {
+        const permissions = parseInt($('#user-role').data('permissions'));
+        if (permissions === 2) {
+            $('#add_cc_chips button[type="submit"]').prop('disabled', true);
+        }
+
+        function loadCCChipsData() {
+            $('#loading-spinner').removeClass('d-none');
+            $('#cc-chips-container').addClass('d-none');
+            
+            $.ajax({
+                url: '/get_cc_chips',
+                method: 'GET',
+                success: function(data) {
+                    if (!data || data.length === 0) {
+                        const emptyState = `
+                            <div class="text-center py-5">
+                                <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
+                                <h6 class="text-muted">No transactions found</h6>
+                            </div>
+                        `;
+                        $('#cc-chips-container').html(emptyState);
+                        return;
+                    }
+                    const container = $('#cc-chips-container');
+                    container.empty();
+
+                    const groupedData = {};
+                    data.forEach(function(item) {
+                        const dateKey = moment.utc(item.ENCODED_DT).utcOffset(8).format('MMM DD, YYYY');
+                        if (!groupedData[dateKey]) {
+                            groupedData[dateKey] = [];
+                        }
+                        groupedData[dateKey].push(item);
+                    });
+
+                    const sortedDates = Object.keys(groupedData).sort((a, b) => {
+                        return moment(b, 'MMM DD').valueOf() - moment(a, 'MMM DD').valueOf();
+                    });
+
+                    sortedDates.forEach(function(dateKey) {
+                        groupedData[dateKey].sort((a, b) => {
+                            return moment.utc(b.ENCODED_DT).valueOf() - moment.utc(a.ENCODED_DT).valueOf();
+                        });
+
+                        const dateGroup = `
+                            <div class="date-header">${dateKey}</div>
+                            <div class="date-transactions">
+                                ${groupedData[dateKey].map(item => {
+                                    const time = moment.utc(item.ENCODED_DT).utcOffset(8).format('hh:mm A');
+                                    const amount = item.DESCRIPTION === 'DEDUCT' 
+                                        ? `-₱ ${item.CC_CHIPS.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`
+                                        : `₱ ${item.CC_CHIPS.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+                                    const typeClass = item.DESCRIPTION === 'ADD' ? 'add' : 'deduct';
+                                    
+                                    return `
+                                        <div class="cc-chip-card">
+                                            <div class="transaction-details">
+                                                <div class="transaction-type ">
+                                                    <span class="transaction-time ">${time}</span>
+                                                    <span class="cc-chip-type ${typeClass}">${item.DESCRIPTION}</span>
+                                                </div>
+                                                <div class="encoded-by">
+                                                    <span class="amount-label">ENCODED BY :</span>
+                                                    <span class="name-label" title="${item.FIRSTNAME}">${item.FIRSTNAME}</span>
+                                                </div>
+                                                <div class="amount-row">
+                                                    <span class="amount-label">Amount</span>
+                                                    <span class="amount-value ${typeClass}">${amount}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                        container.append(dateGroup);
+                    });
+                    $('#loading-spinner').addClass('d-none');
+                    $('#cc-chips-container').removeClass('d-none');
+                },
+                error: function(error) {
+                    console.error('Error fetching CC chips data:', error);
+                    const errorMessage = `
+                        <div class="alert alert-danger">
+                            <i class="fa fa-exclamation-circle me-2"></i>
+                            Failed to load data. Please try again.
+                            <button class="btn btn-link text-danger" onclick="loadCCChipsData()">
+                                <i class="fa fa-refresh"></i> Retry
+                            </button>
+                        </div>
+                    `;
+                    $('#cc-chips-container').html(errorMessage);
+                }
+            });
+        }
+
+        loadCCChipsData();
+        setInterval(loadCCChipsData, 30000);
+    });
+</script>
+
+<style>
+.date-header {
+    background-color: var(--bs-primary-bg-subtle);
+    padding: 10px 15px;
+    font-weight: 500;
+    color: var(--bs-primary);
+    margin-top: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+.date-transactions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cc-chip-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 15px;
+    margin-bottom: 2px;
+    transition: all 0.2s ease;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.transaction-type {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.transaction-time {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.encoded-by {
+    color: #666;
+    margin-bottom: 8px;
+    font-size: 0.95em;
+}
+
+.amount-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 5px;
+}
+
+.amount-label {
+    color: #666;
+}
+
+.amount-value.deduct {
+    color: #666;
+}
+
+.amount-value.add {
+    color: #666;
+}
+
+.name-label{
+    font-weight: 400;
+    color: #666;
+}
+
+.cc-chip-type {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.cc-chip-type.add {
+    background-color: var(--bs-success-bg-subtle);
+    color: var(--bs-success);
+}
+
+.cc-chip-type.deduct {
+    background-color: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger);
+}
+
+/* .cc-chips-scroll-container {
+    height: 600px;
+    overflow-y: auto;
+    padding-right: 3px;
+    
+    &::-webkit-scrollbar {
+        display: none;
+    }
+    
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+} */
+
+/* .cc-chips-grid {
+    padding-right: 10px;
+} */
+
+@media (max-width: 768px) {
+    .cc-chip-card {
+        padding: 12px;
+    }
+    
+    .date-header {
+        font-size: 0.9em;
+    }
+    
+    .cc-chips-scroll-container {
+        height: 300px;
+    }
+}
+
+.cc-chip-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+</style>

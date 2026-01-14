@@ -1,0 +1,144 @@
+<div class="modal fade" id="modal-new-house-expense" role="dialog" aria-labelledby="modal-default-popout"
+    aria-hidden="true" data-keyboard="false" data-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+
+
+
+
+            <div class="modal-header bg-primary">
+                <h5 class="block-title text-white"><%= __('modal_new_house_expense.add_house_expense') %></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <form id="add_junket_house_expense" novalidate>
+
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <select class="select2 form-select" id="expense-category-select" name="txtCategory" style="width: 100%;" data-placeholder="Category" required>
+                                <option value="">--- Category ---</option>
+                            </select>
+                            
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <input type="file" name="photo" class="form-control" required />
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <input type="text" class="form-control" name="txtReceiptNo" placeholder="<%= __('modal_new_house_expense.receipt_no') %>" />
+                        </div>
+                    </div>
+
+              
+
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <input type="text" class="form-control" name="txtDescription" placeholder="<%= __('modal_new_house_expense.description') %>" />
+                        </div>
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col-sm-12">
+                            <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+                                class="form-control" name="txtAmount" placeholder="<%= __('modal_new_house_expense.amount') %>" required />
+                        </div>
+                    </div>
+              
+
+                    <div class="modal-footer">
+                        <button id="btn-save-edit-expense" type="submit" class="btn btn-sm btn-primary">
+                            <%= __('modal_edit_house_expense.save') %>
+                          </button>
+                          
+                        </button>
+                        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+                            <%= __('modal_new_house_expense.close') %>
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function loadExpenseCategories() {
+    $.ajax({
+        url: '/expense_category_data',
+        method: 'GET',
+        success: function (data) {
+            let $select = $('#expense-category-select'); // updated ID below
+            $select.empty();
+            $select.append(`<option value="">--- Category ---</option>`);
+            data.forEach(item => {
+                $select.append(`<option value="${item.IDNo}">${item.CATEGORY}</option>`);
+            });
+        },
+        error: function (xhr, status, error) {
+            console.error('Failed to load categories:', error);
+        }
+    });
+}
+
+// Auto-load when modal is shown
+$('#modal-new-house-expense').on('shown.bs.modal', function () {
+    loadExpenseCategories();
+});
+
+$('#add_junket_house_expense').submit(function(event) {
+      event.preventDefault(); 
+  
+      // Check if required fields are filled
+      var isValid = true;
+      $(this).find(':input[required]').each(function() {
+          if ($(this).val() === '') {
+              isValid = false;
+              $(this).addClass('is-invalid'); // Optional: add a class for styling
+          } else {
+              $(this).removeClass('is-invalid'); // Remove error class if valid
+          }
+      });
+  
+      if (!isValid) {
+          Swal.fire({
+              icon: 'error',
+              title: 'Inserting Error',
+              text: 'Please fill in all required fields.',
+          });
+          return; // Stop the submission if validation fails
+      }
+  
+      // Gumamit ng FormData para isama ang file data
+      var formData = new FormData(this);
+  
+      $.ajax({
+          url: '/add_junket_house_expense',
+          type: 'POST',
+          data: formData,
+          processData: false, // Huwag i-process ang data (dapat false para sa FormData)
+          contentType: false, // Huwag i-set ang contentType (dapat false para sa FormData)
+          success: function(response) {
+              Swal.fire({
+                  icon: 'success',
+                  title: 'Added successfully',
+                  confirmButtonText: 'OK',
+                  showConfirmButton: true
+              }).then(function() {
+                  reloadData();
+                  $('#modal-new-house-expense').modal('hide');
+                  window.location.reload();
+              });
+          },
+          error: function(xhr, status, error) {
+              var errorMessage = xhr.responseJSON.error;
+              console.error('Error updating user role:', error);
+          }
+      });
+  });
+  
+
+    </script>

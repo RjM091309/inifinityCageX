@@ -1,0 +1,38 @@
+<div class="modal fade" id="modal-show-history" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered modal-xl">
+		<div class="modal-content">
+		<div class="modal-header bg-primary">
+			<h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_show_rolling.account_details') %> - <span id="agent_name"></span></h5>
+			<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+		</div>
+		<div class="modal-body">
+			<div class="custom-datatable-entries">
+				<div class="table-responsive">  <!-- Dagdag ng table-responsive div -->
+				<table id="game_record-tbl" class="table table-bordered table-vcenter js-dataTable-responsive"
+						style="font-size: 11px !important;">
+						<thead>
+							<tr>
+								<th class="text-center"><%= __('modal_show_rolling.date') %></th>
+								<th class="text-center"><%= __('modal_show_rolling.buyin') %></th>
+								<th class="text-center"><%= __('modal_show_rolling.cash_out') %></th>
+								<th class="text-center"><%= __('modal_show_rolling.real_rolling') %></th>
+								<th class="text-center"><%= __('modal_show_rolling.total_rolling') %></th>
+								<th class="text-center"><%= __('modal_show_rolling.nn') %></th>
+								<th class="text-center"><%= __('modal_show_rolling.cc') %></th>
+								<th class="text-center" ><%= __('modal_show_rolling.action') %></th>
+							</tr>
+						</thead>
+						<tbody>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+		<div class="modal-footer">
+			<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+				<%= __('modal_show_rolling.close') %>
+			</button>
+		</div>
+		</div>
+	</div>
+	</div>

@@ -1,0 +1,35 @@
+<div class="modal fade" id="modal-update-expense" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+		<div class="modal-header bg-primary">
+			<h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_add_expense.add_expense') %></h5>
+			<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+		</div>
+		<form id="update_expense">
+		<div class="modal-body">
+			<input type="hidden" name="game_id" class="game_list_id">
+					<input type="hidden" name="txtAccountCode" class="txtAccountCode">
+					<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="text" class="form-control text-center txtExpense" placeholder="<%= __('modal_add_expense.amount_placeholder') %>" name="txtExpense" id="txtExpense">
+							</div>
+						</div>
+		</div>
+		<div class="modal-footer">
+			<button type="submit" class="btn btn-sm btn-primary" >
+				<%= __('modal_add_expense.save') %>
+			</button>
+			<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+				<%= __('modal_add_expense.close') %>
+			</button>
+		</div>
+		</div>
+		</form>
+	</div>
+	</div>
+
+<style>
+	.modal-md {
+		max-width: 20%;
+	}
+</style>

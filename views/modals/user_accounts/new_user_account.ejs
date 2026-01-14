@@ -1,0 +1,58 @@
+<div class="modal fade" id="modal-new_user" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+	data-keyboard="false" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+
+
+			<div class="modal-header bg-primary">
+
+				<h5 class="block-title text-white"><%= __('modal_new_user_account.new_account') %></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+
+
+			<div class="modal-body">
+				<form id="add_new_user">
+					<div class="row mb-2">
+						<div class="col-sm-12">
+							<input type="text" class="form-control" name="txtFirstName" placeholder="<%= __('modal_new_user_account.first_name_placeholder') %>">
+						</div>
+					</div>
+					<div class="row mb-2">
+						<div class="col-sm-12">
+							<input type="text" class="form-control" name="txtLastName" placeholder="<%= __('modal_new_user_account.last_name_placeholder') %>">
+						</div>
+					</div>
+					<div class="row mb-2">
+						<div class="col-sm-12">
+							<input type="text" class="form-control" name="txtUserName" placeholder="<%= __('modal_new_user_account.username_placeholder') %>">
+						</div>
+					</div>
+					<div class="row mb-2">
+						<div class="col-sm-12">
+							<input type="password" class="form-control" name="txtPassword" placeholder="<%= __('modal_new_user_account.password_placeholder') %>"
+								id="password">
+						</div>
+					</div>
+					<div class="row mb-2">
+						<div class="col-sm-12">
+							<input type="password" class="form-control" name="txtPassword2"
+								placeholder="<%= __('modal_new_user_account.confirm_password_placeholder') %>" id="confirm_password">
+						</div>
+					</div>
+					<div class="mb-3">
+						<select class="form-control" id="user_role" name="user_role" style="width: 100%;"
+							data-placeholder="Choose one..">
+							<option></option>
+
+						</select>
+					</div>
+			</div>
+					<div class="modal-footer">
+						<button type="submit" class="btn btn-sm btn-primary" data-bs-dismiss="modal"><%= __('modal_new_user_account.save') %></button>
+						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_new_user_account.close') %></button>
+					</div>
+			</form>
+		</div>
+	</div>
+</div>

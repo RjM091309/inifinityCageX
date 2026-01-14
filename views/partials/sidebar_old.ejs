@@ -1,0 +1,313 @@
+<nav id="sidebar" aria-label="Main Navigation">
+	<!-- Side Header (mini Sidebar mode) -->
+	<div class="smini-visible-block">
+		<div class="content-header bg-header-dark">
+			<!-- Logo -->
+			<a class="fw-semibold text-white tracking-wide" href="index.html">
+				D<span class="opacity-75">x</span>
+			</a>
+			<!-- END Logo -->
+		</div>
+	</div>
+	<!-- END Side Header (mini Sidebar mode) -->
+
+	<!-- Side Header (normal Sidebar mode) -->
+	<div class="smini-hidden">
+		<div class="content-header justify-content-lg-center bg-header-dark">
+			<!-- Logo -->
+			<a href="" class="logo-link">
+				<img src="/login/images/Betrnk_logo.png" alt="BetRNK System Logo" class="sidebar-logo">
+			</a>
+
+			<style>
+				.sidebar {
+    width: 250px; /* Adjust based on your design */
+    /* Other sidebar styles */
+}
+
+.logo-link {
+    display: block;
+    text-align: center; /* Center the logo in the sidebar */
+    padding: 10px; /* Adjust spacing as needed */
+}
+
+.sidebar-logo {
+    width: 180px; /* Adjust based on your needs */
+    height: auto; /* Maintain aspect ratio */
+    /* Optional: Add margin or padding for spacing */
+}
+
+			</style>
+		<!-- END Logo -->
+
+			<!-- Options -->
+			<div class="d-lg-none">
+				<!-- Close Sidebar, Visible only on mobile screens -->
+				<!-- Layout API, functionality initialized in Template._uiApiLayout() -->
+				<button type="button" class="btn btn-sm btn-alt-secondary d-lg-none" data-toggle="layout"
+					data-action="sidebar_close">
+					<i class="fa fa-times-circle"></i>
+				</button>
+				<!-- END Close Sidebar -->
+			</div>
+			<!-- END Options -->
+		</div>
+	</div>
+	<!-- END Side Header (normal Sidebar mode) -->
+
+	<!-- Sidebar Scrolling -->
+	<div class="js-sidebar-scroll">
+		<!-- Side Actions -->
+		<div class="content-side content-side-full text-center bg-body-light">
+			<div class="smini-hide">
+				<img class="img-avatar" src="/assets/media/avatars/avatar10.jpg" alt="">
+				<div class="mt-3 fw-semibold"><%= firstname %> <%= lastname %></div>
+				<!-- <a class="link-fx text-muted" href="javascript:void(0)">$ 49.680,00</a> -->
+			</div>
+		</div>
+		<!-- END Side Actions -->
+	
+		<!-- Side Navigation -->
+		<div class="content-side">
+			<ul class="nav-main">
+				<li class="nav-main-item">
+					<a class="nav-main-link <%= currentPage === 'dashboard' ? 'active' : '' %>" href="/dashboard">
+						<i class="nav-main-link-icon fa fa-tachometer"></i>
+						<span class="nav-main-link-name">Dashboard</span>
+					</a>
+				</li>
+				<li class="nav-main-heading">Manage</li>
+				<li
+					class="nav-main-item <%= currentPage === 'agency' || currentPage === 'agent' || currentPage === 'account_ledger' ? 'open' : '' %>">
+					<a class="nav-main-link nav-main-link-submenu" data-toggle="submenu" aria-haspopup="true"
+						aria-expanded="false" href="#">
+						<i class="nav-main-link-icon fa fa-users"></i>
+						<span class="nav-main-link-name">Accounts</span>
+					</a>
+					<ul class="nav-main-submenu">
+						<li class="nav-main-item">
+							<a class="nav-main-link <%= currentPage === 'agency' ? 'active' : '' %>" href="/agency">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Agent</span>
+							</a>
+						</li>
+						<li class="nav-main-item">
+							<a class="nav-main-link <%= currentPage === 'agent' ? 'active' : '' %>" href="/agent">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Guest</span>
+							</a>
+						</li>
+						<li class="nav-main-item">
+							<a class="nav-main-link <%= currentPage === 'account_ledger' ? 'active' : '' %>" href="/account_ledger">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Account List</span>
+							</a>
+						</li>
+					</ul>
+				</li>
+				<li class="nav-main-item">
+					<a class="nav-main-link <%= currentPage === 'game_list' ? 'active' : '' %>" href="/game_list">
+						<i class="nav-main-link-icon fa fa-book"></i>
+						<span class="nav-main-link-name">Game Book</span>
+					</a>
+				</li>
+				<li
+					class="nav-main-item <%= currentPage === 'capital' || currentPage === 'house_expense' || currentPage === 'booking' || currentPage === 'credit' || currentPage === 'commission' || currentPage === 'concierge' || currentPage === 'main_cage' ? 'open' : '' %>">
+					<a class="nav-main-link nav-main-link-submenu" data-toggle="submenu" aria-haspopup="true"
+						aria-expanded="false" href="#">
+						<i class="nav-main-link-icon fa fa-money-bill-wave-alt"></i>
+						<span class="nav-main-link-name">Junket</span>
+					</a>
+					<ul class="nav-main-submenu">
+						<!--<li class="nav-main-item">-->
+						<!--	<a class="nav-main-link <%= currentPage === 'capital' ? 'active' : '' %>" href="/capital">-->
+						<!--		<i class="nav-main-link-icon fa fa-genderless"></i>-->
+						<!--		<span class="nav-main-link-name">Capital</span>-->
+						<!--	</a>-->
+						<!--</li>-->
+						
+						<li class="nav-main-item">
+							<a class="nav-main-link <%= currentPage === 'house_expense' ? 'active' : '' %>" href="/house_expense">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Junket Expenses</span>
+							</a>
+						</li>
+						
+						<li class="nav-main-item">
+							<a class="nav-main-link <%= currentPage === 'booking' ? 'active' : '' %>" href="/booking">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Hotel Booking</span>
+							</a>
+						</li>
+						
+	
+						<li class="nav-main-item">
+							<a class="nav-main-link <%= currentPage === 'commission' ? 'active' : '' %>" href="/commission">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Commission</span>
+							</a>
+						</li>
+					</ul>
+				</li>
+
+				<li
+					class="nav-main-item <%= currentPage === '' || currentPage === '' || currentPage === '' ? 'open' : '' %>">
+					<a class="nav-main-link nav-main-link-submenu" data-toggle="submenu" aria-haspopup="true"
+						aria-expanded="false" href="#">
+						<i class="nav-main-link-icon fa fa-bar-chart"></i>
+						<span class="nav-main-link-name">Statistics</span>
+					</a>
+					<ul class="nav-main-submenu">
+						<li class="nav-main-item">
+							<a class="nav-main-link <%= currentPage === '' ? 'active' : '' %>" href="">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">All Agent</span>
+							</a>
+						</li>
+						
+						<li class="nav-main-item">
+							<a class="nav-main-link <%= currentPage === '' ? 'active' : '' %>" href="">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Game</span>
+							</a>
+						</li>
+					</ul>
+				</li>	
+
+				<li class="nav-main-heading">Security</li>
+				<li class="nav-main-item <%= currentPage === 'manage_users' || currentPage === 'user_roles' ? 'open' : '' %>">
+					<a class="nav-main-link nav-main-link-submenu" data-toggle="submenu" aria-haspopup="true"
+						aria-expanded="false" href="#">
+						<i class="nav-main-link-icon fa fa-user-circle"></i>
+						<span class="nav-main-link-name">User Accounts</span>
+					</a>
+					<ul class="nav-main-submenu">
+						<li class="nav-main-item">
+							<a class="nav-main-link <%= currentPage === 'manage_users' ? 'active' : '' %>" href="manage_users">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Manage Users</span>
+							</a>
+						</li>
+						<li class="nav-main-item">
+							<a class="nav-main-link <%= currentPage === 'user_roles' ? 'active' : '' %>" href="/user_roles">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">User Roles</span>
+							</a>
+						</li>
+						<li class="nav-main-item">
+							<a class="nav-main-link" href="#">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Profile</span>
+							</a>
+						</li>
+					</ul>
+				</li>
+				<li
+					class="nav-main-item <%= currentPage === 'cash' || currentPage === 'cash_chips' || currentPage === 'non_nego' || currentPage === 'cage_category' || currentPage === 'capital_category' || currentPage === 'concierge_category' || currentPage === 'credit_status' || currentPage === 'expense_category' || currentPage === 'transaction_type' ? 'open' : '' %>">
+					<a class="nav-main-link nav-main-link-submenu" data-toggle="submenu" aria-haspopup="true"
+						aria-expanded="false" href="#">
+						<i class="nav-main-link-icon fa fa-cog"></i>
+						<span class="nav-main-link-name">Settings</span>
+					</a>
+
+					<ul class="nav-main-submenu">
+
+						<li
+							class="nav-main-item <%= currentPage === 'cash' || currentPage === 'cash_chips' || currentPage === 'non_nego' ? 'open' : '' %>">
+							<a class="nav-main-link nav-main-link-submenu" data-toggle="submenu" aria-haspopup="true"
+								aria-expanded="false" href="#">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Denomination</span>
+							</a>
+							<ul class="nav-main-submenu">
+								<li class="nav-main-item">
+									<a class="nav-main-link <%= currentPage === 'cash' ? 'active' : '' %>" href="/cash">
+										<i class="nav-main-link-icon fa fa-file"></i>
+										<span class="nav-main-link-name">Cash</span>
+									</a>
+								</li>
+								<li class="nav-main-item">
+									<a class="nav-main-link <%= currentPage === 'cash_chips' ? 'active' : '' %>" href="cash_chips">
+										<i class="nav-main-link-icon fa fa-file"></i>
+										<span class="nav-main-link-name">Cash Chips</span>
+									</a>
+								</li>
+								<li class="nav-main-item">
+									<a class="nav-main-link <%= currentPage === 'non_nego' ? 'active' : '' %>"
+										href="non_negotiable_chips">
+										<i class="nav-main-link-icon fa fa-file"></i>
+										<span class="nav-main-link-name">Non-Negotiable</span>
+									</a>
+								</li>
+
+							</ul>
+						</li>
+
+						<li
+							class="nav-main-item <%= currentPage === 'cage_category' || currentPage === 'capital_category' || currentPage === 'concierge_category' || currentPage === 'credit_status' || currentPage === 'expense_category' || currentPage === 'transaction_type' ? 'open' : '' %>">
+							<a class="nav-main-link nav-main-link-submenu" data-toggle="submenu" aria-haspopup="true"
+								aria-expanded="false" href="#">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Pop-ups</span>
+							</a>
+							<ul class="nav-main-submenu">
+								<li class="nav-main-item">
+									<a class="nav-main-link <%= currentPage === 'cage_category' ? 'active' : '' %>" href="/cage_category">
+										<i class="nav-main-link-icon fa fa-file"></i>
+										<span class="nav-main-link-name">Cage Category</span>
+									</a>
+								</li>
+								<li class="nav-main-item">
+									<a class="nav-main-link <%= currentPage === 'capital_category' ? 'active' : '' %>"
+										href="/capital_category">
+										<i class="nav-main-link-icon fa fa-file"></i>
+										<span class="nav-main-link-name">Capital Category</span>
+									</a>
+								</li>
+								<li class="nav-main-item">
+									<a class="nav-main-link <%= currentPage === 'concierge_category' ? 'active' : '' %>"
+										href="/concierge_category">
+										<i class="nav-main-link-icon fa fa-file"></i>
+										<span class="nav-main-link-name">Concierge Category</span>
+									</a>
+								</li>
+								<li class="nav-main-item">
+									<a class="nav-main-link <%= currentPage === 'credit_status' ? 'active' : '' %>" href="/credit_status">
+										<i class=" nav-main-link-icon fa fa-file"></i>
+										<span class="nav-main-link-name">Credit Status</span>
+									</a>
+								</li>
+								<li class="nav-main-item">
+									<a class="nav-main-link <%= currentPage === 'expense_category' ? 'active' : '' %>"
+										href="/expense_category">
+										<i class="nav-main-link-icon fa fa-file"></i>
+										<span class="nav-main-link-name">Expense Category</span>
+									</a>
+								</li>
+								<li class="nav-main-item">
+									<a class="nav-main-link <%= currentPage === 'transaction_type' ? 'active' : '' %>"
+										href="/transaction_type">
+										<i class="nav-main-link-icon fa fa-file"></i>
+										<span class="nav-main-link-name">Transaction Type</span>
+									</a>
+								</li>
+								
+							</ul>
+							<li class="nav-main-item">
+							<a class="nav-main-link"  data-toggle="" aria-haspopup="true"
+								aria-expanded="false" <%= currentPage === 'telegramAPI' ? 'active' : '' %> href="/telegramAPI">
+								<i class="nav-main-link-icon fa fa-genderless"></i>
+								<span class="nav-main-link-name">Telegram API</span>
+							</a>
+						</li>
+						</li>
+
+					</ul>
+				</li>
+			</ul>
+		</div>
+		<!-- END Side Navigation -->
+	</div>
+	<!-- END Sidebar Scrolling -->
+</nav>
+<!-- END Sidebar -->

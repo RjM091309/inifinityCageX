@@ -1,0 +1,243 @@
+<%- include ('../partials/header_html'); -%>
+
+<head>
+	<%- include ('../partials/title_meta'); -%>
+
+	<%- include ('../partials/header_css'); -%>
+	 <!-- Include jQuery -->
+	 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	 <!-- DATEPICKER -->
+   <link href="assets/libs/bootstrap-datepicker/css/bootstrap-datepicker.min.css" rel="stylesheet">
+</head>
+
+<body>
+	<div id="page-container"
+		class="sidebar-o sidebar-scroll page-header-dark enable-page-overlay side-scroll page-header-fixed">
+
+		<%- include ('../partials/sidebar'); -%>
+		<%- include ('../partials/topbar'); -%>
+
+		<!-- Main Container -->
+		<main id="main-container">
+			<div class="content">
+				<!-- Dynamic Table Responsive -->
+				<div class="block block-rounded">
+					<div class="block-header block-header-default">
+						<h3 class="block-title">
+							<small>Junket / Credit (Marker)</small>
+						</h3>
+						<nav class="flex-shrink-0 my-2 my-sm-0 ms-sm-3" aria-label="breadcrumb">
+							<ol class="breadcrumb">
+								<button type="button" class="btn btn-primary" onclick="addCredit()">
+									<i class="fa fa-plus" aria-hidden="true"></i> New Record
+								</button>
+							</ol>
+						</nav>
+					</div>
+					<div class="block-content block-content-full">
+						<!-- <div class="row mb-2">
+							<div class="col-sm-12">
+								<h4>Total Credit: <span class="total_credit"></span></h4>
+							</div>
+						</div> -->
+
+						<!-- DATE FILTER -->
+					    <div class="dataTables_wrapper">
+								<div class="row mb-2">
+									<div class="col-sm-4">
+										<div class="input-daterange input-group" id="datepicker6" data-date-format="dd M, yyyy" data-date-autoclose="true" data-provide="datepicker" data-date-container="#datepicker6">
+											<input type="text" id="from-date" class="form-control" name="start" placeholder="Start Date" />
+												<input type="text" id="to-date" class="form-control" name="end" placeholder="End Date" />
+											</div>
+									</div>
+								</div>
+							</div>
+
+						<!-- DataTables init on table by adding .js-dataTable-responsive class, functionality is initialized in js/pages/be_tables_datatables.min.js which was auto compiled from _js/pages/be_tables_datatables.js -->
+						<table id="credit-tbl" class="table table-bordered table-vcenter js-dataTable-responsive" style="width:100%">
+							<thead>
+								<tr>
+									<th class="d-none d-sm-table-cell">AGENT CODE</th>
+									<th class="d-none d-sm-table-cell">ACCOUNT NAME</th>
+									<th class="d-none d-sm-table-cell">AMOUNT</th>
+									<th class="text-center" style="width: 150px;">STATUS</th>
+									<th class="d-none d-sm-table-cell">REMARKS</th>
+									<th class="d-none d-sm-table-cell">ENCODED BY</th>
+									<th class="text-center" style="width: 100px;">DATE & TIME</th>
+									<th class="text-center" style="width: 100px;">ACTION</th>
+								</tr>
+							</thead>
+							<tbody>
+							</tbody>
+							<tfoot></tfoot>
+								<tr>
+									<th colspan="2">GRAND TOTAL</th>
+									<th colspan="6" id="GRAND_TOTAL_AMOUNT">₱0.00</th>
+								</tr>
+							</tfoot>
+						</table>	
+						<script>
+							$(document).ready(function () {
+								function initializeDataTable() {
+									if ($.fn.DataTable.isDataTable('#credit-tbl')) {
+										$('#credit-tbl').DataTable().destroy();
+									}
+						
+									$('#credit-tbl').DataTable({
+										"ajax": {
+											"url": "/junket_credit_data", // Adjust the URL to your endpoint
+											"dataSrc": function (json) {
+												console.log("Data received from server:", json);
+												return json.data || []; // Default to empty array if no data
+											}
+										},
+										"columns": [
+											{ "data": "agent_code" },
+											{ "data": "account_name" },
+											{ "data": "amount" },
+											{ "data": "status" },
+											{ "data": "remarks" },
+											{ "data": "date_time" }, // Adjusted column name
+											{ "data": "action" }  // For action buttons
+										],
+										"drawCallback": function () {
+											calculateTotal();
+										}
+									});
+								}
+						
+								initializeDataTable();
+						
+							    // Set default "From" date to the 1st day of the current month
+								var currentDate = new Date();
+								var firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+								var today = new Date();
+
+								// Function to format the date as 'dd Mmmm yyyy' (e.g., '01 Sept 2024')
+								var formatDate = function (date) {
+									var day = ("0" + date.getDate()).slice(-2); // Add leading zero for day
+									var monthNames = ["Jan,", "Feb,", "Mar,", "Apr,", "May,", "Jun,", "Jul,", "Aug,", "Sep,", "Oct,", "Nov,", "Dec,"];
+									var month = monthNames[date.getMonth()]; // Get the abbreviated month name
+									var year = date.getFullYear();
+									return day + ' ' + month + ' ' + year;
+								};
+
+								// Set default values for date inputs
+								$('#from-date').val(formatDate(firstDayOfMonth)); // 1st of the current month
+								$('#to-date').val(formatDate(today)); // Today's date
+
+								// Custom filtering function for date range
+								$.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+									var minDate = $('#from-date').val() ? new Date($('#from-date').val()) : null;
+									var maxDate = $('#to-date').val() ? new Date($('#to-date').val()) : null;
+									var dateTime = new Date(data[6]); // Column index for "DATE & TIME"
+
+									// Strip time from the date by setting time to midnight
+									if (minDate !== null) {
+										minDate.setHours(0, 0, 0, 0);
+									}
+									if (maxDate !== null) {
+										maxDate.setHours(23, 59, 59, 999); // Include the whole day for "To" date
+									}
+									dateTime.setHours(0, 0, 0, 0); // Ignore the time for dateTime as well
+
+									// Apply the filtering logic
+									if ((minDate === null && maxDate === null) ||
+										(minDate === null && dateTime <= maxDate) ||
+										(minDate <= dateTime && maxDate === null) ||
+										(minDate <= dateTime && dateTime <= maxDate)) {
+										return true;
+									}
+									return false;
+								});
+
+								// Redraw DataTable when the date inputs change
+								$('#from-date, #to-date').change(function () {
+									$('#credit-tbl').DataTable().draw();
+								});
+
+								// Trigger the initial draw on page load
+								$('#credit-tbl').DataTable().draw();
+						
+								function calculateTotal() {
+									var totalAmount = 0;
+						
+									var table = $('#credit-tbl').DataTable();
+									table.rows({ search: 'applied' }).every(function () {
+										var data = this.data();
+						
+										var amountIndex = 2; // The "Amount" column index
+										var amountValue = data[amountIndex] || '0';
+						
+										// Clean and parse the amount value
+										var cleanedAmountValue = parseFloat(amountValue.replace(/[^0-9.-]/g, '')) || 0;
+						
+										totalAmount += cleanedAmountValue;
+									});
+						
+									// Format numbers with commas
+									function formatNumber(num) {
+										return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+									}
+						
+									// Update the footer
+									$('#GRAND_TOTAL_AMOUNT').text('₱' + formatNumber(totalAmount));
+								}
+						
+								// Attach events to recalculate totals on search and draw
+								$('#credit-tbl').on('draw.dt', function () {
+									calculateTotal();
+								});
+							});
+						</script>
+						
+					</div>
+				</div>
+				<!-- Dynamic Table Responsive -->
+			</div>
+			<!-- END Page Content -->
+		</main>
+		<!-- END Main Container -->
+
+		<%- include ('../modals/junket/new_credit') %>
+		<%- include ('../modals/junket/edit_credit') %>
+
+		<%- include ('../partials/footer'); -%>
+
+
+		<script src="/assets/js/datatables/credit_tables_datatables.min.js"></script>
+		<script src="/assets/js/functions/credit.js"></script>
+		<!-- TIME ZONE -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+		<script src="assets/libs/bootstrap-datepicker/js/bootstrap-datepicker.min.js"></script>
+		
+		<style>
+			/* Adjust spacing and alignment for date range picker */
+		 .dataTables_wrapper .row {
+			 margin-bottom: 15px; /* Adjust spacing as needed */
+		 }
+		 
+		 /* Flexbox layout for the date range picker */
+		 .input-daterange {
+			 display: flex;
+			 justify-content: space-between;
+			 position: relative;
+			 left: 5.5rem; /* Adjust this value as needed */
+		   top: 2.9rem;
+		 }
+		 
+		 
+		 /* Styling for form controls */
+		 .input-daterange .form-control {
+			 flex: 1;
+			 margin-right: 5px; /* Adjust spacing between input fields */
+		 }
+		 
+		 /* Remove margin from the last input */
+		 .input-daterange .form-control:last-child {
+			 margin-right: 0;
+		 }
+		 
+		 
+		 </style>
+		<%- include ('../partials/footer_html'); -%>

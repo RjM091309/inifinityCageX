@@ -1,0 +1,88 @@
+<%- include ('../partials/header_html'); -%>
+
+<head>
+	<%- include ('../partials/title_meta'); -%>
+
+	<%- include ('../partials/header_css'); -%>
+</head>
+
+<body>
+	<div id="page-container"
+		class="sidebar-o sidebar-scroll page-header-dark enable-page-overlay side-scroll page-header-fixed">
+
+		<%- include ('../partials/sidebar'); -%>
+		<%- include ('../partials/topbar'); -%>
+
+		<!-- Main Container -->
+		<main id="main-container">
+			<div class="content">
+				<!-- Dynamic Table Responsive -->
+				<div class="block block-rounded">
+					<div class="block-header block-header-default">
+						<h3 class="block-title">
+							<small>Junket / Concierge</small>
+						</h3>
+						<nav class="flex-shrink-0 my-2 my-sm-0 ms-sm-3" aria-label="breadcrumb">
+							<ol class="breadcrumb">
+								<button type="button" class="btn btn-primary" onclick="addConcierge()">
+									<i class="fa fa-plus" aria-hidden="true"></i> New Record
+								</button>
+							</ol>
+						</nav>
+					</div>
+					<div class="block-content block-content-full">
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<table id="#dataTable" class="table table-bordered table-vcenter">
+									<thead>
+										<tr>
+											<th class="text-center" style="width: 150px;">CASH IN</th>
+											<th class="text-center" style="width: 150px;">CASH OUT</th>
+											<th class="text-center" style="width: 150px;">TOTAL BALANCE</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td class="fw-bold text-end"><span class="total_deposit"></span></td>
+											<td class="fw-bold text-end"><span class="total_withdraw"></span></td>
+											<td class="fw-bold text-end"><span class="total_balance"></span></td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+
+						<!-- DataTables init on table by adding .js-dataTable-responsive class, functionality is initialized in js/pages/be_tables_datatables.min.js which was auto compiled from _js/pages/be_tables_datatables.js -->
+						<table id="concierge-tbl" class="table table-bordered table-vcenter js-dataTable-responsive">
+							<thead>
+								<tr>
+									<th class="d-none d-sm-table-cell" style="width: 150px;">DATE</th>
+									<th class="d-none d-sm-table-cell">CATEGORY</th>
+									<th class="d-none d-sm-table-cell">DESCRIPTION</th>
+									<th class="d-none d-sm-table-cell">TRANS TYPE</th>
+									<th class="d-none d-sm-table-cell">AMOUNT</th>
+									<th class="text-center" style="width: 150px;">STATUS</th>
+									<th class="text-center" style="width: 100px;">ACTION</th>
+								</tr>
+							</thead>
+							<tbody>
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<!-- Dynamic Table Responsive -->
+			</div>
+			<!-- END Page Content -->
+		</main>
+		<!-- END Main Container -->
+
+		<%- include ('../modals/junket/new_concierge') %>
+		<%- include ('../modals/junket/edit_concierge') %>
+
+		<%- include ('../partials/footer'); -%>
+
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+		<script src="/assets/js/datatables/concierge_tables_datatables.min.js"></script>
+		<script src="/assets/js/functions/concierge.js"></script>
+
+		<%- include ('../partials/footer_html'); -%>

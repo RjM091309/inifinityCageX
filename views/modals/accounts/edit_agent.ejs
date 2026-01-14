@@ -1,0 +1,77 @@
+<div class="modal fade" id="modal-edit-agent" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+	data-keyboard="false" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered" role="document">
+		<div class="modal-content">
+
+
+
+			<div class="modal-header bg-primary">
+				<h5 class="block-title text-white"><%= __('modal_edit_agent.edit_guest') %></h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+
+
+			<div class="modal-body">
+				<form id="edit_agent">
+					<div class="block-content">
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="file" name="photo" id="photo" class="form-control" />
+
+							</div>
+
+
+						</div>
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="text" class="form-control" name="txtAgenctCode" placeholder="Account No." id="txtAgent_code" required />
+
+							</div>
+						</div>
+
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="text" class="form-control" name="txtName" placeholder="Name" id="agentName"
+									required />
+							</div>
+						</div>
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="text" class="form-control" name="txtTelegram" id="telegram"
+									placeholder="<%= __('modal_edit_agent.telegram_placeholder') %>" />
+							</div>
+						</div>
+
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<input type="text" class="form-control" name="txtContact" placeholder="Contact Number"
+									id="contact" />
+							</div>
+						</div>
+
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<textarea name="txtRemarks" class="form-control remarks" placeholder="Remarks"
+									id="remarks"></textarea>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="submit" id="submit-edit-agent-btn" class="btn btn-sm btn-primary">
+							<%= __('modal_edit_agent.save') %>
+						</button>
+						
+						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+							<%= __('modal_edit_agent.close') %>
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>

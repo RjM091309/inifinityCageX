@@ -1,0 +1,70 @@
+<div class="modal fade" id="modal-add-cashout" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+		<div class="modal-header bg-primary">
+			<h5 class="modal-title text-white" id="staticBackdropLiveLabel">Add CHIPS RETURN</h5>
+			<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+		</div>
+		<form id="add_cashout">
+		<div class="modal-body">
+			<input type="hidden" name="game_id" class="game_list_id">
+					<input type="hidden" name="txtAccountCode" class="txtAccountCode">
+					<input type="hidden" name="txttotal_balance_cashout" id="total_balance_cashout">
+					<input type="hidden" name="txtMarkerChipsReturn" id="MarkerChipsReturn">
+					<input type="hidden" name="txtTotalRolling" id="TotalRollingCashout">
+					<div class="row mb-4">
+						<div class="col-sm-6">
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center txtNN" placeholder="NN Chips" name="txtNN" id="txtNNCashout">
+						</div>
+
+						<div class="col-sm-6">
+							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+								class="form-control text-center txtCC" placeholder="CC Chips" name="txtCC" id="txtCCCashout">
+						</div>
+					</div>
+
+					<div class="row mb-2">
+						<div class="col-sm-4">
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash1" name="txtTransType">
+								<label class="form-check-label" for="cash1">
+									<span class="d-flex align-items-center">
+										Cash
+									</span>
+								</label>
+							</div>
+						</div>
+						<div class="col-sm-4">
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="deposit1" name="txtTransType">
+								<label class="form-check-label" for="deposit1">
+									<span class="d-flex align-items-center">
+										Deposit
+									</span>
+								</label>
+							</div>
+						</div>
+						<div class="col-sm-4">
+							<div class="form-check">
+								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="4" id="marker1" name="txtTransType">
+								<label class="form-check-label" for="marker1">
+									<span class="d-flex align-items-center">
+										Credit
+									</span>
+								</label>
+							</div>
+						</div>
+					</div>
+				</div>
+		<div class="modal-footer">
+			<button type="submit" class="btn btn-sm btn-primary" id="submit-cashout-btn">Save</button>
+
+			<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+				Close
+			</button>
+		</div>
+		</div>
+	</div>
+	</form>
+	</div>

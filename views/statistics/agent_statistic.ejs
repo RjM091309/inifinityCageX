@@ -1,0 +1,466 @@
+<%- include('../partials/header') %>
+	<%- include('../partials/loader') %>
+		<%- include ('../partials/sidebar'); -%>
+			<%- include ('../partials/topbar'); -%>
+
+				<link rel="stylesheet" href="assets/js/plugins/select2/css/select2.min.css">
+				<!-- SweetAlert2 CSS -->
+				<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+
+				<!-- SweetAlert2 JS -->
+				<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+
+
+				<!-- Include jQuery -->
+				<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+				<!--DATEPICKER-->
+				<link href="assets/libs/bootstrap-datepicker/css/bootstrap-datepicker.min.css" rel="stylesheet">
+
+				<!-- Flatpickr CSS -->
+				<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+				<!-- Flatpickr JS -->
+				<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+
+				<div id="user-role" data-permissions="<%= permissions %>"></div>
+				<div class="conatiner-fluid content-inner mt-n5 py-0">
+					<div class="row">
+						<div class="col-sm-12">
+							<div class="card">
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<h3 class="card-title">
+										<div class="breadcrumb1 flat">
+											<a href="/dashboard"><span class="fa fa-home"></span></a>
+											<a href="/agent_statistic">
+												<%= __('agent_statistic.statistics') %>
+											</a>
+											<a href="/agent_statistic" class="active">
+												<%= __('agent_statistic.agent') %>
+											</a>
+										</div>
+									</h3>
+								</div>
+								<div class="dataTables_wrapper">
+									<div class="row mb-2">
+										<div class="col-sm-4">
+											<input type="text" id="daterange" class="input-daterange input-group"
+												placeholder="Select Date Range" autocomplete="off" />
+										</div>
+									</div>
+								</div>
+								<div class="card-body">
+									<div class="tab-pane active p-3" id="home2" role="tabpanel">
+
+										<table id="agent_statistic-tbl" class="table  nowrap small-text"
+											style="width:100%">
+											<thead>
+												<tr>
+													<th class="d-none d-sm-table-cell text-center">
+														<%= __('agent_statistic.agent') %>
+													</th>
+													<th class="d-none d-sm-table-cell text-center">
+														<%= __('agent_statistic.buyin') %>
+													</th>
+													<th class="d-none d-sm-table-cell text-center">
+														<%= __('agent_statistic.win_loss') %>
+													</th>
+													<th class="d-none d-sm-table-cell text-center">
+														<%= __('agent_statistic.rolling') %>
+													</th>
+													<th class="d-none d-sm-table-cell text-center">
+														<%= __('agent_statistic.commission') %>
+													</th>
+													<th class="d-none d-sm-table-cell text-center">
+														<%= __('agent_statistic.house_share') %>
+													</th>
+													<th class="d-none d-sm-table-cell text-center">
+														<%= __('agent_statistic.ngr') %>
+													</th>
+													<th class="d-none d-sm-table-cell text-center">
+														<%= __('agent_statistic.rtp') %>
+													</th>
+													<th class="d-none d-sm-table-cell text-center">
+														<%= __('agent_statistic.rm') %>
+													</th>
+													<th class="d-none d-sm-table-cell text-center">
+														<%= __('agent_statistic.expense') %>
+													</th>
+													<th class="d-none d-sm-table-cell text-center">
+														<%= __('agent_statistic.profit') %>
+													</th>
+												</tr>
+											</thead>
+											<tbody class="text-center">
+												<!-- Data will be populated here -->
+											</tbody>
+											<tfoot>
+												<tr>
+													<th>
+														<%= __('agent_statistic.grand_total') %>
+													</th>
+													<th class="d-none d-sm-table-cell text-center"
+														id="GRAND_TOTAL_AMOUNT">₱0.00</th>
+													<th class="d-none d-sm-table-cell text-center"
+														id="GRAND_TOTAL_ROLLING">₱0.00</th>
+													<th class="d-none d-sm-table-cell text-center"
+														id="GRAND_CHIPS_RETURN">₱0.00</th>
+													<th class="d-none d-sm-table-cell text-center" id="GRAND_WIN_LOSS">
+														₱0.00</th>
+													<th></th>
+													<th class="d-none d-sm-table-cell text-center" id="GRAND_NGR">₱0.00
+													</th>
+													<th class="d-none d-sm-table-cell text-center" id="GRAND_RTP">₱0.00
+													</th>
+													<th class="d-none d-sm-table-cell text-center" id="GRAND_RM">₱0.00
+													</th>
+													<th class="d-none d-sm-table-cell text-center" id="GRAND_EXPENSE">
+														₱0.00</th>
+													<th class="d-none d-sm-table-cell text-center" id="GRAND_PROFIT">
+														₱0.00</th>
+												</tr>
+											</tfoot>
+										</table>
+
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<!-- END Page Content -->
+
+				<style>
+					.card-body {
+						overflow-x: auto;
+					}
+
+					.loading-overlay {
+						position: absolute;
+						top: 0;
+						left: 0;
+						width: 100%;
+						height: 100%;
+						background: rgba(255, 255, 255, 0.9);
+						display: flex;
+						flex-direction: column;
+						justify-content: center;
+						align-items: center;
+						z-index: 9999;
+					}
+
+					.progress-container {
+						width: 80%;
+						text-align: center;
+					}
+
+					.progress-bar {
+						width: 0%;
+						height: 8px;
+						background: #6f9c40 !important;
+						border-radius: 4px;
+						transition: width 0.4s ease;
+						margin-bottom: 8px;
+					}
+
+					.nav-tabs-custom .nav-link {
+						padding: 0.5rem 1rem;
+						/* Adjust padding as needed */
+						font-size: 0.875rem;
+						/* Adjust font size */
+					}
+
+					.nav-tabs-custom .nav-link .mdi {
+						font-size: 1.25rem;
+						/* Adjust icon size */
+					}
+
+					.nav-tabs-custom .nav-item {
+						margin-bottom: 0;
+						/* Adjust margin if needed */
+					}
+
+					* Base table styles */ #agent_statistic-tbl {
+						width: 100%;
+						font-size: 13px;
+						border-collapse: collapse;
+					}
+
+					/* Header styles */
+					#agent_statistic-tbl thead th {
+						background: var(--bs-primary-bg-subtle);
+						color: var(--bs-primary);
+						font-weight: 500;
+						padding: 12px 15px;
+						text-align: left;
+						border: none;
+					}
+
+					/* Row styles */
+					#agent_statistic-tbl tbody tr {
+						border-bottom: 1px solid #eee;
+					}
+
+					/* Cell styles */
+					#agent_statistic-tbl td {
+						padding: 12px 15px;
+						color: #666;
+					}
+
+					#agent_statistic-tbl tbody tr:hover {
+						background-color: #f5f5f5 !important;
+					}
+
+
+
+					/* Balance column */
+					#agent_statistic-tbl td:last-child {
+						text-align: center;
+						color: #333;
+					}
+
+
+					/* Footer total row */
+
+
+					#agent_statistic-tbl tfoot th {
+						padding: 10px;
+						font-weight: 600;
+
+						color: #333;
+						background-color: #f4f6fa;
+						border-top: 2px solid #dee2e6;
+					}
+
+					@media (max-width: 768px) {
+						#agent_statistic-tbl {
+							font-size: 10px;
+							/* Mas maliit sa mobile */
+						}
+
+						#agent_statistic-tbl th,
+						#agent_statistic-tbl td {
+							padding: 5px;
+						}
+					}
+
+					/* Itago ang text na "Show" at "entries" sa DataTables */
+					.dataTables_length label {
+						font-size: 0;
+						/* Itatago ang text */
+					}
+
+					/* Panatilihin ang dropdown na nakikita */
+					.dataTables_length select {
+						font-size: 12px;
+						/* Ibalik ang font size ng dropdown */
+					}
+
+
+
+					/* Adjust spacing and alignment for date range picker */
+					.dataTables_wrapper .row {
+						margin-bottom: 15px;
+						font-size: 12px;
+						/* Pareho sa commission-tbl */
+					}
+
+					/* Flexbox layout for the date range picker */
+					.input-daterange {
+						display: flex;
+						justify-content: space-between;
+						position: relative;
+						left: 7.5rem;
+						top: 3.5rem;
+						max-width: 300px;
+						font-size: 12px;
+						/* Pareho sa commission-tbl */
+					}
+
+					/* Flexbox layout for the date range picker */
+					.input-daterange {
+						display: flex;
+						justify-content: space-between;
+						position: relative;
+						left: 8.5rem;
+						top: 5rem;
+						max-width: 300px;
+						font-size: 12px;
+						/* Pareho sa commission-tbl */
+					}
+
+					/* Remove margin from the last input */
+					.input-daterange .form-control:last-child {
+						margin-right: 0;
+					}
+
+					/* Responsive tweaks */
+					@media (max-width: 768px) {
+
+						.dataTables_wrapper .row,
+						.input-daterange,
+						.input-daterange .form-control {
+							font-size: 10px;
+							/* Mas maliit sa mobile */
+						}
+
+						.input-daterange .form-control {
+							padding: 5px;
+							/* Mas maliit na padding */
+						}
+					}
+				</style>
+
+
+				<script>
+					$(document).ready(function () {
+						function initializeDataTable() {
+							if ($.fn.DataTable.isDataTable('#agent_statistic-tbl')) {
+								$('#agent_statistic-tbl').DataTable().destroy();
+							}
+
+							// $('#agent_statistic-tbl').DataTable({
+							// 	"ajax": {
+							// 		"url": "/game_list_data",
+							// 		"dataSrc": function (json) {
+							// 			console.log("Data received from server:", json);
+							// 			return json.data || []; // Default to empty array if no data
+							// 		}
+							// 	},
+							// 	"columns": [
+							// 	   
+							// 	    { "data": "game_type" },
+							// 		
+							// 		{ "data": "total_amt" },
+							// 		{ "data": "win_loss" },
+							// 		{ "data": "total_rolling" },
+							// 		
+							// 		{ "data": "commission" }
+							// 		
+							// 	],
+							// 	"drawCallback": function() {
+							// 		calculateTotal();
+							// 	}
+							// });
+						}
+
+
+						initializeDataTable();
+
+
+
+						function calculateTotal() {
+							var totalAmount = 0;
+							var totalRolling = 0;
+							var totalChipsReturn = 0;
+							var totalWinLoss = 0;
+							var totalNgr = 0;
+							var totalRtp = 0;
+							var totalRm = 0;
+							var totalExpense = 0;
+							var totalProfit = 0;
+
+							var table = $('#agent_statistic-tbl').DataTable();
+							table.rows({ search: 'applied' }).every(function () {
+								var data = this.data();
+								console.log("Processing object:", data);
+
+								// Adjust these indices based on your columns configuration
+								var amountIndex = 1; // Assuming "TOTAL AMT" is at index 4
+								var rollingIndex = 2; // Assuming "TOTAL ROLLING" is at index 6
+								var chipsReturnIndex = 3; // Assuming "CHIPS RETURN" is at index 7
+								var winLossIndex = 4; // Assuming "WIN/LOSS" is at index 10
+								var ngrIndex = 6;
+								var rtpIndex = 7;
+								var rmIndex = 8;
+								var expenseIndex = 9;
+								var profitIndex = 10;
+
+								var amountValue = data[amountIndex] || '0';
+								var rollingValue = data[rollingIndex] || '0';
+								var chipsReturnValue = data[chipsReturnIndex] || '0';
+								var winLossValue = data[winLossIndex] || '0';
+								var ngrValue = data[ngrIndex] || '0';
+								var rtpValue = data[rtpIndex] || '0';
+								var rmValue = data[rmIndex] || '0';
+								var expenseValue = data[expenseIndex] || '0';
+								var profitValue = data[profitIndex] || '0';
+
+
+								// Remove HTML tags and clean values
+								var cleanedAmountValue = parseFloat(amountValue.replace(/[^0-9.-]/g, '')) || 0;
+								var cleanedRollingValue = parseFloat(rollingValue.replace(/[^0-9.-]/g, '')) || 0;
+								var cleanedChipsReturnValue = parseFloat(chipsReturnValue.replace(/<[^>]*>/g, '').replace(/[^0-9.-]/g, '')) || 0;
+								var cleanedWinLossValue = parseFloat(winLossValue.replace(/[^0-9.-]/g, '')) || 0;
+								var cleanedNgrValue = parseFloat(ngrValue.replace(/[^0-9.-]/g, '')) || 0;
+								var cleanedRtpValue = parseFloat(rtpValue.replace(/[^0-9.-]/g, '')) || 0;
+								var cleanedRmValue = parseFloat(rmValue.replace(/[^0-9.-]/g, '')) || 0;
+								var cleanedExpenseValue = parseFloat(expenseValue.replace(/[^0-9.-]/g, '')) || 0;
+								var cleanedProfitValue = parseFloat(profitValue.replace(/[^0-9.-]/g, '')) || 0;
+
+
+								totalAmount += cleanedAmountValue;
+								totalRolling += cleanedRollingValue;
+								totalChipsReturn += cleanedChipsReturnValue;
+								totalWinLoss += cleanedWinLossValue;
+								totalNgr += cleanedNgrValue;
+								totalRtp += cleanedRtpValue;
+								totalRm += cleanedRmValue;
+								totalExpense += cleanedExpenseValue;
+								totalProfit += cleanedProfitValue;
+
+							});
+
+							// Format the totals
+							var formattedAmount = totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+							var formattedRolling = totalRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+							var formattedChipsReturn = totalChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+							var formattedWinLoss = totalWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+							var formattedNgr = totalNgr.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+							var formattedRtp = totalRtp.toLocaleString();
+							var formattedRm = totalRm.toLocaleString();
+							var formattedExpense = totalExpense.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+							var formattedProfit = totalProfit.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+							// Update the footer content
+							$('#agent_statistic-tbl tfoot #GRAND_TOTAL_AMOUNT').text(formattedAmount);
+							$('#agent_statistic-tbl tfoot #GRAND_TOTAL_ROLLING').text(formattedRolling);
+							$('#agent_statistic-tbl tfoot #GRAND_CHIPS_RETURN').text(formattedChipsReturn);
+							$('#agent_statistic-tbl tfoot #GRAND_WIN_LOSS').text(formattedWinLoss);
+							$('#agent_statistic-tbl tfoot #GRAND_NGR').text(formattedNgr);
+							$('#agent_statistic-tbl tfoot #GRAND_RTP').text(formattedRtp);
+							$('#agent_statistic-tbl tfoot #GRAND_RM').text(formattedRm);
+							$('#agent_statistic-tbl tfoot #GRAND_EXPENSE').text(formattedExpense);
+							$('#agent_statistic-tbl tfoot #GRAND_PROFIT').text(formattedProfit);
+
+
+						}
+
+						// Attach events to recalculate totals on search and draw
+						$('#agent_statistic-tbl').on('search.dt draw.dt', function () {
+							console.log("Search or draw event triggered");
+							calculateTotal();
+						});
+					});
+				</script>
+
+				<script>
+					$('.js-select2').select2({
+						placeholder: 'Select an option',
+						dropdownParent: '#modal-new-game-list',
+					});
+
+				</script>
+
+				<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+				<script src="/assets/js/datatables/game_list_tables_datatables.min.js"></script>
+				<script src="/assets/js/functions/agent_stats.js"></script>
+				<script src="/assets/js/functions/common.js"></script>
+				<script src="assets/js/plugins/select2/js/select2.full.min.js"></script>
+				<script src="assets/libs/bootstrap-datepicker/js/bootstrap-datepicker.min.js"></script>
+
+
+
+
+				<%- include ('../partials/footer') %>

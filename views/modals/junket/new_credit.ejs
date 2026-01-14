@@ -1,0 +1,73 @@
+<div class="modal fade" id="modal-new-credit" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+    data-keyboard="false" data-backdrop="static">
+    <div class="modal-dialog modal-dialog-popout" role="document">
+        <div class="modal-content">
+            <div class="block block-rounded block-themed block-transparent mb-0">
+                <div class="block-header bg-primary-dark">
+                    <h3 class="block-title">Add Credit</h3>
+                    <div class="block-options">
+                        <button type="button" class="btn-block-option" data-bs-dismiss="modal" aria-label="Close">
+                            <i class="fa fa-fw fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <form id="add_junket_credit" novalidate>
+                    <div class="block-content">
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <select class="select2 form-select" id="txtAccountCode" name="txtAccountCode"
+                                    style="width: 100%;" data-placeholder="Category" required>
+                                    <option>--- Account Code ---</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control" id="agent_code" name="txtAgentCode" placeholder="Agent Code " readonly />
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control" id="account_name" name="txtAccountName"
+                                    placeholder="Account Name"  readonly/>
+                            </div>
+                        </div> -->
+
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <select class="select2 form-select" id="txtStatus" name="txtStatus" style="width: 100%;"
+                                    data-placeholder="Category" required>
+                                    <option>--- Status ---</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <input type="text" class="form-control" name="txtAmount" placeholder="Amount"  onkeypress="return onlyNumberKey(event)" data-type="number"  required/>
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-12">
+                                <!-- <input type="text" class="form-control" name="txtRemarks" placeholder="Remarks" /> -->
+                                <textarea class="form-control" name="Remarks" placeholder="Remarks" id="" cols="15"
+                                    rows="10"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="block-content block-content-full text-end bg-body">
+                        <button type="submit" class="btn btn-sm btn-primary" data-bs-dismiss="modal">
+                            Save
+                        </button>
+                        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+                            Close
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

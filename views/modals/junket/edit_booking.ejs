@@ -1,0 +1,66 @@
+<div class="modal fade" id="modal-edit-booking" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="modalLabel">Edit Booking</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editBookingForm">
+                    <div class="mb-3">
+                        <input type="hidden" class="form-control" id="bookingId" name="booking_id" required readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmNum" class="form-label">Confirmation Number</label>
+                        <input type="text" class="form-control" id="confirmNum" name="confirm_num" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="checkIn" class="form-label">Check-In</label>
+                        <!-- Change input type to "date" for date only -->
+                        <input type="date" class="form-control" id="checkIn" name="check_in">
+                    </div>
+                    <div class="mb-3">
+                        <label for="checkOut" class="form-label">Check-Out</label>
+                        <!-- Change input type to "date" for date only -->
+                        <input type="date" class="form-control" id="checkOut" name="check_out">
+                    </div>
+                    <div class="mb-3">
+                        <label for="guestName" class="form-label">Guest Name</label>
+                        <input type="text" class="form-control" id="guestName" name="guest_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="hotelFee" class="form-label">Hotel Fee</label>
+                        <input type="text" class="form-control" id="hotelFee" name="hotel_fee" onkeypress="return onlyNumberKey(event)" data-type="number" required oninput="calculateTotal()">
+                    </div>
+                    <div class="mb-3">
+                        <label for="addFee" class="form-label">Additional Fee</label>
+                        <input type="text" class="form-control" id="addFee" name="add_fee" onkeypress="return onlyNumberKey(event)" data-type="number" oninput="calculateTotal()">
+                    </div>
+                    <div class="mb-3">
+                        <label for="totalAmount" class="form-label">Total Amount</label>
+                        <input type="text" class="form-control" id="totalAmount" name="total_amount" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="remarks" class="form-label">Remarks</label>
+                        <textarea class="form-control" id="remarks" name="remarks"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update Booking</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Calculate the total amount
+    function calculateTotal() {
+        // Get the values and convert them to numbers, removing commas
+        const hotelFee = parseFloat(document.getElementById('hotelFee').value.replace(/,/g, '') || 0);
+        const addFee = parseFloat(document.getElementById('addFee').value.replace(/,/g, '') || 0);
+
+        const totalAmount = hotelFee + addFee;
+
+        // Format totalAmount with commas and two decimal places
+        document.getElementById('totalAmount').value = totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+</script>

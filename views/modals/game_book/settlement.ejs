@@ -1,0 +1,302 @@
+<style>
+    #modal-settlement .form-group {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    #modal-settlement .form-label {
+        flex: 1;
+        font-size: 0.875rem;
+        position: relative;
+        margin-right: 1rem;
+    }
+
+    #modal-settlement .form-label::after {
+        content: ":";
+        position: absolute;
+        right: -1rem;
+    }
+
+    #modal-settlement .form-input {
+        width: 150px;
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+        border: none;
+        border-bottom: 1px solid #ced4da;
+        box-shadow: none;
+        text-align: right;
+    }
+
+    #modal-settlement .form-check-label {
+        font-size: 0.875rem;
+    }
+
+    #modal-settlement .img-fluid {
+        max-width: 200px;
+    }
+
+    #modal-settlement .block-content {
+        padding: 2rem;
+    }
+
+    #modal-settlement .small-input-group {
+        margin-bottom: 0.5rem;
+        margin-left: 23rem;
+    }
+
+    #modal-settlement .row {
+        margin-bottom: 0.5rem;
+    }
+    #modal-settlement .settled-image {
+        display: block; /* Initially hide images */
+        width: 300px; /* Ensure the size is set */
+        position: absolute; /* Maintain position if necessary */
+        left: 7%;
+        top: 55%;
+        opacity: 0.9;
+        transform: translateY(-50%);
+    }
+    #modal-settlement .text-primary {
+        color: #0665d0  !important;
+    }
+    #modal-settlement .custom-ok-btn {
+        background-color: #00563f !important;
+        color: white !important;
+    }
+
+    @media print {
+    /* General print settings for the modal */
+    body * {
+        visibility: hidden;
+    }
+
+    #modal-settlement, #modal-settlement * {
+        visibility: visible;
+    }
+
+    #modal-settlement {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 250mm; /* A3 width in landscape */
+        height: 420mm; /* A3 height in landscape */
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* Remove scroll bar */
+    }
+
+    #modal-settlement .modal-dialog {
+        width: 100% !important;
+        max-width: none !important;
+    }
+
+    #modal-settlement .modal-content {
+        width: 100%;
+        height: auto;
+        padding: 2rem;
+    }
+
+    /* Print-specific settings for the settled image */
+    #modal-settlement .settled-image {
+        display: block;
+        width: 300px;
+        position: absolute;
+        left: 7%;
+        top: 55%;
+        opacity: 0.9;
+        transform: translateY(-50%);
+    }
+
+    #modal-settlement .btn, #modal-settlement .block-options, #modal-settlement footer, #modal-settlement header {
+        display: none;
+    }
+
+}
+
+
+
+
+
+
+
+</style>
+<!-- jQuery -->
+
+
+<!-- SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+
+<div class="modal fade" id="modal-settlement" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true" data-keyboard="false" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="block block-rounded block-themed block-transparent mb-0">
+                <div class="modal-header bg-primary">
+                    <h3 class="block-title text-white"><%= __('modal_settlement.settlement') %></h3>
+                    
+                    
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                   
+                </div>
+              
+                <div class="text-end">
+                    <button type="button" id="print-settlement-btn" class="btn btn-sm btn-alt-secondary"><%= __('modal_settlement.print') %></button>
+                </div>
+
+                <div class="block-content text-center d-flex align-items-center justify-content-center">
+                   
+                    <img src="/login/images/demo.png" alt="demo System Logo" class="img-fluid me-3" style="margin-left: 2rem;">
+                    <h2 class="text-muted mb-0" style="margin-left: 8rem;"><%= __('modal_settlement.settlement_spacing') %></h2>
+                </div>
+              
+                <img src="/login/images/settled-image.png" class="settled-image" id="settledImage-modal" alt="Settled Stamp">
+
+
+
+             
+
+<form id="add_settlement">
+    <div class="block-content">
+         <input type="hidden" name="txtSettlementBalance" id="SettlementBalance" class="">
+        <input type="hidden" name="game_id_settle" class="">
+        <input type="hidden" name="txtAccountIDSettle" class="">
+
+        <!-- ACC No. and Game No. -->
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <div class="form-group">
+                    <label for="accNo"><%= __('modal_settlement.acc_no') %> :&nbsp;</label>
+                    <span id="accNo" style="margin-left: 3rem ;"></span>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="form-group" style="margin-left: -1rem;">
+                    <label for="gameNo"><%= __('modal_settlement.game_no') %> :&nbsp;</label>
+                    <span id="gameNo" style="margin-left: 8rem ;"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Date and Time -->
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <div class="form-group">
+                    <label for="date"><%= __('modal_settlement.date') %> :&nbsp;</label>
+                    <span id="date" style="margin-left: 4.5rem ;"></span>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="form-group" style="margin-left: -1rem;">
+                    <label for="time"><%= __('modal_settlement.time') %> :&nbsp;</label>
+                    <span id="time" style="margin-left: 10.3rem ;"></span>
+                </div>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Form Fields -->
+        <div class="row mb-2">
+            <div class="col-sm-12">
+                <div class="form-group d-flex align-items-center small-input-group">
+                    <label class="form-label" for="buyIn"><%= __('modal_settlement.buyin') %></label>
+                    <input class="form-input ms-2" type="text" id="buyIn" name="txtBuyIn" style="font-weight: bold;" readonly>
+                </div>
+            </div>
+            <div class="col-sm-12">
+                <div class="form-group d-flex align-items-center small-input-group">
+                    <label class="form-label" for="chipsReturn"><%= __('modal_settlement.chips_return') %></label>
+                    <input class="form-input ms-2" type="text" id="chipsReturn" name="txtChipsReturn" readonly>
+                </div>
+            </div>
+            <div class="col-sm-12">
+                <div class="form-group d-flex align-items-center small-input-group">
+                    <label class="form-label" for="winLoss"><%= __('modal_settlement.win_loss') %></label>
+                    <input class="form-input ms-2 text-primary" type="text" id="winLoss" name="txtWinLoss" readonly>
+                </div>
+            </div>
+            <div class="col-sm-12">
+                <div class="form-group d-flex align-items-center small-input-group">
+                    <label class="form-label" for="rolling"><%= __('modal_settlement.rolling') %></label>
+                    <input class="form-input ms-2" type="text" id="rolling" name="txtRolling" readonly>
+                </div>
+            </div>
+            <div class="col-sm-12">
+                <div class="form-group d-flex align-items-center small-input-group">
+                    <label class="form-label" for="rollingRate"><%= __('modal_settlement.rate') %></label>
+                    <input class="form-input ms-2" type="text" id="rollingRate" name="txtRollingRate" readonly>
+                </div>
+            </div>
+            <div class="col-sm-12">
+                <div class="form-group d-flex align-items-center small-input-group">
+                    <label class="form-label" for="rollingSettlement"><%= __('modal_settlement.settlement_form') %></label>
+                    <input class="form-input ms-2" type="text" id="rollingSettlement" style="font-weight: bold;" name="txtRollingSettlement" readonly>
+                </div>
+            </div>
+            <div class="col-sm-12">
+                <div class="form-group d-flex align-items-center small-input-group">
+                    <label class="form-label" for="fb"><%= __('modal_settlement.fb') %></label>
+                    <input class="form-input text-danger ms-2" onkeypress="return onlyNumberKey(event)" data-type="number" type="text" id="fb" name="txtFNB">
+                </div>
+            </div>
+            <div class="col-sm-12 mb-4">
+                <div class="form-group d-flex align-items-center small-input-group">
+                    <label class="form-label align-left" for="payment"><%= __('modal_settlement.payment') %></label>
+                    <input class="form-input ms-2 bg-warning" style="font-weight: bold;" type="text" id="payment" name="txtPayment">
+                </div>
+            </div>
+        </div>
+
+        <!-- Radio Buttons -->
+        <div class="row mb-2 ">
+            <div class="col-sm-4 ">
+                <div class="form-check">
+                    <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="deposit" name="txtTransType">
+                    <label class="form-check-label" for="deposit">
+                        <span class="d-flex align-items-center">
+                            <%= __('modal_settlement.deposit') %>
+                        </span>
+                    </label>
+                </div>
+            </div>
+            <div class="col-sm-4 ">
+                <div class="form-check">
+                    <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="5" id="cashOut" name="txtTransType">
+                    <label class="form-check-label" for="cashOut">
+                        <span class="d-flex align-items-center">
+                            <%= __('modal_settlement.cash_out') %>
+                        </span>
+                    </label>
+                </div>
+            </div>                            
+        </div>
+    </div>
+    <div class="modal-footer">
+        
+        
+        <button type="button" id="submit-settlement-btn" class="btn btn-sm btn-primary"><%= __('modal_settlement.save') %></button>
+        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+            <%= __('modal_settlement.close') %>
+        </button>
+    </div>
+</form>
+
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    <script>
+        $(document).ready(function() {
+    // Handle print button click
+    $('#print-settlement-btn').on('click', function() {
+        window.print();
+    });
+});
+
+    </script>

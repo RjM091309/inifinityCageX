@@ -1,0 +1,67 @@
+<%- include ('../partials/header_html'); -%>
+
+<head>
+	<%- include ('../partials/title_meta'); -%>
+
+	<%- include ('../partials/header_css'); -%>
+</head>
+
+<body>
+	<div id="page-container"
+		class="sidebar-o sidebar-scroll page-header-dark enable-page-overlay side-scroll page-header-fixed">
+
+		<%- include ('../partials/sidebar'); -%>
+		<%- include ('../partials/topbar'); -%>
+
+		<!-- Main Container -->
+		<main id="main-container">
+			<div class="content">
+				<!-- Dynamic Table Responsive -->
+				<div class="block block-rounded">
+					<div class="block-header block-header-default">
+						<h3 class="block-title">
+							<small>Telegram API</small>
+						</h3>
+						
+					</div>
+                    <div class="block-content block-content-full d-flex justify-content-center">
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<table id="#dataTable" class="table table-bordered table-vcenter">
+									<thead>
+										<tr>
+											<th class="text-center" style="width: 550px;">Telegram API</th>
+											
+										</tr>
+									</thead>
+									<tbody>
+										<tr>
+											<td class="fw-bold text-end">
+                                                <form id="update_telegramAPI">
+                                                <div class="d-flex">
+                                                  <input type="text" class="form-control me-2" name="txtTelegramAPI" id="telegramAPI" placeholder="Telegram API">
+                                                  <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                                                </div>
+                                                 </form>
+                                              </td>
+											
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+
+		
+
+		<%- include ('../partials/footer'); -%>
+
+		<!-- <script src="/assets/js/datatables/telegramAPI_tables_datatables.min.js"></script> -->
+		<script src="/assets/js/functions/telegramAPI.js"></script>
+
+
+		<%- include ('../partials/footer_html'); -%>

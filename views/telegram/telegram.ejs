@@ -1,0 +1,56 @@
+<%- include ('../partials/header'); -%>
+<%- include('../partials/loader') %>
+	<%- include ('../partials/sidebar'); -%>
+		<%- include ('../partials/topbar'); -%>
+
+			<div class="container-fluid content-inner mt-4">
+				<div class="row">
+					<div class="col-sm-12">
+						<div class="card">
+							<div class="card-header d-flex justify-content-between align-items-center">
+
+								<h3 class="card-title"><div class="breadcrumb1 flat">
+									<a href="/dashboard" ><span class="fa fa-home"></span></a>
+									<a href="/telegramAPI" class="active"><%= __('telegram_api.telegram_api') %></a>
+								</div></h3>
+
+							</div>
+							<div id="user-role" data-permissions="<%= permissions %>"></div>
+							<div class="card-body">
+								<div class="text-center mb-3">
+									<h5 class="mb-0 text-muted"><%= __('telegram_api.telegram_api') %></h5>
+								</div>
+								
+								<form id="update_telegramAPI">
+									<div class="d-flex gap-2 mb-4">
+										<input type="text" class="form-control"
+											name="txtTelegramAPI" id="telegramAPI"
+											placeholder="<%= __('telegram_api.telegram_api_placeholder') %>">
+										<button type="submit" class="btn btn-success">
+											<%= __('telegram_api.save') %>
+										</button>
+									</div>
+								</form>
+
+								<hr class="my-3">
+
+								<div>
+									<div class="d-flex align-items-center mb-2">
+										<h6 class="mb-0 me-2">Telegram Bot Details</h6>
+										<span id="bot-status" class="badge bg-secondary">Checking...</span>
+									</div>
+									<div id="bot-details" class="alert alert-secondary small mb-0">
+										<div class="text-muted">Loading bot details...</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+	
+
+
+			<%- include ('../partials/footer'); -%>
+
+				<script src="/assets/js/functions/telegramAPI.js"></script>

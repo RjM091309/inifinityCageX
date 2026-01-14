@@ -1,0 +1,184 @@
+<div class="modal fade" id="modal-guestAccount" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+	data-keyboard="false" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white"><%= __('account_dashboard.guest_accounts') %></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="loading-indicator" class="text-center d-none">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden"><%= __('account_dashboard.account_loading') %></span>
+            </div>
+        </div>
+        <!-- Add Tab Navigation -->
+        <ul class="nav nav-tabs mb-3" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active" id="with-balance-tab" data-bs-toggle="tab" href="#with-balance" role="tab"><%= __('account_dashboard.guest_balance_only') %></a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="all-agents-tab" data-bs-toggle="tab" href="#all-agents" role="tab"><%= __('account_dashboard.all_guest_balance') %></a>
+          </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+          <!-- With Balance Tab -->
+          <div class="tab-pane fade show active" id="with-balance" role="tabpanel">
+            <table id="guestAccount-tbl-with-balance" class="table table-responsive" style="font-size: 13px !important;">
+              <thead>
+                <tr>
+                  <th><%= __('account_dashboard.guest_name') %></th>
+                  <th><%= __('account_dashboard.account_number') %></th>
+                  <th><%= __('account_dashboard.agent') %></th>
+                  <th><%= __('account_dashboard.telegram_chat_id') %></th>
+                  <th><%= __('account_dashboard.contact_number') %></th>
+                  <th><%= __('account_dashboard.total_balance') %></th>
+                </tr>
+              </thead>
+              <tfoot>
+                <tr>
+                  <th colspan="5"><%= __('account_dashboard.sub_total') %></th>
+                  <th colspan="1" id="SUB_TOTAL_VALUE_BALANCE">0.00</th>
+                </tr>
+                <tr>
+                  <th colspan="5"><%= __('account_dashboard.grand_total') %></th>
+                  <th colspan="1" id="TOTAL_SUM_VALUE_BALANCE">0.00</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- All Agents Tab -->
+          <div class="tab-pane fade" id="all-agents" role="tabpanel">
+            <table id="guestAccount-tbl-all" class="table table-responsive" style="font-size: 13px !important;">
+              <thead>
+                <tr>
+                  <th><%= __('account_dashboard.guest_name') %></th>
+                  <th><%= __('account_dashboard.account_number') %></th>
+                  <th><%= __('account_dashboard.agent') %></th>
+                  <th><%= __('account_dashboard.telegram_chat_id') %></th>
+                  <th><%= __('account_dashboard.contact_number') %></th>
+                  <th><%= __('account_dashboard.total_balance') %></th>
+                </tr>
+              </thead>
+              <tfoot>
+                <tr>
+                  <th colspan="5"><%= __('account_dashboard.sub_total') %></th>
+                  <th colspan="1" id="SUB_TOTAL_SUM_VALUE_ALL">0.00</th>
+                </tr>
+                <tr>
+                  <th colspan="5"><%= __('account_dashboard.grand_total') %></th>
+                  <th colspan="1" id="TOTAL_SUM_VALUE_ALL">0.00</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('account_dashboard.close') %></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<style>
+  /* Base table styles */
+  #guestAccount-tbl-with-balance, #guestAccount-tbl-all {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+}
+
+/* Header styles */
+#guestAccount-tbl-with-balance thead th,
+#guestAccount-tbl-all thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    text-align: left;
+    border: none;
+}
+
+/* Row styles */
+#guestAccount-tbl-with-balance tbody tr,
+#guestAccount-tbl-all tbody tr {
+    border-bottom: 1px solid #eee;
+}
+
+/* Cell styles */
+#guestAccount-tbl-with-balance td,
+#guestAccount-tbl-all td {
+    padding: 12px 15px;
+    color: #666;
+}
+
+#guestAccount-tbl-with-balance tbody tr:hover,
+#guestAccount-tbl-all tbody tr:hover {
+  background-color: #f5f5f5 !important;
+}
+
+
+
+/* Balance column */
+#guestAccount-tbl-with-balance td:last-child,
+#guestAccount-tbl-all td:last-child {
+    text-align: right;
+    color: #333;
+}
+
+
+/* Footer total row */
+
+
+#guestAccount-tbl-with-balance tfoot th,
+#guestAccount-tbl-all tfoot th {
+    padding: 10px;
+    font-weight: 600;
+    text-align: right;
+    color: #333;
+    background-color: #f4f6fa;
+    border-top: 2px solid #dee2e6;
+}
+
+#gguestAccount-tbl-with-balance tfoot td,
+#guestAccount-tbl-all tfoot td {
+    padding: 15px;
+    font-weight: 600;
+    text-align: right;
+    color: var(--bs-primary);
+}
+
+/* Tab styles */
+.nav-tabs {
+    border-bottom: none;
+    margin-bottom: 20px;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    padding: 8px 16px;
+    color: #666;
+    border-radius: 4px;
+    margin-right: 8px;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: var(--bs-primary);
+    color: white;
+}
+
+/* Highlighted row */
+.highlighted-row {
+    background-color: #fff3cd !important; /* Light yellow background */
+    border-left: 4px solid #ffc107;
+  }
+
+</style>
