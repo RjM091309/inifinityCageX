@@ -12,16 +12,16 @@
             <div class="col-sm-12">
               <div class="card">
                 <div id="user-role" data-permissions="<%= permissions %>"></div>
-                <div class="card-header d-flex justify-content-between align-items-center">
+                 <div class="card-header d-flex justify-content-between align-items-center">
 					<h3 class="card-title"><div class="breadcrumb1 flat">
 						<a href="/dashboard" ><span class="fa fa-home"></span></a>
 						<a href="#" ><%= __('agent.accounts') %></a>
 						<a href="/account_ledger"class="active"><%= __('agent.guests') %></a>
 					</div></h3>
-                  <!-- <button class="btn btn-primary" onclick="addAgent()">
-                    <i class="fa fa-plus"></i> <%= __('agent.new_guest') %>
-                  </button> -->
-                </div>
+                     <button id="btn-transaction-history" class="btn btn-sm btn-primary">
+                       <i class="fa fa-history me-1"></i> Transaction History
+                     </button>
+                 </div>
 
                 <div class="card-body">
                                
@@ -211,6 +211,7 @@
       <%- include ('../modals/accounts/edit_agent') %>
       <%- include ('../modals/accounts/account_details') %>
       <%- include ('../modals/accounts/transfer_account') %>
+       <%- include ('../modals/accounts/transaction_history') %>
 
         <script src="/assets/js/functions/agent.js"></script>
         <script src="/assets/js/functions/account.js"></script>
@@ -221,5 +222,95 @@
     
           $('.edit_agency').select2({
             dropdownParent: '#modal-edit-agent'
+          });
+
+          const historyModal = new bootstrap.Modal(document.getElementById('modal-transaction-history'));
+          let historyDataTable = null;
+
+          const formatDate = (val) => {
+            if (!val) return '';
+            if (typeof moment !== 'undefined') {
+              const m = moment(val);
+              if (m.isValid()) return m.format('MMM D, HH:mm');
+            }
+            const d = new Date(val);
+            return isNaN(d.getTime())
+              ? ''
+              : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+          };
+
+          const formatAmount = (val) => Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+          async function loadHistoryRows() {
+            try {
+              const res = await fetch('/account_transaction_history');
+              const rows = await res.json();
+
+              if (historyDataTable) {
+                historyDataTable.clear().rows.add(rows || []).draw();
+                return;
+              }
+
+              historyDataTable = $('#history-tbl').DataTable({
+                data: rows || [],
+                order: [[0, 'desc']],
+                pageLength: 10,
+                columns: [
+                  {
+                    data: 'encoded_dt',
+                    render: function (data, type) {
+                      if (type === 'sort' || type === 'type') {
+                        const t = Date.parse(data);
+                        return isNaN(t) ? 0 : t;
+                      }
+                      return formatDate(data);
+                    }
+                  },
+                  {
+                    data: null,
+                    render: function (_data, _type, row) {
+                      const name = row.agent_name || 'N/A';
+                      const code = row.agent_code || 'N/A';
+                      return `${name} (${code})`;
+                    }
+                  },
+                  {
+                    data: null,
+                    render: function (_data, _type, row) {
+                      return  row.direction || '';
+                    }
+                  },
+                  {
+                    data: 'amount',
+                    className: 'text-end',
+                    render: function (data) { return formatAmount(data); }
+                  },
+                  {
+                    data: 'balance_before',
+                    className: 'text-end',
+                    render: function (data) { return data === null || data === undefined ? '' : formatAmount(data); }
+                  },
+                  {
+                    data: 'balance_after',
+                    className: 'text-end',
+                    render: function (data) { return data === null || data === undefined ? '' : formatAmount(data); }
+                  },
+                  {
+                    data: 'remarks',
+                    render: function (data) { return data || ''; }
+                  }
+                ]
+              });
+            } catch (err) {
+              console.error('Error loading transaction history', err);
+              if (historyDataTable) {
+                historyDataTable.clear().draw();
+              }
+            }
+          }
+
+          $('#btn-transaction-history').on('click', async () => {
+            await loadHistoryRows(); // load all by default
+            historyModal.show();
           });
         </script>

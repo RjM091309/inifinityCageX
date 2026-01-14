@@ -8,6 +8,103 @@ const { sendTelegramMessage } = require('../utils/telegram');
 const multer = require('multer');
 const ExcelJS = require('exceljs');
 
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+const mapDirection = (txtTrans) => {
+	switch (String(txtTrans)) {
+		case '1':
+			return 'DEPOSIT';
+		case '2':
+			return 'WITHDRAW';
+		case '3':
+			return 'CREDIT';
+		case 'TRANSFER_OUT':
+		case 'TRANSFER_IN':
+			return txtTrans;
+		default:
+			return 'UNKNOWN';
+	}
+};
+
+const getTransactionName = async (transactionId) => {
+	if (!transactionId) return null;
+	try {
+		const [rows] = await pool.query('SELECT TRANSACTION FROM transaction_type WHERE IDNo = ?', [transactionId]);
+		return rows[0]?.TRANSACTION || null;
+	} catch (err) {
+		console.error('Failed to fetch transaction name:', err);
+		return null;
+	}
+};
+
+// Compute balance from ledger (shared)
+const getCurrentBalance = async (accountId) => {
+	const balanceQuery = `
+		SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
+		FROM account_ledger
+		JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+		WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3) AND account_ledger.ACCOUNT_ID = ?
+	`;
+	const [rows] = await pool.query(balanceQuery, [accountId]);
+
+	let deposit_amount = 0;
+	let withdraw_amount = 0;
+	let marker_issue_amount = 0;
+	let marker_return_deposit = 0;
+
+	rows.forEach((row) => {
+		const amount = parseFloat(row.AMOUNT) || 0;
+		if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
+		if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
+		if (row.TRANSACTION === 'IOU CASH') marker_issue_amount += amount;
+		if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
+	});
+
+	return deposit_amount + marker_issue_amount - withdraw_amount - marker_return_deposit;
+};
+
+const recordHistory = async ({
+	ledgerId = null,
+	accountId,
+	transactionId = null,
+	transactionName = null,
+	amount = 0,
+	balanceBefore = null,
+	balanceAfter = null,
+	remarks = null,
+	transferAccountId = null,
+	direction = 'UNKNOWN',
+	encodedBy = null,
+	encodedDate = new Date()
+}) => {
+	const query = `
+		INSERT INTO account_transaction_history
+		(ledger_id, account_id, transaction_id, transaction_name, amount, balance_before, balance_after, remarks, transfer_account_id, direction, encoded_by, encoded_dt)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`;
+
+	try {
+		await pool.query(query, [
+			ledgerId,
+			accountId,
+			transactionId,
+			transactionName,
+			amount,
+			balanceBefore,
+			balanceAfter,
+			remarks,
+			transferAccountId,
+			direction,
+			encodedBy,
+			encodedDate
+		]);
+	} catch (err) {
+		// Do not block the main flow if history insert fails, but log for follow-up.
+		console.error('account_transaction_history insert failed:', err);
+	}
+};
+
 // Set up multer for multiple file uploads
 const storage = multer.diskStorage({
 	destination: 'PassportUpload/',
@@ -415,7 +512,10 @@ router.post('/add_account_details', async (req, res) => {
 	let date_now = new Date();
 
 
-	let txtAmountNum = txtAmount.split(',').join('');
+	const amountRaw = (txtAmount || '0').split(',').join('');
+	const amountNumber = parseFloat(amountRaw) || 0;
+	let txtAmountNum = amountRaw;
+	const balanceBefore = await getCurrentBalance(txtAccountId);
 
 	// Set transaction description
 	let transacDesc = 'ACCOUNT DETAILS';
@@ -438,6 +538,21 @@ router.post('/add_account_details', async (req, res) => {
 
 		if (transactionResults.length > 0) {
 			const transaction = transactionResults[0].TRANSACTION;
+			const balanceAfter = await getCurrentBalance(txtAccountId);
+
+			await recordHistory({
+				ledgerId: insertResult.insertId,
+				accountId: parseInt(txtAccountId, 10),
+				transactionId: parseInt(txtTrans, 10),
+				transactionName: transaction,
+				amount: amountNumber,
+				balanceBefore,
+				balanceAfter,
+				remarks: txtRemarks || null,
+				direction: mapDirection(txtTrans),
+				encodedBy: req.session.user_id,
+				encodedDate: date_now
+			});
 
 			const guestAccountNumQuery = `
                 SELECT agent.AGENT_CODE 
@@ -479,20 +594,20 @@ router.post('/add_account_details', async (req, res) => {
 
 			// Assuming these are your inputs
 			let totalBalanceGuest = parseFloat(req.body.totalBalanceGuest.replace(/,/g, '')) || 0; // Ensure it's a number
-			let txtAmountNum = parseFloat(req.body.txtAmount.replace(/,/g, '')); // Convert to number
+			
 
 			// Determine totalBalance based on transaction type
 			let totalBalance;
 			if (txtTrans === '1') { // Deposit
-				totalBalance = totalBalanceGuest + txtAmountNum;
+				totalBalance = totalBalanceGuest + amountNumber;
 			} else if (txtTrans === '2') { // Withdraw
-				totalBalance = totalBalanceGuest - txtAmountNum;
+				totalBalance = totalBalanceGuest - amountNumber;
 			} else if (txtTrans === '3') { // Other
-				totalBalance = totalBalanceGuest + txtAmountNum;
+				totalBalance = totalBalanceGuest + amountNumber;
 			}
 
 			// Adjust for display
-			const displayWithdraw = (txtTrans === '2') ? -txtAmountNum : txtAmountNum;
+			const displayWithdraw = (txtTrans === '2') ? -amountNumber : amountNumber;
 
 			if (telegramIdResults.length > 0 && guestAccountNumResults.length > 0 && guestNameResults.length > 0) {
 				const telegramId = telegramIdResults[0].TELEGRAM_ID;
@@ -500,7 +615,7 @@ router.post('/add_account_details', async (req, res) => {
 				const guestName = guestNameResults[0].NAME;
 
 				// Reformat the amount with commas
-				const formattedAmount = parseFloat(txtAmountNum).toLocaleString();
+				const formattedAmount = amountNumber.toLocaleString();
 
 				const text = `Demo Cage\n\nAccount #: ${guestAccountNum}\nGuest: ${guestName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: ${transaction}\nCurrency: PHP\nRemarks: ${txtRemarks}\n\nAmount: ${parseFloat(displayWithdraw).toLocaleString()}\nAccount Balance: ${parseFloat(totalBalance).toLocaleString()}`;
 
@@ -622,40 +737,49 @@ router.post('/add_account_details/transfer', async (req, res) => {
 
 	const query = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, TRANSFER, TRANSFER_AGENT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-	// Helper: compute current balance directly from ledger
-	const getCurrentBalance = async (accountId) => {
-		const balanceQuery = `
-			SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
-			FROM account_ledger
-			JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
-			WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3) AND account_ledger.ACCOUNT_ID = ?
-		`;
-		const [rows] = await pool.query(balanceQuery, [accountId]);
-
-		let deposit_amount = 0;
-		let withdraw_amount = 0;
-		let marker_issue_amount = 0;
-		let marker_return_deposit = 0;
-
-		rows.forEach((row) => {
-			const amount = parseFloat(row.AMOUNT) || 0;
-			if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
-			if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
-			if (row.TRANSACTION === 'IOU CASH') marker_issue_amount += amount;
-			if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
-		});
-
-		return deposit_amount + marker_issue_amount - withdraw_amount - marker_return_deposit;
-	};
-
 	try {
 		// Fetch live balances to use in Telegram messages
 		const senderBalanceBefore = await getCurrentBalance(txtAccountId);
 		const receiverBalanceBefore = await getCurrentBalance(txtAccount);
 
 		// Insert transaction details for both accounts
-		await pool.query(query, [txtAccountId, 2, 2, totalAmount, 1, txtAccount, req.session.user_id, date_now]);
-		await pool.query(query, [txtAccount, 1, 2, totalAmount, 1, txtAccountId, req.session.user_id, date_now]);
+		const [withdrawResult] = await pool.query(query, [txtAccountId, 2, 2, totalAmount, 1, txtAccount, req.session.user_id, date_now]);
+		const [depositResult] = await pool.query(query, [txtAccount, 1, 2, totalAmount, 1, txtAccountId, req.session.user_id, date_now]);
+
+		const transactionNameWithdraw = await getTransactionName(2);
+		const transactionNameDeposit = await getTransactionName(1);
+		const senderBalanceAfter = senderBalanceBefore - totalAmount;
+		const receiverBalanceAfter = receiverBalanceBefore + totalAmount;
+
+		await recordHistory({
+			ledgerId: withdrawResult.insertId,
+			accountId: parseInt(txtAccountId, 10),
+			transactionId: 2,
+			transactionName: transactionNameWithdraw,
+			amount: totalAmount,
+			balanceBefore: senderBalanceBefore,
+			balanceAfter: senderBalanceAfter,
+			remarks: `Transfer to account ${txtAccount}`,
+			transferAccountId: parseInt(txtAccount, 10),
+			direction: mapDirection('TRANSFER_OUT'),
+			encodedBy: req.session.user_id,
+			encodedDate: date_now
+		});
+
+		await recordHistory({
+			ledgerId: depositResult.insertId,
+			accountId: parseInt(txtAccount, 10),
+			transactionId: 1,
+			transactionName: transactionNameDeposit,
+			amount: totalAmount,
+			balanceBefore: receiverBalanceBefore,
+			balanceAfter: receiverBalanceAfter,
+			remarks: `Transfer from account ${txtAccountId}`,
+			transferAccountId: parseInt(txtAccountId, 10),
+			direction: mapDirection('TRANSFER_IN'),
+			encodedBy: req.session.user_id,
+			encodedDate: date_now
+		});
 
 		// Fetch Telegram IDs, AGENT_CODE, and NAME for the account from which the transfer is made
 		const telegramIdQueryFrom = `
@@ -753,6 +877,35 @@ router.get('/ledger/:id', async (req, res) => {
 	  res.status(500).send('Server error');
 	}
   });
+
+// Transaction history (all or by account)
+router.get('/account_transaction_history', async (req, res) => {
+	const { accountId } = req.query;
+	try {
+		let query = `
+			SELECT
+				h.*,
+				agent.NAME AS agent_name,
+				agent.AGENT_CODE AS agent_code
+			FROM account_transaction_history h
+			JOIN account ON account.IDNo = h.account_id
+			JOIN agent ON agent.IDNo = account.AGENT_ID
+			WHERE 1 = 1
+		`;
+		const params = [];
+		if (accountId) {
+			query += ` AND h.account_id = ?`;
+			params.push(accountId);
+		}
+		query += ` ORDER BY h.encoded_dt DESC`;
+
+		const [rows] = await pool.execute(query, params);
+		res.json(rows);
+	} catch (error) {
+		console.error('Error fetching transaction history:', error);
+		res.status(500).json({ error: 'Error fetching transaction history' });
+	}
+});
   
 
 router.get('/account_details_data/:id', async (req, res) => {
