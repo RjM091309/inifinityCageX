@@ -146,6 +146,31 @@ $(document).ready(function () {
         var form = $(this);
         var submitButton = form.find('button[type="submit"]');
         
+		const rawAmount = String(form.find('input[name="txtAmount"]').val() || '0').split(',').join('');
+		const rawFromBalance = String($('#TransferFromBalance').val() || '0').split(',').join('');
+		const amountNum = parseFloat(rawAmount);
+		const fromBalanceNum = parseFloat(rawFromBalance);
+
+		if (!Number.isFinite(amountNum) || !Number.isFinite(fromBalanceNum)) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid amount',
+				text: 'Please enter valid numbers before saving.',
+				confirmButtonText: 'OK'
+			});
+			return;
+		}
+
+		if (amountNum > fromBalanceNum) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Insufficient balance',
+				text: 'The transfer amount exceeds the available balance.',
+				confirmButtonText: 'OK'
+			});
+			return;
+		}
+
         // Disable submit button to prevent multiple submissions
         submitButton.prop('disabled', true).text('Processing...');
 
@@ -789,15 +814,16 @@ function transfer_account() {
 			var marker_issue_amount = 0;
 
             data.forEach(function (row) {
+				const amount = parseFloat(row.AMOUNT);
                 if (row.TRANSACTION === 'DEPOSIT') {
-                    deposit_amount += row.AMOUNT;
+                    deposit_amount += amount;
                 } else if (row.TRANSACTION === 'WITHDRAW') {
-                    withdraw_amount += row.AMOUNT;
+                    withdraw_amount += amount;
                 } else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
-                    marker_return += row.AMOUNT;
+                    marker_return += amount;
                 }
 				else if (row.TRANSACTION === 'IOU CASH') {
-					marker_issue_amount += row.AMOUNT;
+					marker_issue_amount += amount;
 				}
             });
 
@@ -976,16 +1002,17 @@ $('#txtAccount').on('change', function () {
 
                 // Iterate through data and calculate totals
                 data.forEach(function (row) {
+					const amount = parseFloat(row.AMOUNT);
                     if (row.TRANSACTION === 'DEPOSIT') {
-                        deposit_amount += row.AMOUNT;
+                        deposit_amount += amount;
                     } else if (row.TRANSACTION === 'WITHDRAW') {
-                        withdraw_amount += row.AMOUNT;
+                        withdraw_amount += amount;
                     } else if (row.TRANSACTION === 'IOU CASH') {
-                        marker_issue_amount += row.AMOUNT;
+                        marker_issue_amount += amount;
                     } else if (row.TRANSACTION === 'MARKER REDEEM') {
-                        marker_deposit_amount += row.AMOUNT;
+                        marker_deposit_amount += amount;
                     } else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
-                    marker_return += row.AMOUNT;
+                    marker_return += amount;
                 }
                 });
 
