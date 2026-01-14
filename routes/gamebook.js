@@ -207,6 +207,182 @@ router.post('/add_game_list', async (req, res) => {
 });
 
 
+// ======================= GAME SERVICES ==================
+// Get services for a game
+router.get('/game_services/:gameId', checkSession, async (req, res) => {
+	try {
+		const gameId = parseInt(req.params.gameId, 10);
+		if (Number.isNaN(gameId)) {
+			return res.status(400).json({ error: 'Invalid game id' });
+		}
+
+		const [rows] = await pool.execute(
+			`SELECT 
+				gs.IDNo,
+				gs.GAME_ID,
+				gs.SERVICE_TYPE,
+				gs.AMOUNT,
+				gs.REMARKS,
+				gs.ACTIVE,
+				gs.ENCODED_BY,
+				gs.ENCODED_DT,
+				COALESCE(ui.USERNAME, gs.ENCODED_BY) AS PROCESSED_BY
+			FROM game_services gs
+			LEFT JOIN user_info ui ON ui.IDNo = gs.ENCODED_BY
+			WHERE gs.ACTIVE = 1 AND gs.GAME_ID = ?
+			ORDER BY gs.ENCODED_DT DESC, gs.IDNo DESC`,
+			[gameId]
+		);
+
+		return res.json(rows);
+	} catch (err) {
+		console.error('Error fetching game services:', err);
+		return res.status(500).json({ error: 'Error fetching game services' });
+	}
+});
+
+// Add a service to a game (use /add_game_services to avoid confusion with GET)
+router.post('/add_game_services', checkSession, async (req, res) => {
+	try {
+		const { game_id, service_type, amount, remarks } = req.body;
+		const gameId = parseInt(game_id, 10);
+		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
+		const svc = (service_type || '').toLowerCase();
+		const validTypes = ['fnb', 'hotel'];
+
+		if (Number.isNaN(gameId) || !validTypes.includes(svc)) {
+			return res.status(400).json({ error: 'Invalid input' });
+		}
+
+		const encodedBy = req.session?.user_id || null;
+		const now = new Date();
+
+		await pool.execute(
+			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, 1, ?, ?)`,
+			[gameId, svc, amt, remarks || '', encodedBy, now]
+		);
+
+		// Return the refreshed list
+		const [rows] = await pool.execute(
+			`SELECT 
+				gs.IDNo,
+				gs.GAME_ID,
+				gs.SERVICE_TYPE,
+				gs.AMOUNT,
+				gs.REMARKS,
+				gs.ACTIVE,
+				gs.ENCODED_BY,
+				gs.ENCODED_DT,
+				COALESCE(ui.USERNAME, gs.ENCODED_BY) AS PROCESSED_BY
+			FROM game_services gs
+			LEFT JOIN user_info ui ON ui.IDNo = gs.ENCODED_BY
+			WHERE gs.ACTIVE = 1 AND gs.GAME_ID = ?
+			ORDER BY gs.ENCODED_DT DESC, gs.IDNo DESC`,
+			[gameId]
+		);
+
+		return res.json(rows);
+	} catch (err) {
+		console.error('Error adding game service:', err);
+		return res.status(500).json({ error: 'Error adding game service' });
+	}
+});
+
+// Update a service
+router.put('/game_services/:id', checkSession, async (req, res) => {
+	try {
+		const serviceId = parseInt(req.params.id, 10);
+		const { game_id, service_type, amount, remarks } = req.body;
+		const gameId = parseInt(game_id, 10);
+		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
+		const svc = (service_type || '').toLowerCase();
+		const validTypes = ['fnb', 'hotel'];
+
+		if (Number.isNaN(serviceId) || Number.isNaN(gameId) || !validTypes.includes(svc)) {
+			return res.status(400).json({ error: 'Invalid input' });
+		}
+
+		const updatedBy = req.session?.user_id || null;
+		const now = new Date();
+
+		await pool.execute(
+			`UPDATE game_services
+			 SET SERVICE_TYPE = ?, AMOUNT = ?, REMARKS = ?, UPDATED_BY = ?, UPDATED_DT = ?
+			 WHERE IDNo = ?`,
+			[svc, amt, remarks || '', updatedBy, now, serviceId]
+		);
+
+		const [rows] = await pool.execute(
+			`SELECT 
+				gs.IDNo,
+				gs.GAME_ID,
+				gs.SERVICE_TYPE,
+				gs.AMOUNT,
+				gs.REMARKS,
+				gs.ACTIVE,
+				gs.ENCODED_BY,
+				gs.ENCODED_DT,
+				COALESCE(ui.USERNAME, gs.ENCODED_BY) AS PROCESSED_BY
+			FROM game_services gs
+			LEFT JOIN user_info ui ON ui.IDNo = gs.ENCODED_BY
+			WHERE gs.ACTIVE = 1 AND gs.GAME_ID = ?
+			ORDER BY gs.ENCODED_DT DESC, gs.IDNo DESC`,
+			[gameId]
+		);
+
+		return res.json(rows);
+	} catch (err) {
+		console.error('Error updating game service:', err);
+		return res.status(500).json({ error: 'Error updating game service' });
+	}
+});
+
+// Delete a service (soft delete)
+router.delete('/game_services/:id', checkSession, async (req, res) => {
+	try {
+		const serviceId = parseInt(req.params.id, 10);
+		const gameId = parseInt(req.body.game_id, 10);
+
+		if (Number.isNaN(serviceId) || Number.isNaN(gameId)) {
+			return res.status(400).json({ error: 'Invalid input' });
+		}
+
+		const updatedBy = req.session?.user_id || null;
+		const now = new Date();
+
+		await pool.execute(
+			`UPDATE game_services
+			 SET ACTIVE = 0, UPDATED_BY = ?, UPDATED_DT = ?
+			 WHERE IDNo = ?`,
+			[updatedBy, now, serviceId]
+		);
+
+		const [rows] = await pool.execute(
+			`SELECT 
+				gs.IDNo,
+				gs.GAME_ID,
+				gs.SERVICE_TYPE,
+				gs.AMOUNT,
+				gs.REMARKS,
+				gs.ACTIVE,
+				gs.ENCODED_BY,
+				gs.ENCODED_DT,
+				COALESCE(ui.USERNAME, gs.ENCODED_BY) AS PROCESSED_BY
+			FROM game_services gs
+			LEFT JOIN user_info ui ON ui.IDNo = gs.ENCODED_BY
+			WHERE gs.ACTIVE = 1 AND gs.GAME_ID = ?
+			ORDER BY gs.ENCODED_DT DESC, gs.IDNo DESC`,
+			[gameId]
+		);
+
+		return res.json(rows);
+	} catch (err) {
+		console.error('Error deleting game service:', err);
+		return res.status(500).json({ error: 'Error deleting game service' });
+	}
+});
+
 // GET GAME LIST
 router.get('/game_list_data', async (req, res) => {
     let { start, end, id } = req.query;

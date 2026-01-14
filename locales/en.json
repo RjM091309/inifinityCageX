@@ -200,7 +200,7 @@
 		"win_loss": "WIN/LOSS",
 		"game_source": "GAME SOURCE",
 		"game_end": "GAME END",
-		"history": "HISTORY",
+		"action": "ACTION",
 		"grand_total": "GRAND TOTAL"
 	},
 	"house_expense": {
@@ -497,7 +497,7 @@
 		"rolling": "ROLLING",
 		"rate": "RATE",
 		"settlement_form": "SETTLEMENT",
-		"fb": "F&B",
+		"services": "SERVICES",
 		"payment": "PAYMENT",
 		"deposit": "Deposit",
 		"cash_out": "Cash Out",

@@ -202,7 +202,7 @@
 		"win_loss": "승/패",
 		"game_source": "게임 소스",
 		"game_end": "게임 종료",
-		"history": "역사",
+		"action": "행동",
 		"grand_total": "총 합계"
 	},
 	"house_expense": {
@@ -500,7 +500,7 @@
 		"rolling": "롤링",
 		"rate": "율",
 		"settlement_form": "결정",
-		"fb": "에프앤비",
+		"services": "서비스",
 		"payment": "지급",
 		"deposit": "입금",
 		"cash_out": "캐시 아웃",

@@ -201,8 +201,9 @@
 		"win_loss": "赢/输",
 		"game_source": "游戏来源",
 		"game_end": "游戏结束",
-		"history": "历史",
-		"grand_total": "总计"
+		"history": "行动",
+		"grand_total": "总计",
+		"action": "gamelist.action"
 	},
 	"house_expense": {
 		"junket": "接待",
@@ -499,7 +500,7 @@
 		"rolling": "轧制",
 		"rate": "速率",
 		"settlement_form": "结算",
-		"fb": "餐饮",
+		"services": "服务",
 		"payment": "支付",
 		"deposit": "存款",
 		"cash_out": "现金出账",

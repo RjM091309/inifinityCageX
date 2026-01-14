@@ -200,7 +200,7 @@
 		"win_loss": "勝利/敗北",
 		"game_source": "ゲームソース",
 		"game_end": "ゲーム終了",
-		"history": "歴史",
+		"action": "アクション",
 		"grand_total": "合計"
 	},
 	"house_expense": {
@@ -498,7 +498,7 @@
 		"rolling": "ローリング",
 		"rate": "レート",
 		"settlement_form": "和解",
-		"fb": "飲食",
+		"services": "サービス",
 		"payment": "支払い",
 		"deposit": "デポジット",
 		"cash_out": "キャッシュアウト",

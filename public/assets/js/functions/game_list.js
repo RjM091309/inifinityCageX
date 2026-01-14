@@ -1,6 +1,7 @@
 var account_id;
 var record_id;
 var game_id;
+var _servicesSettled = 0;
 // Cache accounts so Select2 doesn't flash "No results found" while AJAX is still loading
 var _accountOptionsCache = null;
 var _accountOptionsPromise = null;
@@ -201,25 +202,32 @@ $(document).ready(function () {
 
 
                     var btn = `<div class="btn-group">
-                        <button type="button" onclick="viewRecord(${row.game_list_id})" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
+                        <button type="button" onclick="viewRecord(${row.game_list_id})" class="btn btn-sm btn-info-subtle action-btn-square js-bs-tooltip-enabled"
                         data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details">
-                        GAME RECORD
+                        <i class="fa fa-file-alt"></i>
                         </button>
-                        <button type="button" onclick="changeStatus(${row.game_list_id})" class="btn btn-sm btn-alt-warning js-bs-tooltip-enabled"
+                        <button type="button" onclick="changeStatus(${row.game_list_id})" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
                         data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status">
-                        CHANGE STATUS
+                        <i class="fa fa-exchange-alt"></i>
                         </button>
-                        <button type="button" onclick="archive_game_list(${row.game_list_id})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
+                        <button type="button" onclick="archive_game_list(${row.game_list_id})" class="btn btn-sm btn-alt-danger action-btn-square js-bs-tooltip-enabled"
                         data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
                         <i class="fa fa-trash-alt"></i>
                         </button>
                     </div>`;
 
                     var btn_his = `<div class="btn-group" role="group">
-                        <button type="button" onclick="showHistory(${row.game_list_id})" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
-                            data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details" 
-                            style="font-size:8px !important; margin-right: 5px;"> <!-- Add margin-right for spacing -->
-                            History
+                        <button type="button" onclick="showHistory(${row.game_list_id})" class="btn btn-sm btn-info-subtle action-btn-square js-bs-tooltip-enabled"
+                            data-bs-toggle="tooltip" aria-label="History" data-bs-original-title="History" title="History"
+                            style="font-size:8px !important; margin-right: 5px;">
+                            <i class="fa fa-history"></i>
+                        </button>
+                    </div>`;
+                    var btn_services = `<div class="btn-group" role="group">
+                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_name || '')}', ${row.game_status}, ${row.SETTLED || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
+                            data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
+                            style="font-size:8px !important; margin-right: 5px;">
+                            <i class="fa fa-concierge-bell"></i>
                         </button>
                     </div>`;
 
@@ -366,24 +374,30 @@ $(document).ready(function () {
 								// 	gameIdDisplay = `⭐ ${row.game_list_id}`;
 								// }
 
-								let rowNode = dataTable.row.add([
-									game_start,
-									`${row.GAME_TYPE}`,
-									`${row.game_list_id}`,
-									`${row.agent_code} (${row.agent_name})`,
-									total_initial.toLocaleString(),
-									buyin_td,
-									total_amount.toLocaleString(),
-									rolling_td,
-									parseFloat(total_rolling_chips).toLocaleString(),
-									cashout_td,
-									`${row.COMMISSION_PERCENTAGE}%`,
-									formattedNet,
-									winloss,
-									`${row.INITIAL_MOP}`,
-									status,
-									userPermissions === 11 || userPermissions === 1 ? btn_his + btn_settle : btn_settle
-								]).draw().node();
+                                var actionButtons = btn_services;
+                                if (userPermissions === 11 || userPermissions === 1) {
+                                    actionButtons += btn_his;
+                                }
+                                actionButtons += btn_settle;
+
+                                let rowNode = dataTable.row.add([
+                                    game_start,
+                                    `${row.GAME_TYPE}`,
+                                    `${row.game_list_id}`,
+                                    `${row.agent_code} (${row.agent_name})`,
+                                    total_initial.toLocaleString(),
+                                    buyin_td,
+                                    total_amount.toLocaleString(),
+                                    rolling_td,
+                                    parseFloat(total_rolling_chips).toLocaleString(),
+                                    cashout_td,
+                                    `${row.COMMISSION_PERCENTAGE}%`,
+                                    formattedNet,
+                                    winloss,
+                                    `${row.INITIAL_MOP}`,
+                                    status,
+                                    actionButtons
+                                ]).draw().node();
 								
 
 								// if (rowClass !== '') {
@@ -417,23 +431,27 @@ $(document).ready(function () {
 								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 	
+								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
+								var settleClass = row.SETTLED === 1 ? 'btn-success-subtle' : 'btn-danger-subtle';
+								var settleTitle = settleLabel;
 								var btn_settle = `<div class="btn-group" role="group">
-								<button type="button" onclick="showHistory(${row.game_list_id})" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
-										data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details" 
-										style="font-size:8px !important; margin-right: 5px;"> <!-- Add margin-right for spacing -->
-										History
+								<button type="button" onclick="showHistory(${row.game_list_id})" class="btn btn-sm btn-info-subtle action-btn-square js-bs-tooltip-enabled"
+										data-bs-toggle="tooltip" aria-label="History" data-bs-original-title="History" title="History"
+										style="font-size:8px !important; margin-right: 5px;">
+										<i class="fa fa-history"></i>
 								</button>
-								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID })" class="btn btn-sm btn-success-subtle js-bs-tooltip-enabled"
-										data-bs-toggle="tooltip" aria-label="Settle" data-bs-original-title="Settle" 
+								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID })" class="btn btn-sm ${settleClass} action-btn-square js-bs-tooltip-enabled"
+										data-bs-toggle="tooltip" aria-label="${settleTitle}" data-bs-original-title="${settleTitle}" title="${settleTitle}"
 										style="font-size:10px !important;">
-										 ${row.SETTLED === 1 ? 'Settled' : 'Settlement'}
+										 <i class="fa fa-clipboard-check"></i>
 								</button>
 						   </div>`;
 						   // Format net value as an integer
 						   var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
-						   dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, total_initial.toLocaleString(), buyin_td, total_amount.toLocaleString(), rolling_td, parseFloat(total_rolling_chips).toLocaleString(), cashout_td, `${row.COMMISSION_PERCENTAGE}%`, formattedNet, winloss,`${row.INITIAL_MOP}`, status, btn_settle]).draw();
+						   var actionButtons = btn_services + btn_settle;
+						   dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, total_initial.toLocaleString(), buyin_td, total_amount.toLocaleString(), rolling_td, parseFloat(total_rolling_chips).toLocaleString(), cashout_td, `${row.COMMISSION_PERCENTAGE}%`, formattedNet, winloss,`${row.INITIAL_MOP}`, status, actionButtons]).draw();
 							}
 	
 						},
@@ -1307,6 +1325,234 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	game_id = id;
 }
 
+function openServices(id, guestName, gameStatus, settled) {
+	// Track settled state
+	_servicesSettled = parseInt(settled || 0, 10);
+
+	// Show Services modal and populate selected game id and guest name
+	const decodedGuest = decodeURIComponent(guestName || '');
+	$('#modal-services').modal('show');
+	const title = decodedGuest ? `Services - Game ${id} | ${decodedGuest}` : `Services - Game ${id}`;
+	$('#modal-services-label').text(title);
+	const $gameInput = $('#services-game-id-input');
+	if ($gameInput.length) $gameInput.val(id);
+	const $guestInput = $('#services-guest-name-input');
+	if ($guestInput.length) $guestInput.val(decodedGuest || '');
+
+	// Hide save form only when already settled
+	const showActions = parseInt(settled || 0, 10) !== 1;
+	$('#services-save-btn').toggle(showActions);
+	$('#services-add-wrap').toggle(showActions);
+
+	// Load existing services
+	loadServicesList(id);
+
+	// Clear inputs
+	$('#services-type').val('');
+	$('#services-amount').val('');
+	$('#services-remarks').val('');
+}
+
+function loadServicesList(gameId) {
+	$.ajax({
+		url: `/game_services/${gameId}`,
+		method: 'GET',
+		success: function (list) {
+			renderServicesList(list || []);
+		},
+		error: function () {
+			renderServicesList([]);
+		}
+	});
+}
+
+function renderServicesList(list) {
+	const $tbody = $('#services-list-body');
+	const $table = $('#services-list-tbl');
+	const $total = $('#services-total');
+	if (!$tbody.length) return;
+
+	const data = Array.isArray(list) ? list : [];
+	const isSettled = parseInt(_servicesSettled || 0, 10) === 1;
+
+	if ($.fn.DataTable.isDataTable($table)) {
+		$table.DataTable().clear().destroy();
+	}
+
+	if (data.length === 0) {
+		if ($total.length) $total.text('0');
+		// Let DataTables render its own empty-table row to avoid column-count warnings
+		$tbody.empty();
+		$table.DataTable({
+			paging: false,
+			lengthChange: false,
+			searching: false,
+			ordering: false,
+			info: false,
+			autoWidth: false,
+			language: { emptyTable: 'No services availed.' }
+		});
+		return;
+	}
+
+	const rows = data.map(item => {
+		const id = item.IDNo || item.id || '';
+		const service = item.SERVICE_TYPE || item.service_type || '';
+		const amount = item.AMOUNT || item.amount || 0;
+		const remarks = item.REMARKS || item.remarks || '';
+		const processed = item.PROCESSED_BY || item.processed_by || item.ENCODED_BY || '';
+		const dtRaw = item.DATE || item.ENCODED_DT || item.encoded_dt || item.date || '';
+		const formattedDt = dtRaw ? moment(dtRaw).format('MMM DD, HH:mm') : '';
+		return `<tr>
+			<td>${service}</td>
+			<td class="text-end">${parseFloat(amount).toLocaleString()}</td>
+			<td>${remarks || ''}</td>
+			<td>${processed || ''}</td>
+			<td>${formattedDt}</td>
+			<td class="text-center">
+				<button type="button"
+					class="btn btn-sm btn-info-subtle action-btn-square me-1 service-edit-btn"
+					title="Edit"
+					${isSettled ? 'disabled aria-disabled="true"' : ''}
+					data-id="${id}"
+					data-service="${service}"
+					data-amount="${amount}"
+					data-remarks="${encodeURIComponent(remarks || '')}">
+					<i class="fa fa-edit"></i>
+				</button>
+				<button type="button"
+					class="btn btn-sm btn-alt-danger action-btn-square service-delete-btn"
+					title="Delete"
+					${isSettled ? 'disabled aria-disabled="true"' : ''}
+					data-id="${id}">
+					<i class="fa fa-trash-alt"></i>
+				</button>
+			</td>
+		</tr>`;
+	});
+
+	// Total amount of all services
+	const totalAmt = data.reduce((sum, item) => {
+		const amt = parseFloat(item.AMOUNT || item.amount || 0);
+		return sum + (isNaN(amt) ? 0 : amt);
+	}, 0);
+	if ($total.length) $total.text(totalAmt.toLocaleString());
+
+	$tbody.html(rows.join(''));
+	$table.DataTable({
+		paging: true,
+		pageLength: 5,
+		lengthChange: false,
+		searching: false,
+		ordering: false,
+		info: true,
+		autoWidth: false
+	});
+}
+
+// Save service
+$(document).on('click', '#services-save-btn', function (e) {
+	e.preventDefault();
+	const gameId = $('#services-game-id-input').val();
+	const type = $('#services-type').val();
+	const amountRaw = $('#services-amount').val().replace(/,/g, '').trim();
+	const amount = parseFloat(amountRaw) || 0;
+	const remarks = $('#services-remarks').val().trim();
+	const editId = $('#services-edit-id-input').val();
+
+	if (!gameId || !type) {
+		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
+		return;
+	}
+
+	const $btn = $('#services-save-btn');
+	$btn.prop('disabled', true).text('Saving...');
+
+	const isEdit = !!editId;
+	const url = isEdit ? `/game_services/${editId}` : '/add_game_services';
+	const method = isEdit ? 'PUT' : 'POST';
+
+	$.ajax({
+		url,
+		method,
+		data: { game_id: gameId, service_type: type, amount, remarks },
+		success: function (list) {
+			renderServicesList(list || []);
+			$('#services-amount').val('');
+			$('#services-remarks').val('');
+			$('#services-type').val('');
+			$('#services-edit-id-input').val('');
+			$('#services-save-btn').text('Save');
+		},
+		error: function (xhr) {
+			const msg = xhr.responseJSON?.error || 'Failed to save service.';
+			Swal.fire({ icon: 'error', title: 'Error', text: msg });
+		},
+		complete: function () {
+			$btn.prop('disabled', false).text('Save');
+		}
+	});
+});
+
+// Edit button handler (delegated)
+$(document).on('click', '.service-edit-btn', function () {
+	const $btn = $(this);
+	if ($btn.prop('disabled')) return;
+	const id = $btn.data('id');
+	const service = $btn.data('service');
+	const amount = $btn.data('amount');
+	const remarks = decodeURIComponent($btn.attr('data-remarks') || '');
+	editService(id, service, amount, remarks);
+});
+
+// Delete button handler (delegated)
+$(document).on('click', '.service-delete-btn', function () {
+	const $btn = $(this);
+	if ($btn.prop('disabled')) return;
+	const id = $btn.data('id');
+	deleteService(id);
+});
+
+// Save edit service
+$(document).on('click', '#services-edit-save-btn', function (e) {
+	e.preventDefault();
+	const serviceId = $('#services-edit-id').val();
+	const gameId = $('#services-game-id-input').val();
+	const type = $('#services-edit-type').val();
+	const amountRaw = $('#services-edit-amount').val().replace(/,/g, '').trim();
+	const amount = parseFloat(amountRaw) || 0;
+	const remarks = $('#services-edit-remarks').val().trim();
+
+	if (!serviceId || !gameId || !type) {
+		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
+		return;
+	}
+
+	const $btn = $('#services-edit-save-btn');
+	$btn.prop('disabled', true).text('Saving...');
+
+	$.ajax({
+		url: `/game_services/${serviceId}`,
+		method: 'PUT',
+		data: { game_id: gameId, service_type: type, amount, remarks },
+		success: function (list) {
+			renderServicesList(list || []);
+			$('#modal-services-edit').modal('hide');
+			$('#services-edit-id').val('');
+			$('#services-edit-type').val('');
+			$('#services-edit-amount').val('');
+			$('#services-edit-remarks').val('');
+		},
+		error: function (xhr) {
+			const msg = xhr.responseJSON?.error || 'Failed to save service.';
+			Swal.fire({ icon: 'error', title: 'Error', text: msg });
+		},
+		complete: function () {
+			$btn.prop('disabled', false).text('Save');
+		}
+	});
+});
+
 // Preload account data silently in the background (no DOM manipulation)
 function preloadAccounts() {
 	// If already cached or loading, skip
@@ -1458,17 +1704,70 @@ function viewRecord(id) {
 }
 
 $(document).ready(function () {
-	$("input[data-type='number']").keyup(function (event) {
-		// skip for arrow keys
+	$("input[data-type='number']").on('input', function (event) {
+		// skip formatting for arrow keys
 		if (event.which >= 37 && event.which <= 40) {
 			event.preventDefault();
+			return;
 		}
-		var $this = $(this);
-		var num = $this.val().replace(/,/gi, "");
-		var num2 = num.split(/(?=(?:\d{3})+$)/).join(",");
-		$this.val(num2);
+		const $this = $(this);
+		let raw = $this.val() || '';
+
+		// allow digits and a single decimal point; strip letters/symbols
+		raw = raw.replace(/[^\d.]/g, '');
+		const parts = raw.split('.');
+		if (parts.length > 2) {
+			raw = parts[0] + '.' + parts.slice(1).join('');
+		}
+
+		const [intPart, decPart] = raw.split('.');
+		const formattedInt = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+		const formatted = decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
+		$this.val(formatted);
 	});
 })
+
+function editService(id, service, amount, remarks) {
+	const safeAmount = parseFloat(amount || 0);
+	$('#services-edit-id').val(id || '');
+	$('#services-edit-type').val(service || '');
+	$('#services-edit-amount').val(isNaN(safeAmount) ? '' : safeAmount.toLocaleString());
+	$('#services-edit-remarks').val(remarks || '');
+
+	$('#modal-services-edit').modal('show');
+}
+
+function deleteService(id) {
+	const gameId = $('#services-game-id-input').val();
+	if (!id || !gameId) return;
+	Swal.fire({
+		title: 'Delete this service?',
+		icon: 'warning',
+		showCancelButton: true,
+		confirmButtonText: 'Yes, delete',
+		cancelButtonText: 'Cancel'
+	}).then((result) => {
+		if (!result.isConfirmed) return;
+
+		$.ajax({
+			url: `/game_services/${id}`,
+			method: 'DELETE',
+			data: { game_id: gameId },
+			success: function (list) {
+				renderServicesList(list || []);
+				$('#services-edit-id-input').val('');
+				$('#services-save-btn').text('Save');
+				$('#services-type').val('');
+				$('#services-amount').val('');
+				$('#services-remarks').val('');
+			},
+			error: function (xhr) {
+				const msg = xhr.responseJSON?.error || 'Failed to delete service.';
+				Swal.fire({ icon: 'error', title: 'Error', text: msg });
+			}
+		});
+	});
+}
 
 function onlyNumberKey(evt) {
 
@@ -1514,27 +1813,34 @@ $(document).ready(function () {
 				data.forEach(function (row) {
 
 					var btn = `<div class="btn-group">
-						<button type="button" onclick="viewRecord(${row.game_list_id})" class="btn btn-sm btn-alt-info js-bs-tooltip-enabled"
+						<button type="button" onclick="viewRecord(${row.game_list_id})" class="btn btn-sm btn-alt-info action-btn-square js-bs-tooltip-enabled"
 						data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details">
-						GAME RECORD
+						<i class="fa fa-file-alt"></i>
 						</button>
-						<button type="button" onclick="changeStatus(${row.game_list_id})" class="btn btn-sm btn-alt-warning js-bs-tooltip-enabled"
+						<button type="button" onclick="changeStatus(${row.game_list_id})" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
 						data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status">
-						CHANGE STATUS
+						<i class="fa fa-exchange-alt"></i>
 						</button>
-						<button type="button" onclick="archive_game_list(${row.game_list_id})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
+						<button type="button" onclick="archive_game_list(${row.game_list_id})" class="btn btn-sm btn-alt-danger action-btn-square js-bs-tooltip-enabled"
 						data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
 						<i class="fa fa-trash-alt"></i>
 						</button>
 					</div>`;
 
-					var btn_his = `<div class="btn-group" role="group">
-					<button type="button" onclick="showHistory(${row.game_list_id})" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
-							data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details" 
-							style="font-size:8px !important; margin-right: 5px;"> <!-- Add margin-right for spacing -->
-							History
-					</button>
-			   </div>`;
+                    var btn_his = `<div class="btn-group" role="group">
+                    <button type="button" onclick="showHistory(${row.game_list_id})" class="btn btn-sm btn-info-subtle action-btn-square js-bs-tooltip-enabled"
+                            data-bs-toggle="tooltip" aria-label="History" data-bs-original-title="History" title="History"
+                            style="font-size:8px !important; margin-right: 5px;">
+                            <i class="fa fa-history"></i>
+                    </button>
+               </div>`;
+                    var btn_services = `<div class="btn-group" role="group">
+                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_name || '')}', ${row.game_status}, ${row.SETTLED || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
+                            data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
+                            style="font-size:8px !important; margin-right: 5px;">
+                            <i class="fa fa-concierge-bell"></i>
+                        </button>
+                    </div>`;
 
 
 						
@@ -1642,7 +1948,8 @@ $(document).ready(function () {
 								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_buy_in_chips).toLocaleString() + '</button>';
 								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
-								dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, total_initial.toLocaleString(), buyin_td, total_amount.toLocaleString(), rolling_td, parseFloat(total_rolling_chips).toLocaleString(), cashout_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, btn_his]).draw();
+                                var actionButtons = btn_services + btn_his;
+                                dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, total_initial.toLocaleString(), buyin_td, total_amount.toLocaleString(), rolling_td, parseFloat(total_rolling_chips).toLocaleString(), cashout_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else {
 								
 								//END GAME STATUS EDITABLE(ON GAME & END GAME)
@@ -1655,19 +1962,23 @@ $(document).ready(function () {
 								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 								
+								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
+								var settleClass = row.SETTLED === 1 ? 'btn-success-subtle' : 'btn-danger-subtle';
+								var settleTitle = settleLabel;
 								var btn_settle = `<div class="btn-group" role="group">
-								<button type="button" onclick="showHistory(${row.game_list_id})" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
-										data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details" 
-										style="font-size:8px !important; margin-right: 5px;"> <!-- Add margin-right for spacing -->
-										History
+								<button type="button" onclick="showHistory(${row.game_list_id})" class="btn btn-sm btn-info-subtle action-btn-square js-bs-tooltip-enabled"
+										data-bs-toggle="tooltip" aria-label="History" data-bs-original-title="History" title="History"
+										style="font-size:8px !important; margin-right: 5px;">
+										<i class="fa fa-history"></i>
 								</button>
-								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID })" class="btn btn-sm btn-success-subtle js-bs-tooltip-enabled"
-										data-bs-toggle="tooltip" aria-label="Settle" data-bs-original-title="Settle" 
+								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID })" class="btn btn-sm ${settleClass} action-btn-square js-bs-tooltip-enabled"
+										data-bs-toggle="tooltip" aria-label="${settleTitle}" data-bs-original-title="${settleTitle}" title="${settleTitle}"
 										style="font-size:10px !important;">
-										Settlement
+										<i class="fa fa-clipboard-check"></i>
 								</button>
 						   </div>`;
-						   dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, total_initial.toLocaleString(), buyin_td, total_amount.toLocaleString(), rolling_td, parseFloat(total_rolling_chips).toLocaleString(), cashout_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, btn_settle]).draw();
+						   var actionButtons = btn_services + btn_settle;
+						   dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, total_initial.toLocaleString(), buyin_td, total_amount.toLocaleString(), rolling_td, parseFloat(total_rolling_chips).toLocaleString(), cashout_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 
 							}
 
@@ -1839,6 +2150,30 @@ function settlement_history(record_id, acc_id) {
 
     // Initialize flag for settlement processing
     var isSettled = false;
+
+    // Fetch services total and populate FB
+    function loadServicesTotal() {
+        $.ajax({
+            url: `/game_services/${record_id}`,
+            method: 'GET',
+            success: function (list) {
+                const total = Array.isArray(list)
+                    ? list.reduce((sum, item) => {
+                        const amt = parseFloat(item.AMOUNT || item.amount || 0);
+                        return sum + (isNaN(amt) ? 0 : amt);
+                    }, 0)
+                    : 0;
+                $('#fb').val(total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+                // trigger recalculation of payment
+                $('#fb').trigger('input');
+            },
+            error: function () {
+                // fallback to 0
+                $('#fb').val('0');
+                $('#fb').trigger('input');
+            }
+        });
+    }
 
     // Function to fetch game record data and populate the modal
     function reloadDataRecord() {
@@ -2028,6 +2363,9 @@ function settlement_history(record_id, acc_id) {
                     let updatedRollingSettlement = total_rolling_chips * (updatedRollingRate / 100);
                     $('#rollingSettlement').val(updatedRollingSettlement.toLocaleString());
                 }
+
+                // After handlers are ready, load services total into FB
+                loadServicesTotal();
             },
             error: function (xhr, status, error) {
                 console.error('Error fetching data:', error);
