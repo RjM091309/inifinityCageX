@@ -31,11 +31,16 @@
 							</div>
 						</div>
 
-						<div class="row mb-2">
-							<div class="col-sm-12">
+					<div class="row mb-2">
+						<div class="col-sm-12">
+							<div class="input-group">
 								<input type="text" class="form-control" name="txtTelegram" placeholder="<%= __('modal_new_agent.Telegram_placeholder') %>" />
+								<span class="input-group-text" data-bs-toggle="tooltip" data-bs-placement="top" title="<%= __('modal_new_agent.Telegram_help') %>" style="cursor: pointer;">
+									<i class="fa-solid fa-circle-question"></i>
+								</span>
 							</div>
 						</div>
+					</div>
 
 						<div class="row mb-2">
 							<div class="col-sm-12">
@@ -70,4 +75,15 @@
 	document.querySelector('input[name="txtTelegram"]').addEventListener('input', function (e) {
 		this.value = this.value.replace(/\D/g, '');
 	});
+	
+	// Initialize tooltip for Telegram help icon when modal is shown
+	var modalNewAgent = document.getElementById('modal-new-agent');
+	if (modalNewAgent) {
+		modalNewAgent.addEventListener('shown.bs.modal', function () {
+			var tooltipTrigger = modalNewAgent.querySelector('[data-bs-toggle="tooltip"]');
+			if (tooltipTrigger) {
+				var tooltip = new bootstrap.Tooltip(tooltipTrigger);
+			}
+		});
+	}
 </script>

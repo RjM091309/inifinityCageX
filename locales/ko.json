@@ -434,7 +434,8 @@
 		"Contact_placeholder": "연락처 번호",
 		"Remarks_placeholder": "발언",
 		"save": "저장",
-		"close": "닫기"
+		"close": "닫기",
+		"Telegram_help": "modal_new_agent.Telegram_help"
 	},
 	"modal_edit_agent": {
 		"edit_guest": "게스트 편집",

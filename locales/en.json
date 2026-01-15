@@ -427,6 +427,7 @@
 		"Account_No_placeholder": "Account No.",
 		"Name_placeholder": "Name",
 		"Telegram_placeholder": "Telegram Chat ID",
+		"Telegram_help": "Visit @raw_data_bot on Telegram to get your Chat ID. Then copy and paste the Chat ID here.",
 		"Contact_placeholder": "Contact Number",
 		"Remarks_placeholder": "Remarks",
 		"save": "Save",

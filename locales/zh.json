@@ -434,7 +434,8 @@
 		"Contact_placeholder": "联系方式",
 		"Remarks_placeholder": "备注",
 		"save": "保存",
-		"close": "关闭"
+		"close": "关闭",
+		"Telegram_help": "modal_new_agent.Telegram_help"
 	},
 	"modal_edit_agent": {
 		"edit_guest": "编辑客人",

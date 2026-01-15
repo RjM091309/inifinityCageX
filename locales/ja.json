@@ -432,7 +432,8 @@
 		"Contact_placeholder": "連絡先番号",
 		"Remarks_placeholder": "備考",
 		"save": "保存",
-		"close": "閉じる"
+		"close": "閉じる",
+		"Telegram_help": "modal_new_agent.Telegram_help"
 	},
 	"modal_edit_agent": {
 		"edit_guest": "ゲストの編集",
