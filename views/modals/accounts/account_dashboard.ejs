@@ -14,14 +14,19 @@
             </div>
         </div>
         <!-- Add Tab Navigation -->
-        <ul class="nav nav-tabs mb-3" role="tablist">
-          <li class="nav-item">
-            <a class="nav-link active" id="with-balance-tab" data-bs-toggle="tab" href="#with-balance" role="tab"><%= __('account_dashboard.guest_balance_only') %></a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" id="all-agents-tab" data-bs-toggle="tab" href="#all-agents" role="tab"><%= __('account_dashboard.all_guest_balance') %></a>
-          </li>
-        </ul>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item">
+              <a class="nav-link active" id="with-balance-tab" data-bs-toggle="tab" href="#with-balance" role="tab"><%= __('account_dashboard.guest_balance_only') %></a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" id="all-agents-tab" data-bs-toggle="tab" href="#all-agents" role="tab"><%= __('account_dashboard.all_guest_balance') %></a>
+            </li>
+          </ul>
+          <button id="btn-transaction-history-guest" class="btn btn-sm btn-primary">
+            <i class="fa fa-history me-1"></i> Transaction History
+          </button>
+        </div>
 
         <!-- Tab Content -->
         <div class="tab-content">

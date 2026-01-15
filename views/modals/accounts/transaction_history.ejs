@@ -35,3 +35,148 @@
   </div>
 </div>
 
+<script>
+(function() {
+    let historyModal = null;
+    let historyDataTable = null;
+
+    const formatDate = (val) => {
+        if (!val) return '';
+        if (typeof moment !== 'undefined') {
+            const m = moment(val);
+            if (m.isValid()) return m.format('MMM D, HH:mm');
+        }
+        const d = new Date(val);
+        return isNaN(d.getTime())
+            ? ''
+            : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    };
+
+    const formatAmount = (val) => Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    async function loadHistoryRows() {
+        try {
+            const res = await fetch('/account_transaction_history');
+            const rows = await res.json();
+
+            if (historyDataTable) {
+                historyDataTable.clear().rows.add(rows || []).draw();
+                return;
+            }
+
+            historyDataTable = $('#history-tbl').DataTable({
+                data: rows || [],
+                order: [[0, 'desc']],
+                pageLength: 10,
+                columns: [
+                    {
+                        data: 'encoded_dt',
+                        render: function (data, type) {
+                            if (type === 'sort' || type === 'type') {
+                                const t = Date.parse(data);
+                                return isNaN(t) ? 0 : t;
+                            }
+                            return formatDate(data);
+                        }
+                    },
+                    {
+                        data: null,
+                        render: function (_data, _type, row) {
+                            const name = row.agent_name || 'N/A';
+                            const code = row.agent_code || 'N/A';
+                            return `${name} (${code})`;
+                        }
+                    },
+                    {
+                        data: null,
+                        render: function (_data, _type, row) {
+                            return row.direction || '';
+                        }
+                    },
+                    {
+                        data: 'amount',
+                        className: 'text-end',
+                        render: function (data) { return formatAmount(data); }
+                    },
+                    {
+                        data: 'balance_before',
+                        className: 'text-end',
+                        render: function (data) { return data === null || data === undefined ? '' : formatAmount(data); }
+                    },
+                    {
+                        data: 'balance_after',
+                        className: 'text-end',
+                        render: function (data) { return data === null || data === undefined ? '' : formatAmount(data); }
+                    },
+                    {
+                        data: 'processed_by',
+                        render: function (data) { return data || ''; }
+                    },
+                    {
+                        data: 'remarks',
+                        render: function (data) { return data || ''; }
+                    }
+                ]
+            });
+        } catch (err) {
+            console.error('Error loading transaction history', err);
+            if (historyDataTable) {
+                historyDataTable.clear().draw();
+            }
+        }
+    }
+
+    function getHistoryModal() {
+        if (!historyModal) {
+            const modalElement = document.getElementById('modal-transaction-history');
+            if (modalElement && typeof bootstrap !== 'undefined') {
+                historyModal = new bootstrap.Modal(modalElement);
+            } else {
+                console.error('Modal element #modal-transaction-history not found or Bootstrap not loaded');
+                return null;
+            }
+        }
+        return historyModal;
+    }
+
+    function initTransactionHistory() {
+        if (typeof $ === 'undefined' || typeof bootstrap === 'undefined') {
+            setTimeout(initTransactionHistory, 100);
+            return;
+        }
+
+        $(document).ready(function() {
+            // Handle button click for guest account dashboard
+            $(document).on('click', '#btn-transaction-history-guest', async function(e) {
+                e.preventDefault();
+                const modal = getHistoryModal();
+                if (modal) {
+                    await loadHistoryRows();
+                    modal.show();
+                } else {
+                    console.error('Transaction history modal not initialized');
+                }
+            });
+
+            // Handle button click for agent page
+            $(document).on('click', '#btn-transaction-history', async function(e) {
+                e.preventDefault();
+                const modal = getHistoryModal();
+                if (modal) {
+                    await loadHistoryRows();
+                    modal.show();
+                } else {
+                    console.error('Transaction history modal not initialized');
+                }
+            });
+        });
+    }
+
+    // Start initialization
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTransactionHistory);
+    } else {
+        initTransactionHistory();
+    }
+})();
+</script>

@@ -403,7 +403,8 @@
 		"total_balance": "总余额",
 		"sub_total": "小计",
 		"grand_total": "总计",
-		"close": "关闭"
+		"close": "关闭",
+		"transaction_history": "account_dashboard.transaction_history"
 	},
 	"dashboard_marker": {
 		"total_credits_issue": "总信用",

@@ -401,7 +401,8 @@
 		"total_balance": "合計残高",
 		"sub_total": "小計",
 		"grand_total": "合計",
-		"close": "閉じる"
+		"close": "閉じる",
+		"transaction_history": "account_dashboard.transaction_history"
 	},
 	"dashboard_marker": {
 		"total_credits_issue": "総クレジット発行",

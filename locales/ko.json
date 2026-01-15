@@ -403,7 +403,8 @@
 		"total_balance": "총 잔액",
 		"sub_total": "소계",
 		"grand_total": "총 합계",
-		"close": "닫기"
+		"close": "닫기",
+		"transaction_history": "account_dashboard.transaction_history"
 	},
 	"dashboard_marker": {
 		"total_credits_issue": "총 크레딧 발행",
