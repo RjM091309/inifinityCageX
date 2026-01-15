@@ -5,8 +5,7 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const passport = require('passport');
 const session = require('express-session');
-const RedisStore = require('connect-redis')(session);
-const redis = require('redis');
+const MySQLStore = require('express-mysql-session')(session);
 const flash = require('connect-flash');
 const i18n = require('i18n');
 require('dotenv').config();
@@ -18,14 +17,15 @@ const compression = require('compression');
 const app = express();
 app.use(
   compression({
-    filter: (req, res) => {
-      if (req.headers['accept-encoding']?.includes('br')) {
-        res.setHeader('Content-Encoding', 'br');
-        return true;
-      }
-      return compression.filter(req, res);
-    },
-    brotli: { enabled: true, zlib: {} }, // Brotli settings
+    // Brotli disabled - commented out due to browser errors
+    // filter: (req, res) => {
+    //   if (req.headers['accept-encoding']?.includes('br')) {
+    //     res.setHeader('Content-Encoding', 'br');
+    //     return true;
+    //   }
+    //   return compression.filter(req, res);
+    // },
+    // brotli: { enabled: true, zlib: {} }, // Brotli settings
   })
 );
 
@@ -58,31 +58,45 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const redisClient = redis.createClient({
-  host: process.env.REDIS_HOST,
-  port: process.env.REDIS_PORT,
-  legacyMode: true,
+// MySQL Session Store configuration
+const sessionStore = new MySQLStore({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  createDatabaseTable: true, // Automatically create sessions table if it doesn't exist
+  expiration: 86400000, // 24 hours in milliseconds (matches cookie maxAge)
+  clearExpired: true, // Automatically clear expired sessions
+  checkExpirationInterval: 900000, // Check for expired sessions every 15 minutes
+  schema: {
+    tableName: 'sessions',
+    columnNames: {
+      session_id: 'session_id',
+      expires: 'expires',
+      data: 'data'
+    }
+  }
 });
 
-redisClient.connect().catch(console.error); // Handles connection errors
-
-redisClient.on('connect', () => {
-  console.log('Redis connected successfully!');
-});
-
-redisClient.on('error', (err) => {
-  console.error('Redis error:', err);
+sessionStore.onReady().then(() => {
+  console.log('✅ MySQL Session Store connected successfully!');
+}).catch((error) => {
+  console.error('❌ MySQL Session Store connection error:', error);
 });
 
 app.use(session({
-  store: new RedisStore({ client: redisClient }),
+  name: 'connect.sid', // Standard session cookie name (compatible with most apps)
   secret: process.env.SESSION_SECRET,
+  store: sessionStore,
   resave: false,
   saveUninitialized: false,
+  rolling: true, // Reset expiration on activity
   cookie: {
-    secure: false,
+    secure: false, // Set to true if using HTTPS in production
     httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24,
+    maxAge: 1000 * 60 * 60 * 24, // 24 hours
+    sameSite: 'lax' // CSRF protection
   }
 }));
 app.use(flash());
