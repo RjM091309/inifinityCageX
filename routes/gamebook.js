@@ -82,6 +82,8 @@ router.post('/add_game_list', async (req, res) => {
 		txtGameType,
 		txtNN,
 		txtCC,
+		txtRollerNN,
+		txtRollerCC,
 		txtTransType,
 		txtCommisionType,
 		txtCommisionRate,
@@ -99,6 +101,8 @@ router.post('/add_game_list', async (req, res) => {
 	const commRate = parseFloat((txtCommisionRate || '0').replace(/,/g, '')) || 0;
 	const nnAmount = parseFloat((txtNN || '0').replace(/,/g, '')) || 0;
 	const ccAmount = parseFloat((txtCC || '0').replace(/,/g, '')) || 0;
+	const rollerNNAmount = parseFloat((txtRollerNN || '0').replace(/,/g, '')) || 0;
+	const rollerCCAmount = parseFloat((txtRollerCC || '0').replace(/,/g, '')) || 0;
 	const transType = parseInt(txtTransType) || null;
 	const encodedBy = req.session?.user_id || null;
 	const totalAmount = nnAmount + ccAmount;
@@ -133,6 +137,15 @@ router.post('/add_game_list', async (req, res) => {
 		const [record1Result] = await pool.execute(gameRecordSQL, [gameId, date_now, 1, 0, nnAmount, ccAmount, transType, encodedBy, date_now]);
 		const gameRecordId = record1Result.insertId; // 👈 Save inserted IDNo
 		await pool.execute(gameRecordSQL, [gameId, date_now, 3, 0, nnAmount, ccAmount, transType, encodedBy, date_now]);
+		
+		// 2b. Insert ROLLER CHIPS into game_record (CAGE_TYPE: 5) if roller chips provided
+		if (rollerNNAmount > 0 || rollerCCAmount > 0) {
+			const rollerChipsSQL = `
+				INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+			await pool.execute(rollerChipsSQL, [gameId, date_now, 5, 0, 0, 0, rollerNNAmount, rollerCCAmount, transType, encodedBy, date_now]);
+		}
 
 		// 3. Insert into account_ledger
 		if (transType === 2) {
@@ -468,7 +481,7 @@ router.get('/game_list_data', async (req, res) => {
 // GET GAME RECORD FOR A SPECIFIC GAME
 router.get('/game_list/:id/record', async (req, res) => {
     const id = parseInt(req.params.id);
-    const query = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, CAGE_TYPE FROM game_record
+    const query = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE FROM game_record
                    WHERE ACTIVE != 0 AND GAME_ID = ? 
                    ORDER BY IDNo ASC`;
 
@@ -946,6 +959,47 @@ router.post('/game_list/add/rolling', async (req, res) => {
 	}
 });
 
+// ADD GAME RECORD ROLLER CHIPS
+router.post('/game_list/add/roller_chips', async (req, res) => {
+	const { game_id, txtRollerNN, txtRollerCC, txtTransType } = req.body;
+	let date_now = new Date();
+
+	// Remove commas from NN and CC (default to 0 if not provided)
+	let txtNNamount = (txtRollerNN || '0').split(',').join("");
+	let txtCCamount = (txtRollerCC || '0').split(',').join("");
+
+	// Validate that at least one value is provided
+	if (parseFloat(txtNNamount) === 0 && parseFloat(txtCCamount) === 0) {
+		return res.status(400).json({ error: 'Please enter at least one value: NN Chips or CC Chips' });
+	}
+
+	// Validate transaction type
+	if (!txtTransType || (txtTransType !== '1' && txtTransType !== '2')) {
+		return res.status(400).json({ error: 'Please select a valid Transaction Type (ADD or RETURN)' });
+	}
+
+	const query = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	try {
+		await pool.execute(query, [
+			game_id, 
+			date_now, 
+			5, // CAGE_TYPE 5 for ROLLER CHIPS
+			0, // AMOUNT is 0 for roller chips
+			0, // NN_CHIPS is 0 (roller chips use ROLLER_NN_CHIPS)
+			0, // CC_CHIPS is 0 (roller chips use ROLLER_CC_CHIPS)
+			txtNNamount, // ROLLER_NN_CHIPS
+			txtCCamount, // ROLLER_CC_CHIPS
+			txtTransType, // ROLLER_TRANSACTION: 1 = ADD, 2 = RETURN
+			req.session.user_id, 
+			date_now
+		]);
+		res.redirect('/game_list');
+	} catch (err) {
+		console.error('Error inserting roller chips details', err);
+		res.status(500).json({ error: 'Error inserting roller chips details' });
+	}
+});
+
 
 // ADD GAME RECORD
 router.post('/add_game_record', async (req, res) => {
@@ -1008,7 +1062,7 @@ router.get("/game_record/:id", async (req, res) => {
 // GET GAME RECORD
 router.get('/game_record_data/:id', async (req, res) => {
 	const id = parseInt(req.params.id);
-	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name 
+	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION
 					FROM game_list 
 					JOIN account ON game_list.ACCOUNT_ID = account.IDNo 
 					JOIN agent ON agent.IDNo = account.AGENT_ID 

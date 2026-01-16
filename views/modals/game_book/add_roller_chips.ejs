@@ -1,0 +1,56 @@
+<div class="modal fade" id="modal-add-roller-chips" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+		<div class="modal-header bg-primary">
+			<h5 class="modal-title text-white" id="staticBackdropLiveLabel">Roller Chips</h5>
+			<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+		</div>
+		<form id="add_roller_chips">
+		<div class="modal-body">
+			<input type="hidden" name="game_id" class="game_list_id">
+			
+			
+
+			<!-- Input Fields -->
+			<div class="row mb-2">
+				<div class="col-sm-6">
+					<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center txtRollerNN" placeholder="NN Chips" name="txtRollerNN">
+				</div>
+				<div class="col-sm-6">
+					<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center txtRollerCC" placeholder="CC Chips" name="txtRollerCC">
+				</div>
+			</div>
+			<br>
+			<!-- Radio Buttons for ADD/RETURN -->
+			<div class="row mb-3 justify-content-center">
+				<div class="col-sm-4 text-center">
+					<div class="form-check justify-content-center d-flex">
+						<input class="form-check-input" type="radio" name="txtTransType" id="rollerAdd" value="1">
+						<label class="form-check-label" for="rollerAdd">
+							ADD
+						</label>
+					</div>
+				</div>
+				<div class="col-sm-4 text-center">
+					<div class="form-check justify-content-center d-flex">
+						<input class="form-check-input" type="radio" name="txtTransType" id="rollerReturn" value="2">
+						<label class="form-check-label" for="rollerReturn">
+							RETURN
+						</label>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="modal-footer">
+			<button type="submit" id="submit-roller-chips-btn" class="btn btn-sm btn-primary">
+				Save
+			</button>
+			<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+				Close
+			</button>
+		</div>
+		</div>
+	</div>
+	</form>
+</div>
+

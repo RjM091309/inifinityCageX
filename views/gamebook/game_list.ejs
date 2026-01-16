@@ -59,6 +59,9 @@
 											<th class="d-none d-sm-table-cell text-center col-total-rolling" >
 												<%= __('gamelist.total_rolling') %>
 											</th>
+											<th class="d-none d-sm-table-cell text-center">
+												ROLLER CHIPS
+											</th>
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.game_rate') %>
 												</th>
@@ -87,15 +90,16 @@
 											<th colspan="4">
 												<%= __('gamelist.grand_total') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">₱0.00</th>
+											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_CHIPS_RETURN">
-												₱0.00</th>
-											<th></th>
+												0.00</th>
+											<th class="d-none d-sm-table-cell text-center" id="GRAND_REAL_ROLLING">0.00</th>
 											<th class="d-none d-sm-table-cell text-center col-total-rolling" id="GRAND_TOTAL_ROLLING">
-												₱0.00</th>
+												0.00</th>
+											<th class="d-none d-sm-table-cell text-center" id="GRAND_ROLLER_CHIPS">0.00</th>
 											<th></th>
-											<th></th>
-											<th class="d-none d-sm-table-cell text-center col-winloss" id="GRAND_WIN_LOSS">₱0.00
+											<th class="d-none d-sm-table-cell text-center" id="GRAND_COMMISSION">0.00</th>
+											<th class="d-none d-sm-table-cell text-center col-winloss" id="GRAND_WIN_LOSS">0.00
 											</th>
 											<th></th>
 											<th></th>
@@ -551,6 +555,7 @@ table.dataTable tbody tr.highlight-row {
 										{ "data": "chips_return" },
 										{ "data": "real_rolling" },
 										{ "data": "total_rolling" },
+										{ "data": "roller_chips" },
 										{ "data": "game_rate" },
 										{ "data": "commission" },
 										{ "data": "win_loss" },
@@ -632,6 +637,9 @@ table.dataTable tbody tr.highlight-row {
 								var totalRolling = 0;
 								var totalChipsReturn = 0;
 								var totalWinLoss = 0;
+								var totalRollerChips = 0;
+								var totalRealRolling = 0;
+								var totalCommission = 0;
 
 								var table = $('#game_list-tbl').DataTable();
 
@@ -643,42 +651,77 @@ table.dataTable tbody tr.highlight-row {
 									// Adjust these indices based on your columns configuration
 									var amountIndex = 4; // "BUY-IN" is at index 4
 									var rollingIndex = 7; // "TOTAL ROLLING" is at index 7
+									var rollerChipsIndex = 8; // "ROLLER CHIPS" is at index 8
 									var chipsReturnIndex = 5; // "CASH-OUT" is at index 5
-									var winLossIndex = 10; // "WIN/LOSS" is at index 10
+									var realRollingIndex = 6; // "REAL ROLLING" is at index 6
+									var commissionIndex = 10; // "COMMISSION" is at index 10
+									var winLossIndex = 11; // "WIN/LOSS" is at index 11
 
 									var amountValue = data[amountIndex] || '0';
 									var rollingValue = data[rollingIndex] || '0';
+									var rollerChipsValue = data[rollerChipsIndex] || '0';
 									var chipsReturnValue = data[chipsReturnIndex] || '0';
+									var realRollingValue = data[realRollingIndex] || '0';
+									var commissionValue = data[commissionIndex] || '0';
 									var winLossValue = data[winLossIndex] || '0';
 
+									// Extract text content from HTML (handles buttons and plain text)
+									// Create a temporary div to parse HTML and extract text
+									var tempDiv = $('<div>').html(amountValue);
+									var amountText = tempDiv.text().trim() || amountValue;
+									
+									tempDiv = $('<div>').html(rollerChipsValue);
+									var rollerChipsText = tempDiv.text().trim() || rollerChipsValue;
+									
+									tempDiv = $('<div>').html(chipsReturnValue);
+									var chipsReturnText = tempDiv.text().trim() || chipsReturnValue;
+									
+									tempDiv = $('<div>').html(realRollingValue);
+									var realRollingText = tempDiv.text().trim() || realRollingValue;
+
 									// Remove HTML tags and clean values
-									var cleanedAmountValue = parseFloat(amountValue.replace(/[^0-9.-]/g, '')) || 0;
+									var cleanedAmountValue = parseFloat(amountText.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedRollingValue = parseFloat(rollingValue.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedChipsReturnValue = parseFloat(chipsReturnValue.replace(/<[^>]*>/g, '').replace(/[^0-9.-]/g, '')) || 0;
+									var cleanedRollerChipsValue = parseFloat(rollerChipsText.replace(/[^0-9.-]/g, '')) || 0;
+									var cleanedChipsReturnValue = parseFloat(chipsReturnText.replace(/[^0-9.-]/g, '')) || 0;
+									var cleanedRealRollingValue = parseFloat(realRollingText.replace(/[^0-9.-]/g, '')) || 0;
+									var cleanedCommissionValue = parseFloat(commissionValue.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedWinLossValue = parseFloat(winLossValue.replace(/[^0-9.-]/g, '')) || 0;
 
 									totalAmount += cleanedAmountValue;
 									totalRolling += cleanedRollingValue;
+									totalRollerChips += cleanedRollerChipsValue;
 									totalChipsReturn += cleanedChipsReturnValue;
+									totalRealRolling += cleanedRealRollingValue;
+									totalCommission += cleanedCommissionValue;
 									totalWinLoss += cleanedWinLossValue;
 								});
 
 								// Format the totals
 								var formattedAmount = totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedRolling = totalRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+								var formattedRollerChips = totalRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedChipsReturn = totalChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+								var formattedRealRolling = totalRealRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+								var formattedCommission = totalCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedWinLoss = totalWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-								// Update the footer content for the current page's totals
+								// Update the footer content for the current page's totals (removed peso sign)
 								$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(formattedAmount);
 								$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(formattedRolling);
+								$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(formattedRollerChips);
 								$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(formattedChipsReturn);
+								$('#game_list-tbl tfoot #GRAND_REAL_ROLLING').text(formattedRealRolling);
+								$('#game_list-tbl tfoot #GRAND_COMMISSION').text(formattedCommission);
 								$('#game_list-tbl tfoot #GRAND_WIN_LOSS').text(formattedWinLoss);
 
 								// Apply red font color if the total is negative
 								applyNegativeStyle('#GRAND_TOTAL_AMOUNT', totalAmount);
 								applyNegativeStyle('#GRAND_TOTAL_ROLLING', totalRolling);
+								applyNegativeStyle('#GRAND_ROLLER_CHIPS', totalRollerChips);
 								applyNegativeStyle('#GRAND_CHIPS_RETURN', totalChipsReturn);
+								applyNegativeStyle('#GRAND_REAL_ROLLING', totalRealRolling);
+								applyNegativeStyle('#GRAND_COMMISSION', totalCommission);
 								applyNegativeStyle('#GRAND_WIN_LOSS', totalWinLoss);
 							}
 
@@ -712,9 +755,10 @@ table.dataTable tbody tr.highlight-row {
 							<%- include ('../modals/game_book/add_buyin') %>
 								<%- include ('../modals/game_book/add_rolling') %>
 									<%- include ('../modals/game_book/add_cashout') %>
-										<%- include ('../modals/game_book/show_rollings') %>
-											<%- include ('../modals/game_book/settlement') %>
-												<%- include ('../modals/game_book/game_services') %>
+										<%- include ('../modals/game_book/add_roller_chips') %>
+											<%- include ('../modals/game_book/show_rollings') %>
+												<%- include ('../modals/game_book/settlement') %>
+													<%- include ('../modals/game_book/game_services') %>
 
 
 												<script src="/assets/js/functions/game_list.js"></script>
