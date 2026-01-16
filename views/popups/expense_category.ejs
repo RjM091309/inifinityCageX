@@ -51,6 +51,17 @@
 
 					<%- include ('../partials/footer') %>
 
+					<script>
+						// Pass translations to JavaScript
+						window.expenseCategoryTranslations = {
+							search: "<%= __('expense_category.search') %>",
+							showing_entries: "<%= __('expense_category.showing_entries') %>",
+							previous: "<%= __('expense_category.previous') %>",
+							next: "<%= __('expense_category.next') %>",
+							active: "<%= __('expense_category.active') %>",
+							inactive: "<%= __('expense_category.inactive') %>"
+						};
+					</script>
 
 			
 						<script src="/assets/js/functions/expense_category.js"></script>

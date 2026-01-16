@@ -48,6 +48,17 @@
 
 							<%- include ('../partials/footer'); -%>
 
+							<script>
+								// Pass translations to JavaScript
+								window.userRolesTranslations = {
+									search: "<%= __('user_roles.search') %>",
+									showing_entries: "<%= __('user_roles.showing_entries') %>",
+									previous: "<%= __('user_roles.previous') %>",
+									next: "<%= __('user_roles.next') %>",
+									active: "<%= __('user_roles.active') %>",
+									inactive: "<%= __('user_roles.inactive') %>"
+								};
+							</script>
 
 								<script src="/assets/js/functions/user_roles.js"></script>
 								<style>

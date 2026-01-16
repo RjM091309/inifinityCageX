@@ -13,10 +13,13 @@ $(document).ready(function () {
 		}],
 
 		"language": {
-        "info": "Showing _START_ to _END_ of _TOTAL_ entries", // Custom text
-       
-       
-    },
+			"search": (window.agentStatisticTranslations?.search || "Search:"),
+			"info": (window.agentStatisticTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
+			"paginate": {
+				"previous": (window.agentStatisticTranslations?.previous || "Previous"),
+				"next": (window.agentStatisticTranslations?.next || "Next")
+			}
+		},
 		
 	});
 	

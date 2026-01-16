@@ -110,6 +110,9 @@
                     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
                     <script>
+                        // Pass translation to JavaScript
+                        const noRecordsFoundText = "<%= __('change_game_no.no_records_found') %>";
+                        
                         $(document).ready(function () {
                             console.log("Fetching latest game number...");
                             let latestGameNo = 0;
@@ -166,7 +169,7 @@
                                         logTable.empty();
 
                                         if (response.length === 0) {
-                                            logTable.append(`<tr><td colspan="4" class="text-center">No records found.</td></tr>`);
+                                            logTable.append(`<tr><td colspan="4" class="text-center">${noRecordsFoundText}</td></tr>`);
                                             return;
                                         }
 

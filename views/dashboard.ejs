@@ -956,7 +956,9 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                              ₱ <span class="text-muted">Loading...</span>
                                           </h4>
                                           <span id="winloss-trend" class="badge trend-indicator"
-                                             style="margin-left: 10px;"></span>
+                                             style="margin-left: 10px;"
+                                             data-positive="<%= __('dashboard.positive') %>"
+                                             data-negative="<%= __('dashboard.negative') %>"></span>
                                        </div>
 
 
@@ -1002,13 +1004,13 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                     <!-- Centered Week Label + Date Range -->
                                     <div class="d-flex flex-column align-items-center text-center">
-                                       <div id="week-label">This Week</div>
+                                       <div id="week-label"><%= __('dashboard.this_week') %></div>
                                        <span id="week-date-range" class="text-muted small"></span>
                                     </div>
 
                                     <!-- Right Arrow -->
                                     <button id="next-week-btn" type="button" class="circle-btn ms-2 d-none"
-                                       title="This Week">
+                                       title="<%= __('dashboard.this_week') %>">
                                        <i class="fas fa-chevron-right"></i>
                                     </button>
                                  </div>
@@ -1096,7 +1098,9 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     <!-- In-update na chart container: -->
                                     <div id="myChart" class="col-md-12 col-lg-12 myChart"
                                        data-totalrolling="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0)) %>"
-                                       data-houserolling="<%- (+sqlCCChipsReturnReset[0].CCResetReturn || 0) %>">
+                                       data-houserolling="<%- (+sqlCCChipsReturnReset[0].CCResetReturn || 0) %>"
+                                       data-total-rolling-label="<%= __('dashboard.total_rolling_label') %>"
+                                       data-house-rolling-label="<%= __('dashboard.house_rolling_label') %>">
                                        <span id="totalrolling"></span>
                                        <span id="totalhouserolling"></span>
                                     </div>
@@ -1160,6 +1164,13 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
 
 
+                                                   <script>
+                                                       // Pass translations to on_game_list.js
+                                                       window.onGameListTranslations = {
+                                                           live: "<%= __('gamelist.live') %>",
+                                                           telebet: "<%= __('gamelist.telebet') %>"
+                                                       };
+                                                   </script>
                                                    <script src="/assets/js/functions/capital.js"></script>
                                                    <script src="/assets/js/functions/reset.js"></script>
                                                    <script src="/assets/js/functions/on_game_list.js"></script>
@@ -1199,6 +1210,42 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                       // ACTIVITY LOGS SCRIPT
                                                       // ─────────────────────────────────────────────────────────────────────────────
 
+                                                      // Translation object
+                                                      const translations = {
+                                                         "Transaction: ": "<%= __('dashboard.transaction') %>: ",
+                                                         "Deposit": "<%= __('dashboard.deposit') %>",
+                                                         "Withdraw": "<%= __('dashboard.withdraw') %>",
+                                                         "IOU": "<%= __('dashboard.iou') %>",
+                                                         "Unknown Transaction": "<%= __('dashboard.unknown_transaction') %>",
+                                                         " was Successful!": " <%= __('dashboard.was_successful') %>",
+                                                         "Agent ": "<%= __('dashboard.agent_prefix') %> ",
+                                                         "Guest ": "<%= __('dashboard.guest_prefix') %> ",
+                                                         "Junket Expense: ": "<%= __('dashboard.junket_expense') %>: ",
+                                                         " was added.": " <%= __('dashboard.was_added') %>",
+                                                         " was edited.": " <%= __('dashboard.was_edited') %>",
+                                                         "New User Account: ": "<%= __('dashboard.new_user_account') %>: ",
+                                                         " has been added.": " <%= __('dashboard.has_been_added') %>",
+                                                         "User ": "<%= __('dashboard.user') %> ",
+                                                         " was edited.": " <%= __('dashboard.was_edited') %>",
+                                                         "New Role Added: ": "<%= __('dashboard.new_role_added') %>: ",
+                                                         "User Role: ": "<%= __('dashboard.user_role') %>: ",
+                                                         "New Booking:": "<%= __('dashboard.new_booking') %>:",
+                                                         "Confirmation #": "<%= __('dashboard.confirmation') %> #",
+                                                         "Check In:": "<%= __('dashboard.check_in') %>:",
+                                                         "Check Out:": "<%= __('dashboard.check_out') %>:",
+                                                         "Deposit to Account": "<%= __('dashboard.deposit_to_account') %>",
+                                                         "Withdraw from Account": "<%= __('dashboard.withdraw_from_account') %>",
+                                                         "No recent activity.": "<%= __('dashboard.no_recent_activity') %>"
+                                                      };
+
+                                                      function translateText(text) {
+                                                         let translated = text;
+                                                         for (const [en, ko] of Object.entries(translations)) {
+                                                            translated = translated.replace(new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), ko);
+                                                         }
+                                                         return translated;
+                                                      }
+
                                                       function formatDate(dateString) {
                                                          const opts = { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" };
                                                          return new Date(dateString).toLocaleDateString("en-US", opts);
@@ -1209,13 +1256,16 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                       }
 
                                                       function getClickableText(fullText, linkUrl, ledgerId, guest = '', acctName = '') {
-                                                         const prefixes = ["New Booking", "Transaction", "Junket Expense"];
-                                                         const pfx = prefixes.find(p => fullText.startsWith(p));
+                                                         // Translate the text first
+                                                         const translatedText = translateText(fullText);
+                                                         
+                                                         const prefixes = ["<%= __('dashboard.new_booking') %>:", "<%= __('dashboard.transaction') %>:", "<%= __('dashboard.junket_expense') %>:"];
+                                                         const pfx = prefixes.find(p => translatedText.startsWith(p));
                                                          if (!pfx) {
-                                                            return `<span style="color:grey;">${highlightName(fullText)}</span>`;
+                                                            return `<span style="color:grey;">${highlightName(translatedText)}</span>`;
                                                          }
 
-                                                         const rem = fullText.slice(pfx.length);
+                                                         const rem = translatedText.slice(pfx.length);
                                                          const highlightedRem = highlightName(rem);
 
                                                          if (ledgerId && linkUrl !== '#') {
@@ -1256,9 +1306,13 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                                                      let displayName = log.name;
                                                                      if (log.action_type === "transaction" && log.guest_name && log.account_name) {
+                                                                        const depositText = "<%= __('dashboard.deposit') %>";
+                                                                        const withdrawText = "<%= __('dashboard.withdraw') %>";
+                                                                        const depositToAccount = "<%= __('dashboard.deposit_to_account') %>";
+                                                                        const withdrawFromAccount = "<%= __('dashboard.withdraw_from_account') %>";
                                                                         displayName = displayName
-                                                                           .replace(`Deposit - ${log.guest_name}`, `Deposit - ${log.guest_name} Deposit to Account ${log.account_name}`)
-                                                                           .replace(`Withdraw - ${log.guest_name}`, `Withdraw - ${log.guest_name} Withdraw from Account ${log.account_name}`);
+                                                                           .replace(`Deposit - ${log.guest_name}`, `${depositText} - ${log.guest_name} ${depositToAccount} ${log.account_name}`)
+                                                                           .replace(`Withdraw - ${log.guest_name}`, `${withdrawText} - ${log.guest_name} ${withdrawFromAccount} ${log.account_name}`);
                                                                      }
 
                                                                      return `
@@ -1272,7 +1326,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                 </div>
               </div>`;
                                                                   }).join("")
-                                                                  : "<p class='text-muted' style='color:grey;'>No recent activity.</p>";
+                                                                  : "<p class='text-muted' style='color:grey;'><%= __('dashboard.no_recent_activity') %></p>";
                                                             })
                                                             .catch(console.error);
                                                       });
@@ -1280,7 +1334,9 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                       // click handler para sa 'Transaction' links
                                                       document.getElementById("activity-overview").addEventListener("click", e => {
                                                          const a = e.target.closest("a[data-ledger-id]");
-                                                         if (!a || !a.innerText.trim().startsWith("Transaction")) return;
+                                                         if (!a) return;
+                                                         const transactionText = "<%= __('dashboard.transaction') %>:";
+                                                         if (!a.innerText.trim().startsWith(transactionText) && !a.innerText.trim().startsWith("Transaction")) return;
                                                          e.preventDefault();
 
                                                          const ledgerId = a.getAttribute("data-ledger-id");
@@ -1305,7 +1361,9 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                                          // Update week label
                                                          if (range === 'week') {
-                                                            const labelText = offset === 0 ? 'This Week' : `Week -${Math.abs(offset)}`;
+                                                            const thisWeekText = "<%= __('dashboard.this_week') %>";
+                                                            const weekText = "<%= __('dashboard.week') %>";
+                                                            const labelText = offset === 0 ? thisWeekText : `${weekText} -${Math.abs(offset)}`;
                                                             document.getElementById('week-label').textContent = labelText;
 
                                                             const dateRange = getDateRange(offset);
@@ -1335,10 +1393,11 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                                      const isPositive = percentChange > 0;
                                                                      const arrowIcon = isPositive ? 'fa-arrow-up' : 'fa-arrow-down';
                                                                      const colorClass = isPositive ? 'text-success' : 'text-danger';
+                                                                     const vsLastMonthText = "<%= __('dashboard.vs_last_month') %>";
 
                                                                      comparisonEl.innerHTML = `
                   <small class="${colorClass}">
-                     <i class="fas ${arrowIcon}"></i> ${Math.abs(percentChange)}% vs Last Month
+                     <i class="fas ${arrowIcon}"></i> ${Math.abs(percentChange)}% ${vsLastMonthText}
                   </small>
                `;
                                                                   }
@@ -1389,12 +1448,14 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                       });
                                                       document.getElementById('next-week-btn').addEventListener('click', () => {
                                                          currentWeekOffset = 0;
-                                                         loadWinloss('week', 'This Week', 0);
+                                                         const thisWeekText = "<%= __('dashboard.this_week') %>";
+                                                         loadWinloss('week', thisWeekText, 0);
                                                       });
 
                                                       // Init
                                                       window.addEventListener('DOMContentLoaded', () => {
-                                                         loadWinloss('week', 'This Week', 0);
+                                                         const thisWeekText = "<%= __('dashboard.this_week') %>";
+                                                         loadWinloss('week', thisWeekText, 0);
                                                       });
 
 

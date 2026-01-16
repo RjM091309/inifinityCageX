@@ -13,10 +13,13 @@ $(document).ready(function () {
 		}],
 
 		"language": {
-        "info": "Showing _START_ to _END_ of _TOTAL_ entries", // Custom text
-       
-       
-    },
+			"search": (window.guestGameStatisticTranslations?.search || "Search:"),
+			"info": (window.guestGameStatisticTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
+			"paginate": {
+				"previous": (window.guestGameStatisticTranslations?.previous || "Previous"),
+				"next": (window.guestGameStatisticTranslations?.next || "Next")
+			}
+		},
 		
 	});
 

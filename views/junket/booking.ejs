@@ -175,13 +175,58 @@
 					// }
 				</script>
 
-				<%- include ('../modals/junket/new_booking') %>
+					<%- include ('../modals/junket/new_booking') %>
 					<%- include ('../modals/junket/edit_booking') %>
 
 
 						<%- include ('../partials/footer'); -%>
 
-
+					<script>
+						// Pass translations to JavaScript
+						window.bookingTranslations = {
+							search: "<%= __('hotel_booking.search') %>",
+							showing_entries: "<%= __('hotel_booking.showing_entries') %>",
+							previous: "<%= __('hotel_booking.previous') %>",
+							next: "<%= __('hotel_booking.next') %>",
+							paid: "<%= __('hotel_booking.paid') %>",
+							unpaid: "<%= __('hotel_booking.unpaid') %>",
+							unknown: "<%= __('hotel_booking.unknown') %>",
+							edit: "<%= __('hotel_booking.edit') %>",
+							archive: "<%= __('hotel_booking.archive') %>",
+							saving: "<%= __('hotel_booking.saving') %>",
+							updating: "<%= __('hotel_booking.updating') %>",
+							inserting_error: "<%= __('hotel_booking.inserting_error') %>",
+							fill_required_fields: "<%= __('hotel_booking.fill_required_fields') %>",
+							booking_added_successfully: "<%= __('hotel_booking.booking_added_successfully') %>",
+							error: "<%= __('hotel_booking.error') %>",
+							error_saving: "<%= __('hotel_booking.error_saving') %>",
+							updated_successfully: "<%= __('hotel_booking.updated_successfully') %>",
+							booking_updated: "<%= __('hotel_booking.booking_updated') %>",
+							update_failed: "<%= __('hotel_booking.update_failed') %>",
+							error_updating: "<%= __('hotel_booking.error_updating') %>",
+							archive_confirmation: "<%= __('hotel_booking.archive_confirmation') %>",
+							yes_archive: "<%= __('hotel_booking.yes_archive') %>",
+							booking_archived_successfully: "<%= __('hotel_booking.booking_archived_successfully') %>",
+							error_archiving: "<%= __('hotel_booking.error_archiving') %>",
+							error_archiving_booking: "<%= __('hotel_booking.error_archiving_booking') %>",
+							check_in_confirmation: "<%= __('hotel_booking.check_in_confirmation') %>",
+							check_in_question: "<%= __('hotel_booking.check_in_question') %>",
+							yes_check_in: "<%= __('hotel_booking.yes_check_in') %>",
+							no_cancel: "<%= __('hotel_booking.no_cancel') %>",
+							checked_in_successfully: "<%= __('hotel_booking.checked_in_successfully') %>",
+							check_out_question: "<%= __('hotel_booking.check_out_question') %>",
+							yes_check_out: "<%= __('hotel_booking.yes_check_out') %>",
+							checked_out_successfully: "<%= __('hotel_booking.checked_out_successfully') %>",
+							update_payment_status: "<%= __('hotel_booking.update_payment_status') %>",
+							mark_booking_as: "<%= __('hotel_booking.mark_booking_as') %>",
+							yes_mark_as: "<%= __('hotel_booking.yes_mark_as') %>",
+							marked_as_successfully: "<%= __('hotel_booking.marked_as_successfully') %>",
+							ok: "<%= __('hotel_booking.ok') %>",
+							check_in: "<%= __('hotel_booking.check_in') %>",
+							check_out: "<%= __('hotel_booking.check_out') %>",
+							no_data_found: "<%= __('hotel_booking.no_data_found') %>"
+						};
+					</script>
 					
 							<script src="/assets/js/functions/booking.js"></script>
 							<!-- TIME ZONE -->

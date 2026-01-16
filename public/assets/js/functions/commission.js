@@ -43,7 +43,7 @@ $(document).ready(function() {
             return dateMoment.local().format('DD MMM, YYYY HH:mm:ss');
           } else {
             // If the date is invalid, return an error message or a placeholder
-            return 'Invalid Date';
+            return window.commissionTranslations?.invalid_date || 'Invalid Date';
           }
         },
         
@@ -53,7 +53,13 @@ $(document).ready(function() {
       }
     ],
     "language": {
-        "info": "Showing _START_ to _END_ of _TOTAL_ entries", // Custom text
+        "search": (window.commissionTranslations?.search || "Search:"),
+        "info": (window.commissionTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
+        "paginate": {
+            "previous": (window.commissionTranslations?.previous || "Previous"),
+            "next": (window.commissionTranslations?.next || "Next")
+        },
+        "emptyTable": (window.commissionTranslations?.no_data_found || "No data available in table")
     },
 });
 
@@ -63,7 +69,7 @@ $(document).ready(function() {
         const dateRange = $('#daterange').val();
 
         if (!dateRange) {
-            alert('Please select a date range.');
+            alert(window.commissionTranslations?.please_select_date_range || 'Please select a date range.');
             return;
         }
 

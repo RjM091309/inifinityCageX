@@ -4,23 +4,23 @@
     <div class="modal-content">
       <div class="modal-header bg-primary">
         <h5 class="modal-title text-white">
-          <i class="fa fa-history me-2"></i>Transaction History
+          <i class="fa fa-history me-2"></i><%= __('account_dashboard.transaction_history') %>
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<%= __('account_dashboard.close') %>"></button>
       </div>
       <div class="modal-body">
         <div class="table-responsive">
           <table class="table  nowrap small-text" style="width:100%" id="history-tbl">
             <thead class="table-light">
               <tr>
-                <th style="width: 160px;">Date</th>
-                <th style="width: 180px;">Account</th>
-                <th style="width: 120px;">Transaction</th>
-                <th class="text-end" style="width: 120px;">Amount</th>
-                <th class="text-end" style="width: 140px;">Balance Before</th>
-                <th class="text-end" style="width: 140px;">Balance After</th>
-                <th style="width: 160px;">Processed By</th>
-                <th>Remarks</th>
+                <th style="width: 160px;"><%= __('account_dashboard.date') %></th>
+                <th style="width: 180px;"><%= __('account_dashboard.account') %></th>
+                <th style="width: 120px;"><%= __('account_dashboard.transaction') %></th>
+                <th class="text-end" style="width: 120px;"><%= __('account_dashboard.amount') %></th>
+                <th class="text-end" style="width: 140px;"><%= __('account_dashboard.balance_before') %></th>
+                <th class="text-end" style="width: 140px;"><%= __('account_dashboard.balance_after') %></th>
+                <th style="width: 160px;"><%= __('account_dashboard.processed_by') %></th>
+                <th><%= __('account_dashboard.remarks') %></th>
               </tr>
             </thead>
             <tbody>
@@ -29,7 +29,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal"><%= __('account_dashboard.close') %></button>
       </div>
     </div>
   </div>
@@ -64,10 +64,28 @@
                 return;
             }
 
+            // Pass translations to JavaScript
+            const translations = {
+                search: "<%= __('account_dashboard.search') %>",
+                showing_entries: "<%= __('account_dashboard.showing_entries') %>",
+                previous: "<%= __('account_dashboard.previous') %>",
+                next: "<%= __('account_dashboard.next') %>",
+                no_data_available: "<%= __('account_dashboard.no_data_available') %>"
+            };
+
             historyDataTable = $('#history-tbl').DataTable({
                 data: rows || [],
                 order: [[0, 'desc']],
                 pageLength: 10,
+                language: {
+                    search: translations.search || "Search:",
+                    info: translations.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries",
+                    paginate: {
+                        previous: translations.previous || "Previous",
+                        next: translations.next || "Next"
+                    },
+                    emptyTable: translations.no_data_available || "No data available in table"
+                },
                 columns: [
                     {
                         data: 'encoded_dt',

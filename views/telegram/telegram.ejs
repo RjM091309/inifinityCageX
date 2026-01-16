@@ -36,11 +36,11 @@
 
 								<div>
 									<div class="d-flex align-items-center mb-2">
-										<h6 class="mb-0 me-2">Telegram Bot Details</h6>
-										<span id="bot-status" class="badge bg-secondary">Checking...</span>
+										<h6 class="mb-0 me-2"><%= __('telegram_api.telegram_bot_details') %></h6>
+										<span id="bot-status" class="badge bg-secondary"><%= __('telegram_api.checking') %></span>
 									</div>
 									<div id="bot-details" class="alert alert-secondary small mb-0">
-										<div class="text-muted">Loading bot details...</div>
+										<div class="text-muted"><%= __('telegram_api.loading_bot_details') %></div>
 									</div>
 								</div>
 							</div>
@@ -52,5 +52,26 @@
 
 
 			<%- include ('../partials/footer'); -%>
+
+			<script>
+				// Pass translations to JavaScript
+				window.telegramAPITranslations = {
+					checking: "<%= __('telegram_api.checking') %>",
+					loading_bot_details: "<%= __('telegram_api.loading_bot_details') %>",
+					bot_name: "<%= __('telegram_api.bot_name') %>",
+					username: "<%= __('telegram_api.username') %>",
+					open_bot: "<%= __('telegram_api.open_bot') %>",
+					active: "<%= __('telegram_api.active') %>",
+					unavailable: "<%= __('telegram_api.unavailable') %>",
+					no_bot_details: "<%= __('telegram_api.no_bot_details') %>",
+					error: "<%= __('telegram_api.error') %>",
+					could_not_load: "<%= __('telegram_api.could_not_load') %>",
+					success: "<%= __('telegram_api.success') %>",
+					updated_successfully: "<%= __('telegram_api.updated_successfully') %>",
+					ok: "<%= __('telegram_api.ok') %>",
+					error_title: "<%= __('telegram_api.error_title') %>",
+					failed_to_update: "<%= __('telegram_api.failed_to_update') %>"
+				};
+			</script>
 
 				<script src="/assets/js/functions/telegramAPI.js"></script>

@@ -6,6 +6,8 @@ let winlossChart;
     const chartElem = document.getElementById('myChart');
     const totalRollingVal = parseFloat(chartElem.dataset.totalrolling);
     const houseRollingVal = parseFloat(chartElem.dataset.houserolling);
+    const totalRollingLabel = chartElem.dataset.totalRollingLabel || 'Total Rolling';
+    const houseRollingLabel = chartElem.dataset.houseRollingLabel || 'House Rolling';
   
     const options = {
       series: [{
@@ -37,7 +39,7 @@ let winlossChart;
         }
       },
       xaxis: {
-        categories: ['Total Rolling', 'House Rolling'],
+        categories: [totalRollingLabel, houseRollingLabel],
         labels: {
           show: true,
           style: {
@@ -227,9 +229,11 @@ if (document.querySelectorAll('#d-activity').length) {
       const trendIndicator = document.getElementById('winloss-trend');
       if (trendIndicator) {
         trendIndicator.className = `trend-indicator ${trend}`;
+        const positiveText = trendIndicator.dataset.positive || 'Positive';
+        const negativeText = trendIndicator.dataset.negative || 'Negative';
         trendIndicator.innerHTML = trend === 'positive' ? 
-          '<i class="fas fa-arrow-up"></i> Positive' : 
-          '<i class="fas fa-arrow-down"></i> Negative';
+          `<i class="fas fa-arrow-up"></i> ${positiveText}` : 
+          `<i class="fas fa-arrow-down"></i> ${negativeText}`;
       }
     } catch (error) {
       console.error('Error updating win/loss chart:', error);

@@ -108,7 +108,7 @@ $(document).ready(function () {
                                     <td>${row.agent_name} (${row.agent_code})</td>
                                     <td>
                                         <span class="${row.GAME_TYPE === 'LIVE' ? 'css-blue' : row.GAME_TYPE === 'TELEBET' ? 'css-red' : ''}">
-                                            ${row.GAME_TYPE}
+                                            ${row.GAME_TYPE === 'LIVE' ? (window.onGameListTranslations?.live || 'LIVE') : row.GAME_TYPE === 'TELEBET' ? (window.onGameListTranslations?.telebet || 'TELEBET') : row.GAME_TYPE}
                                         </span>
                                     </td>
                                     <td>${total_amount.toLocaleString()}</td>

@@ -31,7 +31,7 @@
                         <div class="dataTables_wrapper">
                             <div class="row mb-2">
                                 <div class="col-sm-4">
-                                    <input type="text" id="daterange" class="input-daterange input-group" placeholder="Select Date Range" autocomplete="off"/>
+                                    <input type="text" id="daterange" class="input-daterange input-group" placeholder="<%= __('house_expense.select_date_range') %>" autocomplete="off"/>
                                 </div>
                             </div>
                         </div>
@@ -78,6 +78,35 @@
     
 
         
+        <script>
+            // Pass translations to JavaScript
+            window.houseExpenseTranslations = {
+                no_data_found: "<%= __('house_expense.no_data_found') %>",
+                invalid_date: "<%= __('house_expense.invalid_date') %>",
+                search: "<%= __('house_expense.search') %>",
+                showing_entries: "<%= __('house_expense.showing_entries') %>",
+                previous: "<%= __('house_expense.previous') %>",
+                next: "<%= __('house_expense.next') %>",
+                please_select_date_range: "<%= __('house_expense.please_select_date_range') %>",
+                no_receipt_uploaded: "<%= __('house_expense.no_receipt_uploaded') %>",
+                no_receipt_available: "<%= __('house_expense.no_receipt_available') %>",
+                ok: "<%= __('house_expense.ok') %>",
+                receipt_image: "<%= __('house_expense.receipt_image') %>",
+                saving: "<%= __('house_expense.saving') %>",
+                updated_successfully: "<%= __('house_expense.updated_successfully') %>",
+                expense_updated: "<%= __('house_expense.expense_updated') %>",
+                error: "<%= __('house_expense.error') %>",
+                error_updating_expense: "<%= __('house_expense.error_updating_expense') %>",
+                delete_confirmation: "<%= __('house_expense.delete_confirmation') %>",
+                yes: "<%= __('house_expense.yes') %>",
+                select_expense_category: "<%= __('house_expense.select_expense_category') %>",
+                select_officer_in_charge: "<%= __('house_expense.select_officer_in_charge') %>",
+                view_receipt: "<%= __('house_expense.view_receipt') %>",
+                edit_expense: "<%= __('house_expense.edit_expense') %>",
+                download_receipt: "<%= __('house_expense.download_receipt') %>",
+                archive_expense: "<%= __('house_expense.archive_expense') %>"
+            };
+        </script>
         <!-- <script src="/assets/backup/js/functions/house_expense.js"></script> -->
         <script src="/assets/js/functions/house_expense.js"></script> <!-- ito ang tama -->
 

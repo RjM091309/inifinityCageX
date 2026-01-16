@@ -46,7 +46,7 @@ $(document).ready(function () {
                             return moment.utc(data, 'MMMM DD, YYYY HH:mm:ss').format('YYYY-MM-DD HH:mm:ss');
                         }
                         const dateMoment = moment(data, 'MMMM DD, YYYY HH:mm:ss');
-                        return dateMoment.isValid() ? dateMoment.local().format('DD MMM, YYYY HH:mm:ss') : 'Invalid Date';
+                        return dateMoment.isValid() ? dateMoment.local().format('DD MMM, YYYY HH:mm:ss') : (window.houseExpenseTranslations?.invalid_date || 'Invalid Date');
                     },
                     "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
                         $(cell).addClass('text-center');
@@ -55,7 +55,13 @@ $(document).ready(function () {
             ],
             "info": true,
             "language": {
-                "info": "Showing _START_ to _END_ of _TOTAL_ entries"
+                "search": (window.houseExpenseTranslations?.search || "Search:"),
+                "info": (window.houseExpenseTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
+                "paginate": {
+                    "previous": (window.houseExpenseTranslations?.previous || "Previous"),
+                    "next": (window.houseExpenseTranslations?.next || "Next")
+                },
+                "emptyTable": (window.houseExpenseTranslations?.no_data_found || "No data found")
             }
         });
 
@@ -64,7 +70,7 @@ $(document).ready(function () {
             const dateRange = $('#daterange').val();
 
 		if (!dateRange) {
-			alert('Please select a date range.');
+			alert(window.houseExpenseTranslations?.please_select_date_range || 'Please select a date range.');
 			return;
 		}
 	
@@ -90,8 +96,9 @@ $(document).ready(function () {
 
                     if (data.length === 0) {
                         // Put "No data found" in the first column to avoid "Invalid Date"
+                        const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
                         dataTable.row.add([
-                            'No data found', '', '', '', '', '', ''
+                            noDataText, '', '', '', '', '', ''
                         ]).draw();
                         $('#GRAND_TOTAL_AMOUNT').text(`₱0.00`);
                         return;
@@ -108,22 +115,22 @@ $(document).ready(function () {
                                 <div class="btn-group">
                                     <button type="button" class="btn btn-sm btn-alt-secondary"
                                             onclick="viewReceipt('${row.photoUrl}')"
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="View Receipt">
+                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                         <i class="fa fa-eye"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-alt-secondary"
                                             onclick="edit_expense(${row.expense_id}, '${row.expense_category_id}', '${row.RECEIPT_NO}', '${row.DATE_TIME || row.ENCODED_DT}', '${row.DESCRIPTION}', '${amount}', '${row.OIC}')"
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Expense">
+                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
                                         <i class="fa fa-pencil-alt"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-alt-secondary"
                                             onclick="downloadReceipt('${row.photoUrl}')"
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="Download Receipt">
+                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                         <i class="fa fa-download"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-alt-danger"
                                             onclick="archive_expense(${row.expense_id})"
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="Archive Expense">
+                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
                                         <i class="fa fa-trash-alt"></i>
                                     </button>
                                 </div>`;
@@ -132,20 +139,20 @@ $(document).ready(function () {
                                 <div class="btn-group">
                                     <button type="button" class="btn btn-sm btn-primary"
                                             onclick="viewReceipt('${row.photoUrl}')"
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="View Receipt">
+                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                         <i class="fa fa-eye"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-alt-secondary" disabled
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Expense">
+                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
                                         <i class="fa fa-pencil-alt"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-secondary"
                                             onclick="downloadReceipt('${row.photoUrl}')"
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="Download Receipt">
+                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                         <i class="fa fa-download"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-alt-danger" disabled
-                                            data-bs-toggle="tooltip" data-bs-placement="top" title="Archive Expense">
+                                            data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
                                         <i class="fa fa-trash-alt"></i>
                                     </button>
                                 </div>`;
@@ -187,18 +194,18 @@ $(document).ready(function () {
     // Utility functions for receipt actions
     window.viewReceipt = function (photoUrl) {
         if (!photoUrl || photoUrl.trim() === "" || photoUrl === "null") {
-            Swal.fire({
-                icon: 'warning',
-                title: 'No Receipt Uploaded',
-                text: 'There is no receipt available to view.',
-                confirmButtonText: 'OK'
-            });
+        Swal.fire({
+            icon: 'warning',
+            title: window.houseExpenseTranslations?.no_receipt_uploaded || 'No Receipt Uploaded',
+            text: window.houseExpenseTranslations?.no_receipt_available || 'There is no receipt available to view.',
+            confirmButtonText: window.houseExpenseTranslations?.ok || 'OK'
+        });
             return;
         }
         Swal.fire({
             title: '',
             imageUrl: photoUrl,
-            imageAlt: 'Receipt Image',
+            imageAlt: window.houseExpenseTranslations?.receipt_image || 'Receipt Image',
             showCloseButton: true,
             showConfirmButton: false,
             width: 'auto',
@@ -227,7 +234,7 @@ $(document).ready(function () {
         // Show loading spinner on button
         $btn.prop('disabled', true).html(`
         <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-        Saving...
+        ${window.houseExpenseTranslations?.saving || 'Saving'}...
     `);
 
         const formData = new FormData(this);
@@ -241,9 +248,9 @@ $(document).ready(function () {
             success: function (response) {
                 Swal.fire({
                     icon: 'success',
-                    title: 'Updated successfully!',
-                    text: 'House expense has been updated.',
-                    confirmButtonText: 'OK',
+                    title: window.houseExpenseTranslations?.updated_successfully || 'Updated successfully!',
+                    text: window.houseExpenseTranslations?.expense_updated || 'House expense has been updated.',
+                    confirmButtonText: window.houseExpenseTranslations?.ok || 'OK',
                     allowOutsideClick: false
                 }).then((result) => {
                     if (result.isConfirmed) {
@@ -256,9 +263,9 @@ $(document).ready(function () {
                 console.error('Error updating house expense:', error);
                 Swal.fire({
                     icon: 'error',
-                    title: 'Error!',
-                    text: 'There was an error updating the expense.',
-                    confirmButtonText: 'OK'
+                    title: window.houseExpenseTranslations?.error || 'Error!',
+                    text: window.houseExpenseTranslations?.error_updating_expense || 'There was an error updating the expense.',
+                    confirmButtonText: window.houseExpenseTranslations?.ok || 'OK'
                 });
             },
             complete: function () {
@@ -311,12 +318,12 @@ function edit_expense(id, category_id, receipt_no, datetimeval, description, amo
 
 function archive_expense(id) {
     Swal.fire({
-        title: 'Are you sure you want to delete this?',
+        title: window.houseExpenseTranslations?.delete_confirmation || 'Are you sure you want to delete this?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
         cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes'
+        confirmButtonText: window.houseExpenseTranslations?.yes || 'Yes'
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
@@ -342,7 +349,7 @@ function expense_category() {
             selectOptions.empty();
             selectOptions.append($('<option>', {
                 value: '',
-                text: '--SELECT EXPENSE CATEGORY--'
+                text: window.houseExpenseTranslations?.select_expense_category || '--SELECT EXPENSE CATEGORY--'
             }));
             response.forEach(function (option) {
                 selectOptions.append($('<option>', {
@@ -366,7 +373,7 @@ function get_agent() {
             selectOptions.empty();
             selectOptions.append($('<option>', {
                 value: '',
-                text: '--SELECT OFFICER IN CHARGE--'
+                text: window.houseExpenseTranslations?.select_officer_in_charge || '--SELECT OFFICER IN CHARGE--'
             }));
             response.forEach(function (option) {
                 selectOptions.append($('<option>', {
@@ -391,7 +398,7 @@ function edit_expense_category(id) {
             selectOptions.append($('<option>', {
                 selected: false,
                 value: '',
-                text: '--SELECT EXPENSE CATEGORY--',
+                text: window.houseExpenseTranslations?.select_expense_category || '--SELECT EXPENSE CATEGORY--',
                 disabled: true // Disable the default option
             }));
             response.forEach(function (option) {

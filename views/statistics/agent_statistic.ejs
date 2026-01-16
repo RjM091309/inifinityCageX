@@ -446,6 +446,14 @@
 				</script>
 
 				<script>
+					// Pass translations to JavaScript
+					window.agentStatisticTranslations = {
+						search: "<%= __('agent_statistic.search') %>",
+						showing_entries: "<%= __('agent_statistic.showing_entries') %>",
+						previous: "<%= __('agent_statistic.previous') %>",
+						next: "<%= __('agent_statistic.next') %>"
+					};
+
 					$('.js-select2').select2({
 						placeholder: 'Select an option',
 						dropdownParent: '#modal-new-game-list',

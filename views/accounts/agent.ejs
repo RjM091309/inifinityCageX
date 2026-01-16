@@ -19,7 +19,7 @@
 						<a href="/account_ledger"class="active"><%= __('agent.guests') %></a>
 					</div></h3>
                      <button id="btn-transaction-history" class="btn btn-sm btn-primary">
-                       <i class="fa fa-history me-1"></i> Transaction History
+                       <i class="fa fa-history me-1"></i> <%= __('agent.transaction_history') %>
                      </button>
                  </div>
 
@@ -35,7 +35,7 @@
                          <th ><%= __('agent.contact_no') %></th>
                         <th ><%= __('agent.telegram_chat_id') %></th>
                         <th ><%= __('agent.remarks') %></th>
-                        <th >LATEST GAME</th>
+                        <th ><%= __('agent.latest_game') %></th>
                         <th ><%= __('agent.status') %></th>
                         <th ><%= __('agent.action') %></th>
                       </tr>
@@ -213,6 +213,19 @@
       <%- include ('../modals/accounts/transfer_account') %>
        <%- include ('../modals/accounts/transaction_history') %>
 
+        <script>
+          // Pass translations to JavaScript
+          window.translations = {
+            agent: {
+              active: "<%= __('agent.active') %>",
+              inactive: "<%= __('agent.inactive') %>",
+              search: "<%= __('agent.search') %>",
+              showing_entries: "<%= __('agent.showing_entries') %>",
+              previous: "<%= __('agent.previous') %>",
+              next: "<%= __('agent.next') %>"
+            }
+          };
+        </script>
         <script src="/assets/js/functions/agent.js"></script>
         <script src="/assets/js/functions/account.js"></script>
         <script>

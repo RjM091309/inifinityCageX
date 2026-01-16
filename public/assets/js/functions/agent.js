@@ -7,11 +7,28 @@ $(document).ready(function () {
 
 	const permissions = parseInt($('#user-role').data('permissions'));
 
+	// Get translations or use defaults
+	const translations = window.translations?.agent || {};
+	const activeText = translations.active || 'ACTIVE';
+	const inactiveText = translations.inactive || 'INACTIVE';
+	const searchText = translations.search || 'Search:';
+	const showingEntriesText = translations.showing_entries || 'Showing _START_ to _END_ of _TOTAL_ entries';
+	const previousText = translations.previous || 'Previous';
+	const nextText = translations.next || 'Next';
+
 	const dataTable = $('#agent-tbl').DataTable({
 		ajax: {
 			url: '/account_data',
 			dataSrc: function (json) {
 				return json;
+			}
+		},
+		language: {
+			search: searchText,
+			info: showingEntriesText,
+			paginate: {
+				previous: previousText,
+				next: nextText
 			}
 		},
 		order: [[6, 'desc']], // Latest Game column
@@ -58,8 +75,8 @@ $(document).ready(function () {
 					var val = Number(data);
 					var isActive = val === 1 || data === true || data === 'true' || data === '1';
 					return isActive
-						? '<span class="css-blue">ACTIVE</span>'
-						: '<span class="css-red">INACTIVE</span>';
+						? '<span class="css-blue">' + activeText + '</span>'
+						: '<span class="css-red">' + inactiveText + '</span>';
 				}
 			},
 			{

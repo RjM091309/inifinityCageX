@@ -170,7 +170,18 @@
 							}
 </style>
                 <script>
+                    // Pass translations to JavaScript
+                    window.dashboardHistoryTranslations = {
+                        search: "<%= __('dashboard_history.search') %>",
+                        showing_entries: "<%= __('dashboard_history.showing_entries') %>",
+                        previous: "<%= __('dashboard_history.previous') %>",
+                        next: "<%= __('dashboard_history.next') %>",
+                        no_data_available: "<%= __('dashboard_history.no_data_available') %>",
+                        invalid_date: "<%= __('dashboard_history.invalid_date') %>"
+                    };
+
                     $(document).ready(function () {
+                        const translations = window.dashboardHistoryTranslations || {};
                         $('#dashboardhistory-tbl').DataTable({
                             "processing": true,
                             "serverSide": false,
@@ -184,11 +195,20 @@
                                             row.ENCODED_DT_RAW = moment.utc(row.ENCODED_DT, 'YYYY-MM-DD HH:mm:ss').format('YYYY-MM-DD HH:mm:ss'); // Use raw format for sorting
                                             row.ENCODED_DT = moment.utc(row.ENCODED_DT, 'YYYY-MM-DD HH:mm:ss').local().format('MMMM DD, YYYY HH:mm:ss'); // Convert to local time for display
                                         } else {
-                                            row.ENCODED_DT = 'Invalid Date';
+                                            row.ENCODED_DT = translations.invalid_date || 'Invalid Date';
                                         }
                                         return row;
                                     });
                                 }
+                            },
+                            "language": {
+                                "search": translations.search || "Search:",
+                                "info": translations.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries",
+                                "paginate": {
+                                    "previous": translations.previous || "Previous",
+                                    "next": translations.next || "Next"
+                                },
+                                "emptyTable": translations.no_data_available || "No data available in table"
                             },
                             "order": [[0, 'desc']], // Ensure sorting by latest date
                             "columns": [

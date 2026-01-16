@@ -10,7 +10,15 @@ $(document).ready(function () {
 			createdCell: function (cell, cellData, rowData, rowIndex, colIndex) {
 				$(cell).addClass('text-center');
 			}
-		}]
+		}],
+		language: {
+			search: (window.manageUsersTranslations?.search || "Search:"),
+			info: (window.manageUsersTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
+			paginate: {
+				previous: (window.manageUsersTranslations?.previous || "Previous"),
+				next: (window.manageUsersTranslations?.next || "Next")
+			}
+		}
 	});
 
 	function reloadData() {
@@ -22,10 +30,12 @@ $(document).ready(function () {
 				data.forEach(function (row) {
 
 					var status = '';
+					var activeText = window.manageUsersTranslations?.active || 'ACTIVE';
+					var inactiveText = window.manageUsersTranslations?.inactive || 'INACTIVE';
 					if (row.ACTIVE.data[0] == 1) {
-						status = '<span class="css-blue">ACTIVE</span>';
+						status = '<span class="css-blue">' + activeText + '</span>';
 					} else {
-						status = '<span class="css-red">INACTIVE</span>';
+						status = '<span class="css-red">' + inactiveText + '</span>';
 					}
 
 					var btn = `<div class="btn-group">

@@ -12,7 +12,15 @@ $(document).ready(function() {
                   $(cell).addClass('text-center');
               }
             }
-        ]
+        ],
+        language: {
+            search: (window.userRolesTranslations?.search || "Search:"),
+            info: (window.userRolesTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
+            paginate: {
+                previous: (window.userRolesTranslations?.previous || "Previous"),
+                next: (window.userRolesTranslations?.next || "Next")
+            }
+        }
     });
 
     function reloadData() {
@@ -24,10 +32,12 @@ $(document).ready(function() {
           data.forEach(function(row) {
 
             var status = '';
+            var activeText = window.userRolesTranslations?.active || 'ACTIVE';
+            var inactiveText = window.userRolesTranslations?.inactive || 'INACTIVE';
             if (row.ACTIVE.data[0] == 1) {
-                status = '<span class="css-blue">ACTIVE</span>';
+                status = '<span class="css-blue">' + activeText + '</span>';
             } else {
-                status = '<span class="css-red">INACTIVE</span>';
+                status = '<span class="css-red">' + inactiveText + '</span>';
             }
                 // WITH DELETE FUNCTION ACTION
         //     var btn = `<div class="btn-group">

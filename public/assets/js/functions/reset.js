@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Get translations or use defaults
+    const translations = window.monthlyResetTranslations || {};
+    
     // Hanapin ang reset link sa sidebar file
     const resetLink = document.getElementById('sidebarResetLink');
 
@@ -9,12 +12,12 @@ document.addEventListener('DOMContentLoaded', function() {
             // Step 1: Magpakita ng password prompt
             Swal.fire({
                 icon: 'info',
-                title: 'Are you sure?',
-                text: 'If you enter the manager password, it will proceed to reset the data.',
+                title: translations.are_you_sure || 'Are you sure?',
+                text: translations.confirm_message || 'If you enter the manager password, it will proceed to reset the data.',
                 input: 'password',
-                inputPlaceholder: 'Password',
+                inputPlaceholder: translations.password || 'Password',
                 showCancelButton: true,
-                confirmButtonText: 'Submit',
+                confirmButtonText: translations.submit || 'Submit',
                 confirmButtonColor: '#3A57E8',
                 preConfirm: (password) => {
                     return new Promise((resolve, reject) => {
@@ -26,12 +29,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (response.permissions === 11) {
                                     resolve(); // Magpatuloy kung permission = 11
                                 } else {
-                                    Swal.showValidationMessage('Incorrect password.');
+                                    Swal.showValidationMessage(translations.incorrect_password || 'Incorrect password.');
                                     reject();
                                 }
                             },
                             error: function() {
-                                Swal.showValidationMessage('Error during password verification.');
+                                Swal.showValidationMessage(translations.error_password_verification || 'Error during password verification.');
                                 reject();
                             }
                         });
@@ -42,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.isConfirmed) {
                     // Step 2: Ipakita ang progress bar
                     Swal.fire({
-                        title: 'Resetting...',
+                        title: translations.resetting || 'Resetting...',
                         html: `
                             <div class="progress">
                                 <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 1%; height: 20px; background-color: #3A57E8;"></div>
@@ -102,8 +105,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     // Then show the success message
                                                     Swal.fire({
                                                         icon: 'success',
-                                                        title: 'Monthly Reset Completed',
-                                                        text: 'Data has been reset!',
+                                                        title: translations.monthly_reset_completed || 'Monthly Reset Completed',
+                                                        text: translations.data_has_been_reset || 'Data has been reset!',
                                                         showConfirmButton: true
                                                     }).then(() => {
                                                         // Direktang i-redirect sa dashboard pagkatapos mag-click ng OK
@@ -122,23 +125,23 @@ document.addEventListener('DOMContentLoaded', function() {
                                             })
                                             .catch(error => Swal.fire({
                                                 icon: 'error',
-                                                title: 'Error',
-                                                text: 'Failed to reset values. Please try again.',
+                                                title: translations.error || 'Error',
+                                                text: translations.failed_to_reset || 'Failed to reset values. Please try again.',
                                                 showConfirmButton: true
                                             }));
                                         } else {
                                             Swal.fire({
                                                 icon: 'error',
-                                                title: 'Error',
-                                                text: 'Failed to insert history.',
+                                                title: translations.error || 'Error',
+                                                text: translations.failed_to_insert_history || 'Failed to insert history.',
                                                 showConfirmButton: true
                                             });
                                         }
                                     })
                                     .catch(error => Swal.fire({
                                         icon: 'error',
-                                        title: 'Error',
-                                        text: 'Failed to insert history.',
+                                        title: translations.error || 'Error',
+                                        text: translations.failed_to_insert_history || 'Failed to insert history.',
                                         showConfirmButton: true
                                     }));
                                 }

@@ -345,5 +345,22 @@
           <!-- Sidebar Menu End -->        </div>
   </div>
   <div class="sidebar-footer"></div>
+  <script>
+    // Pass translations to JavaScript for monthly reset
+    window.monthlyResetTranslations = {
+      are_you_sure: "<%= __('monthly_reset.are_you_sure') %>",
+      confirm_message: "<%= __('monthly_reset.confirm_message') %>",
+      password: "<%= __('monthly_reset.password') %>",
+      submit: "<%= __('monthly_reset.submit') %>",
+      incorrect_password: "<%= __('monthly_reset.incorrect_password') %>",
+      error_password_verification: "<%= __('monthly_reset.error_password_verification') %>",
+      resetting: "<%= __('monthly_reset.resetting') %>",
+      monthly_reset_completed: "<%= __('monthly_reset.monthly_reset_completed') %>",
+      data_has_been_reset: "<%= __('monthly_reset.data_has_been_reset') %>",
+      failed_to_reset: "<%= __('monthly_reset.failed_to_reset') %>",
+      failed_to_insert_history: "<%= __('monthly_reset.failed_to_insert_history') %>",
+      error: "<%= __('monthly_reset.error') %>"
+    };
+  </script>
   <script src="/assets/js/functions/reset.js"></script>
 </aside> 

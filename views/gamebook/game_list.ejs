@@ -60,7 +60,7 @@
 												<%= __('gamelist.total_rolling') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center">
-												ROLLER CHIPS
+												<%= __('gamelist.roller_chips') %>
 											</th>
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.game_rate') %>
@@ -530,7 +530,20 @@ table.dataTable tbody tr.highlight-row {
 
 					</style>
 
-
+					<script>
+						// Pass translations to JavaScript - MUST be before game_list.js loads
+						window.gamelistTranslations = {
+							on_game: "<%= __('gamelist.on_game') %>",
+							end_game: "<%= __('gamelist.end_game') %>",
+							search: "<%= __('gamelist.search') %>",
+							showing_entries: "<%= __('gamelist.showing_entries') %>",
+							previous: "<%= __('gamelist.previous') %>",
+							next: "<%= __('gamelist.next') %>",
+							cash: "<%= __('gamelist.cash') %>",
+							deposit: "<%= __('gamelist.deposit') %>",
+							marker: "<%= __('gamelist.marker') %>"
+						};
+					</script>
 					<script>
 						$(document).ready(function () {
 							function initializeDataTable() {
@@ -538,6 +551,7 @@ table.dataTable tbody tr.highlight-row {
 									$('#game_list-tbl').DataTable().destroy();
 								}
 
+								const translations = window.gamelistTranslations || {};
 								$('#game_list-tbl').DataTable({
 									"ajax": {
 										"url": "/game_list_data",
@@ -559,10 +573,32 @@ table.dataTable tbody tr.highlight-row {
 										{ "data": "game_rate" },
 										{ "data": "commission" },
 										{ "data": "win_loss" },
-										{ "data": "game_type1" },
+										{ 
+											"data": "game_type1",
+											"render": function(data, type, row) {
+												if (type === 'display' || type === 'type') {
+													const translations = window.gamelistTranslations || {};
+													if (!data) return '';
+													const sourceUpper = data.toUpperCase();
+													if (sourceUpper === 'CASH') return translations.cash || 'CASH';
+													if (sourceUpper === 'DEPOSIT') return translations.deposit || 'DEPOSIT';
+													if (sourceUpper === 'MARKER') return translations.marker || 'MARKER';
+													return data;
+												}
+												return data;
+											}
+										},
 										{ "data": "game_end_date_time" },
 										{ "data": "history" }
 									],
+									"language": {
+										"search": translations.search || "Search:",
+										"info": translations.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries",
+										"paginate": {
+											"previous": translations.previous || "Previous",
+											"next": translations.next || "Next"
+										}
+									},
 									"drawCallback": function () {
 										calculateTotal();
 									}

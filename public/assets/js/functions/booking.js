@@ -32,6 +32,15 @@ function addBooking() {
       ],
       // Order ayon sa Booking Date na nasa index 1 (dahil nadagdag na ang booking ID sa index 0)
       order: [[1, 'desc']],
+      language: {
+        search: (window.bookingTranslations?.search || "Search:"),
+        info: (window.bookingTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
+        paginate: {
+          previous: (window.bookingTranslations?.previous || "Previous"),
+          next: (window.bookingTranslations?.next || "Next")
+        },
+        emptyTable: (window.bookingTranslations?.no_data_found || "No data available in table")
+      },
       // Sa createdRow, ilagay ang highlight kung magmamatch ang booking ID (data[0]) sa highlightId
       createdRow: function (row, data, dataIndex) {
         var rowId = data[0];
@@ -72,16 +81,18 @@ function addBooking() {
               moment().format('MMMM DD, HH:mm');
   
             // Format ng check-in at check-out dates
+            const checkInText = window.bookingTranslations?.check_in || 'Check-In';
+            const checkOutText = window.bookingTranslations?.check_out || 'Check-Out';
             var checkInDateFormatted = (row.CHECK_IN && moment(row.CHECK_IN, moment.ISO_8601, true).isValid()) ?
             `<div style="text-align: center;">
                 <div style="color: #00563F;">${moment(row.CHECK_IN).utcOffset(8).format('MMM DD, YYYY')}</div>
-                <span class="badge" style="background-color: #00563F;">Check-In</span>
+                <span class="badge" style="background-color: #00563F;">${checkInText}</span>
              </div>` : '-';
           
           var checkOutDateFormatted = (row.CHECK_OUT && moment(row.CHECK_OUT, moment.ISO_8601, true).isValid()) ?
             `<div style="text-align: center;">
                 <div style="color: orange;">${moment(row.CHECK_OUT).utcOffset(8).format('MMM DD, YYYY')}</div>
-                <span class="badge bg-warning">Check-Out</span>
+                <span class="badge bg-warning">${checkOutText}</span>
              </div>` : '-';
           
   
@@ -91,13 +102,16 @@ function addBooking() {
             var totalAmount = row.TOTAL_AMOUNT ? parseFloat(row.TOTAL_AMOUNT).toLocaleString() : '0';
   
             // Payment Status badge
+            const paidText = window.bookingTranslations?.paid || 'Paid';
+            const unpaidText = window.bookingTranslations?.unpaid || 'Unpaid';
+            const unknownText = window.bookingTranslations?.unknown || 'Unknown';
             var paymentStatusBadge;
             if (row.PAYMENT_STATUS === 'Paid') {
-              paymentStatusBadge = `<span class="css-blue">Paid</span>`;
+              paymentStatusBadge = `<span class="css-blue">${paidText}</span>`;
             } else if (row.PAYMENT_STATUS === 'Unpaid') {
-              paymentStatusBadge = `<span class="css-red">Unpaid</span>`;
+              paymentStatusBadge = `<span class="css-red">${unpaidText}</span>`;
             } else {
-              paymentStatusBadge = `<span class="badge bg-secondary">Unknown</span>`;
+              paymentStatusBadge = `<span class="badge bg-secondary">${unknownText}</span>`;
             }
   
             // Button options depende sa user permissions
@@ -110,11 +124,11 @@ function addBooking() {
                             <i class="fa fa-ellipsis-h" style="color: white; background-color: transparent;"></i>
                           </button>
                           <ul class="dropdown-menu dropdown-menu-end">
-                            <li><button class="dropdown-item" onclick="checkIn(${row.IDNo})">Check-In</button></li>
-                            <li><button class="dropdown-item" onclick="checkOut(${row.IDNo})">Checkout</button></li>
-                            <li><button class="dropdown-item" onclick="togglePaymentStatus(${row.IDNo}, '${row.PAYMENT_STATUS}')">Mark as ${row.PAYMENT_STATUS === 'Paid' ? 'Unpaid' : 'Paid'}</button></li>
-                            <li><button class="dropdown-item" onclick="editBooking(${row.IDNo}, '${row.CONFIRM_NUM.replace(/'/g, "\\'")}', '${row.CHECK_IN}', '${row.CHECK_OUT}', '${row.GUEST_NAME.replace(/'/g, "\\'")}', '${hotelFee}', '${addFee}', '${row.REMARKS.replace(/'/g, "\\'")}')">Edit</button></li>
-                            <li><button class="dropdown-item" onclick="archiveBooking(${row.IDNo})">Archive</button></li>
+                            <li><button class="dropdown-item" onclick="checkIn(${row.IDNo})">${window.bookingTranslations?.check_in || 'Check-In'}</button></li>
+                            <li><button class="dropdown-item" onclick="checkOut(${row.IDNo})">${window.bookingTranslations?.check_out || 'Checkout'}</button></li>
+                            <li><button class="dropdown-item" onclick="togglePaymentStatus(${row.IDNo}, '${row.PAYMENT_STATUS}')">${row.PAYMENT_STATUS === 'Paid' ? (window.bookingTranslations?.mark_booking_as?.replace('${newStatus}', window.bookingTranslations?.unpaid || 'Unpaid') || `Mark as ${window.bookingTranslations?.unpaid || 'Unpaid'}`) : (window.bookingTranslations?.mark_booking_as?.replace('${newStatus}', window.bookingTranslations?.paid || 'Paid') || `Mark as ${window.bookingTranslations?.paid || 'Paid'}`)}</button></li>
+                            <li><button class="dropdown-item" onclick="editBooking(${row.IDNo}, '${row.CONFIRM_NUM.replace(/'/g, "\\'")}', '${row.CHECK_IN}', '${row.CHECK_OUT}', '${row.GUEST_NAME.replace(/'/g, "\\'")}', '${hotelFee}', '${addFee}', '${row.REMARKS.replace(/'/g, "\\'")}')">${window.bookingTranslations?.edit || 'Edit'}</button></li>
+                            <li><button class="dropdown-item" onclick="archiveBooking(${row.IDNo})">${window.bookingTranslations?.archive || 'Archive'}</button></li>
                           </ul>
                         </div>
                       </center>`;
@@ -189,9 +203,10 @@ $('#add_booking_form').submit(function (event) {
     const originalHtml = $btn.html();
 
     // Show loading spinner
+    const savingText = window.bookingTranslations?.saving || 'Saving';
     $btn.prop('disabled', true).html(`
         <span class="spinner-border spinner-border-sm me-1 text-white" role="status" aria-hidden="true"></span>
-        <span class="text-white">Saving...</span>
+        <span class="text-white">${savingText}...</span>
     `);
 
     let isValid = true;
@@ -207,8 +222,8 @@ $('#add_booking_form').submit(function (event) {
     if (!isValid) {
         Swal.fire({
             icon: 'error',
-            title: 'Inserting Error',
-            text: 'Please fill in all required fields.',
+            title: window.bookingTranslations?.inserting_error || 'Inserting Error',
+            text: window.bookingTranslations?.fill_required_fields || 'Please fill in all required fields.',
         });
         $btn.prop('disabled', false).html(originalHtml);
         return;
@@ -223,8 +238,8 @@ $('#add_booking_form').submit(function (event) {
         success: function (response) {
             Swal.fire({
                 icon: 'success',
-                title: 'Booking added successfully',
-                confirmButtonText: 'OK'
+                title: window.bookingTranslations?.booking_added_successfully || 'Booking added successfully',
+                confirmButtonText: window.bookingTranslations?.ok || 'OK'
             }).then(function () {
                 $('#modal-new-booking').modal('hide');
                 window.location.reload();
@@ -234,9 +249,9 @@ $('#add_booking_form').submit(function (event) {
             console.error('Error adding booking:', error);
             Swal.fire({
                 icon: 'error',
-                title: 'Error',
-                text: 'Something went wrong while saving.',
-                confirmButtonText: 'OK'
+                title: window.bookingTranslations?.error || 'Error',
+                text: window.bookingTranslations?.error_saving || 'Something went wrong while saving.',
+                confirmButtonText: window.bookingTranslations?.ok || 'OK'
             });
         },
         complete: function () {
@@ -255,9 +270,10 @@ $('#editBookingForm').on('submit', function (e) {
     const originalHtml = $btn.html();
 
     // Show spinner and disable button
+    const updatingText = window.bookingTranslations?.updating || 'Updating';
     $btn.prop('disabled', true).html(`
         <span class="spinner-border spinner-border-sm me-1 text-white" role="status" aria-hidden="true"></span>
-        <span class="text-white">Updating...</span>
+        <span class="text-white">${updatingText}...</span>
     `);
 
     const formData = $form.serialize();
@@ -269,9 +285,9 @@ $('#editBookingForm').on('submit', function (e) {
         success: function (response) {
             Swal.fire({
                 icon: 'success',
-                title: 'Updated Successfully',
-                text: 'The booking has been updated.',
-                confirmButtonText: 'OK'
+                title: window.bookingTranslations?.updated_successfully || 'Updated Successfully',
+                text: window.bookingTranslations?.booking_updated || 'The booking has been updated.',
+                confirmButtonText: window.bookingTranslations?.ok || 'OK'
             }).then((result) => {
                 if (result.isConfirmed) {
                     $('#modal-edit-booking').modal('hide');
@@ -283,9 +299,9 @@ $('#editBookingForm').on('submit', function (e) {
             console.error('Error updating booking:', error);
             Swal.fire({
                 icon: 'error',
-                title: 'Update Failed',
-                text: 'Something went wrong while updating.',
-                confirmButtonText: 'OK'
+                title: window.bookingTranslations?.update_failed || 'Update Failed',
+                text: window.bookingTranslations?.error_updating || 'Something went wrong while updating.',
+                confirmButtonText: window.bookingTranslations?.ok || 'OK'
             });
         },
         complete: function () {
@@ -322,12 +338,12 @@ function editBooking(id, confirmNum, checkIn, checkOut, guestName, hotelFee, add
 //ARCHIVE BOOKING
 function archiveBooking(id) {
   Swal.fire({
-      title: 'Are you sure you want to archive this booking?',
+      title: window.bookingTranslations?.archive_confirmation || 'Are you sure you want to archive this booking?',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#3085d6',
       cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, archive it!'
+      confirmButtonText: window.bookingTranslations?.yes_archive || 'Yes, archive it!'
   }).then((result) => {
       if (result.isConfirmed) {
           $.ajax({
@@ -336,8 +352,8 @@ function archiveBooking(id) {
               success: function(response) {
                   Swal.fire({
                       icon: 'success',
-                      title: 'Booking archived successfully',
-                      confirmButtonText: 'OK'
+                      title: window.bookingTranslations?.booking_archived_successfully || 'Booking archived successfully',
+                      confirmButtonText: window.bookingTranslations?.ok || 'OK'
                   }).then(() => {
                       window.location.reload(); // Reload the page to reflect the changes
                   });
@@ -346,8 +362,8 @@ function archiveBooking(id) {
                   console.error('Error archiving booking:', error);
                   Swal.fire({
                       icon: 'error',
-                      title: 'Error archiving booking',
-                      text: 'An error occurred while archiving the booking.',
+                      title: window.bookingTranslations?.error_archiving || 'Error archiving booking',
+                      text: window.bookingTranslations?.error_archiving_booking || 'An error occurred while archiving the booking.',
                   });
               }
           });
@@ -359,12 +375,12 @@ function archiveBooking(id) {
 //CHECK IN CONFIRMATION
 function checkIn(bookingId) {
   Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to check in this booking?',
+      title: window.bookingTranslations?.check_in_confirmation || 'Are you sure?',
+      text: window.bookingTranslations?.check_in_question || 'Do you want to check in this booking?',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Yes, check in!',
-      cancelButtonText: 'No, cancel'
+      confirmButtonText: window.bookingTranslations?.yes_check_in || 'Yes, check in!',
+      cancelButtonText: window.bookingTranslations?.no_cancel || 'No, cancel'
   }).then((result) => {
       if (result.isConfirmed) {
           const currentDateTime = moment().format('YYYY-MM-DD HH:mm:ss');
@@ -375,8 +391,8 @@ function checkIn(bookingId) {
               success: function(response) {
                   Swal.fire({
                       icon: 'success',
-                      title: 'Checked in successfully',
-                      confirmButtonText: 'OK'
+                      title: window.bookingTranslations?.checked_in_successfully || 'Checked in successfully',
+                      confirmButtonText: window.bookingTranslations?.ok || 'OK'
                   }).then(function() {
                       window.location.reload(); // Reload the page to refresh the data
                   });
@@ -391,12 +407,12 @@ function checkIn(bookingId) {
 //CHECK OUT CONFIRMATION
 function checkOut(bookingId) {
   Swal.fire({
-      title: 'Are you sure?',
-      text: 'Do you want to check out this booking?',
+      title: window.bookingTranslations?.check_in_confirmation || 'Are you sure?',
+      text: window.bookingTranslations?.check_out_question || 'Do you want to check out this booking?',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Yes, check out!',
-      cancelButtonText: 'No, cancel'
+      confirmButtonText: window.bookingTranslations?.yes_check_out || 'Yes, check out!',
+      cancelButtonText: window.bookingTranslations?.no_cancel || 'No, cancel'
   }).then((result) => {
       if (result.isConfirmed) {
           const currentDateTime = moment().format('YYYY-MM-DD HH:mm:ss');
@@ -407,8 +423,8 @@ function checkOut(bookingId) {
               success: function(response) {
                   Swal.fire({
                       icon: 'success',
-                      title: 'Checked out successfully',
-                      confirmButtonText: 'OK'
+                      title: window.bookingTranslations?.checked_out_successfully || 'Checked out successfully',
+                      confirmButtonText: window.bookingTranslations?.ok || 'OK'
                   }).then(function() {
                       window.location.reload(); // Reload the page to refresh the data
                   });
@@ -425,14 +441,17 @@ function checkOut(bookingId) {
 
 // Toggle PAYMENT STATUS
 function togglePaymentStatus(bookingId, currentStatus) {
+    const paidText = window.bookingTranslations?.paid || 'Paid';
+    const unpaidText = window.bookingTranslations?.unpaid || 'Unpaid';
     const newStatus = currentStatus === 'Paid' ? 'Unpaid' : 'Paid';
+    const newStatusText = newStatus === 'Paid' ? paidText : unpaidText;
     Swal.fire({
-      title: 'Update Payment Status',
-      text: `Do you want to mark this booking as ${newStatus}?`,
+      title: window.bookingTranslations?.update_payment_status || 'Update Payment Status',
+      text: (window.bookingTranslations?.mark_booking_as || 'Do you want to mark this booking as ${newStatus}?').replace('${newStatus}', newStatusText),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: `Yes, mark as ${newStatus}`,
-      cancelButtonText: 'No, cancel'
+      confirmButtonText: (window.bookingTranslations?.yes_mark_as || `Yes, mark as ${newStatus}`).replace('${newStatus}', newStatusText),
+      cancelButtonText: window.bookingTranslations?.no_cancel || 'No, cancel'
     }).then((result) => {
       if (result.isConfirmed) {
         $.ajax({
@@ -442,8 +461,8 @@ function togglePaymentStatus(bookingId, currentStatus) {
           success: function(response) {
             Swal.fire({
               icon: 'success',
-              title: `Marked as ${newStatus} successfully`,
-              confirmButtonText: 'OK'
+              title: (window.bookingTranslations?.marked_as_successfully || `Marked as ${newStatus} successfully`).replace('${newStatus}', newStatusText),
+              confirmButtonText: window.bookingTranslations?.ok || 'OK'
             }).then(function() {
               window.location.reload(); // Reload the page to refresh the data
             });

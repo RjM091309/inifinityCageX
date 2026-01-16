@@ -228,6 +228,14 @@
 		
 
 		<script>
+			// Pass translations to JavaScript
+			window.guestGameStatisticTranslations = {
+				search: "<%= __('guest_game_statistic.search') %>",
+				showing_entries: "<%= __('guest_game_statistic.showing_entries') %>",
+				previous: "<%= __('guest_game_statistic.previous') %>",
+				next: "<%= __('guest_game_statistic.next') %>"
+			};
+
 			$('.js-select2').select2({
 				placeholder: 'Select an option',
 				dropdownParent: '#modal-new-game-list',

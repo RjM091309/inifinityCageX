@@ -67,6 +67,18 @@ function getQueryParam(param) {
 	const urlParams = new URLSearchParams(window.location.search);
 	return urlParams.get(param);
 }
+
+// Function to translate game source
+function translateGameSource(source) {
+	const translations = window.gamelistTranslations || {};
+	if (!source) return '';
+	const sourceUpper = source.toUpperCase();
+	if (sourceUpper === 'CASH') return translations.cash || 'CASH';
+	if (sourceUpper === 'DEPOSIT') return translations.deposit || 'DEPOSIT';
+	if (sourceUpper === 'MARKER') return translations.marker || 'MARKER';
+	return source;
+}
+
 $(document).ready(function () {
 
 
@@ -119,7 +131,12 @@ $(document).ready(function () {
 		
 	
 		language: {
-			info: "Showing _START_ to _END_ of _TOTAL_ entries",
+			search: (window.gamelistTranslations?.search || "Search:"),
+			info: (window.gamelistTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
+			paginate: {
+				previous: (window.gamelistTranslations?.previous || "Previous"),
+				next: (window.gamelistTranslations?.next || "Next")
+			}
 		},
 	
 		createdRow: function (row, data, index) {
@@ -364,16 +381,17 @@ $(document).ready(function () {
 							var roller_chips_td = '';
 	
 							if (row.game_status == 2) {
+								const onGameText = window.gamelistTranslations?.on_game || "ON GAME";
 								if (userPermissions === 11 || userPermissions === 1) { // If manager
 								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss})" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
-									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:8px !important;">ON GAME</button>`;
+									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:8px !important;">${onGameText}</button>`;
 								} else {
 									// Show SweetAlert for cashier or other users
 									status = `<button type="button" 
 												class="btn btn-sm btn-primary-subtle btn-on-game" 
 												style="font-size:8px !important;"
 												onclick="showSweetAlert()">
-											ON GAME
+											${onGameText}
 										</button>`;
 								}
 
@@ -425,7 +443,7 @@ $(document).ready(function () {
                                     `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`,
                                     formattedNet,
                                     winloss,
-                                    `${row.INITIAL_MOP}`,
+                                    translateGameSource(row.INITIAL_MOP),
                                     status,
                                     actionButtons
                                 ]).draw().node();
@@ -493,7 +511,7 @@ $(document).ready(function () {
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
 						   var actionButtons = btn_services + btn_settle;
-						   dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`, formattedNet, winloss,`${row.INITIAL_MOP}`, status, actionButtons]).draw();
+						   dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`, formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw();
 							}
 	
 						},
@@ -2253,8 +2271,9 @@ $(document).ready(function () {
 							var rolling_td = '';
 							var cashout_td = '';
 							if (row.game_status == 2) {
+								const onGameText = window.gamelistTranslations?.on_game || "ON GAME";
 								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss})" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
-									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:8px !important;">ON GAME</button>`;
+									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:8px !important;">${onGameText}</button>`;
 
 								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';

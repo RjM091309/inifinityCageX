@@ -25,7 +25,7 @@
 					<div class="dataTables_wrapper">
 						<div class="row mb-2">
 							<div class="col-sm-4">
-								<input type="text" id="daterange" class="input-daterange input-group" placeholder="Select Date Range" autocomplete="off"/>
+								<input type="text" id="daterange" class="input-daterange input-group" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off"/>
 							</div>
 						</div>
 					</div>
@@ -78,6 +78,7 @@
 						$('#commission-tbl').DataTable().destroy();
 					}
 
+					const translations = window.commissionTranslations || {};
 					$('#commission-tbl').DataTable({
 						"ajax": {
 							"url": "/commission_data",
@@ -99,6 +100,15 @@
 							{ "data": "payment" },
 							{ "data": "date_time" } // Changed to match your column name
 						],
+						"language": {
+							"search": translations.search || "Search:",
+							"info": translations.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries",
+							"paginate": {
+								"previous": translations.previous || "Previous",
+								"next": translations.next || "Next"
+							},
+							"emptyTable": translations.no_data_found || "No data available in table"
+						},
 						"drawCallback": function() {
 							calculateTotal();
 						}
@@ -234,6 +244,19 @@
 
 		<%- include ('../partials/footer'); -%>
 
+		<script>
+			// Pass translations to JavaScript
+			window.commissionTranslations = {
+				select_date_range: "<%= __('commission.select_date_range') %>",
+				invalid_date: "<%= __('commission.invalid_date') %>",
+				search: "<%= __('commission.search') %>",
+				showing_entries: "<%= __('commission.showing_entries') %>",
+				previous: "<%= __('commission.previous') %>",
+				next: "<%= __('commission.next') %>",
+				please_select_date_range: "<%= __('commission.please_select_date_range') %>",
+				no_data_found: "<%= __('commission.no_data_found') %>"
+			};
+		</script>
 		<script src="/assets/js/functions/commission.js"></script>
 		
 		

@@ -13,7 +13,15 @@ $(document).ready(function () {
                   $(cell).addClass('text-center');
               }
             }
-        ]
+        ],
+        language: {
+            search: (window.expenseCategoryTranslations?.search || "Search:"),
+            info: (window.expenseCategoryTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
+            paginate: {
+                previous: (window.expenseCategoryTranslations?.previous || "Previous"),
+                next: (window.expenseCategoryTranslations?.next || "Next")
+            }
+        }
     });
 
     function reloadData() {
@@ -24,10 +32,12 @@ $(document).ready(function () {
                 dataTable.clear();
                 data.forEach(function (row) {
                     var status = '';
+                    var activeText = window.expenseCategoryTranslations?.active || 'ACTIVE';
+                    var inactiveText = window.expenseCategoryTranslations?.inactive || 'INACTIVE';
                     if (row.ACTIVE == 1) {
-                        status = '<span class="css-blue">ACTIVE</span>';
+                        status = '<span class="css-blue">' + activeText + '</span>';
                     } else {
-                        status = '<span class="css-red">INACTIVE</span>';
+                        status = '<span class="css-red">' + inactiveText + '</span>';
                     }
                     var btn = `<div class="btn-group">
                         <button type="button" onclick="editCreditStatus(${row.IDNo}, '${row.CATEGORY}')" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled"

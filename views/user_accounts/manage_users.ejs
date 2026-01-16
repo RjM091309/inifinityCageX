@@ -50,6 +50,17 @@
 
 					<%- include ('../partials/footer'); -%>
 
+					<script>
+						// Pass translations to JavaScript
+						window.manageUsersTranslations = {
+							search: "<%= __('manage_users.search') %>",
+							showing_entries: "<%= __('manage_users.showing_entries') %>",
+							previous: "<%= __('manage_users.previous') %>",
+							next: "<%= __('manage_users.next') %>",
+							active: "<%= __('manage_users.active') %>",
+							inactive: "<%= __('manage_users.inactive') %>"
+						};
+					</script>
 
 						<script src="/assets/js/functions/manage_user.js"></script>
 						
