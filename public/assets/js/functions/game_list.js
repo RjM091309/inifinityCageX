@@ -109,9 +109,9 @@ $(document).ready(function () {
 		pageLength: 10,
 	
 		columnDefs: [
-			{ targets: 7, className: 'text-center col-total-amt' },     // TOTAL AMT
-			{ targets: 9, className: 'text-center col-total-rolling' }, // TOTAL ROLLING
-			{ targets: 12, className: 'text-center col-winloss' },      // WIN/LOSS
+			{ targets: 4, className: 'text-center col-buyin' },          // BUY-IN (Blue)
+			{ targets: 7, className: 'text-center col-total-rolling' }, // TOTAL ROLLING (Green)
+			{ targets: 10, className: 'text-center col-winloss' },      // WIN/LOSS (Orange)
 			{ targets: '_all', className: 'text-center' }               // center all columns
 		],
 		
@@ -124,8 +124,8 @@ $(document).ready(function () {
 	
 		createdRow: function (row, data, index) {
 			// 🔴 Color red if WIN/LOSS is negative
-			if (parseInt(data[12].split(',').join('')) < 0) {
-				$('td:eq(12)', row).css({
+			if (parseInt(data[10].split(',').join('')) < 0) {
+				$('td:eq(10)', row).css({
 					'background-color': '#fff',
 					'color': 'red'
 				});
@@ -354,9 +354,8 @@ $(document).ready(function () {
 											ON GAME
 										</button>`;
 								}
-	
-								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">'
-								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_buy_in_chips).toLocaleString() + '</button>';
+
+								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
 								
@@ -395,10 +394,8 @@ $(document).ready(function () {
                                     `${row.GAME_TYPE}`,
                                     `${row.game_list_id}`,
                                     `${row.agent_code} (${row.agent_name})`,
-                                    total_initial.toLocaleString(),
                                     buyin_td,
                                     cashout_td,
-                                    total_amount.toLocaleString(),
                                     rolling_td,
                                     parseFloat(total_rolling_chips).toLocaleString(),
                                     `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`,
@@ -437,7 +434,7 @@ $(document).ready(function () {
 									
 								}
 	
-								buyin_td = parseFloat(total_buy_in_chips).toLocaleString();
+								buyin_td = parseFloat(total_amount).toLocaleString();
 								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 	
@@ -471,7 +468,7 @@ $(document).ready(function () {
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
 						   var actionButtons = btn_services + btn_settle;
-						   dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, total_initial.toLocaleString(), buyin_td, total_amount.toLocaleString(), rolling_td, parseFloat(total_rolling_chips).toLocaleString(), cashout_td, `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`, formattedNet, winloss,`${row.INITIAL_MOP}`, status, actionButtons]).draw();
+						   dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`, formattedNet, winloss,`${row.INITIAL_MOP}`, status, actionButtons]).draw();
 							}
 	
 						},
@@ -1226,8 +1223,22 @@ function reloadDataRecord() {
                 }
             }
             
-            const mergedData = {};
+            // Calculate totals using the SAME formula as game list (line 304)
+            let total_nn_init = 0;
+            let total_cc_init = 0;
+            let total_nn = 0;
+            let total_cc = 0;
+            let total_cash_out_nn = 0;
+            let total_cash_out_cc = 0;
+            let total_rolling_nn = 0;
+            let total_rolling_cc = 0;
+            let total_rolling = 0;
+            let total_rolling_real = 0;
+            let total_rolling_nn_real = 0;
+            let total_rolling_cc_real = 0;
             let hasInitialBuyIn = false;
+
+            const mergedData = {};
 
             // Pagsamahin ang data
             data.forEach(function (row) {
@@ -1258,41 +1269,67 @@ function reloadDataRecord() {
                         cash_out: 0,
                         real_rolling: 0,
                         total_rolling: 0,
-                        nn: row.NN_CHIPS || 0,
-                        cc: row.CC_CHIPS || 0,
+                        nn: 0,
+                        cc: 0,
                         remarks: row.REMARKS || '',
                         action: row.game_record_id,
                         button: btn  
                     };
                 }
 
-                // Process the row based on CAGE_TYPE
+                // Process the row based on CAGE_TYPE - same logic as game list
                 if (row.CAGE_TYPE == 1) { // BUY IN
                     const buyInAmount = (row.CC_CHIPS || 0) + (row.NN_CHIPS || 0);
                     if (hasInitialBuyIn) {
                         // This is an additional buy-in
                         mergedData[dateKey].additional_buyin += buyInAmount;
+                        total_nn += (row.NN_CHIPS || 0);
+                        total_cc += (row.CC_CHIPS || 0);
                     } else {
                         // This is the initial buy-in
                         mergedData[dateKey].buy_in += buyInAmount;
+                        total_nn_init += (row.NN_CHIPS || 0);
+                        total_cc_init += (row.CC_CHIPS || 0);
                         hasInitialBuyIn = true;
                     }
                 }
                 if (row.CAGE_TYPE == 2) { // CASH OUT
-                    mergedData[dateKey].cash_out += (row.CC_CHIPS || 0) + (row.NN_CHIPS || 0);
+                    const cashOutAmount = (row.CC_CHIPS || 0) + (row.NN_CHIPS || 0);
+                    mergedData[dateKey].cash_out += cashOutAmount;
+                    total_cash_out_nn += (row.NN_CHIPS || 0);
+                    total_cash_out_cc += (row.CC_CHIPS || 0);
+                    // Track NN and CC chips for CASH OUT transactions
+                    mergedData[dateKey].nn += (row.NN_CHIPS || 0);
+                    mergedData[dateKey].cc += (row.CC_CHIPS || 0);
                 }
                 if (row.CAGE_TYPE == 3) { // TOTAL ROLLING
-                    mergedData[dateKey].total_rolling += (row.NN_CHIPS || 0);
+                    const rollingAmount = (row.AMOUNT || 0) + (row.NN_CHIPS || 0) + (row.CC_CHIPS || 0);
+                    mergedData[dateKey].total_rolling += rollingAmount;
+                    total_rolling += (row.AMOUNT || 0);
+                    total_rolling_nn += (row.NN_CHIPS || 0);
+                    total_rolling_cc += (row.CC_CHIPS || 0);
+                    // Track NN and CC chips for TOTAL ROLLING transactions only
+                    mergedData[dateKey].nn += (row.NN_CHIPS || 0);
+                    mergedData[dateKey].cc += (row.CC_CHIPS || 0);
                 }
                 if (row.CAGE_TYPE == 4) { // REAL ROLLING
-                    mergedData[dateKey].real_rolling += (row.CC_CHIPS || 0);
+                    const realRollingAmount = (row.AMOUNT || 0) + (row.NN_CHIPS || 0) + (row.CC_CHIPS || 0);
+                    mergedData[dateKey].real_rolling += realRollingAmount;
+                    // Add to total_rolling to match game list calculation (CAGE_TYPE 3 + CAGE_TYPE 4)
+                    mergedData[dateKey].total_rolling += realRollingAmount;
+                    total_rolling_real += (row.AMOUNT || 0);
+                    total_rolling_nn_real += (row.NN_CHIPS || 0);
+                    total_rolling_cc_real += (row.CC_CHIPS || 0);
+                    // Track NN and CC chips for REAL ROLLING transactions only
+                    mergedData[dateKey].nn += (row.NN_CHIPS || 0);
+                    mergedData[dateKey].cc += (row.CC_CHIPS || 0);
                 }
             });
 
             // I-clear ang DataTable
             dataTable.clear();
 
-            // Calculate totals
+            // Calculate totals from merged data for display
             let totalBuyIn = 0;
             let totalAdditionalBuyIn = 0;
             let totalCashOut = 0;
@@ -1307,10 +1344,14 @@ function reloadDataRecord() {
                 totalAdditionalBuyIn += rowData.additional_buyin;
                 totalCashOut += rowData.cash_out;
                 totalRealRolling += rowData.real_rolling;
-                totalRolling += rowData.total_rolling;
+                totalRolling += rowData.total_rolling; // Sum of CAGE_TYPE 3 + CAGE_TYPE 4 from individual rows
                 totalNN += rowData.nn;
                 totalCC += rowData.cc;
             }
+            
+            // Apply game list formula: CAGE_TYPE 3 + CAGE_TYPE 4 - cash_out_nn
+            // total_cash_out_nn is already calculated in the forEach loop above (line 1299)
+            totalRolling = totalRolling - total_cash_out_nn;
 
             // Prepare all rows data
             const allRows = [];
@@ -2043,11 +2084,11 @@ $(document).ready(function () {
 								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss})" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
 									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:8px !important;">ON GAME</button>`;
 
-								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_buy_in_chips).toLocaleString() + '</button>';
+								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
                                 var actionButtons = btn_services + btn_his;
-                                dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, total_initial.toLocaleString(), buyin_td, total_amount.toLocaleString(), rolling_td, parseFloat(total_rolling_chips).toLocaleString(), cashout_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
+                                dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else {
 								
 								//END GAME STATUS EDITABLE(ON GAME & END GAME)
@@ -2056,7 +2097,7 @@ $(document).ready(function () {
 								//END GAME STATUS NOT EDITABLE
 								status = `<a href="#" value="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID })">${moment(row.GAME_ENDED).format('MMMM DD, YYYY HH:mm:ss')}</a>`;
 
-								buyin_td = parseFloat(total_buy_in_chips).toLocaleString();
+								buyin_td = parseFloat(total_amount).toLocaleString();
 								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 								
@@ -2076,7 +2117,7 @@ $(document).ready(function () {
 								</button>
 						   </div>`;
 						   var actionButtons = btn_services + btn_settle;
-						   dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, total_initial.toLocaleString(), buyin_td, total_amount.toLocaleString(), rolling_td, parseFloat(total_rolling_chips).toLocaleString(), cashout_td, `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
+						   dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 
 							}
 

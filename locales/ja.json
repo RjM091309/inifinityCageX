@@ -201,7 +201,8 @@
 		"game_source": "ゲームソース",
 		"game_end": "ゲーム終了",
 		"action": "アクション",
-		"grand_total": "合計"
+		"grand_total": "合計",
+		"buyin": "バイイン"
 	},
 	"house_expense": {
 		"junket": "ジャンケット",
@@ -476,7 +477,6 @@
 		"close": "閉じる"
 	},
 	"modal_show_rolling": {
-		
 		"date": "日付",
 		"buyin": "バイイン",
 		"additional_buyin": "追加バイイン",

@@ -44,20 +44,14 @@
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.game#') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-center">
-													<%= __('gamelist.acct_no') %>
-												</th>
-												<th class="d-none d-sm-table-cell text-center">
-													<%= __('gamelist.initial_buyin') %>
-												</th>
 											<th class="d-none d-sm-table-cell text-center">
-												<%= __('gamelist.addt_l_buyin') %>
+												<%= __('gamelist.acct_no') %>
+											</th>
+											<th class="d-none d-sm-table-cell text-center">
+												<%= __('gamelist.buyin') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center">
 												<%= __('gamelist.cash_out') %>
-											</th>
-											<th class="d-none d-sm-table-cell text-center col-total-amt">
-												<%= __('gamelist.total_amt') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center">
 												<%= __('gamelist.real_rolling') %>
@@ -93,21 +87,19 @@
 											<th colspan="4">
 												<%= __('gamelist.grand_total') %>
 											</th>
-											<th></th>
-											<th></th>
+											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">₱0.00</th>
 											<th class="d-none d-sm-table-cell text-center" id="GRAND_CHIPS_RETURN">
 												₱0.00</th>
-											<th class="d-none d-sm-table-cell text-center col-total-amt" id="GRAND_TOTAL_AMOUNT">₱0.00</th>
 											<th></th>
 											<th class="d-none d-sm-table-cell text-center col-total-rolling" id="GRAND_TOTAL_ROLLING">
 												₱0.00</th>
-												<th></th>
-												<th></th>
-												<th class="d-none d-sm-table-cell text-center col-winloss" id="GRAND_WIN_LOSS">₱0.00
-												</th>
-												<th></th>
-												<th></th>
-												<th></th>
+											<th></th>
+											<th></th>
+											<th class="d-none d-sm-table-cell text-center col-winloss" id="GRAND_WIN_LOSS">₱0.00
+											</th>
+											<th></th>
+											<th></th>
+											<th></th>
 											</tr>
 										</tfoot>
 									</table>
@@ -162,24 +154,26 @@
 	border: 1px solid #a5d6a7;
 }
 
-/* Header + Footer Colors */
-td.col-total-amt,
-th.col-total-amt {
-    background-color: #e8f5e9 !important; /* Lighter green */
-    color: #2e7d32 !important; /* Darker green text */
-    font-weight: 600;
-}
-
-td.col-total-rolling,
-th.col-total-rolling {
-    background-color: #e3f2fd !important; /* Lighter blue */
+/* Header + Footer Colors - BUY-IN (Blue) */
+td.col-buyin,
+th.col-buyin {
+    background-color: #e4f0fb !important; /* Light blue */
     color: #1565c0 !important; /* Darker blue text */
     font-weight: 600;
 }
 
+/* Header + Footer Colors - TOTAL ROLLING (Green) */
+td.col-total-rolling,
+th.col-total-rolling {
+    background-color: #e8f5e9 !important; /* Light green */
+    color: #2e7d32 !important; /* Darker green text */
+    font-weight: 600;
+}
+
+/* Header + Footer Colors - WIN/LOSS (Orange) */
 td.col-winloss,
 th.col-winloss {
-    background-color: #fff3e0 !important; /* Lighter orange */
+    background-color: #fff0e1 !important; /* Light orange */
     color: #ef6c00 !important; /* Darker orange text */
     font-weight: 600;
 }
@@ -277,38 +271,7 @@ table.dataTable tbody tr.highlight-row {
 							position: relative;
 						}
 
-						/* Header + Footer */
-						td.col-total-amt {
-	background-color: #e3f2e1 !important;
-	
-}
-
-td.col-total-rolling {
-	background-color: #e4f0fb !important;
-
-}
-
-td.col-winloss {
-	background-color: #fff0e1 !important;
-	
-}
-td.col-total-amt,
-th.col-total-amt {
-	background-color: #e3f2e1 !important; /* green */
-	
-}
-
-td.col-total-rolling,
-th.col-total-rolling {
-	background-color: #e4f0fb !important; /* blue */
-	
-}
-
-td.col-winloss,
-th.col-winloss {
-	background-color: #fff0e1 !important; /* orange */
-	
-}
+						/* Colors are defined above - removed duplicate definitions */
 
 
 
@@ -584,10 +547,8 @@ th.col-winloss {
 										{ "data": "game_type" },
 										{ "data": "game_no" },
 										{ "data": "acct_no" },
-										{ "data": "initial_buy_in" },
-										{ "data": "additional_buy_in" },
+										{ "data": "buy_in" },
 										{ "data": "chips_return" },
-										{ "data": "total_amt" },
 										{ "data": "real_rolling" },
 										{ "data": "total_rolling" },
 										{ "data": "game_rate" },
@@ -680,10 +641,10 @@ th.col-winloss {
 									// console.log("Processing object:", data);
 
 									// Adjust these indices based on your columns configuration
-									var amountIndex = 7; // Assuming "TOTAL AMT" is at index 7
-									var rollingIndex = 9; // Assuming "TOTAL ROLLING" is at index 9
-									var chipsReturnIndex = 6; // Assuming "CASH-OUT" is at index 6
-									var winLossIndex = 12; // Assuming "WIN/LOSS" is at index 12
+									var amountIndex = 4; // "BUY-IN" is at index 4
+									var rollingIndex = 7; // "TOTAL ROLLING" is at index 7
+									var chipsReturnIndex = 5; // "CASH-OUT" is at index 5
+									var winLossIndex = 10; // "WIN/LOSS" is at index 10
 
 									var amountValue = data[amountIndex] || '0';
 									var rollingValue = data[rollingIndex] || '0';

@@ -201,7 +201,8 @@
 		"game_source": "GAME SOURCE",
 		"game_end": "GAME END",
 		"action": "ACTION",
-		"grand_total": "GRAND TOTAL"
+		"grand_total": "GRAND TOTAL",
+		"buyin": "BUY-IN"
 	},
 	"house_expense": {
 		"junket": "Junket",

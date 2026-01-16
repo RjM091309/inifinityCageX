@@ -203,7 +203,8 @@
 		"game_end": "游戏结束",
 		"history": "行动",
 		"grand_total": "总计",
-		"action": "gamelist.action"
+		"action": "行动",
+		"buyin": "买入"
 	},
 	"house_expense": {
 		"junket": "接待",
@@ -478,7 +479,6 @@
 		"close": "关闭"
 	},
 	"modal_show_rolling": {
-		
 		"date": "日期",
 		"buyin": "买入",
 		"additional_buyin": "额外买入",
