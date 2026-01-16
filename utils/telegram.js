@@ -88,8 +88,13 @@ async function startTelegramBot() {
     }
   }
 
-  // /checkbalance or Check Balance triggers
-  bot.onText(/\/checkbalance|Check Balance/, (msg) => {
+  // Handle /checkbalance command
+  bot.onText(/\/checkbalance/i, (msg) => {
+    sendBalanceToUser(msg.chat.id);
+  });
+
+  // Handle "Check Balance" button click (with or without emoji)
+  bot.onText(/(💰\s*)?Check Balance/i, (msg) => {
     sendBalanceToUser(msg.chat.id);
   });
 
@@ -97,7 +102,10 @@ async function startTelegramBot() {
     const chatId = msg.chat.id;
     const text = msg.text;
 
-    if (shownKeyboard.has(chatId) || ["/checkbalance", "Check Balance", "💰 Check Balance"].includes(text)) return;
+    // Skip if already shown keyboard or if it's a balance check command
+    if (shownKeyboard.has(chatId) || !text || ["/checkbalance", "Check Balance", "💰 Check Balance"].includes(text)) {
+      return;
+    }
 
     shownKeyboard.add(chatId);
 

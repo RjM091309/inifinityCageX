@@ -6,9 +6,9 @@ const session = require('express-session');
 const ExcelJS = require('exceljs');
 
 const mysql2 = require('mysql2/promise');
+const pool = require('../config/db.js');
 
 const bodyParser = require('body-parser');
-const mysql = require('mysql');
 
 const multer = require('multer');
 
@@ -22,44 +22,28 @@ app.use(bodyParser.urlencoded({
 	extended: true
 }));
 
-
-let connection = mysql.createConnection({
-	host: '127.0.0.1',
-	user: '3core',
-	password: '2024.3core21',
-	database: 'infinitycage',
-	port: 3306
-});
-
-// Function to Handle Connection and Reconnection
-function handleDisconnect() {
-	connection.connect((err) => {
-		if (err) {
-			console.error('MySQL connection failed:', err.message);
-			setTimeout(handleDisconnect, 2000); // Reattempt connection after 2 seconds
-		} else {
-			console.log('Successfully connected to MySQL');
+// Wrapper object to maintain backward compatibility with callback-based code
+// This allows existing callback-style queries to work with the promise-based pool
+// mysql2 pool.query() supports both promises and callbacks
+const connection = {
+	query: (sql, params, callback) => {
+		// If params is the callback (only sql and callback provided)
+		if (typeof params === 'function') {
+			callback = params;
+			params = [];
 		}
-	});
-
-	// Reconnection Logic for Connection Errors
-	connection.on('error', (err) => {
-		console.error('MySQL Error:', err.message);
-		if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-			console.log('Reconnecting to MySQL...');
-			connection.destroy(); // Destroy the current connection
-			connection = mysql.createConnection(connection.config); // Recreate the connection
-			handleDisconnect(); // Reconnect
+		
+		// mysql2 pool.query() supports callbacks as third parameter even with promise wrapper
+		// The promise is still returned but callback will be executed
+		if (callback) {
+			pool.query(sql, params || [], callback);
 		} else {
-			throw err; // Throw other errors
+			return pool.query(sql, params || []);
 		}
-	});
-}
+	}
+};
 
-// Start Initial Connection
-handleDisconnect();
-
-// Example Query Function
+// Example Query Function (maintained for backward compatibility)
 function queryDatabase(sql, params = []) {
 	connection.query(sql, params, (err, results) => {
 		if (err) {
@@ -3363,17 +3347,7 @@ pageRouter.put('/junket_main_cage/remove/:id', (req, res) => {
 		res.send('Junket updated successfully');
 	});
 });
-// Create a pool
-const pool = mysql2.createPool({
-	host: '127.0.0.1',
-	user: '3core',
-	password: '2024.3core21',
-	database: 'infinitycage',
-	port: 3306,
-	waitForConnections: true,
-	connectionLimit: 10,
-	queueLimit: 0
-});
+// Pool is now imported from config/db.js
 // ADD ACCOUNT DETAILS 
 pageRouter.post('/add_account_details', async (req, res) => {
 	const {
@@ -3597,134 +3571,8 @@ pageRouter.put('/telegramAPI/:id', (req, res) => {
 	});
 });
 
-// CHECK BALANCE
-
-async function startTelegramBot() {
-    try {
-        const token = await getTelegramToken();
-        if (!token) {
-            console.error("Bot token not found.");
-            return;
-        }
-
-        const bot = new TelegramBot(token, { polling: true });
-
-        // ✅ Shared function
-        async function sendBalanceToUser(telegramId) {
-            let time_now = new Date();
-            time_now.setHours(time_now.getHours());
-            let updated_time = time_now.toLocaleTimeString();
-            let date_nowTG = new Date().toLocaleDateString();
-
-            try {
-                const connection = await pool.getConnection();
-
-                const [accountResults] = await connection.query(`
-                    SELECT 
-                        agent.AGENT_CODE,
-                        agent.NAME,
-                        account.IDNo AS ACCOUNT_ID
-                    FROM agent
-                    JOIN account ON account.AGENT_ID = agent.IDNo
-                    WHERE agent.TELEGRAM_ID = ?
-                    LIMIT 1
-                `, [telegramId]);
-
-                if (accountResults.length === 0) {
-                    bot.sendMessage(telegramId, "❌ No account linked.");
-                    return;
-                }
-
-                const { AGENT_CODE, NAME, ACCOUNT_ID } = accountResults[0];
-
-                const [ledgerResults] = await connection.query(`
-                    SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
-                    FROM account_ledger
-                    JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
-                    WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3) AND account_ledger.ACCOUNT_ID = ?
-                `, [ACCOUNT_ID]);
-
-                connection.release();
-
-                let deposit_amount = 0;
-                let withdraw_amount = 0;
-                let marker_issue_amount = 0;
-                let marker_return_deposit = 0;
-
-                ledgerResults.forEach(row => {
-                    const amount = parseFloat(row.AMOUNT) || 0;
-                    if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
-                    if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
-                    if (row.TRANSACTION === 'IOU CASH') marker_issue_amount += amount;
-                    if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
-                });
-
-                const totalBalance = deposit_amount + marker_issue_amount - withdraw_amount - marker_return_deposit;
-
-                const response = `DEMO CAGE\n\n` +
-                    `Account #: ${AGENT_CODE}\n` +
-                    `Guest: ${NAME}\n` +
-                    `Date: ${date_nowTG}\n` +
-                    `Time: ${updated_time}\n\n` +
-                    `*Account Balance: ${totalBalance.toLocaleString()}*`;
-
-                bot.sendMessage(telegramId, response, { parse_mode: 'Markdown' });
-
-            } catch (error) {
-                console.error('Error sending balance:', error);
-                bot.sendMessage(telegramId, "❌ Nagkaroon ng error habang kinukuha ang balance mo.");
-            }
-        }
-
-    // ✅ Slash command
-		bot.onText(/\/checkbalance/, async (msg) => {
-			await sendBalanceToUser(msg.chat.id);
-		});
-
-		// ✅ Button click
-		bot.onText(/Check Balance/, async (msg) => {
-			await sendBalanceToUser(msg.chat.id);
-		});
-
-		// ✅ Only show keyboard once per user
-		const shownKeyboard = new Set();
-
-		bot.on("message", (msg) => {
-			const chatId = msg.chat.id;
-			const text = msg.text;
-		
-			// Skip if already shown
-			if (shownKeyboard.has(chatId)) return;
-		
-			// Skip if message is Check Balance (to avoid double send)
-			if (text === "💰 Check Balance") return;
-
-			if (text === "Check Balance") return;
-
-			if (text === "/checkbalance") return;
-			
-			
-		
-			shownKeyboard.add(chatId);
-		
-			bot.sendMessage(chatId, "Welcome to Demo Cage!", {
-				reply_markup: {
-					keyboard: [
-						[{ text: "💰 Check Balance" }]
-					],
-					resize_keyboard: true,
-					one_time_keyboard: false
-				}
-			});
-		});
-		
-
-		console.log("✅ Telegram bot is running...");
-	} catch (err) {
-		console.error("Error starting bot:", err);
-	}
-}
-startTelegramBot();
+// CHECK BALANCE - Removed duplicate bot code
+// Telegram bot is now handled in utils/telegram.js to avoid conflicts
 
 
 
@@ -5206,21 +5054,13 @@ pageRouter.put('/game_record/remove/:id', (req, res) => {
 
 //EXPORT ACCOUNT DETAILS
 
-const dbConfig = {
-	host: '127.0.0.1',
-	user: '3core',
-	password: '2024.3core21',
-	database: 'infinitycage',
-	port: 3306
-};
-
 pageRouter.get('/export', async (req, res) => {
 	const accountId = req.query.id; // Assuming `id` is passed as a query parameter
 	let connection;
 
 	try {
-		// Create a connection to the database
-		connection = await mysql2.createConnection(dbConfig);
+		// Get a connection from the pool
+		connection = await pool.getConnection();
 
 		// Perform the query
 		const [rows] = await connection.query(`
@@ -5275,15 +5115,15 @@ pageRouter.get('/export', async (req, res) => {
 
 		let filename = 'Account Details - ';
 
-		const agents = await connection.query(`
+		const [agents] = await connection.query(`
 		SELECT NAME, AGENT_CODE FROM agent
 	  JOIN account ON account.AGENT_ID = agent.IDNo
 	  WHERE account.IDNo = ?`, [accountId]);
 
-		if (agents) {
+		if (agents && agents.length > 0) {
 			const agent = agents[0];
 
-			filename = 'Account Details - ' + agent[0].NAME + '(' + agent[0].AGENT_CODE + ')';
+			filename = 'Account Details - ' + agent.NAME + '(' + agent.AGENT_CODE + ')';
 		}
 
 		res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -5294,12 +5134,12 @@ pageRouter.get('/export', async (req, res) => {
 		console.error('Error exporting data:', error);
 		res.status(500).send('Error exporting data');
 	} finally {
-		// Close the database connection if it was established
+		// Release the connection back to the pool if it was established
 		if (connection) {
 			try {
-				await connection.end();
+				connection.release();
 			} catch (err) {
-				console.error('Error closing the connection:', err);
+				console.error('Error releasing the connection:', err);
 			}
 		}
 	}
