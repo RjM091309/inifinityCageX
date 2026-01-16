@@ -1,7 +1,7 @@
 module.exports = {
     apps: [
       {
-        name: "democage",
+        name: "InfinityCageX",
         script: "app.js", 
         env: {
           DB_HOST: "127.0.0.1",

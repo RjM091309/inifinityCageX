@@ -27,7 +27,7 @@ let connection = mysql.createConnection({
 	host: '127.0.0.1',
 	user: '3core',
 	password: '2024.3core21',
-	database: 'democage',
+	database: 'infinitycage',
 	port: 3306
 });
 
@@ -3368,7 +3368,7 @@ const pool = mysql2.createPool({
 	host: '127.0.0.1',
 	user: '3core',
 	password: '2024.3core21',
-	database: 'democage',
+	database: 'infinitycage',
 	port: 3306,
 	waitForConnections: true,
 	connectionLimit: 10,
@@ -5210,7 +5210,7 @@ const dbConfig = {
 	host: '127.0.0.1',
 	user: '3core',
 	password: '2024.3core21',
-	database: 'democage',
+	database: 'infinitycage',
 	port: 3306
 };
 
