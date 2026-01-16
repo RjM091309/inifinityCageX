@@ -191,10 +191,10 @@
 		"acct_no": "ACCT No",
 		"initial_buyin": "INITIAL BUYIN",
 		"addt_l_buyin": "ADDT'L BUYIN",
+		"cash_out": "CASH-OUT",
 		"total_amt": "TOTAL AMT",
 		"real_rolling": "REAL ROLLING",
 		"total_rolling": "TOTAL ROLLING",
-		"chips_return": "CHIPS RETURN",
 		"game_rate": "GAME RATE",
 		"commission": "COMMISSION",
 		"win_loss": "WIN/LOSS",
@@ -474,9 +474,10 @@
 		"close": "Close"
 	},
 	"modal_show_rolling": {
-		"account_details": "Account Details",
+		"title": "Game Record History",
 		"date": "DATE",
 		"buyin": "BUY-IN",
+		"additional_buyin": "ADDT'L BUY-IN",
 		"cash_out": "CASH OUT",
 		"real_rolling": "REAL ROLLING",
 		"total_rolling": "TOTAL ROLLING",

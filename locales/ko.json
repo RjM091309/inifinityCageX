@@ -193,10 +193,10 @@
 		"acct_no": "ACCT 번호",
 		"initial_buyin": "초기 구매",
 		"addt_l_buyin": "추가 구매",
+		"cash_out": "캐시 아웃",
 		"total_amt": "총 AMT",
 		"real_rolling": "리얼 롤링",
 		"total_rolling": "토탈 롤링",
-		"chips_return": "칩 회수",
 		"game_rate": "게임 속도",
 		"commission": "위원회",
 		"win_loss": "승/패",
@@ -478,16 +478,18 @@
 		"close": "닫기"
 	},
 	"modal_show_rolling": {
-		"account_details": "계정 세부 정보",
+		
 		"date": "날짜",
 		"buyin": "바이인",
+		"additional_buyin": "추가 바이인",
 		"cash_out": "캐시 아웃",
 		"real_rolling": "리얼 롤링",
 		"total_rolling": "총 롤링",
 		"nn": "NN",
 		"cc": "CC",
 		"action": "행동",
-		"close": "닫기"
+		"close": "닫기",
+		"title": "게임 기록 이력"
 	},
 	"modal_settlement": {
 		"settlement": "결정",

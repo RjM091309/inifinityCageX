@@ -109,8 +109,8 @@ $(document).ready(function () {
 		pageLength: 10,
 	
 		columnDefs: [
-			{ targets: 6, className: 'text-center col-total-amt' },     // TOTAL AMT
-			{ targets: 8, className: 'text-center col-total-rolling' }, // TOTAL ROLLING
+			{ targets: 7, className: 'text-center col-total-amt' },     // TOTAL AMT
+			{ targets: 9, className: 'text-center col-total-rolling' }, // TOTAL ROLLING
 			{ targets: 12, className: 'text-center col-winloss' },      // WIN/LOSS
 			{ targets: '_all', className: 'text-center' }               // center all columns
 		],
@@ -364,6 +364,16 @@ $(document).ready(function () {
 									var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
 								
+								// Get commission type badge (R/S/L)
+								var commissionTypeBadge = '';
+								if (row.COMMISSION_TYPE == 1) {
+									commissionTypeBadge = '<span class="badge commission-badge commission-badge-r" title="Rolling Game">R</span>';
+								} else if (row.COMMISSION_TYPE == 2) {
+									commissionTypeBadge = '<span class="badge commission-badge commission-badge-s" title="Shared Game">S</span>';
+								} else if (row.COMMISSION_TYPE == 3) {
+									commissionTypeBadge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
+								}
+								
 								// const highlightId = getQueryParam('highlight_id');
 								// const gameListIdText = $('<div>').html(row.game_list_id).text();
 								// const isHighlighted = highlightId && parseInt(highlightId) === parseInt(gameListIdText);
@@ -387,11 +397,11 @@ $(document).ready(function () {
                                     `${row.agent_code} (${row.agent_name})`,
                                     total_initial.toLocaleString(),
                                     buyin_td,
+                                    cashout_td,
                                     total_amount.toLocaleString(),
                                     rolling_td,
                                     parseFloat(total_rolling_chips).toLocaleString(),
-                                    cashout_td,
-                                    `${row.COMMISSION_PERCENTAGE}%`,
+                                    `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`,
                                     formattedNet,
                                     winloss,
                                     `${row.INITIAL_MOP}`,
@@ -449,9 +459,19 @@ $(document).ready(function () {
 						   // Format net value as an integer
 						   var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 						   
+						   // Get commission type badge (R/S/L)
+						   var commissionTypeBadge = '';
+						   if (row.COMMISSION_TYPE == 1) {
+							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-r" title="Commission Type: Rolling">R</span>';
+						   } else if (row.COMMISSION_TYPE == 2) {
+							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-s" title="Commission Type: Share">S</span>';
+						   } else if (row.COMMISSION_TYPE == 3) {
+							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-l" title="Commission Type: Loss">L</span>';
+						   }
+						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
 						   var actionButtons = btn_services + btn_settle;
-						   dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, total_initial.toLocaleString(), buyin_td, total_amount.toLocaleString(), rolling_td, parseFloat(total_rolling_chips).toLocaleString(), cashout_td, `${row.COMMISSION_PERCENTAGE}%`, formattedNet, winloss,`${row.INITIAL_MOP}`, status, actionButtons]).draw();
+						   dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, total_initial.toLocaleString(), buyin_td, total_amount.toLocaleString(), rolling_td, parseFloat(total_rolling_chips).toLocaleString(), cashout_td, `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`, formattedNet, winloss,`${row.INITIAL_MOP}`, status, actionButtons]).draw();
 							}
 	
 						},
@@ -1013,7 +1033,6 @@ function addRolling(id) {
 	$('#modal-add-rolling').modal('show');
 
 	$('.txtAmount').val('');
-	$('.txtNN').val('');
 	$('.txtCC').val('');
 
 	$('.game_list_id').val(id);
@@ -1097,12 +1116,31 @@ function showHistory(record_id) {
 		$('#game_record-tbl').DataTable().destroy();
 	}
 
+	// Custom sort to keep TOTAL row at top
+	$.fn.dataTable.ext.order['total-first'] = function(settings, col) {
+		return this.api().column(col, {order:'index'}).nodes().map(function(td, i) {
+			var text = $(td).text().trim();
+			// If it's TOTAL, return empty string (sorts first), otherwise return the text
+			return text === 'TOTAL' ? '' : text;
+		});
+	};
+
 	var dataTable = $('#game_record-tbl').DataTable({
-		columnDefs: [{
-			createdCell: function (cell, cellData, rowData, rowIndex, colIndex) {
-				$(cell).addClass('text-center');
+		order: [[0, 'asc']], // Sort by first column ascending
+		columnDefs: [
+			{
+				type: 'total-first',
+				targets: 0, // Apply custom sort to first column
+				createdCell: function (cell, cellData, rowData, rowIndex, colIndex) {
+					$(cell).addClass('text-center');
+				}
+			},
+			{
+				createdCell: function (cell, cellData, rowData, rowIndex, colIndex) {
+					$(cell).addClass('text-center');
+				}
 			}
-		}]
+		]
 	});
 
 // 	function reloadDataRecord() {
@@ -1178,7 +1216,18 @@ function reloadDataRecord() {
         url: '/game_record_data/' + record_id, // Endpoint to fetch data
         method: 'GET',
         success: function (data) {
+            // Set game number and agent name in modal header
+            if (data.length > 0) {
+                if (data[0].game_list_id) {
+                    $('#game_number').text(data[0].game_list_id);
+                }
+                if (data[0].agent_name) {
+                    $('#agent_name').text(data[0].agent_name);
+                }
+            }
+            
             const mergedData = {};
+            let hasInitialBuyIn = false;
 
             // Pagsamahin ang data
             data.forEach(function (row) {
@@ -1200,11 +1249,12 @@ function reloadDataRecord() {
                     </div>`;
                 }
 
-                const dateKey = moment(row.record_date).format('MMMM DD, YYYY HH:mm:ss');
+                const dateKey = moment(row.record_date).format('MMM DD, YYYY HH:mm:ss');
 
                 if (!mergedData[dateKey]) {
                     mergedData[dateKey] = {
                         buy_in: 0,
+                        additional_buyin: 0,
                         cash_out: 0,
                         real_rolling: 0,
                         total_rolling: 0,
@@ -1218,7 +1268,15 @@ function reloadDataRecord() {
 
                 // Process the row based on CAGE_TYPE
                 if (row.CAGE_TYPE == 1) { // BUY IN
-                    mergedData[dateKey].buy_in += (row.CC_CHIPS || 0) + (row.NN_CHIPS || 0);
+                    const buyInAmount = (row.CC_CHIPS || 0) + (row.NN_CHIPS || 0);
+                    if (hasInitialBuyIn) {
+                        // This is an additional buy-in
+                        mergedData[dateKey].additional_buyin += buyInAmount;
+                    } else {
+                        // This is the initial buy-in
+                        mergedData[dateKey].buy_in += buyInAmount;
+                        hasInitialBuyIn = true;
+                    }
                 }
                 if (row.CAGE_TYPE == 2) { // CASH OUT
                     mergedData[dateKey].cash_out += (row.CC_CHIPS || 0) + (row.NN_CHIPS || 0);
@@ -1234,20 +1292,60 @@ function reloadDataRecord() {
             // I-clear ang DataTable
             dataTable.clear();
 
-            // Idagdag ang na-merge na data sa DataTable
+            // Calculate totals
+            let totalBuyIn = 0;
+            let totalAdditionalBuyIn = 0;
+            let totalCashOut = 0;
+            let totalRealRolling = 0;
+            let totalRolling = 0;
+            let totalNN = 0;
+            let totalCC = 0;
+
             for (const date in mergedData) {
                 const rowData = mergedData[date];
-                dataTable.row.add([
+                totalBuyIn += rowData.buy_in;
+                totalAdditionalBuyIn += rowData.additional_buyin;
+                totalCashOut += rowData.cash_out;
+                totalRealRolling += rowData.real_rolling;
+                totalRolling += rowData.total_rolling;
+                totalNN += rowData.nn;
+                totalCC += rowData.cc;
+            }
+
+            // Prepare all rows data
+            const allRows = [];
+            
+            // Add total row first
+            allRows.push([
+                '<strong>TOTAL</strong>',
+                '<strong>' + totalBuyIn.toLocaleString() + '</strong>',
+                '<strong>' + totalAdditionalBuyIn.toLocaleString() + '</strong>',
+                '<strong>' + totalCashOut.toLocaleString() + '</strong>',
+                '<strong>' + totalRealRolling.toLocaleString() + '</strong>',
+                '<strong>' + totalRolling.toLocaleString() + '</strong>',
+                '<strong>' + totalNN.toLocaleString() + '</strong>',
+                '<strong>' + totalCC.toLocaleString() + '</strong>',
+                ''  // Empty for action column
+            ]);
+
+            // Add individual records
+            for (const date in mergedData) {
+                const rowData = mergedData[date];
+                allRows.push([
                     date,
                     rowData.buy_in.toLocaleString(),
+                    rowData.additional_buyin.toLocaleString(),
                     rowData.cash_out.toLocaleString(),
                     rowData.real_rolling.toLocaleString(),
                     rowData.total_rolling.toLocaleString(),
                     rowData.nn.toLocaleString(),
                     rowData.cc.toLocaleString(),
                     rowData.button  
-                ]).draw();
+                ]);
             }
+
+            // Add all rows at once to maintain order
+            dataTable.rows.add(allRows).draw();
         },
         error: function (xhr, status, error) {
             console.error('Error fetching data:', error);

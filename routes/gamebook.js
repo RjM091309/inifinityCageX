@@ -932,9 +932,9 @@ router.post('/game_list/add/rolling', async (req, res) => {
 	const { game_id, txtNN, txtCC } = req.body;
 	let date_now = new Date();
 
-	// Remove commas from NN and CC
-	let txtNNamount = txtNN.split(',').join("");
-	let txtCCamount = txtCC.split(',').join("");
+	// Remove commas from NN and CC (default to 0 if not provided)
+	let txtNNamount = (txtNN || '0').split(',').join("");
+	let txtCCamount = (txtCC || '0').split(',').join("");
 
 	const query = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
 	try {

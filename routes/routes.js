@@ -4930,8 +4930,8 @@ pageRouter.post('/game_list/add/rolling', (req, res) => {
 	let date_now = new Date();
 
 
-	let txtNNamount = txtNN.split(',').join("");
-	let txtCCamount = txtCC.split(',').join("");
+	let txtNNamount = (txtNN || '0').split(',').join("");
+	let txtCCamount = (txtCC || '0').split(',').join("");
 
 	const query = `INSERT INTO  game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
 	connection.query(query, [game_id, date_now, 4, txtNNamount, txtCCamount, req.session.user_id, date_now], (err, result) => {
