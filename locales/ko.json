@@ -3,6 +3,7 @@
 	"flag": "flag",
 	"dashboard": {
 		"house_balance": "하우스 잔액",
+		"cash_balance": "현금 잔액",
 		"cc_chips": "CC 칩",
 		"nn_chips": "NN 칩",
 		"total_chips": "총 칩",
@@ -11,6 +12,8 @@
 		"guest_credit": "게스트 신용",
 		"commission": "수수료",
 		"win_loss": "승 | 패",
+		"positive": "양수",
+		"negative": "음수",
 		"total_rolling": "총 롤링",
 		"house_rolling": "하우스 롤링",
 		"activity_overview": "활동 개요",
@@ -22,6 +25,7 @@
 		"accounts": "계정",
 		"view_details": "자세히 보기",
 		"history": "기록",
+		"add_view_history": "추가 / 기록 보기",
 		"game_number": "게임 번호",
 		"guest": "게스트",
 		"game_type": "게임 유형",
@@ -62,7 +66,8 @@
 		"withdraw_from_account": "계정에서 출금",
 		"no_recent_activity": "최근 활동이 없습니다.",
 		"week": "주",
-		"vs_last_month": "지난달 대비"
+		"vs_last_month": "지난달 대비",
+		"cash_out": "캐시 아웃"
 	},
 	"sidebar": {
 		"home": "홈",
@@ -170,8 +175,8 @@
 		"profile": "프로필",
 		"privacy_settings": "개인정보 설정",
 		"logout": "로그아웃",
-		"welcome_to_the_cage_system_demo": "Cage System Demo에 오신 것을 환영합니다!",
-		"manage_transactions_track_funds_and_ensure_seamless_operations_with_our_advanced_cage_system": "거래를 관리하고, 자금을 추적하며, 당사의 고급 Cage 시스템으로 원활한 운영을 보장하세요.",
+		"welcome_to_the_cage_system_demo": "무한 케이지X에 오신 것을 환영합니다!",
+		"manage_transactions_track_funds_and_ensure_seamless_operations_with_our_advanced_cage_system": "거래를 관리하고, 자금을 추적하며, 당사의 고급 케이지 시스템으로 원활한 운영을 보장하세요.",
 		"announcements": "공지사항",
 		"kr": "한국어",
 		"jp": "일본어",
@@ -813,17 +818,17 @@
 		"close": "닫기"
 	},
 	"monthly_reset": {
-		"are_you_sure": "monthly_reset.are_you_sure",
-		"confirm_message": "monthly_reset.confirm_message",
-		"password": "monthly_reset.password",
-		"submit": "monthly_reset.submit",
-		"incorrect_password": "monthly_reset.incorrect_password",
-		"error_password_verification": "monthly_reset.error_password_verification",
-		"resetting": "monthly_reset.resetting",
-		"monthly_reset_completed": "monthly_reset.monthly_reset_completed",
-		"data_has_been_reset": "monthly_reset.data_has_been_reset",
-		"failed_to_reset": "monthly_reset.failed_to_reset",
-		"failed_to_insert_history": "monthly_reset.failed_to_insert_history",
-		"error": "monthly_reset.error"
+		"are_you_sure": "정말 하시겠습니까?",
+		"confirm_message": "비밀번호를 입력하여 월별 리셋을 확인해주세요.",
+		"password": "비밀번호",
+		"submit": "제출",
+		"incorrect_password": "비밀번호가 올바르지 않습니다",
+		"error_password_verification": "비밀번호 확인 오류",
+		"resetting": "리셋 중...",
+		"monthly_reset_completed": "월별 리셋 완료",
+		"data_has_been_reset": "데이터가 리셋되었습니다",
+		"failed_to_reset": "리셋 실패",
+		"failed_to_insert_history": "기록 삽입 실패",
+		"error": "오류"
 	}
 }

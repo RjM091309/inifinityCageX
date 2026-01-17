@@ -3,6 +3,7 @@
 	"flag": "flag",
 	"dashboard": {
 		"house_balance": "庄家余额",
+		"cash_balance": "现金余额",
 		"cc_chips": "CC筹码",
 		"nn_chips": "NN筹码",
 		"total_chips": "总筹码",
@@ -11,6 +12,8 @@
 		"guest_credit": "客人信用",
 		"commission": "佣金",
 		"win_loss": "胜负",
+		"positive": "正面",
+		"negative": "负面",
 		"total_rolling": "总滚动",
 		"house_rolling": "庄家滚动",
 		"activity_overview": "活动概览",
@@ -22,6 +25,7 @@
 		"accounts": "账户",
 		"view_details": "查看详情",
 		"history": "历史记录",
+		"add_view_history": "添加 / 查看历史",
 		"game_number": "游戏编号",
 		"guest": "客人",
 		"game_type": "游戏类型",
@@ -62,7 +66,8 @@
 		"withdraw_from_account": "从账户提取",
 		"no_recent_activity": "最近没有活动。",
 		"week": "周",
-		"vs_last_month": "与上月相比"
+		"vs_last_month": "与上月相比",
+		"cash_out": "现金出账"
 	},
 	"sidebar": {
 		"home": "主页",
@@ -169,7 +174,7 @@
 		"profile": "轮廓",
 		"privacy_settings": "隐私设置",
 		"logout": "登出",
-		"welcome_to_the_cage_system_demo": "欢迎使用 Cage System Demo！",
+		"welcome_to_the_cage_system_demo": "欢迎来到 无限笼式X！",
 		"manage_transactions_track_funds_and_ensure_seamless_operations_with_our_advanced_cage_system": "管理交易、跟踪资金并确保无缝操作与我们先进的笼子系统。",
 		"announcements": "公告",
 		"kr": "朝鲜语",
@@ -813,17 +818,17 @@
 		"close": "关闭"
 	},
 	"monthly_reset": {
-		"are_you_sure": "monthly_reset.are_you_sure",
-		"confirm_message": "monthly_reset.confirm_message",
-		"password": "monthly_reset.password",
-		"submit": "monthly_reset.submit",
-		"incorrect_password": "monthly_reset.incorrect_password",
-		"error_password_verification": "monthly_reset.error_password_verification",
-		"resetting": "monthly_reset.resetting",
-		"monthly_reset_completed": "monthly_reset.monthly_reset_completed",
-		"data_has_been_reset": "monthly_reset.data_has_been_reset",
-		"failed_to_reset": "monthly_reset.failed_to_reset",
-		"failed_to_insert_history": "monthly_reset.failed_to_insert_history",
-		"error": "monthly_reset.error"
+		"are_you_sure": "您确定吗？",
+		"confirm_message": "请输入密码以确认每月重置。",
+		"password": "密码",
+		"submit": "提交",
+		"incorrect_password": "密码不正确",
+		"error_password_verification": "密码验证错误",
+		"resetting": "重置中...",
+		"monthly_reset_completed": "每月重置完成",
+		"data_has_been_reset": "数据已重置",
+		"failed_to_reset": "重置失败",
+		"failed_to_insert_history": "插入历史记录失败",
+		"error": "错误"
 	}
 }

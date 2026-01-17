@@ -3,6 +3,7 @@
 	"flag": "flag",
 	"dashboard": {
 		"house_balance": "ハウス残高",
+		"cash_balance": "現金残高",
 		"cc_chips": "CCチップ",
 		"nn_chips": "NNチップ",
 		"total_chips": "総チップ",
@@ -11,6 +12,8 @@
 		"guest_credit": "ゲストクレジット",
 		"commission": "手数料",
 		"win_loss": "勝敗",
+		"positive": "プラス",
+		"negative": "マイナス",
 		"total_rolling": "総ロール",
 		"house_rolling": "ハウスロール",
 		"activity_overview": "アクティビティ概要",
@@ -22,6 +25,7 @@
 		"accounts": "アカウント",
 		"view_details": "詳細を見る",
 		"history": "履歴",
+		"add_view_history": "追加 / 履歴を見る",
 		"game_number": "ゲーム番号",
 		"guest": "ゲスト",
 		"game_type": "ゲームタイプ",
@@ -62,7 +66,8 @@
 		"withdraw_from_account": "アカウントから引き出し",
 		"no_recent_activity": "最近の活動はありません。",
 		"week": "週",
-		"vs_last_month": "先月比"
+		"vs_last_month": "先月比",
+		"cash_out": "キャッシュアウト"
 	},
 	"sidebar": {
 		"home": "ホーム",
@@ -168,8 +173,8 @@
 		"profile": "プロフィール",
 		"privacy_settings": "プライバシー設定",
 		"logout": "ログアウト",
-		"welcome_to_the_cage_system_demo": "Cage System Demoへようこそ!",
-		"manage_transactions_track_funds_and_ensure_seamless_operations_with_our_advanced_cage_system": "取引を管理し、資金を追跡し、当社の先進的なCageシステムでスムーズな運営を実現しましょう。",
+		"welcome_to_the_cage_system_demo": "無限ケージXへようこそ!",
+		"manage_transactions_track_funds_and_ensure_seamless_operations_with_our_advanced_cage_system": "取引を管理し、資金を追跡し、当社の先進的なケージシステムでスムーズな運営を実現しましょう。",
 		"announcements": "お知らせ",
 		"kr": "韓国語",
 		"jp": "日本語",
@@ -811,17 +816,17 @@
 		"close": "閉じる"
 	},
 	"monthly_reset": {
-		"are_you_sure": "monthly_reset.are_you_sure",
-		"confirm_message": "monthly_reset.confirm_message",
-		"password": "monthly_reset.password",
-		"submit": "monthly_reset.submit",
-		"incorrect_password": "monthly_reset.incorrect_password",
-		"error_password_verification": "monthly_reset.error_password_verification",
-		"resetting": "monthly_reset.resetting",
-		"monthly_reset_completed": "monthly_reset.monthly_reset_completed",
-		"data_has_been_reset": "monthly_reset.data_has_been_reset",
-		"failed_to_reset": "monthly_reset.failed_to_reset",
-		"failed_to_insert_history": "monthly_reset.failed_to_insert_history",
-		"error": "monthly_reset.error"
+		"are_you_sure": "本当によろしいですか？",
+		"confirm_message": "パスワードを入力して月次リセットを確認してください。",
+		"password": "パスワード",
+		"submit": "送信",
+		"incorrect_password": "パスワードが正しくありません",
+		"error_password_verification": "パスワード確認エラー",
+		"resetting": "リセット中...",
+		"monthly_reset_completed": "月次リセット完了",
+		"data_has_been_reset": "データがリセットされました",
+		"failed_to_reset": "リセットに失敗しました",
+		"failed_to_insert_history": "履歴の挿入に失敗しました",
+		"error": "エラー"
 	}
 }

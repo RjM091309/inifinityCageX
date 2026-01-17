@@ -3,6 +3,7 @@
 	"flag": "flag",
 	"dashboard": {
 		"house_balance": "House Balance",
+		"cash_balance": "Cash Balance",
 		"cc_chips": "CC Chips",
 		"nn_chips": "NN Chips",
 		"total_chips": "Total Chips",
@@ -11,6 +12,8 @@
 		"guest_credit": "Guest Credit",
 		"commission": "Commission",
 		"win_loss": "Win | Loss",
+		"positive": "Positive",
+		"negative": "Negative",
 		"total_rolling": "Total Rolling",
 		"house_rolling": "House Rolling",
 		"activity_overview": "Activity Overview",
@@ -22,6 +25,7 @@
 		"accounts": "Accounts",
 		"view_details": "View Details",
 		"history": "History",
+		"add_view_history": "Add / View History",
 		"game_number": "GAME #",
 		"guest": "Guest",
 		"game_type": "Game Type",
@@ -62,7 +66,8 @@
 		"withdraw_from_account": "Withdraw from Account",
 		"no_recent_activity": "No recent activity.",
 		"week": "Week",
-		"vs_last_month": "vs last month"
+		"vs_last_month": "vs last month",
+		"cash_out": "Cash-Out"
 	},
 	"sidebar": {
 		"home": "Home",
@@ -810,17 +815,17 @@
 		"close": "Close"
 	},
 	"monthly_reset": {
-		"are_you_sure": "monthly_reset.are_you_sure",
-		"confirm_message": "monthly_reset.confirm_message",
-		"password": "monthly_reset.password",
-		"submit": "monthly_reset.submit",
-		"incorrect_password": "monthly_reset.incorrect_password",
-		"error_password_verification": "monthly_reset.error_password_verification",
-		"resetting": "monthly_reset.resetting",
-		"monthly_reset_completed": "monthly_reset.monthly_reset_completed",
-		"data_has_been_reset": "monthly_reset.data_has_been_reset",
-		"failed_to_reset": "monthly_reset.failed_to_reset",
-		"failed_to_insert_history": "monthly_reset.failed_to_insert_history",
-		"error": "monthly_reset.error"
+		"are_you_sure": "Are you sure?",
+		"confirm_message": "Please confirm the monthly reset by entering your password.",
+		"password": "Password",
+		"submit": "Submit",
+		"incorrect_password": "Incorrect password",
+		"error_password_verification": "Error verifying password",
+		"resetting": "Resetting...",
+		"monthly_reset_completed": "Monthly reset completed",
+		"data_has_been_reset": "Data has been reset",
+		"failed_to_reset": "Failed to reset",
+		"failed_to_insert_history": "Failed to insert history",
+		"error": "Error"
 	}
 }

@@ -762,7 +762,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                  <div class="row">
                                     <div class="col-6">
                                        <h5 class="mb-3">
-                                          House Balance
+                                          <%= __('dashboard.house_balance') %>
                                        </h5>
                                        <h2 class="counter mb-2" id="house-balance-value">₱
                                           <%- ( (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
@@ -785,7 +785,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     </div>
                                     <div class="col-6">
                                        <h5 class="mb-3">
-                                          Cash Balance
+                                          <%= __('dashboard.cash_balance') %>
                                        </h5>
                                        <h2 class="counter mb-2" id="cash-balance-value">₱
                                           <%- ( (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
@@ -818,7 +818,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                  <a href="#" class="mt-4 btn btn-primary d-block rounded " data-bs-toggle="modal"
                                     data-bs-target="#modal-new-capital">
-                                   Add / View History
+                                   <%= __('dashboard.add_view_history') %>
                                  </a>
                                
                                  <div class="mt-3">
@@ -842,7 +842,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                           class="d-flex align-items-center justify-content-between mb-2 cursor-pointer"
                                           data-bs-target="#modal-Cash-Out" data-bs-toggle="modal">
                                           <p class="mb-0">
-                                            Cash-Out
+                                            <%= __('dashboard.cash_out') %>
                                           </p>
                                           <h6 id="cash-out-total">₱0</h6>
                                        </div>
@@ -896,6 +896,8 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                              ₱ <span class="text-muted">Loading...</span>
                                           </h4>
                                           <span id="winloss-trend" class="badge trend-indicator"
+                                             data-positive="<%= __('dashboard.positive') %>"
+                                             data-negative="<%= __('dashboard.negative') %>"
                                              style="margin-left: 10px;"></span>
                                        </div>
 

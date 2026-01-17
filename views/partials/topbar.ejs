@@ -67,86 +67,122 @@
                 en: 'en_flag.jpg',   // Para sa US/English flag
                 ja: 'jp_circle.png'   // Para sa Japanese flag
               };
+              const langNames = {
+                ko: __('topbar.kr'),
+                ja: __('topbar.jp'),
+                en: __('topbar.us'),
+                zh: __('topbar.zh')
+              };
               %>
-              <a href="#" class="search-toggle nav-link" id="dropdownMenuButton2" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <a href="#" class="search-toggle nav-link d-flex align-items-center" id="dropdownMenuButton2" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="padding: 6px 12px; border-radius: 20px; transition: all 0.3s ease; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <img 
                 src="/login/images/flags/<%= flagImages[currentLang] %>"  
                   class="img-fluid rounded-circle" 
                   alt="Current Language" 
-                  style="height: 30px; min-width: 30px; width: 30px;"
+                  style="height: 28px; min-width: 28px; width: 28px; object-fit: cover; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 2px 8px rgba(0,0,0,0.2);"
                 >
-                <span class="bg-primary"></span>
+                <span class="ms-2 text-white fw-semibold d-none d-md-inline" style="font-size: 14px;"><%= langNames[currentLang] %></span>
+                <svg class="ms-1 d-none d-md-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: brightness(0) invert(1);">
+                  <path d="M7 10L12 15L17 10H7Z" fill="currentColor"/>
+                </svg>
               </a>
             
-              <div class="p-0 sub-drop dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton2">
-                <div class="m-0 border-0 shadow-none rounded card">
-                  <div class="p-0">
-                    <ul class="p-0 list-group list-group-flush">
-                      <!-- Korean -->
-                      <li class="iq-sub-card list-group-item">
-                        <a 
-                          class="p-0 d-flex justify-content-start d-flex align-items-center" 
-                          href="/change-lang?lang=ko"
-                        >
-                          <img 
-                            src="/login/images/flags/kr_flag.png" 
-                            alt="Korean Flag" 
-                            class="img-fluid me-2" 
-                            style="width: 15px;height: 35px;min-width: 30px;"
-                          />
-                          <%= __('topbar.kr') %>
-                        </a>
-                      </li>
+              <div class="sub-drop dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton2" style="min-width: 220px; border: none; box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08); border-radius: 16px; padding: 8px; background: #ffffff; margin-top: 8px;">
+                <div class="px-2 py-1 mb-2" style="border-bottom: 1px solid #f0f0f0;">
+                  <span class="text-muted small fw-semibold" style="text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px;">Select Language</span>
+                </div>
+                <div class="d-flex flex-column gap-1">
+                  <!-- Korean -->
+                  <a 
+                    class="lang-option d-flex align-items-center text-decoration-none rounded-lg" 
+                    href="/change-lang?lang=ko"
+                    style="padding: 12px 14px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color: #2d3748; background: #f7fafc; border: 1px solid transparent;"
+                    onmouseover="this.style.background='linear-gradient(135deg, #667eea15 0%, #764ba215 100%)'; this.style.borderColor='#667eea40'; this.style.transform='translateX(4px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';"
+                    onmouseout="this.style.background='#f7fafc'; this.style.borderColor='transparent'; this.style.transform='translateX(0)'; this.style.boxShadow='none';"
+                  >
+                    <div class="flag-wrapper d-flex align-items-center justify-content-center" style="width: 40px; height: 30px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; overflow: hidden;">
+                      <img 
+                        src="/login/images/flags/kr_flag.png" 
+                        alt="Korean Flag" 
+                        class="img-fluid" 
+                        style="width: 100%; height: 100%; object-fit: cover;"
+                      />
+                    </div>
+                    <div class="ms-3 flex-grow-1">
+                      <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.kr') %></div>
+                      <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">한국어</div>
+                    </div>
+                    <span class="badge rounded-pill" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Kr</span>
+                  </a>
             
-                      <!-- Japanese -->
-                      <li class="iq-sub-card list-group-item">
-                        <a 
-                          class="p-0 d-flex justify-content-start d-flex align-items-center" 
-                          href="/change-lang?lang=ja"
-                        >
-                          <img 
-                            src="/login/images/flags/jpan_flag.png" 
-                            alt="Japanese Flag" 
-                            class="img-fluid me-2" 
-                            style="width: 15px;height: 35px;min-width: 30px;"
-                          />
-                          <%= __('topbar.jp') %>
-                        </a>
-                      </li>
+                  <!-- Japanese -->
+                  <a 
+                    class="lang-option d-flex align-items-center text-decoration-none rounded-lg" 
+                    href="/change-lang?lang=ja"
+                    style="padding: 12px 14px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color: #2d3748; background: #f7fafc; border: 1px solid transparent;"
+                    onmouseover="this.style.background='linear-gradient(135deg, #667eea15 0%, #764ba215 100%)'; this.style.borderColor='#667eea40'; this.style.transform='translateX(4px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';"
+                    onmouseout="this.style.background='#f7fafc'; this.style.borderColor='transparent'; this.style.transform='translateX(0)'; this.style.boxShadow='none';"
+                  >
+                    <div class="flag-wrapper d-flex align-items-center justify-content-center" style="width: 40px; height: 30px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; overflow: hidden;">
+                      <img 
+                        src="/login/images/flags/jpan_flag.png" 
+                        alt="Japanese Flag" 
+                        class="img-fluid" 
+                        style="width: 100%; height: 100%; object-fit: cover;"
+                      />
+                    </div>
+                    <div class="ms-3 flex-grow-1">
+                      <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.jp') %></div>
+                      <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">日本語</div>
+                    </div>
+                    <span class="badge rounded-pill" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Jp</span>
+                  </a>
             
-                      <!-- English -->
-                      <li class="iq-sub-card list-group-item">
-                        <a 
-                          class="p-0 d-flex justify-content-start d-flex align-items-center" 
-                          href="/change-lang?lang=en"
-                        >
-                          <img 
-                            src="/login/images/flags/en_flag.jpg" 
-                            alt="English Flag" 
-                            class="img-fluid me-2" 
-                            style="width: 15px;height: 20px;min-width: 30px;"
-                          />
-                          <%= __('topbar.us') %>
-                        </a>
-                      </li>
+                  <!-- English -->
+                  <a 
+                    class="lang-option d-flex align-items-center text-decoration-none rounded-lg" 
+                    href="/change-lang?lang=en"
+                    style="padding: 12px 14px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color: #2d3748; background: #f7fafc; border: 1px solid transparent;"
+                    onmouseover="this.style.background='linear-gradient(135deg, #667eea15 0%, #764ba215 100%)'; this.style.borderColor='#667eea40'; this.style.transform='translateX(4px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';"
+                    onmouseout="this.style.background='#f7fafc'; this.style.borderColor='transparent'; this.style.transform='translateX(0)'; this.style.boxShadow='none';"
+                  >
+                    <div class="flag-wrapper d-flex align-items-center justify-content-center" style="width: 40px; height: 30px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; overflow: hidden;">
+                      <img 
+                        src="/login/images/flags/en_flag.jpg" 
+                        alt="English Flag" 
+                        class="img-fluid" 
+                        style="width: 100%; height: 100%; object-fit: cover;"
+                      />
+                    </div>
+                    <div class="ms-3 flex-grow-1">
+                      <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.us') %></div>
+                      <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">English</div>
+                    </div>
+                    <span class="badge rounded-pill" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Us</span>
+                  </a>
             
-                      <!-- Chinese -->
-                      <li class="iq-sub-card list-group-item">
-                        <a 
-                          class="p-0 d-flex justify-content-start d-flex align-items-center" 
-                          href="/change-lang?lang=zh"
-                        >
-                          <img 
-                            src="/login/images/flags/zh_flag.jpg" 
-                            alt="Chinese Flag" 
-                            class="img-fluid me-2" 
-                            style="width: 15px;height: 20px;min-width: 30px;"
-                          />
-                          <%= __('topbar.zh') %>
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
+                  <!-- Chinese -->
+                  <a 
+                    class="lang-option d-flex align-items-center text-decoration-none rounded-lg" 
+                    href="/change-lang?lang=zh"
+                    style="padding: 12px 14px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); color: #2d3748; background: #f7fafc; border: 1px solid transparent;"
+                    onmouseover="this.style.background='linear-gradient(135deg, #667eea15 0%, #764ba215 100%)'; this.style.borderColor='#667eea40'; this.style.transform='translateX(4px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)';"
+                    onmouseout="this.style.background='#f7fafc'; this.style.borderColor='transparent'; this.style.transform='translateX(0)'; this.style.boxShadow='none';"
+                  >
+                    <div class="flag-wrapper d-flex align-items-center justify-content-center" style="width: 40px; height: 30px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; overflow: hidden;">
+                      <img 
+                        src="/login/images/flags/zh_flag.jpg" 
+                        alt="Chinese Flag" 
+                        class="img-fluid" 
+                        style="width: 100%; height: 100%; object-fit: cover;"
+                      />
+                    </div>
+                    <div class="ms-3 flex-grow-1">
+                      <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.zh') %></div>
+                      <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">中文</div>
+                    </div>
+                    <span class="badge rounded-pill" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Zh</span>
+                  </a>
                 </div>
               </div>
             </li>
