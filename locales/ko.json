@@ -37,7 +37,8 @@
 		"Weekly": "dashboard.Weekly",
 		"Monthly": "dashboard.Monthly",
 		"Yearly": "dashboard.Yearly",
-		"last_week": "dashboard.last_week"
+		"last_week": "dashboard.last_week",
+		"cashout": "dashboard.cashout"
 	},
 	"sidebar": {
 		"home": "홈",

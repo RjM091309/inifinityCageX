@@ -37,7 +37,8 @@
 		"Weekly": "Weekly",
 		"Monthly": "Monthly",
 		"Yearly": "Yearly",
-		"last_week": "dashboard.last_week"
+		"last_week": "dashboard.last_week",
+		"cashout": "dashboard.cashout"
 	},
 	"sidebar": {
 		"home": "Home",
@@ -143,7 +144,7 @@
 		"profile": "Profile",
 		"privacy_settings": "Privacy Settings",
 		"logout": "Logout",
-		"welcome_to_the_cage_system_demo": "Welcome to the Cage System Demo!",
+		"welcome_to_the_cage_system_demo": "Welcome to the Infinity CageX!",
 		"manage_transactions_track_funds_and_ensure_seamless_operations_with_our_advanced_cage_system": "Manage transactions, track funds, and ensure seamless operations with our advanced cage system.",
 		"announcements": "Announcements",
 		"kr": "Kr",
