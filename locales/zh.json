@@ -193,10 +193,10 @@
 		"acct_no": "ACCT 编号",
 		"initial_buyin": "初始买入",
 		"addt_l_buyin": "加注",
+		"cash_out": "现金出账",
 		"total_amt": "总 AMT",
 		"real_rolling": "真实滚动",
 		"total_rolling": "总滚动",
-		"chips_return": "筹码归还",
 		"game_rate": "游戏速率",
 		"commission": "委员会",
 		"win_loss": "赢/输",
@@ -204,7 +204,8 @@
 		"game_end": "游戏结束",
 		"history": "行动",
 		"grand_total": "总计",
-		"action": "gamelist.action"
+		"action": "行动",
+		"buyin": "买入"
 	},
 	"house_expense": {
 		"junket": "接待",
@@ -479,16 +480,17 @@
 		"close": "关闭"
 	},
 	"modal_show_rolling": {
-		"account_details": "账户详情",
 		"date": "日期",
 		"buyin": "买入",
+		"additional_buyin": "额外买入",
 		"cash_out": "现金出账",
 		"real_rolling": "真实滚动",
 		"total_rolling": "总滚动",
 		"nn": "NN",
 		"cc": "CC",
 		"action": "操作",
-		"close": "关闭"
+		"close": "关闭",
+		"title": "游戏记录历史"
 	},
 	"modal_settlement": {
 		"settlement": "结算",

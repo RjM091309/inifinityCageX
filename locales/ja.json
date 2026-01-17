@@ -192,17 +192,18 @@
 		"acct_no": "口座番号",
 		"initial_buyin": "初回投資",
 		"addt_l_buyin": "追加購入",
+		"cash_out": "キャッシュアウト",
 		"total_amt": "合計金額",
 		"real_rolling": "リアルローリング",
 		"total_rolling": "トータルロール",
-		"chips_return": "チップの返却",
 		"game_rate": "ゲームレート",
 		"commission": "委員会",
 		"win_loss": "勝利/敗北",
 		"game_source": "ゲームソース",
 		"game_end": "ゲーム終了",
 		"action": "アクション",
-		"grand_total": "合計"
+		"grand_total": "合計",
+		"buyin": "バイイン"
 	},
 	"house_expense": {
 		"junket": "ジャンケット",
@@ -477,16 +478,17 @@
 		"close": "閉じる"
 	},
 	"modal_show_rolling": {
-		"account_details": "アカウント詳細",
 		"date": "日付",
 		"buyin": "バイイン",
+		"additional_buyin": "追加バイイン",
 		"cash_out": "キャッシュアウト",
 		"real_rolling": "リアルローリング",
 		"total_rolling": "トータルローリング",
 		"nn": "NN",
 		"cc": "CC",
 		"action": "アクション",
-		"close": "閉じる"
+		"close": "閉じる",
+		"title": "ゲーム記録履歴"
 	},
 	"modal_settlement": {
 		"settlement": "定住",
