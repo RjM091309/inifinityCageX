@@ -799,6 +799,42 @@ router.get('/junket_capital_data', async (req, res) => {
 	}
 });
 
+// GET CC CHIPS HISTORY
+router.get('/cc_chips_history', async (req, res) => {
+	try {
+		const { start_date, end_date } = req.query;
+
+		if (!start_date || !end_date) {
+			return res.status(400).json({ error: 'start_date and end_date are required' });
+		}
+
+		// Query specifically for CC chips buy-in and return from junket_total_chips
+		const query = `
+			SELECT 
+				j.IDNo,
+				j.TRANSACTION_ID,
+				j.CC_CHIPS,
+				j.DESCRIPTION AS capital_description,
+				j.ENCODED_DT,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM junket_total_chips j
+			LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
+			WHERE j.ACTIVE = 1 
+				AND j.TRANSACTION_ID IN (1, 2)
+				AND j.CC_CHIPS > 0
+				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
+			ORDER BY j.ENCODED_DT DESC
+		`;
+
+		const [results] = await pool.execute(query, [start_date, end_date]);
+
+		res.json(results);
+	} catch (err) {
+		console.error('Error executing CC chips history query:', err);
+		res.status(500).json({ error: 'Database error' });
+	}
+});
+
 
 
 // EDIT JUNKET CAPITAL
@@ -901,115 +937,7 @@ router.post('/add_junket_total_chips', async (req, res) => {
 	}
 });
 
-// ADD JUNKET CC CHIPS
-router.post('/add_cc_chips', async (req, res) => {
-	const { txtCCChips, optBuyinReturn } = req.body;
-	let date_now = new Date();
 
-	let ccdescription;
-	if (optBuyinReturn === '1') {
-		ccdescription = 'ADD';
-	} else if (optBuyinReturn === '2') {
-		ccdescription = 'DEDUCT';
-	} else {
-		return res.status(400).send('Invalid transaction type');
-	}
-
-	const ccChipsStr = txtCCChips.replace(/,/g, ''); // Remove commas
-	const ccChips = isNaN(parseFloat(ccChipsStr)) ? 0 : parseFloat(ccChipsStr);
-
-	const totalChips = ccChips;
-
-	const query = `INSERT INTO junket_chips(TRANSACTION_ID, DESCRIPTION, CC_CHIPS, TOTAL_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?)`;
-	try {
-		await pool.execute(query, [optBuyinReturn, ccdescription, ccChips, totalChips, req.session.user_id, date_now]);
-		res.redirect('/dashboard');
-	} catch (err) {
-		console.error('Error inserting junket CC chips', err);
-		res.status(500).send('Error inserting junket CC chips');
-	}
-});
-
-// GET JUNKET CC CHIPS
-router.get('/get_cc_chips', async (req, res) => {
-	const query = `
-        SELECT 
-    jtc.DESCRIPTION,  
-    jtc.CC_CHIPS,  
-    jtc.ENCODED_DT,
-    ui.FIRSTNAME
-FROM 
-    junket_chips AS jtc
-JOIN 
-    user_info AS ui 
-ON 
-    ui.IDNo = jtc.ENCODED_BY
-WHERE 
-    jtc.CC_CHIPS IS NOT NULL AND jtc.CC_CHIPS <> ''`;
-
-	try {
-		const [results] = await pool.execute(query);
-		res.json(results);
-	} catch (err) {
-		console.error('Error fetching data:', err);
-		return res.status(500).json({ error: 'Error fetching data' });
-	}
-});
-
-// ADD JUNKET NN CHIPS
-router.post('/add_nn_chips', async (req, res) => {
-	const { txtNNChips, optBuyinReturn } = req.body;
-	let date_now = new Date();
-
-	let nndescription;
-	if (optBuyinReturn === '1') {
-		nndescription = 'ADD';
-	} else if (optBuyinReturn === '2') {
-		nndescription = 'DEDUCT';
-	} else {
-		return res.status(400).send('Invalid transaction type');
-	}
-
-	const nnChipsStr = txtNNChips.replace(/,/g, ''); // Remove commas
-	const nnChips = isNaN(parseFloat(nnChipsStr)) ? 0 : parseFloat(nnChipsStr);
-
-	const totalChips = nnChips;
-
-	const query = `INSERT INTO junket_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, TOTAL_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?)`;
-	try {
-		await pool.execute(query, [optBuyinReturn, nndescription, nnChips, totalChips, req.session.user_id, date_now]);
-		res.redirect('/dashboard');
-	} catch (err) {
-		console.error('Error inserting junket NN chips', err);
-		res.status(500).send('Error inserting junket NN chips');
-	}
-});
-
-// GET JUNKET NN CHIPS
-router.get('/get_nn_chips', async (req, res) => {
-	const query = `
-        SELECT 
-    jtc.DESCRIPTION,  
-    jtc.NN_CHIPS,  
-    jtc.ENCODED_DT,
-    ui.FIRSTNAME
-FROM 
-    junket_chips AS jtc
-JOIN 
-    user_info AS ui 
-ON 
-    ui.IDNo = jtc.ENCODED_BY
-WHERE 
-    jtc.NN_CHIPS IS NOT NULL AND jtc.NN_CHIPS <> ''`;
-
-	try {
-		const [results] = await pool.execute(query);
-		res.json(results);
-	} catch (err) {
-		console.error('Error fetching data:', err);
-		return res.status(500).json({ error: 'Error fetching data' });
-	}
-});
 
 // END JUNKET TOTAL CHIPS
 

@@ -327,6 +327,10 @@ function capital_category() {
     });
 }
 
+// Counter para i-track kung ilan na ang naka-load na totals
+let loadedTotalsCount = 0;
+const totalComputationCount = 3; // Cash-In, Cash-Out, Chips Transaction
+
 function computeTotalCashIn() {
     // Use current month as the default date range
     const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
@@ -349,10 +353,62 @@ function computeTotalCashIn() {
             
             $('#cash-in-total').text(`₱${totalCashIn.toLocaleString()}`);
             console.log('Updated total cash-in:', totalCashIn);
+            loadedTotalsCount++;
+            if (loadedTotalsCount >= totalComputationCount) {
+                updateProgressBars(); // Update progress bars only after all totals are loaded
+                loadedTotalsCount = 0; // Reset counter for next update cycle
+            }
         },
         error: function(xhr, status, error) {
             console.error('Error fetching total cash:', error);
             $('#cash-in-total').text('₱0');
+            loadedTotalsCount++;
+            if (loadedTotalsCount >= totalComputationCount) {
+                updateProgressBars();
+                loadedTotalsCount = 0;
+            }
+        }
+    });
+}
+
+function computeTotalCashOut() {
+    // Use current month as the default date range
+    const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
+    const currentDate  = moment().format('YYYY-MM-DD');
+
+    $.ajax({
+        url: `/junket_capital_data?start_date=${startOfMonth}&end_date=${currentDate}&` + new Date().getTime(),
+        type: "GET",
+        success: function (data) {
+            let totalCashOut = 0;
+            
+            data.forEach(row => {
+                // CASH-OUT: TRANSACTION_ID must equal 2 and capital_description must be exactly "<span class="css-blue">Cash-out</span>"
+                // Also check if TRANSACTION_ID == 1 with Cash-out description as fallback
+                const isCashOut = (row.TRANSACTION_ID == 2 && row.capital_description === '<span class="css-blue">Cash-out</span>') ||
+                                  (row.TRANSACTION_ID == 1 && row.capital_description === '<span class="css-blue">Cash-out</span>');
+                
+                if (isCashOut) {
+                    totalCashOut += parseFloat(row.capital_amount || 0);
+                }
+            });
+            
+            $('#cash-out-total').text(`₱${totalCashOut.toLocaleString()}`);
+            console.log('Updated total cash-out:', totalCashOut);
+            loadedTotalsCount++;
+            if (loadedTotalsCount >= totalComputationCount) {
+                updateProgressBars(); // Update progress bars only after all totals are loaded
+                loadedTotalsCount = 0; // Reset counter for next update cycle
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching total cash-out:', error);
+            $('#cash-out-total').text('₱0');
+            loadedTotalsCount++;
+            if (loadedTotalsCount >= totalComputationCount) {
+                updateProgressBars();
+                loadedTotalsCount = 0;
+            }
         }
     });
 }
@@ -387,7 +443,7 @@ function loadCashInData() {
     }
 
     $('#cash-in-tbl').DataTable({
-        "processing": true,
+        "processing": false, // Disable processing message to prevent flicker
         "serverSide": false,
         "order": [[4, 'desc']],
        "ajax": {
@@ -445,6 +501,90 @@ function loadCashInData() {
     });
 }
 
+function loadCashOutData() {
+    const dateRange = $('#cashout-daterange').val();
+    console.log('Cash-Out Date Range:', dateRange);
+
+    if (!dateRange) {
+        alert('Please select a date range.');
+        return;
+    }
+
+    let startDate, endDate;
+    if (dateRange.indexOf(" to ") > -1) {
+        [startDate, endDate] = dateRange.split(" to ");
+    } else {
+        startDate = dateRange;
+        endDate = dateRange;
+    }
+    console.log('Cash-Out Start Date:', startDate, 'End Date:', endDate);
+
+    // I-destroy ang DataTable kung ito ay naka-instantiate na
+    if ($.fn.DataTable.isDataTable('#cash-out-tbl')) {
+        $('#cash-out-tbl').DataTable().destroy();
+    }
+
+    $('#cash-out-tbl').DataTable({
+        "processing": false, // Disable processing message to prevent flicker
+        "serverSide": false,
+        "order": [[4, 'desc']],
+       "ajax": {
+        "url": `/junket_capital_data?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
+        "type": "GET",
+        "dataSrc": function(json) {
+            console.log('Raw Cash-Out Data:', json);
+
+            if (!Array.isArray(json)) {
+                console.error('Expected array but got:', json);
+                return [];
+            }
+            
+            // Filter only rows that are Cash-Out transactions
+            const filteredData = json.filter(row => {
+                const isCashOut = (row.TRANSACTION_ID == 2 && row.capital_description === '<span class="css-blue">Cash-out</span>') ||
+                                  (row.TRANSACTION_ID == 1 && row.capital_description === '<span class="css-blue">Cash-out</span>');
+                return isCashOut;
+            }).map(function(row) {
+                // Since we only expect Cash-Out transactions, we can directly set the type and amount
+                const isCashOut = (row.TRANSACTION_ID == 2 && row.capital_description === '<span class="css-blue">Cash-out</span>') ||
+                                  (row.TRANSACTION_ID == 1 && row.capital_description === '<span class="css-blue">Cash-out</span>');
+                
+                let amount = parseFloat(row.capital_amount || 0).toLocaleString();
+                let type   = '<span class="css-yellow">CASH-OUT</span>';
+
+                return [
+                    row.ENCODED_BY_NAME || 'N/A',
+                    amount,
+                    type,
+                    row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
+                    moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+                    getActionButton(row.IDNo)
+                ];
+            });
+
+            console.log('Filtered Cash-Out Data:', filteredData);
+            return filteredData;
+        }
+    },
+        "columns": [
+            { "className": "text-center" },
+            { "className": "text-end" },
+            { "className": "text-center" },
+            { "className": "text-center" },
+            { "className": "text-center" },
+            { "className": "text-center", "orderable": false }
+        ],
+        "responsive": true,
+        "language": {
+            "emptyTable": "No cash-out transactions found",
+            "processing": "Loading cash-out transactions..."
+        },
+        "drawCallback": function(settings) {
+            $('[data-bs-toggle="tooltip"]').tooltip();
+        }
+    });
+}
+
 function chipsTransactionComputation() {
     // Use current month as the default date range
     const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
@@ -476,11 +616,77 @@ function chipsTransactionComputation() {
             const netChips = totalChipsBuyIn - totalChipsReturn;
             $('#chips-transaction-total').text(`₱${netChips.toLocaleString()}`);
             console.log('Updated net chips (Buy-in minus Return):', netChips);
+            loadedTotalsCount++;
+            if (loadedTotalsCount >= totalComputationCount) {
+                updateProgressBars(); // Update progress bars only after all totals are loaded
+                loadedTotalsCount = 0; // Reset counter for next update cycle
+            }
         },
         error: function(xhr, status, error) {
             console.error('Error fetching chips transaction total:', error);
             $('#chips-transaction-total').text('₱0');
+            loadedTotalsCount++;
+            if (loadedTotalsCount >= totalComputationCount) {
+                updateProgressBars();
+                loadedTotalsCount = 0;
+            }
         }
+    });
+}
+
+/**
+ * Function para mag-update ng progress bars based sa totals
+ * Cash-In and Chips Transaction: Compute percentage based sa maximum value among them
+ * Cash-Out: Compute percentage based sa Cash-In total
+ */
+function updateProgressBars() {
+    // Get current totals from the displayed text (remove currency symbol, spaces, newlines, and parse)
+    const cashInText = $('#cash-in-total').text().replace(/[₱,\s]/g, '').trim();
+    const cashOutText = $('#cash-out-total').text().replace(/[₱,\s]/g, '').trim();
+    const chipsText = $('#chips-transaction-total').text().replace(/[₱,\s]/g, '').trim();
+    
+    const cashIn = parseFloat(cashInText) || 0;
+    const cashOut = parseFloat(cashOutText) || 0;
+    const chips = parseFloat(chipsText) || 0;
+    
+    // For Cash-In and Chips Transaction: Calculate maximum value among them for reference (100%)
+    const maxValueForCashInChips = Math.max(cashIn, Math.abs(chips), 1); // Use 1 as minimum to avoid division by zero
+    
+    // Calculate percentages (cap at 100%)
+    const cashInPercent = Math.min((cashIn / maxValueForCashInChips) * 100, 100);
+    const chipsPercent = Math.min((Math.abs(chips) / maxValueForCashInChips) * 100, 100); // Use absolute value for chips
+    
+    // For Cash-Out: Calculate percentage based sa Cash-In total
+    const cashInMax = Math.abs(cashIn) || 1; // Use Cash-In as max, minimum 1 to avoid division by zero
+    const cashOutPercent = Math.min((Math.abs(cashOut) / cashInMax) * 100, 100);
+    
+    // Update Cash-In progress bar
+    const cashInProgressBar = $('#cash-in-total').closest('.pb-3').find('.progress-bar');
+    if (cashInProgressBar.length) {
+        cashInProgressBar.css('width', cashInPercent + '%');
+        cashInProgressBar.attr('aria-valuenow', Math.round(cashInPercent));
+    }
+    
+    // Update Cash-Out progress bar (based on House Balance)
+    const cashOutProgressBar = $('#cash-out-total').closest('.pb-3').find('.progress-bar');
+    if (cashOutProgressBar.length) {
+        cashOutProgressBar.css('width', cashOutPercent + '%');
+        cashOutProgressBar.attr('aria-valuenow', Math.round(cashOutPercent));
+    }
+    
+    // Update Chips Transaction progress bar
+    const chipsProgressBar = $('#chips-transaction-total').closest('.pb-3').find('.progress-bar');
+    if (chipsProgressBar.length) {
+        chipsProgressBar.css('width', chipsPercent + '%');
+        chipsProgressBar.attr('aria-valuenow', Math.round(chipsPercent));
+    }
+    
+    console.log('Progress bars updated:', {
+        cashIn: cashInPercent.toFixed(2) + '%',
+        cashOut: cashOutPercent.toFixed(2) + '% (based on Cash-In: ' + cashInMax.toLocaleString() + ')',
+        chips: chipsPercent.toFixed(2) + '%',
+        maxValueForCashInChips: maxValueForCashInChips,
+        cashInMax: cashInMax
     });
 }
 
@@ -511,7 +717,7 @@ function loadChipsTransaction() {
 
     // Initialize DataTable on the chips transaction table.
     $('#chips_transaction-tbl').DataTable({
-        processing: true,
+        processing: false, // Disable processing message to prevent flicker
         serverSide: false, // Adjust if server-side processing is needed.
         ajax: {
             url: `/junket_capital_data?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
@@ -573,6 +779,8 @@ function loadChipsTransaction() {
 
 
 $(document).ready(function() {
+    let chipsTransactionPicker = null;
+    
     $('#modal-Transaction').on('shown.bs.modal', function () {
         console.log('Modal shown'); // Debug log
         
@@ -582,21 +790,23 @@ $(document).ready(function() {
         
         // Check if the transaction-daterange element exists
         if ($('#transaction-daterange').length > 0) {
-            // Initialize Flatpickr for the transaction-daterange input
-            const picker = flatpickr("#transaction-daterange", {
-                mode: "range",
-                altInput: true,
-                altFormat: "M d, Y",
-                dateFormat: "Y-m-d",
-                defaultDate: [startOfMonth, currentDate],
-                showMonths: 2,
-                onChange: function(selectedDates, dateStr) {
-                    console.log('Date changed:', dateStr); // Debug log
-                    if (selectedDates.length === 2) {
-                        loadChipsTransaction();
+            // Initialize Flatpickr only if not already initialized
+            if (!chipsTransactionPicker || !$('#transaction-daterange').hasClass('flatpickr-input')) {
+                chipsTransactionPicker = flatpickr("#transaction-daterange", {
+                    mode: "range",
+                    altInput: true,
+                    altFormat: "M d, Y",
+                    dateFormat: "Y-m-d",
+                    defaultDate: [startOfMonth, currentDate],
+                    showMonths: 2,
+                    onChange: function(selectedDates, dateStr) {
+                        console.log('Date changed:', dateStr); // Debug log
+                        if (selectedDates.length === 2) {
+                            loadChipsTransaction();
+                        }
                     }
-                }
-            });
+                });
+            }
             
             // Initial load of chips transaction data
             loadChipsTransaction();
@@ -610,33 +820,256 @@ $(document).ready(function() {
 
 // Update the modal initialization
 $(document).ready(function() {
+    let cashInPicker = null;
+    
     $('#modal-Cash-In').on('shown.bs.modal', function () {
         console.log('Modal shown'); // Debug log
         
-        // Initialize Flatpickr
+        // Initialize Flatpickr only if not already initialized
         const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
         const currentDate = moment().format('YYYY-MM-DD');
         
         if ($('#daterange').length > 0) {
-            const picker = flatpickr("#daterange", {
-                mode: "range",
-                altInput: true,
-                altFormat: "M d, Y",
-                dateFormat: "Y-m-d",
-                defaultDate: [startOfMonth, currentDate],
-                showMonths: 2,
-                onChange: function(selectedDates, dateStr) {
-                    console.log('Date changed:', dateStr); // Debug log
-                    if (selectedDates.length === 2) {
-                        loadCashInData();
+            // Check if Flatpickr is already initialized
+            if (!cashInPicker || !$('#daterange').hasClass('flatpickr-input')) {
+                cashInPicker = flatpickr("#daterange", {
+                    mode: "range",
+                    altInput: true,
+                    altFormat: "M d, Y",
+                    dateFormat: "Y-m-d",
+                    defaultDate: [startOfMonth, currentDate],
+                    showMonths: 2,
+                    onChange: function(selectedDates, dateStr) {
+                        console.log('Date changed:', dateStr); // Debug log
+                        if (selectedDates.length === 2) {
+                            loadCashInData();
+                        }
                     }
-                }
-            });
+                });
+            }
             
             // Initial load of data
             loadCashInData();
         } else {
             console.error('daterange element not found'); // Debug log
+        }
+    });
+});
+
+// NN CHIPS HISTORY
+function loadNNChipsHistory() {
+    const dateRange = $('#nnchips-daterange').val();
+    console.log('NN Chips History Date Range:', dateRange);
+
+    if (!dateRange) {
+        alert('Please select a date range.');
+        return;
+    }
+
+    let startDate, endDate;
+    if (dateRange.indexOf(" to ") > -1) {
+        [startDate, endDate] = dateRange.split(" to ");
+    } else {
+        startDate = dateRange;
+        endDate = dateRange;
+    }
+    console.log('NN Chips History Start Date:', startDate, 'End Date:', endDate);
+
+    // Destroy existing DataTable instance if it exists
+    if ($.fn.DataTable.isDataTable('#nn-chips-tbl')) {
+        $('#nn-chips-tbl').DataTable().destroy();
+    }
+
+    // Initialize DataTable on the NN chips history table
+    $('#nn-chips-tbl').DataTable({
+        processing: false, // Disable processing message to prevent flicker
+        serverSide: false,
+        order: [[4, 'desc']], // Sort by date descending
+        ajax: {
+            url: `/junket_capital_data?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
+            type: "GET",
+            dataSrc: function(json) {
+                console.log('Raw NN Chips History Data:', json);
+                
+                // Ensure the data is an array
+                if (!Array.isArray(json)) {
+                    console.error('Expected array but got:', json);
+                    return [];
+                }
+                
+                // Filter for NN Chips Buy-in or NN Chips Return and only those with NN_CHIPS > 0
+                const filteredData = json.filter(row => {
+                    const chipsBuyIn = row.TRANSACTION_ID == 1 &&
+                        row.capital_description === '<span class="css-red">Chips Buy-in</span>';
+                    const chipsReturn = row.TRANSACTION_ID == 2 &&
+                        row.capital_description === '<span class="css-red">Chips Return</span>';
+                    
+                    // Use only NN_CHIPS value. Exclude if NN_CHIPS is not greater than 0.
+                    const nnChips = parseFloat(row.NN_CHIPS) || 0;
+                    return (chipsBuyIn || chipsReturn) && nnChips > 0;
+                }).map(function(row) {
+                    const isChipsBuyIn = row.TRANSACTION_ID == 1 &&
+                        row.capital_description === '<span class="css-red">Chips Buy-in</span>';
+
+                    // Use NN_CHIPS exclusively
+                    const nnChips = parseFloat(row.NN_CHIPS) || 0;
+                    const amount = nnChips.toLocaleString();
+                    const type = isChipsBuyIn
+                        ? '<span class="css-red">NN Chips Buy-in</span>'
+                        : '<span class="css-blue">NN Chips Return</span>';
+
+                    return [
+                        row.ENCODED_BY_NAME || 'N/A',
+                        amount,
+                        type,
+                        row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
+                        moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+                        getActionButton(row.IDNo)
+                    ];
+                });
+
+                console.log('Filtered NN Chips History Data:', filteredData);
+                return filteredData;
+            }
+        },
+        columns: [
+            { "className": "text-center" },
+            { "className": "text-end" },
+            { "className": "text-center" },
+            { "className": "text-center" },
+            { "className": "text-center" },
+            { "className": "text-center", "orderable": false }
+        ],
+        responsive: true,
+        language: {
+            "emptyTable": "No NN chips transactions found",
+            "processing": "Loading NN chips transactions..."
+        },
+        drawCallback: function(settings) {
+            $('[data-bs-toggle="tooltip"]').tooltip();
+        }
+    });
+}
+
+// CC CHIPS HISTORY
+function loadCCChipsHistory() {
+    const dateRange = $('#ccchips-daterange').val();
+    console.log('CC Chips History Date Range:', dateRange);
+
+    if (!dateRange) {
+        alert('Please select a date range.');
+        return;
+    }
+
+    let startDate, endDate;
+    if (dateRange.indexOf(" to ") > -1) {
+        [startDate, endDate] = dateRange.split(" to ");
+    } else {
+        startDate = dateRange;
+        endDate = dateRange;
+    }
+    console.log('CC Chips History Start Date:', startDate, 'End Date:', endDate);
+
+    // Destroy existing DataTable instance if it exists
+    if ($.fn.DataTable.isDataTable('#cc-chips-tbl')) {
+        $('#cc-chips-tbl').DataTable().destroy();
+    }
+
+    // Initialize DataTable on the CC chips history table
+    $('#cc-chips-tbl').DataTable({
+        processing: false, // Disable processing message to prevent flicker
+        serverSide: false,
+        order: [[4, 'desc']], // Sort by date descending
+        ajax: {
+            url: `/cc_chips_history?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
+            type: "GET",
+            dataSrc: function(json) {
+                console.log('Raw CC Chips History Data:', json);
+                
+                // Ensure the data is an array
+                if (!Array.isArray(json)) {
+                    console.error('Expected array but got:', json);
+                    return [];
+                }
+                
+                // Map the data from the new endpoint
+                const filteredData = json.map(function(row) {
+                    const isChipsBuyIn = row.TRANSACTION_ID == 1;
+
+                    // Use CC_CHIPS exclusively
+                    const ccChips = parseFloat(row.CC_CHIPS) || 0;
+                    const amount = ccChips.toLocaleString();
+                    const type = isChipsBuyIn
+                        ? '<span class="css-red">CC Chips Buy-in</span>'
+                        : '<span class="css-blue">CC Chips Return</span>';
+
+                    return [
+                        row.ENCODED_BY_NAME || 'N/A',
+                        amount,
+                        type,
+                        '', // Empty remarks since junket_total_chips doesn't have REMARKS field
+                        moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+                        getActionButton(row.IDNo)
+                    ];
+                });
+
+                console.log('Filtered CC Chips History Data:', filteredData);
+                return filteredData;
+            }
+        },
+        columns: [
+            { "className": "text-center" },
+            { "className": "text-end" },
+            { "className": "text-center" },
+            { "className": "text-center" },
+            { "className": "text-center" },
+            { "className": "text-center", "orderable": false }
+        ],
+        responsive: true,
+        language: {
+            "emptyTable": "No CC chips transactions found",
+            "processing": "Loading CC chips transactions..."
+        },
+        drawCallback: function(settings) {
+            $('[data-bs-toggle="tooltip"]').tooltip();
+        }
+    });
+}
+
+// Update the modal initialization for Cash-Out
+$(document).ready(function() {
+    let cashOutPicker = null;
+    
+    $('#modal-Cash-Out').on('shown.bs.modal', function () {
+        console.log('Cash-Out Modal shown'); // Debug log
+        
+        // Initialize Flatpickr only if not already initialized
+        const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
+        const currentDate = moment().format('YYYY-MM-DD');
+        
+        if ($('#cashout-daterange').length > 0) {
+            // Check if Flatpickr is already initialized
+            if (!cashOutPicker || !$('#cashout-daterange').hasClass('flatpickr-input')) {
+                cashOutPicker = flatpickr("#cashout-daterange", {
+                    mode: "range",
+                    altInput: true,
+                    altFormat: "M d, Y",
+                    dateFormat: "Y-m-d",
+                    defaultDate: [startOfMonth, currentDate],
+                    showMonths: 2,
+                    onChange: function(selectedDates, dateStr) {
+                        console.log('Cash-Out Date changed:', dateStr); // Debug log
+                        if (selectedDates.length === 2) {
+                            loadCashOutData();
+                        }
+                    }
+                });
+            }
+            
+            // Initial load of data
+            loadCashOutData();
+        } else {
+            console.error('cashout-daterange element not found'); // Debug log
         }
     });
 });
@@ -785,11 +1218,16 @@ $(document).ready(function() {
         loadJunketExpenseData();
     });
 
+    // Initialize progress bars to 0% width on page load
+    $('#cash-in-total').closest('.pb-3').find('.progress-bar').css('width', '0%').attr('aria-valuenow', 0);
+    $('#cash-out-total').closest('.pb-3').find('.progress-bar').css('width', '0%').attr('aria-valuenow', 0);
+    $('#chips-transaction-total').closest('.pb-3').find('.progress-bar').css('width', '0%').attr('aria-valuenow', 0);
+    
+    // Reset counter for initial load
+    loadedTotalsCount = 0;
+    
     // Call computeTotalCashIn initially
     computeTotalCashIn();
-
-    // Set up an interval to refresh the total cash-in every minute
-    setInterval(computeTotalCashIn, 60000);
 
     // Add event listener for when the cash-in modal is hidden
     $('#modal-Cash-In').on('hidden.bs.modal', function () {
@@ -801,14 +1239,33 @@ $(document).ready(function() {
         computeTotalCashIn(); // Refresh the total when modal is opened
     });
 
+    // -----------------------------
+    // Cash-Out Computation
+    // -----------------------------
+    // Add event listener for when the cash-out modal is hidden
+    $('#modal-Cash-Out').on('hidden.bs.modal', function () {
+        computeTotalCashOut(); // Refresh the total when modal is closed
+    });
+
+    // Add event listener for when the cash-out modal is shown
+    $('#modal-Cash-Out').on('shown.bs.modal', function () {
+        computeTotalCashOut(); // Refresh the total when modal is opened
+    });
+    // Call computeTotalCashOut initially
+    computeTotalCashOut();
+
+    // Add event listener for when the capital modal is hidden (for cash-out)
+    $('#modal-new-capital').on('hidden.bs.modal', function () {
+        computeTotalCashOut(); // Refresh the total when modal is closed
+    });
+
+    // Add event listener for when the capital modal is shown
+    $('#modal-new-capital').on('shown.bs.modal', function () {
+        computeTotalCashOut(); // Refresh the total when modal is opened
+    });
+
     // Call fetchTotalJunketExpense initially
     fetchTotalJunketExpense();
-
-    // Set up an interval to refresh the totals every minute
-    setInterval(function() {
-        computeTotalCashIn();
-        fetchTotalJunketExpense();
-    }, 60000);
 
     // Add event listener for when the expenses modal is hidden
     $('#modal-Expenses').on('hidden.bs.modal', function () {
@@ -826,9 +1283,6 @@ $(document).ready(function() {
     // Call chipsTransactionComputation initially
     chipsTransactionComputation();
 
-    // Set up an interval to refresh the chips transaction computation every minute
-    setInterval(chipsTransactionComputation, 60000);
-
     // Add event listener for when the chips transaction modal is hidden
     $('#modal-Transaction').on('hidden.bs.modal', function () {
         chipsTransactionComputation(); // Refresh the chips transaction total when modal is closed
@@ -837,6 +1291,82 @@ $(document).ready(function() {
     // Add event listener for when the chips transaction modal is shown
     $('#modal-Transaction').on('shown.bs.modal', function () {
         chipsTransactionComputation(); // Refresh the chips transaction total when modal is opened
+    });
+
+    // -----------------------------
+    // NN Chips History Modal
+    // -----------------------------
+    let nnChipsPicker = null;
+    
+    $('#modal-new-nn-chips').on('shown.bs.modal', function () {
+        console.log('NN Chips History Modal shown'); // Debug log
+        
+        // Initialize Flatpickr only if not already initialized
+        const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
+        const currentDate = moment().format('YYYY-MM-DD');
+        
+        if ($('#nnchips-daterange').length > 0) {
+            // Check if Flatpickr is already initialized
+            if (!nnChipsPicker || !$('#nnchips-daterange').hasClass('flatpickr-input')) {
+                nnChipsPicker = flatpickr("#nnchips-daterange", {
+                    mode: "range",
+                    altInput: true,
+                    altFormat: "M d, Y",
+                    dateFormat: "Y-m-d",
+                    defaultDate: [startOfMonth, currentDate],
+                    showMonths: 2,
+                    onChange: function(selectedDates, dateStr) {
+                        console.log('NN Chips History Date changed:', dateStr); // Debug log
+                        if (selectedDates.length === 2) {
+                            loadNNChipsHistory();
+                        }
+                    }
+                });
+            }
+            
+            // Initial load of NN chips history data
+            loadNNChipsHistory();
+        } else {
+            console.error('nnchips-daterange element not found'); // Debug log
+        }
+    });
+
+    // -----------------------------
+    // CC Chips History Modal
+    // -----------------------------
+    let ccChipsPicker = null;
+    
+    $('#modal-new-cc-chips').on('shown.bs.modal', function () {
+        console.log('CC Chips History Modal shown'); // Debug log
+        
+        // Initialize Flatpickr only if not already initialized
+        const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
+        const currentDate = moment().format('YYYY-MM-DD');
+        
+        if ($('#ccchips-daterange').length > 0) {
+            // Check if Flatpickr is already initialized
+            if (!ccChipsPicker || !$('#ccchips-daterange').hasClass('flatpickr-input')) {
+                ccChipsPicker = flatpickr("#ccchips-daterange", {
+                    mode: "range",
+                    altInput: true,
+                    altFormat: "M d, Y",
+                    dateFormat: "Y-m-d",
+                    defaultDate: [startOfMonth, currentDate],
+                    showMonths: 2,
+                    onChange: function(selectedDates, dateStr) {
+                        console.log('CC Chips History Date changed:', dateStr); // Debug log
+                        if (selectedDates.length === 2) {
+                            loadCCChipsHistory();
+                        }
+                    }
+                });
+            }
+            
+            // Initial load of CC chips history data
+            loadCCChipsHistory();
+        } else {
+            console.error('ccchips-daterange element not found'); // Debug log
+        }
     });
 });
 

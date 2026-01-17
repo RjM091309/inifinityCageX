@@ -1,322 +1,98 @@
 <div class="modal fade" id="modal-new-nn-chips" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
     aria-labelledby="modal-default-popout" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable " role="document">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header bg-primary">
-                <h5 class="modal-title text-white" id="update_nn_chips"><%= __('dashboard_update_nn_chips.update_nn_chips') %></h5>
+                <h5 class="modal-title text-white">NN Chips History</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
             <div class="modal-body">
-                <form id="add_nn_chips" action="/add_nn_chips" method="POST">
-
-
-                    <div class="row mb-4">
-                        <div class="col-sm-12">
-                            <input type="text" placeholder="<%= __('dashboard_update_nn_chips.nn_amount') %>" class="form-control" id="nnChips"
-                                name="txtNNChips" onkeypress="return onlyNumberKey(event)" data-type="number"
-                                autocomplete="off" required />
-
-                        </div>
+                <div class="row">
+                    <div class="col-sm-4">
+                        <input type="text" id="nnchips-daterange" name="nnchips-daterange" class="form-control"
+                            placeholder="Select date range" autocomplete="off" />
                     </div>
+                </div>
 
+                <hr style="border: none; border-top: 0.2rem solid black;">
+                
+                <table id="nn-chips-tbl" class="table table-bordered table-responsive"
+                    style="font-size: 13px !important;">
+                    <thead>
+                        <tr>
+                            <th>Encoded By</th>
+                            <th>Amount</th>
+                            <th>Type</th>
+                            <th>Remarks</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
 
-
-
-                    <input type="hidden" value="<%-  parseFloat(sqlNNChipsBuyin[0].NNChipsBuyin - sqlNNChipsReturn[0].NNChipsReturn - sqlAccountNNChips[0].TOTAL_NN + sqlTotalCashOutRolling[0].TOTAL_CASHOUT - sqlTotalRealRolling[0].TOTAL_REAL_ROLLING - sqlCCChipsBuyin[0].CCChipsBuyin + sqlCCChipsReturn[0].CCChipsReturn + sqlNNBuyin[0].NNBuyin - sqlNNReturn[0].NNReturn).toLocaleString()  %>
-                " id="nnbalance" name="txtnnbalance" />
-
-
-                    <input type="hidden" name="typedescription" id="typedescription" value="Chips Buy-in">
-
-                    <div class="row mb-2 ">
-                        <div class="col-sm-3 ">
-                            <div class="form-check">
-                                <input class="form-check-input" style="border-color: #8a92a6 !important;"  type="radio" id="add" name="optBuyinReturn" value="1"
-                                    required>
-                                <label class="form-check-label" for="add"><%= __('dashboard_update_nn_chips.add') %></label>
-                            </div>
-                        </div>
-                        <div class="col-sm-3 ">
-                            <div class="form-check">
-                                <input class="form-check-input" style="border-color: #8a92a6 !important;"  type="radio" id="deduct" name="optBuyinReturn" value="2"
-                                    required>
-                                <label class="form-check-label" for="deduct"><%= __('dashboard_update_nn_chips.deduct') %></label>
-                            </div>
-                        </div>
-                        <div class="col-sm-6 text-end">
-                            <button type="submit" class="btn btn-sm btn-primary" id="updateBtn">
-                                <i class="fa fa-check-circle me-1"></i> <%= __('dashboard_update_nn_chips.update') %>
-                            </button>
-                        </div>
-                    </div>
-                    <hr style="border: none; border-top: 0.2rem solid black;">
-
-                    <div id="loading-spinner" class="text-center d-none">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden"><%= __('dashboard_update_nn_chips.loading_update_nn_chips') %></span>
-                        </div>
-                    </div>
-
-                    <div class="nn-chips-scroll-container">
-                        <div class="nn-chips-grid" id="nn-chips-container">
-                            <!-- Cards will be dynamically inserted here -->
-                        </div>
-                    </div>
             </div>
+
             <div class="modal-footer">
-                <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('dashboard_update_nn_chips.close') %></button>
+                <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
             </div>
-        </form>
         </div>
-    
     </div>
 </div>
 
-<script>
-    // Function to allow only number inputs
-    function onlyNumberKey(evt) {
-        let charCode = (evt.which) ? evt.which : evt.keyCode;
-        // Allow numbers (0-9), backspace (8), tab (9), delete (46), arrow keys (37-40)
-        if (charCode > 31 && (charCode < 48 || charCode > 57) && !(charCode >= 37 && charCode <= 40) && charCode !== 8 && charCode !== 9 && charCode !== 46) {
-            return false;
-        }
-        return true;
-    }
-
-    $(document).ready(function () {
-
-        // Retrieve the permissions value from the data attribute
-        const permissions = parseInt($('#user-role').data('permissions'));
-
-        // Disable the submit button if permissions are 2
-        if (permissions === 2) {
-            $('#add_nn_chips button[type="submit"]').prop('disabled', true);
-        }
-
-        function loadNNChipsData() {
-            $('#loading-spinner').removeClass('d-none');
-            $('#nn-chips-container').addClass('d-none');
-            
-            $.ajax({
-                url: '/get_nn_chips',
-                method: 'GET',
-                success: function(data) {
-                    if (!data || data.length === 0) {
-                        const emptyState = `
-                            <div class="text-center py-5">
-                                <i class="fa fa-inbox fa-3x text-muted mb-3"></i>
-                                <h6 class="text-muted">No transactions found</h6>
-                            </div>
-                        `;
-                        $('#nn-chips-container').html(emptyState);
-                        return;
-                    }
-                    const container = $('#nn-chips-container');
-                    container.empty();
-
-                    // Group transactions by date
-                    const groupedData = {};
-                    data.forEach(function(item) {
-                        const dateKey = moment.utc(item.ENCODED_DT).utcOffset(8).format('MMM DD, YYYY');
-                        if (!groupedData[dateKey]) {
-                            groupedData[dateKey] = [];
-                        }
-                        groupedData[dateKey].push(item);
-                    });
-
-                    // Sort dates in descending order (newest first)
-                    const sortedDates = Object.keys(groupedData).sort((a, b) => {
-                        return moment(b, 'MMM DD').valueOf() - moment(a, 'MMM DD').valueOf();
-                    });
-
-                    // Create cards grouped by date in descending order
-                    sortedDates.forEach(function(dateKey) {
-                        // Sort transactions within each date in descending order by time
-                        groupedData[dateKey].sort((a, b) => {
-                            return moment.utc(b.ENCODED_DT).valueOf() - moment.utc(a.ENCODED_DT).valueOf();
-                        });
-
-                        const dateGroup = `
-                            <div class="date-header">${dateKey}</div>
-                            <div class="date-transactions">
-                                ${groupedData[dateKey].map(item => {
-                                    const time = moment.utc(item.ENCODED_DT).utcOffset(8).format('hh:mm A');
-                                    const amount = item.DESCRIPTION === 'DEDUCT' 
-                                        ? `-₱ ${item.NN_CHIPS.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`
-                                        : `₱ ${item.NN_CHIPS.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-                                    const typeClass = item.DESCRIPTION === 'ADD' ? 'add' : 'deduct';
-                                    
-                                    return `
-                                        <div class="nn-chip-card">
-                                            <div class="transaction-details">
-                                                <div class="transaction-type ">
-                                                    <span class="transaction-time ">${time}</span>
-                                                    <span class="nn-chip-type ${typeClass}">${item.DESCRIPTION}</span>
-                                                    
-                                                </div>
-                                                <div class="encoded-by">
-                                                    <span class="amount-label">ENCODED BY :</span>
-                                                    <span class="name-label" title="${item.FIRSTNAME}">${item.FIRSTNAME}</span>
-                                                   
-                                                </div>
-                                                <div class="amount-row">
-                                                    <span class="amount-label">Amount</span>
-                                                    <span class="amount-value ${typeClass}">${amount}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        `;
-                        container.append(dateGroup);
-                    });
-                    $('#loading-spinner').addClass('d-none');
-                    $('#nn-chips-container').removeClass('d-none');
-                },
-                error: function(error) {
-                    console.error('Error fetching NN chips data:', error);
-                    const errorMessage = `
-                        <div class="alert alert-danger">
-                            <i class="fa fa-exclamation-circle me-2"></i>
-                            Failed to load data. Please try again.
-                            <button class="btn btn-link text-danger" onclick="loadNNChipsData()">
-                                <i class="fa fa-refresh"></i> Retry
-                            </button>
-                        </div>
-                    `;
-                    $('#nn-chips-container').html(errorMessage);
-                }
-            });
-        }
-
-        // Initial load
-        loadNNChipsData();
-
-        // Refresh data every 30 seconds
-        setInterval(loadNNChipsData, 30000);
-    });
-
-
-
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 
 <style>
-.date-header {
-    background-color: var(--bs-primary-bg-subtle);
-    padding: 10px 15px;
-    font-weight: 500;
-    color: var(--bs-primary);
-    margin-top: 15px;
-    margin-bottom: 10px;
-    border-radius: 5px;
-}
-
-.date-transactions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.nn-chip-card {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    padding: 15px;
-    margin-bottom: 2px;
-    transition: all 0.2s ease;
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.transaction-type {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.transaction-time {
-    color: #666;
-    font-size: 0.9em;
-}
-
-.encoded-by {
-    color: #666;
-    margin-bottom: 8px;
-    font-size: 0.95em;
-}
-
-.amount-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 5px;
-}
-
-.amount-label {
-    color: #666;
-}
-
-.amount-value.deduct {
-    color: #666;
-}
-
-.amount-value.add {
-    color: #666;
-}
-
-.name-label{
-    font-weight: 400;
-    color:  #666;
-}
-
-.nn-chip-type {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.85em;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.nn-chip-type.add {
-    background-color: var(--bs-success-bg-subtle);
-    color: var(--bs-success);
-}
-
-.nn-chip-type.deduct {
-    background-color: var(--bs-danger-bg-subtle);
-    color: var(--bs-danger);
-}
-
-@media (max-width: 768px) {
-    .nn-chip-card {
-        padding: 12px;
+    .modal-lg {
+        max-width: 70% !important;
+        /* Adjust percentage as needed */
     }
-    
-    .date-header {
-        font-size: 0.9em;
+
+    #nn-chips-tbl {
+        width: 100%;
+        font-size: 13px;
+        border-collapse: collapse;
     }
-}
 
-
-
-
-
-/* Adjust modal height for mobile */
-@media (max-width: 768px) {
-    .nn-chips-scroll-container {
-        height: 300px; /* Smaller height for mobile */
+    /* Header styles */
+    #nn-chips-tbl thead th {
+        background: var(--bs-primary-bg-subtle);
+        color: var(--bs-primary);
+        font-weight: 500;
+        padding: 12px 15px;
+        text-align: left;
+        border: none;
     }
-}
 
-.nn-chip-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
-}
+    /* Row styles */
+    #nn-chips-tbl tbody tr {
+        border-bottom: 1px solid #eee;
+    }
+
+    /* Cell styles */
+    #nn-chips-tbl td {
+        padding: 12px 15px;
+        color: #666;
+    }
+
+    #nn-chips-tbl tbody tr:hover {
+        background-color: #f5f5f5 !important;
+    }
+
+    /* Balance column */
+    #nn-chips-tbl td:last-child {
+        text-align: right;
+        color: #333;
+    }
+
+    /* Footer total row */
+    #nn-chips-tbl tfoot th {
+        padding: 10px;
+        font-weight: 600;
+        color: #333;
+        background-color: #f4f6fa;
+        border-top: 2px solid #dee2e6;
+    }
 </style>

@@ -413,7 +413,9 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                                 <%= __('dashboard.nn_chips') %>
                                                    <a href="#modal-new-nn-chips" data-bs-toggle="modal">
                                                       <span class="ms-2 plus-spacing">
-                                                         <i class="fa-solid fa-circle-plus plus-icon"></i>
+                                                         <i class="fa-solid fa-eye plus-icon tooltip-hover"
+                                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                                            title="Details"></i>
                                                       </span>
                                                    </a>
                                              </h6>
@@ -571,7 +573,9 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                                 <%= __('dashboard.cc_chips') %>
                                                    <a href="#modal-new-cc-chips" data-bs-toggle="modal">
                                                       <span class="ms-2 plus-spacing">
-                                                         <i class="fa-solid fa-circle-plus plus-icon"></i>
+                                                         <i class="fa-solid fa-eye plus-icon tooltip-hover"
+                                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                                            title="Details"></i>
                                                       </span>
                                                    </a>
                                              </h6>
@@ -752,30 +756,61 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                   <div class="col-md-12 col-lg-12">
                      <div class="row">
 
-                        <div class="col-lg-4">
+                        <div class="col-lg-6">
                            <div class="card">
                               <div class="card-body">
-                                 <h5 class="mb-3">
-                                    <%= __('dashboard.house_balance') %>
-                                 </h5>
-                                 <h2 class="counter mb-2" id="cash-balance-value">₱
-                                    <%- ( (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
-                                       (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
-                                       (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) - (+sqlNNChipsBuyin[0].NNChipsBuyin ||
-                                       0) + (+sqlNNChipsReturn[0].NNChipsReturn || 0) +
-                                       (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
-                                       (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
-                                       (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
-                                       (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) +
-                                       (+sqlAccountMarkerReturn[0].MARKER_RETURN || 0) -
-                                       (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
-                                       (+sqlNNChipsBuyinCashDeposit[0].NN_CHIPS_BUYIN_CASH_DEPOSIT || 0) +
-                                       (+sqlCCChipsBuyinCashDeposit[0].CC_CHIPS_BUYIN_CASH_DEPOSIT || 0) -
-                                       (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
-                                       (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
-                                       (+sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT || 0) +
-                                       (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) ).toLocaleString() %>
-                                 </h2>
+                                 <div class="row">
+                                    <div class="col-6">
+                                       <h5 class="mb-3">
+                                          House Balance
+                                       </h5>
+                                       <h2 class="counter mb-2" id="house-balance-value">₱
+                                          <%- ( (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
+                                             (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
+                                             (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) - (+sqlNNChipsBuyin[0].NNChipsBuyin ||
+                                             0) + (+sqlNNChipsReturn[0].NNChipsReturn || 0) +
+                                             (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
+                                             (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
+                                             (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
+                                             (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) +
+                                             (+sqlAccountMarkerReturn[0].MARKER_RETURN || 0) -
+                                             (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+                                             (+sqlNNChipsBuyinCashDeposit[0].NN_CHIPS_BUYIN_CASH_DEPOSIT || 0) +
+                                             (+sqlCCChipsBuyinCashDeposit[0].CC_CHIPS_BUYIN_CASH_DEPOSIT || 0) -
+                                             (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
+                                             (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
+                                             (+sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT || 0) +
+                                             (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) ).toLocaleString() %>
+                                       </h2>
+                                    </div>
+                                    <div class="col-6">
+                                       <h5 class="mb-3">
+                                          Cash Balance
+                                       </h5>
+                                       <h2 class="counter mb-2" id="cash-balance-value">₱
+                                          <%- ( (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
+                                             (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
+                                             (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) - (+sqlNNChipsBuyin[0].NNChipsBuyin ||
+                                             0) + (+sqlNNChipsReturn[0].NNChipsReturn || 0) +
+                                             (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
+                                             (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
+                                             (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
+                                             (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) +
+                                             (+sqlAccountMarkerReturn[0].MARKER_RETURN || 0) -
+                                             (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+                                             (+sqlNNChipsBuyinCashDeposit[0].NN_CHIPS_BUYIN_CASH_DEPOSIT || 0) +
+                                             (+sqlCCChipsBuyinCashDeposit[0].CC_CHIPS_BUYIN_CASH_DEPOSIT || 0) -
+                                             (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
+                                             (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) +
+                                             (+sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT || 0) +
+                                             (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
+                                             (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
+                                             (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
+                                             (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) ).toLocaleString() %>
+                                       </h2>
+                                    </div>
+                                 </div>
+
 
 
 
@@ -783,8 +818,9 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                  <a href="#" class="mt-4 btn btn-primary d-block rounded " data-bs-toggle="modal"
                                     data-bs-target="#modal-new-capital">
-                                    <%= __('dashboard.history') %>
+                                   Add / View History
                                  </a>
+                               
                                  <div class="mt-3">
                                     <div class="pb-3">
                                        <div
@@ -795,10 +831,27 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                           </p>
                                           <h6 id="cash-in-total">₱0</h6>
                                        </div>
-                                       <div class="progress bg-info-subtle shadow-none w-100 mb-1" style="height: 10px">
-                                          <div class="progress-bar bg-info" data-toggle="progress-bar"
+                                       <div class="progress bg-primary-subtle shadow-none w-100 mb-1" style="height: 10px">
+                                          <div class="progress-bar bg-primary" data-toggle="progress-bar"
                                              role="progressbar" aria-valuenow="60" aria-valuemin="0"
                                              aria-valuemax="100"></div>
+                                       </div>
+                                    </div>
+                                    <div class="pb-3">
+                                       <div
+                                          class="d-flex align-items-center justify-content-between mb-2 cursor-pointer"
+                                          data-bs-target="#modal-Cash-Out" data-bs-toggle="modal">
+                                          <p class="mb-0">
+                                            Cash-Out
+                                          </p>
+                                          <h6 id="cash-out-total">₱0</h6>
+                                       </div>
+                                       <div class="progress bg-warning-subtle shadow-none w-100 mb-1"
+                                          style="height: 10px">
+                                          <div class="progress-bar bg-warning" data-toggle="progress-bar"
+                                             role="progressbar" aria-valuenow="70" aria-valuemin="0"
+                                             aria-valuemax="100">
+                                          </div>
                                        </div>
                                     </div>
                                     <div class="pb-3">
@@ -818,23 +871,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                           </div>
                                        </div>
                                     </div>
-                                    <div class="pb-3">
-                                       <div
-                                          class="d-flex align-items-center justify-content-between mb-2 cursor-pointer"
-                                          data-bs-target="#modal-Expenses" data-bs-toggle="modal">
-                                          <p class="mb-0">
-                                             <%= __('dashboard.expenses') %>
-                                          </p>
-                                          <h6 id="junket-expense-total">₱0</h6>
-                                       </div>
-                                       <div class="progress bg-primary-subtle shadow-none w-100 " style="height: 10px">
-                                          <div class="progress-bar bg-primary" data-toggle="progress-bar"
-                                             role="progressbar" aria-valuenow="55" aria-valuemin="0"
-                                             aria-valuemax="100">
-                                          </div>
-                                       </div>
-                                    </div>
-
+                                   
 
                                  </div>
                               </div>
@@ -842,6 +879,83 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                            </div>
 
                         </div>
+
+                       
+                        <div class="col-lg-6">
+                           <div class="card" data-aos="fade-up" data-aos-delay="600">
+                              <div class="card-header">
+                                 <!-- Top Row: Win/Loss + Dropdown -->
+                                 <div class="d-flex justify-content-between align-items-center ">
+                                    <!-- LEFT: Title and Amount -->
+                                    <div>
+                                       <h6 class="mb-2">
+                                          <%= __('dashboard.win_loss') %>
+                                       </h6>
+                                       <div class="d-flex align-items-center">
+                                          <h4 class="card-title counter m-0" id="winlossweekly">
+                                             ₱ <span class="text-muted">Loading...</span>
+                                          </h4>
+                                          <span id="winloss-trend" class="badge trend-indicator"
+                                             style="margin-left: 10px;"></span>
+                                       </div>
+
+
+                                       <div id="winloss-comparison " class="mt-1 "></div>
+                                       <input type="hidden" name="WINLOSS_HISTORY1" value="0">
+                                    </div>
+
+                                    <!-- RIGHT: Dropdown -->
+                                    <div class="dropdown">
+                                       <a href="#" class="text-gray dropdown-toggle" id="dropdownMenuButton3"
+                                          data-bs-toggle="dropdown" aria-expanded="false">
+                                          <%= __('dashboard.Weekly') %>
+                                       </a>
+                                       <ul class="dropdown-menu dropdown-menu-end custom-dropdown-menu-end"
+                                          aria-labelledby="dropdownMenuButton3" id="winloss-filter">
+                                          <li><a class="dropdown-item" href="#" data-range="week">
+                                                <%= __('dashboard.Weekly') %>
+                                             </a></li>
+                                          <li><a class="dropdown-item" href="#" data-range="month">
+                                                <%= __('dashboard.Monthly') %>
+                                             </a></li>
+                                          <li><a class="dropdown-item" href="#" data-range="year">
+                                                <%= __('dashboard.Yearly') %>
+                                             </a></li>
+                                       </ul>
+                                    </div>
+                                 </div>
+
+
+
+
+                              </div>
+
+                              <div class="card-body">
+                                 <div id="d-activity" class="d-activity"></div>
+                                 <div class="d-flex align-items-center justify-content-center mt-4">
+
+                                    <!-- Left Arrow -->
+                                    <button id="prev-week-btn" type="button" class="circle-btn me-2"
+                                       title="Previous Week">
+                                       <i class="fas fa-chevron-left"></i>
+                                    </button>
+
+                                    <!-- Centered Week Label + Date Range -->
+                                    <div class="d-flex flex-column align-items-center text-center">
+                                       <div id="week-label">This Week</div>
+                                       <span id="week-date-range" class="text-muted small"></span>
+                                    </div>
+
+                                    <!-- Right Arrow -->
+                                    <button id="next-week-btn" type="button" class="circle-btn ms-2 d-none"
+                                       title="This Week">
+                                       <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+
 
                         <div class="col-lg-4">
 
@@ -956,9 +1070,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                              ₱ <span class="text-muted">Loading...</span>
                                           </h4>
                                           <span id="winloss-trend" class="badge trend-indicator"
-                                             style="margin-left: 10px;"
-                                             data-positive="<%= __('dashboard.positive') %>"
-                                             data-negative="<%= __('dashboard.negative') %>"></span>
+                                             style="margin-left: 10px;"></span>
                                        </div>
 
 
@@ -1004,13 +1116,13 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                     <!-- Centered Week Label + Date Range -->
                                     <div class="d-flex flex-column align-items-center text-center">
-                                       <div id="week-label"><%= __('dashboard.this_week') %></div>
+                                       <div id="week-label">This Week</div>
                                        <span id="week-date-range" class="text-muted small"></span>
                                     </div>
 
                                     <!-- Right Arrow -->
                                     <button id="next-week-btn" type="button" class="circle-btn ms-2 d-none"
-                                       title="<%= __('dashboard.this_week') %>">
+                                       title="This Week">
                                        <i class="fas fa-chevron-right"></i>
                                     </button>
                                  </div>
@@ -1018,13 +1130,9 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                            </div>
                         </div>
 
-
-
-
-
-
+                        
                         <!-- ON GAME -->
-                        <div class="col-lg-4">
+                        <div class="col-lg-12">
                            <div class="overflow-hidden card" data-aos="fade-up" data-aos-delay="600">
                               <div class="flex-wrap card-header d-flex justify-content-between">
                                  <div class="header-title">
@@ -1098,9 +1206,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     <!-- In-update na chart container: -->
                                     <div id="myChart" class="col-md-12 col-lg-12 myChart"
                                        data-totalrolling="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0)) %>"
-                                       data-houserolling="<%- (+sqlCCChipsReturnReset[0].CCResetReturn || 0) %>"
-                                       data-total-rolling-label="<%= __('dashboard.total_rolling_label') %>"
-                                       data-house-rolling-label="<%= __('dashboard.house_rolling_label') %>">
+                                       data-houserolling="<%- (+sqlCCChipsReturnReset[0].CCResetReturn || 0) %>">
                                        <span id="totalrolling"></span>
                                        <span id="totalhouserolling"></span>
                                     </div>
@@ -1139,6 +1245,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                               </div>
                            </div>
                         </div>
+                        <!-- END ACTIVITY OVERVIEW CARDS -->
                      </div>
                   </div>
             </div>
@@ -1149,7 +1256,8 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                   <%- include ('modals/accounts/account_dashboard') %>
                      <%- include ('modals/accounts/transaction_history') %>
                      <%- include ('modals/dashboard/Cash-In') %>
-                        <%- include ('modals/dashboard/Transaction') %>
+                        <%- include ('modals/dashboard/Cash-Out') %>
+                           <%- include ('modals/dashboard/Transaction') %>
                            <%- include ('modals/dashboard/Expenses') %>
                               <%- include ('modals/junket/new_capital') %>
 
