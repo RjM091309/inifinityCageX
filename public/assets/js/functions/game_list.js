@@ -285,6 +285,7 @@ $(document).ready(function () {
                             var total_rolling_cc_real = 0;
                             var total_roller_nn = 0;
                             var total_roller_cc = 0;
+                            var net_roller_nn_for_rolling = 0; // Net NN roller chips for rolling calculation (ADD - RETURN)
 
                             response.forEach(function (res) {
                                 if (res.CAGE_TYPE == 1 && (total_nn_init != 0 || total_cc_init != 0)) {
@@ -318,18 +319,22 @@ $(document).ready(function () {
                                 }
                                 
                                 if (res.CAGE_TYPE == 5) {
-                                    // ROLLER CHIPS - tracked separately, not included in rolling calculations
+                                    // ROLLER CHIPS - tracked separately
                                     // Use ROLLER_NN_CHIPS and ROLLER_CC_CHIPS columns
                                     // ROLLER_TRANSACTION: 1 = ADD (add), 2 = RETURN (subtract)
                                     var rollerTransaction = res.ROLLER_TRANSACTION || 1; // Default to ADD if null
                                     if (rollerTransaction == 1) {
-                                        // ADD - add the values
+                                        // ADD - add the values (for display)
                                         total_roller_nn = total_roller_nn + (res.ROLLER_NN_CHIPS || 0);
                                         total_roller_cc = total_roller_cc + (res.ROLLER_CC_CHIPS || 0);
+                                        // ADD NN roller chips increases rolling (roller exchanges CC to NN, player gets chips to play)
+                                        net_roller_nn_for_rolling += (res.ROLLER_NN_CHIPS || 0);
                                     } else if (rollerTransaction == 2) {
-                                        // RETURN - subtract the values
+                                        // RETURN - subtract the values (for display)
                                         total_roller_nn = total_roller_nn - (res.ROLLER_NN_CHIPS || 0);
                                         total_roller_cc = total_roller_cc - (res.ROLLER_CC_CHIPS || 0);
+                                        // RETURN NN roller chips decreases rolling (player returns NN chips to roller, removed from play)
+                                        net_roller_nn_for_rolling -= (res.ROLLER_NN_CHIPS || 0);
                                     }
                                 }
                             });
@@ -337,7 +342,13 @@ $(document).ready(function () {
 							var total_initial = total_nn_init + total_cc_init;
 							var total_buy_in_chips = total_nn + total_cc;
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
-							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+							
+							// TOTAL ROLLING: Same logic as cashout - only NN chips affect rolling
+							// CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
+							// ROLLER ADD NN adds to rolling (roller exchanges CC to NN, player gets more NN chips to play)
+							// ROLLER RETURN NN subtracts from rolling (player returns NN chips to roller, chips removed from play)
+							// CC chips don't affect rolling (CC chips are winnings from dealer, not played chips)
+							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn + net_roller_nn_for_rolling;
 	
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real;
 							var total_roller_chips = total_roller_nn + total_roller_cc;
@@ -462,11 +473,77 @@ $(document).ready(function () {
 
 
 								
+							} else if (row.game_status == 3) {
+								// PENDING STATUS (discrepancy in roller chips return)
+								const pendingText = "PENDING";
+								if (userPermissions === 11 || userPermissions === 1) { // If manager
+									// PENDING STATUS EDITABLE - pass current status (3) so modal auto-selects END GAME
+									status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3)" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:8px !important;">${pendingText}</button>`;
+								} else {
+									// PENDING STATUS NOT EDITABLE
+									status = `<button type="button" class="btn btn-sm btn-warning-subtle" style="font-size:8px !important;" onclick="showEndGameAlert()">${pendingText}</button>`;
+								}
+								
+								buyin_td = parseFloat(total_amount).toLocaleString();
+								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
+								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
+								roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
+								// Use the same action buttons as END GAME to avoid duplicates (History + Settlement icons)
+								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
+								var settleClass = row.SETTLED === 1 ? 'btn-success-subtle' : 'btn-danger-subtle';
+								var settleTitle = settleLabel;
+								var btn_settle = `<div class="btn-group" role="group">
+								<button type="button" onclick="showHistory(${row.game_list_id})" class="btn btn-sm btn-info-subtle action-btn-square js-bs-tooltip-enabled"
+										data-bs-toggle="tooltip" aria-label="History" data-bs-original-title="History" title="History"
+										style="font-size:8px !important; margin-right: 5px;">
+										<i class="fa fa-history"></i>
+								</button>
+								<button type="button" onclick="settlement_history(${row.game_list_id}, ${row.ACCOUNT_ID })" class="btn btn-sm ${settleClass} action-btn-square js-bs-tooltip-enabled"
+										data-bs-toggle="tooltip" aria-label="${settleTitle}" data-bs-original-title="${settleTitle}" title="${settleTitle}"
+										style="font-size:10px !important;">
+										 <i class="fa fa-clipboard-check"></i>
+								</button>
+						   </div>`;
+								
+								// Format net value as an integer
+								var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
+								
+								// Get commission type badge (R/S/L)
+								var commissionTypeBadge = '';
+								if (row.COMMISSION_TYPE == 1) {
+									commissionTypeBadge = '<span class="badge commission-badge commission-badge-r" title="Rolling Game">R</span>';
+								} else if (row.COMMISSION_TYPE == 2) {
+									commissionTypeBadge = '<span class="badge commission-badge commission-badge-s" title="Shared Game">S</span>';
+								} else if (row.COMMISSION_TYPE == 3) {
+									commissionTypeBadge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
+								}
+								
+								var actionButtons = btn_services + btn_settle;
+
+								let rowNode = dataTable.row.add([
+									game_start,
+									`${row.GAME_TYPE}`,
+									`${row.game_list_id}`,
+									`${row.agent_code} (${row.agent_name})`,
+									buyin_td,
+									cashout_td,
+									rolling_td,
+									parseFloat(total_rolling_chips).toLocaleString(),
+									roller_chips_td,
+									`${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`,
+									formattedNet,
+									winloss,
+									translateGameSource(row.INITIAL_MOP),
+									status,
+									actionButtons
+								]).draw().node();
+								
 							} else {
-							
+								// END GAME STATUS (status = 1)
 								if (userPermissions === 11 || userPermissions === 1) { // If manager
 									// END GAME STATUS EDITABLE(ON GAME & END GAME)
-								status = `<a href="#" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID })">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
+								status = `<a href="#" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss})">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
 	
 								} else {
 									
@@ -590,43 +667,110 @@ $('#add_game_list').submit(function (event) {
 
         $btn.prop('disabled', false).text('Submit'); // Re-enable button
     } else {
-        // If validation passes, proceed with AJAX submission
-        var formData = $(this).serialize();
+        // All validations passed, show confirmation dialog
+        var gameType = $('input[name="txtGameType"]:checked').val() || '';
+        var accountCode = $('#txtTrans').val() || '';
+        var accountText = $('#txtTrans option:selected').text() || accountCode;
+        var rollerNN = $('#txtRollerNN').val().trim().replace(/,/g, '') || '0';
+        var rollerCC = $('#txtRollerCC').val().trim().replace(/,/g, '') || '0';
+        var rollerNNAmount = parseFloat(rollerNN) || 0;
+        var rollerCCAmount = parseFloat(rollerCC) || 0;
+        var commissionType = $('#commissionType').val() || '';
+        var commissionTypeText = $('#commissionType option:selected').text() || '';
+        var commissionRate = $('#commissionRate').val() || '0';
+        
+        var transTypeText = '';
+        if (transType == '1') transTypeText = 'Cash';
+        else if (transType == '2') transTypeText = 'Deposit';
+        else if (transType == '3') transTypeText = 'Credit';
+        
+        var confirmationMessage = `Confirm New Game:<br><br>`;
+        confirmationMessage += `<strong>Game Type:</strong> ${gameType}<br>`;
+        confirmationMessage += `<strong>Account:</strong> ${accountText}<br>`;
+        if (txtNNamount > 0) {
+            confirmationMessage += `<strong>NN Chips:</strong> ${parseFloat(txtNNamount).toLocaleString()}<br>`;
+        }
+        if (txtCCamount > 0) {
+            confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(txtCCamount).toLocaleString()}<br>`;
+        }
+        if (txtNNamount > 0 || txtCCamount > 0) {
+            confirmationMessage += `<strong>Total Amount:</strong> ${parseFloat(txtNNamount + txtCCamount).toLocaleString()}<br>`;
+        }
+        confirmationMessage += `<strong>Payment Type:</strong> ${transTypeText}<br>`;
+        if (rollerNNAmount > 0 || rollerCCAmount > 0) {
+            confirmationMessage += `<strong>Roller Chips:</strong> `;
+            if (rollerNNAmount > 0) confirmationMessage += `NN: ${parseFloat(rollerNNAmount).toLocaleString()} `;
+            if (rollerCCAmount > 0) confirmationMessage += `CC: ${parseFloat(rollerCCAmount).toLocaleString()}`;
+            confirmationMessage += `<br>`;
+        }
+        confirmationMessage += `<strong>Commission Type:</strong> ${commissionTypeText}<br>`;
+        if (commissionRate > 0) {
+            confirmationMessage += `<strong>Commission Rate:</strong> ${commissionRate}%<br>`;
+        }
+        
+        var $form = $(this); // Store form reference
+        
+        Swal.fire({
+            icon: 'question',
+            title: 'Confirm New Game',
+            html: confirmationMessage + '<br>Are you sure you want to proceed?',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Confirm',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            width: '500px'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // User confirmed, proceed with transaction
+                $btn.prop('disabled', true).html(`
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Loading...
+                `);
+                
+                var formData = $form.serialize();
 
-        $.ajax({
-            url: '/add_game_list',
-            type: 'POST',
-            data: formData,
-            success: function (response) {
-                // Show success message
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Success!',
-                    text: 'New game successfully added.',
-                    confirmButtonText: 'OK',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        reloadData(); // Reload data after confirmation
-                        $('#modal-new-game-list').modal('hide'); // Close modal
-                        window.location.reload(); // Refresh page
+                $.ajax({
+                    url: '/add_game_list',
+                    type: 'POST',
+                    data: formData,
+                    success: function (response) {
+                        // Show success message
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: 'New game successfully added.',
+                            confirmButtonText: 'OK',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                reloadData(); // Reload data after confirmation
+                                $('#modal-new-game-list').modal('hide'); // Close modal
+                                window.location.reload(); // Refresh page
+                            }
+                        });
+                    },
+                    error: function (xhr, status, error) {
+                        var errorMessage = xhr.responseJSON?.error || "An error occurred.";
+                        console.error('Error adding game list:', errorMessage);
+
+                        // Show error message
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: errorMessage,
+                            confirmButtonText: 'OK'
+                        });
+
+                        $btn.prop('disabled', false).text('Submit'); // Re-enable button after error
                     }
                 });
-            },
-            error: function (xhr, status, error) {
-                var errorMessage = xhr.responseJSON?.error || "An error occurred.";
-                console.error('Error adding game list:', errorMessage);
-
-                // Show error message
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: errorMessage,
-                    confirmButtonText: 'OK'
-                });
-
-                $btn.prop('disabled', false).text('Submit'); // Re-enable button after error
+            } else {
+                // User cancelled, re-enable button
+                $btn.prop('disabled', false).text('Submit');
             }
         });
     }
@@ -683,37 +827,80 @@ $('#add_buyin').submit(function (event) {
 			confirmButtonText: 'OK'
 		});
 	} else {
-		// Proceed with AJAX if all validations pass
-		const formData = $(this).serialize();
+		// All validations passed, show confirmation dialog
+		var transTypeText = '';
+		if (transType == '1') transTypeText = 'Cash';
+		else if (transType == '2') transTypeText = 'Deposit';
+		else if (transType == '3') transTypeText = 'Credit';
+		
+		var confirmationMessage = `Confirm Buy In Transaction:<br><br>`;
+		confirmationMessage += `<strong>Payment Type:</strong> ${transTypeText}<br>`;
+		if (txtNNamount > 0) {
+			confirmationMessage += `<strong>NN Chips:</strong> ${parseFloat(txtNNamount).toLocaleString()}<br>`;
+		}
+		if (txtCCamount > 0) {
+			confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(txtCCamount).toLocaleString()}<br>`;
+		}
+		if (totalEnteredAmount > 0) {
+			confirmationMessage += `<strong>Total Amount:</strong> ${parseFloat(totalEnteredAmount).toLocaleString()}<br>`;
+		}
+		
+		var $form = $(this); // Store form reference
+		
+		Swal.fire({
+			icon: 'question',
+			title: 'Confirm Transaction',
+			html: confirmationMessage + '<br>Are you sure you want to proceed?',
+			showCancelButton: true,
+			confirmButtonText: 'Yes, Confirm',
+			cancelButtonText: 'Cancel',
+			confirmButtonColor: '#3085d6',
+			cancelButtonColor: '#d33',
+			allowOutsideClick: false,
+			allowEscapeKey: false
+		}).then((result) => {
+			if (result.isConfirmed) {
+				// User confirmed, proceed with transaction
+				$btn.prop('disabled', true).html(`
+					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+					Loading...
+				`);
+				
+				const formData = $form.serialize();
 
-		$.ajax({
-			url: '/game_list/add/buyin',
-			type: 'POST',
-			data: formData,
-			success: function (response) {
-				Swal.fire({
-					icon: 'success',
-					title: 'Success!',
-					text: 'Additional Buy-in successfully added.',
-					confirmButtonText: 'OK',
-					allowOutsideClick: false,
-					allowEscapeKey: false
-				}).then(() => {
-					reloadData();
-					$('#modal-add-buyin').modal('hide');
-					$('#add_buyin')[0].reset();
-					$btn.prop('disabled', false).text('Submit');
+				$.ajax({
+					url: '/game_list/add/buyin',
+					type: 'POST',
+					data: formData,
+					success: function (response) {
+						Swal.fire({
+							icon: 'success',
+							title: 'Success!',
+							text: 'Additional Buy-in successfully added.',
+							confirmButtonText: 'OK',
+							allowOutsideClick: false,
+							allowEscapeKey: false
+						}).then(() => {
+							reloadData();
+							$('#modal-add-buyin').modal('hide');
+							$('#add_buyin')[0].reset();
+							$btn.prop('disabled', false).text('Submit');
+						});
+					},
+					error: function (xhr) {
+						const errorMessage = xhr.responseJSON?.error || 'An error occurred.';
+						console.error('Error adding buy-in transaction:', errorMessage);
+						Swal.fire({
+							icon: 'error',
+							title: 'Error',
+							text: errorMessage,
+							confirmButtonText: 'OK'
+						});
+						$btn.prop('disabled', false).text('Submit');
+					}
 				});
-			},
-			error: function (xhr) {
-				const errorMessage = xhr.responseJSON?.error || 'An error occurred.';
-				console.error('Error adding buy-in transaction:', errorMessage);
-				Swal.fire({
-					icon: 'error',
-					title: 'Error',
-					text: errorMessage,
-					confirmButtonText: 'OK'
-				});
+			} else {
+				// User cancelled, re-enable button
 				$btn.prop('disabled', false).text('Submit');
 			}
 		});
@@ -774,31 +961,76 @@ $('#add_buyin').submit(function (event) {
 			}
 		}
 	
-		var formData = $(this).serialize();
-	
-		$.ajax({
-			url: '/game_list/add/cashout',
-			type: 'POST',
-			data: formData,
-			success: function (response) {
-				Swal.fire({
-					icon: 'success',
-					title: 'Success!',
-					text: 'Chips return process completed!'
-				}).then(() => {
-					reloadData();
-					$('#modal-add-cashout').modal('hide');
-					$btn.prop('disabled', false).html('Save'); // 🔥 RESET BUTTON
+		// All validations passed, show confirmation dialog
+		var transTypeText = '';
+		if (txtTransType == '1') transTypeText = 'Cash';
+		else if (txtTransType == '2') transTypeText = 'Deposit';
+		else if (txtTransType == '3') transTypeText = 'Credit';
+		else if (txtTransType == '4') transTypeText = 'Marker';
+		
+		var confirmationMessage = `Confirm Chips Return Transaction:<br><br>`;
+		confirmationMessage += `<strong>Payment Type:</strong> ${transTypeText}<br>`;
+		if (txtNN > 0) {
+			confirmationMessage += `<strong>NN Chips:</strong> ${parseFloat(txtNN).toLocaleString()}<br>`;
+		}
+		if (txtCC > 0) {
+			confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(txtCC).toLocaleString()}<br>`;
+		}
+		if ((txtNN + txtCC) > 0) {
+			confirmationMessage += `<strong>Total Amount:</strong> ${parseFloat(txtNN + txtCC).toLocaleString()}<br>`;
+		}
+		
+		var $form = $(this); // Store form reference
+		
+		Swal.fire({
+			icon: 'question',
+			title: 'Confirm Transaction',
+			html: confirmationMessage + '<br>Are you sure you want to proceed?',
+			showCancelButton: true,
+			confirmButtonText: 'Yes, Confirm',
+			cancelButtonText: 'Cancel',
+			confirmButtonColor: '#3085d6',
+			cancelButtonColor: '#d33',
+			allowOutsideClick: false,
+			allowEscapeKey: false
+		}).then((result) => {
+			if (result.isConfirmed) {
+				// User confirmed, proceed with transaction
+				$btn.prop('disabled', true).html(`
+					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+					Loading...
+				`);
+				
+				var formData = $form.serialize();
+		
+				$.ajax({
+					url: '/game_list/add/cashout',
+					type: 'POST',
+					data: formData,
+					success: function (response) {
+						Swal.fire({
+							icon: 'success',
+							title: 'Success!',
+							text: 'Chips return process completed!'
+						}).then(() => {
+							reloadData();
+							$('#modal-add-cashout').modal('hide');
+							$btn.prop('disabled', false).html('Save'); // 🔥 RESET BUTTON
+						});
+					},
+					error: function (xhr, status, error) {
+						var errorMessage = xhr.responseJSON?.error || 'Something went wrong. Please try again.';
+						Swal.fire({
+							icon: 'error',
+							title: 'Error!',
+							text: errorMessage
+						});
+						$btn.prop('disabled', false).html('Save'); // 🔥 RESET BUTTON
+					}
 				});
-			},
-			error: function (xhr, status, error) {
-				var errorMessage = xhr.responseJSON?.error || 'Something went wrong. Please try again.';
-				Swal.fire({
-					icon: 'error',
-					title: 'Error!',
-					text: errorMessage
-				});
-				$btn.prop('disabled', false).html('Save'); // 🔥 RESET BUTTON
+			} else {
+				// User cancelled, re-enable button
+				$btn.prop('disabled', false).html('Save');
 			}
 		});
 	});
@@ -808,49 +1040,94 @@ $('#add_buyin').submit(function (event) {
 		event.preventDefault();
 	
 		var $btn = $('#submit-rolling-btn'); // Reference to the submit button
-		$btn.prop('disabled', true).html(`
-			<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-			Loading...
-		  `);
+		
+		// Get form values for confirmation
+		var ccChips = $('#modal-add-rolling input[name="txtCC"]').val().trim().replace(/,/g, '') || $('#modal-add-rolling .txtCC').val().trim().replace(/,/g, '') || '';
+		var ccAmount = parseFloat(ccChips) || 0;
+		
+		// Validation: Check if CC Chips is provided
+		if (!ccChips || ccAmount <= 0) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Warning',
+				text: 'Please enter CC Chips!',
+				confirmButtonText: 'OK',
+				allowOutsideClick: false,
+				allowEscapeKey: false
+			}).then(() => {
+				$('#modal-add-rolling').modal('show');
+			});
+			$btn.prop('disabled', false).text('Save');
+			return;
+		}
+		
+		// Build confirmation message
+		var confirmationMessage = `Confirm Rolling Transaction:<br><br>`;
+		confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(ccAmount).toLocaleString()}<br>`;
+		
+		var $form = $(this); // Store form reference
+		
+		Swal.fire({
+			icon: 'question',
+			title: 'Confirm Transaction',
+			html: confirmationMessage + '<br>Are you sure you want to proceed?',
+			showCancelButton: true,
+			confirmButtonText: 'Yes, Confirm',
+			cancelButtonText: 'Cancel',
+			confirmButtonColor: '#3085d6',
+			cancelButtonColor: '#d33',
+			allowOutsideClick: false,
+			allowEscapeKey: false
+		}).then((result) => {
+			if (result.isConfirmed) {
+				// User confirmed, proceed with transaction
+				$btn.prop('disabled', true).html(`
+					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+					Loading...
+				`);
 		  
+				var formData = $form.serialize();
 	
-		var formData = $(this).serialize();
-	
-		$.ajax({
-			url: '/game_list/add/rolling',
-			type: 'POST',
-			data: formData,
-			success: function (response) {
-				// Show success message
-				Swal.fire({
-					icon: 'success',
-					title: 'Success!',
-					text: 'Rolling transaction successfully added.',
-					confirmButtonText: 'OK',
-					allowOutsideClick: false,
-					allowEscapeKey: false
-				}).then((result) => {
-					if (result.isConfirmed) {
-						reloadData(); // Reload data after confirmation
-						$('#modal-add-rolling').modal('hide'); // Close modal
-						$('#add_rolling')[0].reset(); // Reset form
-						$btn.prop('disabled', false).text('Save'); // Re-enable button
+				$.ajax({
+					url: '/game_list/add/rolling',
+					type: 'POST',
+					data: formData,
+					success: function (response) {
+						// Show success message
+						Swal.fire({
+							icon: 'success',
+							title: 'Success!',
+							text: 'Rolling transaction successfully added.',
+							confirmButtonText: 'OK',
+							allowOutsideClick: false,
+							allowEscapeKey: false
+						}).then((result) => {
+							if (result.isConfirmed) {
+								reloadData(); // Reload data after confirmation
+								$('#modal-add-rolling').modal('hide'); // Close modal
+								$('#add_rolling')[0].reset(); // Reset form
+								$btn.prop('disabled', false).text('Save'); // Re-enable button
+							}
+						});
+					},
+					error: function (xhr, status, error) {
+						var errorMessage = xhr.responseJSON?.error || "An error occurred while processing.";
+						console.error('Error adding rolling transaction:', errorMessage);
+						
+						// Show error message
+						Swal.fire({
+							icon: 'error',
+							title: 'Error',
+							text: errorMessage,
+							confirmButtonText: 'OK'
+						});
+			
+						$btn.prop('disabled', false).text('Save'); // Re-enable button after error
 					}
 				});
-			},
-			error: function (xhr, status, error) {
-				var errorMessage = xhr.responseJSON?.error || "An error occurred while processing.";
-				console.error('Error adding rolling transaction:', errorMessage);
-				
-				// Show error message
-				Swal.fire({
-					icon: 'error',
-					title: 'Error',
-					text: errorMessage,
-					confirmButtonText: 'OK'
-				});
-	
-				$btn.prop('disabled', false).text('Save'); // Re-enable button after error
+			} else {
+				// User cancelled, re-enable button
+				$btn.prop('disabled', false).text('Save');
 			}
 		});
 	});
@@ -864,9 +1141,13 @@ $('#add_buyin').submit(function (event) {
 			Loading...
 		  `);
 		  
-		var nnChips = $('#modal-add-roller-chips .txtRollerNN').val().trim();
-		var ccChips = $('#modal-add-roller-chips .txtRollerCC').val().trim();
+		var nnChips = $('#modal-add-roller-chips .txtRollerNN').val().trim().replace(/,/g, '');
+		var ccChips = $('#modal-add-roller-chips .txtRollerCC').val().trim().replace(/,/g, '');
 		var transType = $('#modal-add-roller-chips input[name="txtTransType"]:checked').val();
+		
+		// Parse input values
+		var nnAmount = parseFloat(nnChips) || 0;
+		var ccAmount = parseFloat(ccChips) || 0;
 		
 		// Validation
 		if (!nnChips && !ccChips) {
@@ -900,45 +1181,123 @@ $('#add_buyin').submit(function (event) {
 			$btn.prop('disabled', false).text('Save');
 			return;
 		}
-	
-		var formData = $(this).serialize();
-	
-		$.ajax({
-			url: '/game_list/add/roller_chips',
-			type: 'POST',
-			data: formData,
-			success: function (response) {
-				// Show success message
+		
+		// Validation for RETURN: Check if RETURN doesn't exceed Net ADD
+		if (transType == 2) { // RETURN
+			var totalAddNN = parseFloat($('#modal-add-roller-chips').data('totalAddNN')) || 0;
+			var totalReturnNN = parseFloat($('#modal-add-roller-chips').data('totalReturnNN')) || 0;
+			var netAddNN = totalAddNN - totalReturnNN; // Current net ADD (before this transaction)
+			
+			if (nnAmount > netAddNN) {
 				Swal.fire({
-					icon: 'success',
-					title: 'Success!',
-					text: 'Roller chips transaction successfully added.',
+					icon: 'error',
+					title: 'Validation Error',
+					html: `RETURN NN Chips (${parseFloat(nnAmount).toLocaleString()}) cannot exceed Net ADD (${parseFloat(netAddNN).toLocaleString()})!<br><br>Total ADD (NN): ${parseFloat(totalAddNN).toLocaleString()}<br>Total RETURN (NN): ${parseFloat(totalReturnNN).toLocaleString()}<br>Net ADD (NN): ${parseFloat(netAddNN).toLocaleString()}`,
 					confirmButtonText: 'OK',
 					allowOutsideClick: false,
 					allowEscapeKey: false
-				}).then((result) => {
-					if (result.isConfirmed) {
-						reloadData(); // Reload data after confirmation
-						$('#modal-add-roller-chips').modal('hide'); // Close modal
-						$('#add_roller_chips')[0].reset(); // Reset form
-						$('#modal-add-roller-chips input[name="txtTransType"]').prop('checked', false); // Clear radio selection
-						$btn.prop('disabled', false).text('Save'); // Re-enable button
-					}
+				}).then(() => {
+					$('#modal-add-roller-chips').modal('show');
 				});
-			},
-			error: function (xhr, status, error) {
-				var errorMessage = xhr.responseJSON?.error || "An error occurred while processing.";
-				console.error('Error adding roller chips transaction:', errorMessage);
-				
-				// Show error message
+				$btn.prop('disabled', false).text('Save');
+				return;
+			}
+			
+			var totalAddCC = parseFloat($('#modal-add-roller-chips').data('totalAddCC')) || 0;
+			var totalReturnCC = parseFloat($('#modal-add-roller-chips').data('totalReturnCC')) || 0;
+			var netAddCC = totalAddCC - totalReturnCC; // Current net ADD (before this transaction)
+			
+			if (ccAmount > netAddCC) {
 				Swal.fire({
 					icon: 'error',
-					title: 'Error',
-					text: errorMessage,
-					confirmButtonText: 'OK'
+					title: 'Validation Error',
+					html: `RETURN CC Chips (${parseFloat(ccAmount).toLocaleString()}) cannot exceed Net ADD (${parseFloat(netAddCC).toLocaleString()})!<br><br>Total ADD (CC): ${parseFloat(totalAddCC).toLocaleString()}<br>Total RETURN (CC): ${parseFloat(totalReturnCC).toLocaleString()}<br>Net ADD (CC): ${parseFloat(netAddCC).toLocaleString()}`,
+					confirmButtonText: 'OK',
+					allowOutsideClick: false,
+					allowEscapeKey: false
+				}).then(() => {
+					$('#modal-add-roller-chips').modal('show');
 				});
+				$btn.prop('disabled', false).text('Save');
+				return;
+			}
+		}
 	
-				$btn.prop('disabled', false).text('Save'); // Re-enable button after error
+		// Show confirmation dialog before proceeding
+		var transTypeText = (transType == 1) ? 'ADD' : 'RETURN';
+		var confirmationMessage = `Confirm Roller Chips Transaction:<br><br>`;
+		confirmationMessage += `<strong>Transaction Type:</strong> ${transTypeText}<br>`;
+		if (nnAmount > 0) {
+			confirmationMessage += `<strong>NN Chips:</strong> ${parseFloat(nnAmount).toLocaleString()}<br>`;
+		}
+		if (ccAmount > 0) {
+			confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(ccAmount).toLocaleString()}<br>`;
+		}
+		
+		var $form = $(this); // Store form reference
+		
+		Swal.fire({
+			icon: 'question',
+			title: 'Confirm Transaction',
+			html: confirmationMessage + '<br>Are you sure you want to proceed?',
+			showCancelButton: true,
+			confirmButtonText: 'Yes, Confirm',
+			cancelButtonText: 'Cancel',
+			confirmButtonColor: '#3085d6',
+			cancelButtonColor: '#d33',
+			allowOutsideClick: false,
+			allowEscapeKey: false
+		}).then((result) => {
+			if (result.isConfirmed) {
+				// User confirmed, proceed with transaction
+				$btn.prop('disabled', true).html(`
+					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+					Loading...
+				`);
+				
+				var formData = $form.serialize();
+				
+				$.ajax({
+					url: '/game_list/add/roller_chips',
+					type: 'POST',
+					data: formData,
+					success: function (response) {
+						// Show success message
+						Swal.fire({
+							icon: 'success',
+							title: 'Success!',
+							text: 'Roller chips transaction successfully added.',
+							confirmButtonText: 'OK',
+							allowOutsideClick: false,
+							allowEscapeKey: false
+						}).then((result) => {
+							if (result.isConfirmed) {
+								reloadData(); // Reload data after confirmation
+								$('#modal-add-roller-chips').modal('hide'); // Close modal
+								$('#add_roller_chips')[0].reset(); // Reset form
+								$('#modal-add-roller-chips input[name="txtTransType"]').prop('checked', false); // Clear radio selection
+								$btn.prop('disabled', false).text('Save'); // Re-enable button
+							}
+						});
+					},
+					error: function (xhr, status, error) {
+						var errorMessage = xhr.responseJSON?.error || "An error occurred while processing.";
+						console.error('Error adding roller chips transaction:', errorMessage);
+						
+						// Show error message
+						Swal.fire({
+							icon: 'error',
+							title: 'Error',
+							text: errorMessage,
+							confirmButtonText: 'OK'
+						});
+			
+						$btn.prop('disabled', false).text('Save'); // Re-enable button after error
+					}
+				});
+			} else {
+				// User cancelled, re-enable button
+				$btn.prop('disabled', false).text('Save');
 			}
 		});
 	});
@@ -967,6 +1326,7 @@ $('#add_buyin').submit(function (event) {
 $('#edit_status').submit(function (event) {
 	event.preventDefault();
 
+	var $form = $(this); // Store form reference early so it's accessible throughout
 	var $btn = $('#submit-status-btn'); // ✅ reference to button
 	$btn.prop('disabled', true).html(`
 		<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -993,36 +1353,221 @@ $('#edit_status').submit(function (event) {
 		return;
 	}
 
-	// Serialize form data
-	var formData = $(this).serialize();
+	// Validation for roller chips return when END GAME
+	if (status == '1') { // END GAME
+		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
+		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
+		
+		// Only validate if there are required returns
+		if (requiredReturnNN > 0 || requiredReturnCC > 0) {
+			var returnNN = $('#txtReturnRollerNN').val().trim().replace(/,/g, '');
+			var returnCC = $('#txtReturnRollerCC').val().trim().replace(/,/g, '');
+			
+			var returnNNAmount = parseFloat(returnNN) || 0;
+			var returnCCAmount = parseFloat(returnCC) || 0;
+			
+			// Check if amounts match exactly
+			var nnMatches = false;
+			var ccMatches = false;
+			var errorMessages = [];
+			
+			// Validate NN return must be exact (even if required is 0)
+			if (requiredReturnNN > 0) {
+				// If required is > 0, input must match exactly
+				if (!returnNN || parseFloat(returnNNAmount) != parseFloat(requiredReturnNN)) {
+					nnMatches = false;
+					errorMessages.push(`NN Chips: Required <strong>${parseFloat(requiredReturnNN).toLocaleString()}</strong>, Current: <strong>${parseFloat(returnNNAmount).toLocaleString()}</strong>`);
+				} else {
+					nnMatches = true;
+				}
+			} else if (requiredReturnNN == 0) {
+				// If required is 0, input must also be 0 or empty
+				if (returnNN && parseFloat(returnNNAmount) != 0) {
+					nnMatches = false;
+					errorMessages.push(`NN Chips: Required <strong>0</strong>, Current: <strong>${parseFloat(returnNNAmount).toLocaleString()}</strong>`);
+				} else {
+					nnMatches = true;
+				}
+			} else {
+				nnMatches = true;
+			}
+			
+			// Validate CC return must be exact (even if required is 0)
+			if (requiredReturnCC > 0) {
+				// If required is > 0, input must match exactly
+				if (!returnCC || parseFloat(returnCCAmount) != parseFloat(requiredReturnCC)) {
+					ccMatches = false;
+					errorMessages.push(`CC Chips: Required <strong>${parseFloat(requiredReturnCC).toLocaleString()}</strong>, Current: <strong>${parseFloat(returnCCAmount).toLocaleString()}</strong>`);
+				} else {
+					ccMatches = true;
+				}
+			} else if (requiredReturnCC == 0) {
+				// If required is 0, input must also be 0 or empty
+				if (returnCC && parseFloat(returnCCAmount) != 0) {
+					ccMatches = false;
+					errorMessages.push(`CC Chips: Required <strong>0</strong>, Current: <strong>${parseFloat(returnCCAmount).toLocaleString()}</strong>`);
+				} else {
+					ccMatches = true;
+				}
+			} else {
+				ccMatches = true;
+			}
+			
+			// If amounts don't match, show error with "Proceed Anyway" option
+			if (!nnMatches || !ccMatches) {
+				var errorHtml = '<strong>Invalid Roller Chips Return!</strong><br><br>';
+				errorHtml += errorMessages.join('<br>');
+				errorHtml += '<br><br><small class="text-muted">The return amounts do not match the required amounts. This will be marked as PENDING for review.</small>';
+				
+				Swal.fire({
+					icon: 'error',
+					title: 'Amount Mismatch',
+					html: errorHtml,
+					showCancelButton: true,
+					confirmButtonText: 'Proceed Anyway',
+					cancelButtonText: 'Cancel',
+					confirmButtonColor: '#ff9800',
+					cancelButtonColor: '#d33',
+					allowOutsideClick: false,
+					allowEscapeKey: false
+				}).then((result) => {
+					if (result.isConfirmed) {
+						// User chose to proceed anyway - submit with status = 3 (PENDING)
+						$btn.prop('disabled', true).html(`
+							<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+							Loading...
+						`);
+						
+						// Serialize form data first
+						var formData = $form.serialize();
+						
+						// Manually add status = 3 (PENDING) since it's not in the select options
+						// Parse the serialized string and add/update txtStatus parameter
+						var params = new URLSearchParams(formData);
+						params.set('txtStatus', '3');
+						formData = params.toString();
+						
+						// Submit the form via AJAX with status = 3
+						$.ajax({
+							url: '/game_list/change_status/' + game_id,
+							type: 'PUT',
+							data: formData,
+							success: function (response) {
+								Swal.fire({
+									icon: 'warning',
+									title: 'Status set to PENDING!',
+									html: 'Game has been marked as PENDING due to amount mismatch.<br>Please review and resolve the discrepancy.',
+									showConfirmButton: false,
+									timer: 2000
+								});
 
-	// Submit the form via AJAX
-	$.ajax({
-		url: '/game_list/change_status/' + game_id,
-		type: 'PUT',
-		data: formData,
-		success: function (response) {
-			Swal.fire({
-				icon: 'success',
-				title: 'Status updated successfully!',
-				showConfirmButton: false,
-				timer: 1500
-			});
+								reloadData();
+								$('#modal-change_status').modal('hide');
+							},
+							error: function (error) {
+								Swal.fire({
+									icon: 'error',
+									title: 'Error!',
+									text: 'Failed to update status. Please try again.',
+								});
+								console.error('Error updating status:', error);
+							},
+							complete: function () {
+								$btn.prop('disabled', false).html('Save');
+								// Reset status back to original for UI
+								$('#status').val('1');
+							}
+						});
+					} else {
+						// User cancelled - show modal again
+						$('#modal-change_status').modal('show');
+						$btn.prop('disabled', false).html('Save');
+					}
+				});
+				return;
+			}
+		}
+	}
 
-			reloadData();
-			$('#modal-change_status').modal('hide');
-		},
-		error: function (error) {
-			Swal.fire({
-				icon: 'error',
-				title: 'Error!',
-				text: 'Failed to update status. Please try again.',
+	// All validations passed, show confirmation dialog
+	var statusText = (status == '1') ? 'END GAME' : (status == '2') ? 'ON GAME' : (status == '3') ? 'PENDING' : status;
+	var confirmationMessage = `Confirm Status Change:<br><br>`;
+	confirmationMessage += `<strong>New Status:</strong> ${statusText}<br>`;
+	
+	// Add roller chips return info if END GAME and has required returns
+	if (status == '1') {
+		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
+		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
+		
+		if (requiredReturnNN > 0 || requiredReturnCC > 0) {
+			var returnNN = $('#txtReturnRollerNN').val().trim().replace(/,/g, '');
+			var returnCC = $('#txtReturnRollerCC').val().trim().replace(/,/g, '');
+			var returnNNAmount = parseFloat(returnNN) || 0;
+			var returnCCAmount = parseFloat(returnCC) || 0;
+			
+			confirmationMessage += `<br><strong>Roller Chips Return:</strong><br>`;
+			if (returnNNAmount > 0) {
+				confirmationMessage += `NN Chips: ${parseFloat(returnNNAmount).toLocaleString()}<br>`;
+			}
+			if (returnCCAmount > 0) {
+				confirmationMessage += `CC Chips: ${parseFloat(returnCCAmount).toLocaleString()}<br>`;
+			}
+		}
+	}
+	
+	Swal.fire({
+		icon: 'question',
+		title: 'Confirm Status Change',
+		html: confirmationMessage + '<br>Are you sure you want to proceed?',
+		showCancelButton: true,
+		confirmButtonText: 'Yes, Confirm',
+		cancelButtonText: 'Cancel',
+		confirmButtonColor: '#3085d6',
+		cancelButtonColor: '#d33',
+		allowOutsideClick: false,
+		allowEscapeKey: false
+	}).then((result) => {
+		if (result.isConfirmed) {
+			// User confirmed, proceed with transaction
+			$btn.prop('disabled', true).html(`
+				<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+				Loading...
+			`);
+			
+			// Serialize form data
+			var formData = $form.serialize();
+
+			// Submit the form via AJAX
+			$.ajax({
+				url: '/game_list/change_status/' + game_id,
+				type: 'PUT',
+				data: formData,
+				success: function (response) {
+					Swal.fire({
+						icon: 'success',
+						title: 'Status updated successfully!',
+						showConfirmButton: false,
+						timer: 1500
+					});
+
+					reloadData();
+					$('#modal-change_status').modal('hide');
+				},
+				error: function (error) {
+					Swal.fire({
+						icon: 'error',
+						title: 'Error!',
+						text: 'Failed to update status. Please try again.',
+					});
+					console.error('Error updating status:', error);
+				},
+				complete: function () {
+					$btn.prop('disabled', false).html('Save');
+				}
 			});
-			console.error('Error updating status:', error);
-		},
-		complete: function () {
+		} else {
+			// User cancelled, re-enable button
 			$btn.prop('disabled', false).html('Save');
-
 		}
 	});
 });
@@ -1176,6 +1721,80 @@ function addRollerChips(id) {
 	$('#modal-add-roller-chips input[name="txtTransType"]').prop('checked', false); // No default selection
 
 	$('#modal-add-roller-chips .game_list_id').val(id);
+	
+	// Fetch game records to calculate totals for display/validation
+	$.ajax({
+		url: '/game_list/' + id + '/record',
+		method: 'GET',
+		success: function (response) {
+			var totalAddNN = 0;
+			var totalAddCC = 0;
+			var totalReturnNN = 0;
+			var totalReturnCC = 0;
+			var totalRollingNN = 0;
+			var totalRollingCC = 0;
+			var totalRollingRealNN = 0;
+			var totalRollingRealCC = 0;
+			var totalRolling = 0;
+			var totalRollingReal = 0;
+			var totalCashOutNN = 0;
+			
+			response.forEach(function (row) {
+				if (row.CAGE_TYPE == 5) { // ROLLER CHIPS
+					if (row.ROLLER_TRANSACTION == 1) { // ADD
+						totalAddNN += (row.ROLLER_NN_CHIPS || 0);
+						totalAddCC += (row.ROLLER_CC_CHIPS || 0);
+					} else if (row.ROLLER_TRANSACTION == 2) { // RETURN
+						totalReturnNN += (row.ROLLER_NN_CHIPS || 0);
+						totalReturnCC += (row.ROLLER_CC_CHIPS || 0);
+					}
+				}
+				
+				if (row.CAGE_TYPE == 3) { // TOTAL ROLLING
+					totalRolling += (row.AMOUNT || 0);
+					totalRollingNN += (row.NN_CHIPS || 0);
+					totalRollingCC += (row.CC_CHIPS || 0);
+				}
+				
+				if (row.CAGE_TYPE == 4) { // REAL ROLLING
+					totalRollingReal += (row.AMOUNT || 0);
+					totalRollingRealNN += (row.NN_CHIPS || 0);
+					totalRollingRealCC += (row.CC_CHIPS || 0);
+				}
+				
+				if (row.CAGE_TYPE == 2) { // CASH OUT
+					totalCashOutNN += (row.NN_CHIPS || 0);
+				}
+			});
+			
+			// Calculate total rolling chips (same logic as main calculation)
+			var totalRollingChips = totalRollingNN + totalRollingCC + totalRolling + totalRollingReal + totalRollingRealNN + totalRollingRealCC - totalCashOutNN;
+			
+			// Calculate net roller chips (ADD - RETURN) for NN
+			var netAddNN = totalAddNN - totalReturnNN;
+			
+			// Calculate suggested RETURN (Total ADD - Rolling that affects rolling)
+			// Note: Only NN chips affect rolling, so we calculate based on NN
+			var suggestedReturnNN = Math.max(0, netAddNN - (totalRollingChips > 0 ? (totalRollingChips - (totalRollingNN + totalRollingCC + totalRolling + totalRollingReal + totalRollingRealNN + totalRollingRealCC - totalCashOutNN)) : 0));
+			
+			// Display totals in modal (for information)
+			$('#roller-chips-total-add-nn').text(parseFloat(totalAddNN).toLocaleString());
+			$('#roller-chips-total-add-cc').text(parseFloat(totalAddCC).toLocaleString());
+			$('#roller-chips-total-return-nn').text(parseFloat(totalReturnNN).toLocaleString());
+			$('#roller-chips-total-return-cc').text(parseFloat(totalReturnCC).toLocaleString());
+			$('#roller-chips-net-add-nn').text(parseFloat(netAddNN).toLocaleString());
+			
+			// Store values for validation
+			$('#modal-add-roller-chips').data('totalAddNN', totalAddNN);
+			$('#modal-add-roller-chips').data('totalAddCC', totalAddCC);
+			$('#modal-add-roller-chips').data('totalReturnNN', totalReturnNN);
+			$('#modal-add-roller-chips').data('totalReturnCC', totalReturnCC);
+			$('#modal-add-roller-chips').data('netAddNN', netAddNN);
+		},
+		error: function (xhr, status, error) {
+			console.error('Error fetching game records:', error);
+		}
+	});
 }
 
 function addCashout(id, account, total_rolling_chips) {
@@ -1623,7 +2242,7 @@ function checkPermissionToDeleteHistory(id) {
 	}
 
 
-function changeStatus(id, net, account, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss) {
+function changeStatus(id, net, account, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, currentStatus) {
 	$('#modal-change_status').modal('show');
 
 	$('.txtGameId').val(id);
@@ -1633,7 +2252,89 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	$('.txtTotalRolling').val(total_rolling_chips);
 	$('.txtWinloss').val(WinLoss);
 
+	// Reset roller chips return fields
+	$('.txtReturnRollerNN').val('');
+	$('.txtReturnRollerCC').val('');
+
 	game_id = id;
+	
+	// If current status is PENDING (3), auto-select END GAME (1)
+	if (currentStatus == 3) {
+		$('#status').val('1'); // Select END GAME
+	} else {
+		// Reset status select to placeholder for other statuses
+		$('#status option:first').prop('selected', true);
+		$('#status').trigger('change');
+		$('#roller-chips-return-section').hide();
+	}
+	
+	// Fetch game records to calculate required roller chips return
+	$.ajax({
+		url: '/game_list/' + id + '/record',
+		method: 'GET',
+		success: function (response) {
+			var totalAddNN = 0;
+			var totalAddCC = 0;
+			var totalReturnNN = 0;
+			var totalReturnCC = 0;
+			
+			response.forEach(function (row) {
+				if (row.CAGE_TYPE == 5) { // ROLLER CHIPS
+					if (row.ROLLER_TRANSACTION == 1) { // ADD
+						totalAddNN += (row.ROLLER_NN_CHIPS || 0);
+						totalAddCC += (row.ROLLER_CC_CHIPS || 0);
+					} else if (row.ROLLER_TRANSACTION == 2) { // RETURN
+						totalReturnNN += (row.ROLLER_NN_CHIPS || 0);
+						totalReturnCC += (row.ROLLER_CC_CHIPS || 0);
+					}
+				}
+			});
+			
+			// Calculate required return amounts
+			var requiredReturnNN = totalAddNN - totalReturnNN;
+			var requiredReturnCC = totalAddCC - totalReturnCC;
+			
+			// Store values for validation
+			$('#modal-change_status').data('requiredReturnNN', requiredReturnNN);
+			$('#modal-change_status').data('requiredReturnCC', requiredReturnCC);
+			$('#modal-change_status').data('totalAddNN', totalAddNN);
+			$('#modal-change_status').data('totalAddCC', totalAddCC);
+			$('#modal-change_status').data('totalReturnNN', totalReturnNN);
+			$('#modal-change_status').data('totalReturnCC', totalReturnCC);
+			
+			// Display totals in modal
+			$('#required-return-total-add-nn').text(parseFloat(totalAddNN).toLocaleString());
+			$('#required-return-total-add-cc').text(parseFloat(totalAddCC).toLocaleString());
+			$('#required-return-total-return-nn').text(parseFloat(totalReturnNN).toLocaleString());
+			$('#required-return-total-return-cc').text(parseFloat(totalReturnCC).toLocaleString());
+			$('#required-return-nn').text(parseFloat(requiredReturnNN).toLocaleString());
+			$('#required-return-cc').text(parseFloat(requiredReturnCC).toLocaleString());
+			$('#required-nn-display').text(parseFloat(requiredReturnNN).toLocaleString());
+			$('#required-cc-display').text(parseFloat(requiredReturnCC).toLocaleString());
+			
+			// Show/hide roller chips return section based on whether there are required returns
+			if (requiredReturnNN > 0 || requiredReturnCC > 0) {
+				// If current status is PENDING (3), show the section immediately since END GAME is already selected
+				if (currentStatus == 3) {
+					$('#roller-chips-return-section').show();
+				}
+				
+				// Show section when status changes to END GAME
+				$('#status').off('change.rollerchips').on('change.rollerchips', function() {
+					if ($(this).val() == '1') { // END GAME
+						$('#roller-chips-return-section').show();
+					} else {
+						$('#roller-chips-return-section').hide();
+					}
+				});
+			} else {
+				$('#roller-chips-return-section').hide();
+			}
+		},
+		error: function (xhr, status, error) {
+			console.error('Error fetching game records:', error);
+		}
+	});
 }
 
 function openServices(id, guestName, gameStatus, settled) {
@@ -1777,29 +2478,67 @@ $(document).on('click', '#services-save-btn', function (e) {
 	}
 
 	const $btn = $('#services-save-btn');
-	$btn.prop('disabled', true).text('Saving...');
-
 	const isEdit = !!editId;
-	const url = isEdit ? `/game_services/${editId}` : '/add_game_services';
-	const method = isEdit ? 'PUT' : 'POST';
+	
+	// Build confirmation message
+	var confirmationMessage = `Confirm ${isEdit ? 'Update' : 'Add'} Service:<br><br>`;
+	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
+	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString()}<br>`;
+	if (remarks) {
+		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
+	}
+	
+	Swal.fire({
+		icon: 'question',
+		title: `Confirm ${isEdit ? 'Update' : 'Add'} Service`,
+		html: confirmationMessage + '<br>Are you sure you want to proceed?',
+		showCancelButton: true,
+		confirmButtonText: 'Yes, Confirm',
+		cancelButtonText: 'Cancel',
+		confirmButtonColor: '#3085d6',
+		cancelButtonColor: '#d33',
+		allowOutsideClick: false,
+		allowEscapeKey: false
+	}).then((result) => {
+		if (result.isConfirmed) {
+			// User confirmed, proceed with transaction
+			$btn.prop('disabled', true).text('Saving...');
 
-	$.ajax({
-		url,
-		method,
-		data: { game_id: gameId, service_type: type, amount, remarks },
-		success: function (list) {
-			renderServicesList(list || []);
-			$('#services-amount').val('');
-			$('#services-remarks').val('');
-			$('#services-type').val('');
-			$('#services-edit-id-input').val('');
-			$('#services-save-btn').text('Save');
-		},
-		error: function (xhr) {
-			const msg = xhr.responseJSON?.error || 'Failed to save service.';
-			Swal.fire({ icon: 'error', title: 'Error', text: msg });
-		},
-		complete: function () {
+			const url = isEdit ? `/game_services/${editId}` : '/add_game_services';
+			const method = isEdit ? 'PUT' : 'POST';
+
+			$.ajax({
+				url,
+				method,
+				data: { game_id: gameId, service_type: type, amount, remarks },
+				success: function (list) {
+					// Show success message
+					Swal.fire({
+						icon: 'success',
+						title: 'Success!',
+						text: `Service ${isEdit ? 'updated' : 'added'} successfully.`,
+						confirmButtonText: 'OK',
+						allowOutsideClick: false,
+						allowEscapeKey: false
+					}).then(() => {
+						renderServicesList(list || []);
+						$('#services-amount').val('');
+						$('#services-remarks').val('');
+						$('#services-type').val('');
+						$('#services-edit-id-input').val('');
+						$('#services-save-btn').text('Save');
+					});
+				},
+				error: function (xhr) {
+					const msg = xhr.responseJSON?.error || 'Failed to save service.';
+					Swal.fire({ icon: 'error', title: 'Error', text: msg });
+				},
+				complete: function () {
+					$btn.prop('disabled', false).text('Save');
+				}
+			});
+		} else {
+			// User cancelled, button stays enabled
 			$btn.prop('disabled', false).text('Save');
 		}
 	});
@@ -1840,25 +2579,63 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 	}
 
 	const $btn = $('#services-edit-save-btn');
-	$btn.prop('disabled', true).text('Saving...');
+	
+	// Build confirmation message
+	var confirmationMessage = `Confirm Update Service:<br><br>`;
+	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
+	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString()}<br>`;
+	if (remarks) {
+		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
+	}
+	
+	Swal.fire({
+		icon: 'question',
+		title: 'Confirm Update Service',
+		html: confirmationMessage + '<br>Are you sure you want to proceed?',
+		showCancelButton: true,
+		confirmButtonText: 'Yes, Confirm',
+		cancelButtonText: 'Cancel',
+		confirmButtonColor: '#3085d6',
+		cancelButtonColor: '#d33',
+		allowOutsideClick: false,
+		allowEscapeKey: false
+	}).then((result) => {
+		if (result.isConfirmed) {
+			// User confirmed, proceed with transaction
+			$btn.prop('disabled', true).text('Saving...');
 
-	$.ajax({
-		url: `/game_services/${serviceId}`,
-		method: 'PUT',
-		data: { game_id: gameId, service_type: type, amount, remarks },
-		success: function (list) {
-			renderServicesList(list || []);
-			$('#modal-services-edit').modal('hide');
-			$('#services-edit-id').val('');
-			$('#services-edit-type').val('');
-			$('#services-edit-amount').val('');
-			$('#services-edit-remarks').val('');
-		},
-		error: function (xhr) {
-			const msg = xhr.responseJSON?.error || 'Failed to save service.';
-			Swal.fire({ icon: 'error', title: 'Error', text: msg });
-		},
-		complete: function () {
+			$.ajax({
+				url: `/game_services/${serviceId}`,
+				method: 'PUT',
+				data: { game_id: gameId, service_type: type, amount, remarks },
+				success: function (list) {
+					// Show success message
+					Swal.fire({
+						icon: 'success',
+						title: 'Success!',
+						text: 'Service updated successfully.',
+						confirmButtonText: 'OK',
+						allowOutsideClick: false,
+						allowEscapeKey: false
+					}).then(() => {
+						renderServicesList(list || []);
+						$('#modal-services-edit').modal('hide');
+						$('#services-edit-id').val('');
+						$('#services-edit-type').val('');
+						$('#services-edit-amount').val('');
+						$('#services-edit-remarks').val('');
+					});
+				},
+				error: function (xhr) {
+					const msg = xhr.responseJSON?.error || 'Failed to save service.';
+					Swal.fire({ icon: 'error', title: 'Error', text: msg });
+				},
+				complete: function () {
+					$btn.prop('disabled', false).text('Save');
+				}
+			});
+		} else {
+			// User cancelled, button stays enabled
 			$btn.prop('disabled', false).text('Save');
 		}
 	});
@@ -2192,6 +2969,7 @@ $(document).ready(function () {
 							var total_rolling_cc_real = 0;
 							var total_roller_nn = 0;
 							var total_roller_cc = 0;
+							var net_roller_nn_for_rolling = 0; // Net NN roller chips for rolling calculation (ADD - RETURN)
 
 							response.forEach(function (res) {
 
@@ -2231,13 +3009,17 @@ $(document).ready(function () {
 					// ROLLER_TRANSACTION: 1 = ADD (add), 2 = RETURN (subtract)
 					var rollerTransaction = res.ROLLER_TRANSACTION || 1; // Default to ADD if null
 					if (rollerTransaction == 1) {
-						// ADD - add the values
+						// ADD - add the values (for display)
 						total_roller_nn = total_roller_nn + (res.ROLLER_NN_CHIPS || 0);
 						total_roller_cc = total_roller_cc + (res.ROLLER_CC_CHIPS || 0);
+						// ADD NN roller chips increases rolling (roller exchanges CC to NN, player gets chips to play)
+						net_roller_nn_for_rolling += (res.ROLLER_NN_CHIPS || 0);
 					} else if (rollerTransaction == 2) {
-						// RETURN - subtract the values
+						// RETURN - subtract the values (for display)
 						total_roller_nn = total_roller_nn - (res.ROLLER_NN_CHIPS || 0);
 						total_roller_cc = total_roller_cc - (res.ROLLER_CC_CHIPS || 0);
+						// RETURN NN roller chips decreases rolling (player returns NN chips to roller, removed from play)
+						net_roller_nn_for_rolling -= (res.ROLLER_NN_CHIPS || 0);
 					}
 				}
 
@@ -2246,7 +3028,11 @@ $(document).ready(function () {
 							var total_initial = total_nn_init + total_cc_init;
 							var total_buy_in_chips = total_nn + total_cc;
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
-							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+							// TOTAL ROLLING: Same logic as cashout - only NN chips affect rolling
+							// CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
+							// ROLLER ADD NN adds to rolling (roller exchanges CC to NN, player gets chips to play)
+							// ROLLER RETURN NN subtracts from rolling (player returns NN chips to roller, removed from play)
+							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn + net_roller_nn_for_rolling;
 
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real;
 							var total_roller_chips = total_roller_nn + total_roller_cc;
@@ -2278,6 +3064,16 @@ $(document).ready(function () {
 								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+                                var actionButtons = btn_services + btn_his;
+                                dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
+							} else if (row.game_status == 3) {
+								// PENDING STATUS (discrepancy in roller chips return)
+								const pendingText = "PENDING";
+								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3)" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:8px !important;">${pendingText}</button>`;
+								
+								buyin_td = parseFloat(total_amount).toLocaleString();
+								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
+								cashout_td = parseFloat(total_cash_out_chips).toLocaleString();
                                 var actionButtons = btn_services + btn_his;
                                 dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else {
@@ -2532,6 +3328,7 @@ function settlement_history(record_id, acc_id) {
 				var total_rolling_cc_real = 0;
 				var total_roller_nn = 0;
 				var total_roller_cc = 0;
+				var net_roller_nn_for_rolling = 0; // Net NN roller chips for rolling calculation (ADD - RETURN)
 
                 let RollingRate = data[0].COMMISSION_PERCENTAGE;
                  let CommissionType = data[0].COMMISSION_TYPE;
@@ -2616,7 +3413,15 @@ function settlement_history(record_id, acc_id) {
 					
 					if (row.CAGE_TYPE == 5) {
 						// ROLLER CHIPS - tracked separately
-						// Not included in rolling calculations
+						// ROLLER_TRANSACTION: 1 = ADD (add), 2 = RETURN (subtract)
+						var rollerTransaction = row.ROLLER_TRANSACTION || 1;
+						if (rollerTransaction == 1) {
+							// ADD NN roller chips increases rolling (roller exchanges CC to NN, player gets chips to play)
+							net_roller_nn_for_rolling += (row.ROLLER_NN_CHIPS || 0);
+						} else if (rollerTransaction == 2) {
+							// RETURN NN roller chips decreases rolling (player returns NN chips to roller, removed from play)
+							net_roller_nn_for_rolling -= (row.ROLLER_NN_CHIPS || 0);
+						}
 					}
 
 				});
@@ -2626,7 +3431,11 @@ function settlement_history(record_id, acc_id) {
 							var total_initial = total_nn_init + total_cc_init;
 							var total_buy_in_chips = total_nn + total_cc;
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
-							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+							// TOTAL ROLLING: Same logic as cashout - only NN chips affect rolling
+							// CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
+							// ROLLER ADD NN adds to rolling (roller exchanges CC to NN, player gets chips to play)
+							// ROLLER RETURN NN subtracts from rolling (player returns NN chips to roller, removed from play)
+							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn + net_roller_nn_for_rolling;
 					
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real;
 					
@@ -2757,63 +3566,118 @@ function settlement_history(record_id, acc_id) {
             return; // Exit if already settled
         }
 
-        var formData = $('#add_settlement').serialize(); // Serialize form data
-		var $btn = $('#submit-settlement-btn');
-		$btn.prop('disabled', true).html(`
-			<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-			Loading...
-		  `);
+        // Get form values for confirmation
+        var buyIn = $('#buyIn').val().replace(/,/g, '') || '0';
+        var chipsReturn = $('#chipsReturn').val().replace(/,/g, '') || '0';
+        var winLoss = $('#winLoss').val().replace(/,/g, '') || '0';
+        var rolling = $('#rolling').val().replace(/,/g, '') || '0';
+        var rollingRate = $('#rollingRate').val() || '0';
+        var rollingSettlement = $('#rollingSettlement').val().replace(/,/g, '') || '0';
+        var services = $('#fb').val().replace(/,/g, '') || '0';
+        var payment = $('#payment').val().replace(/,/g, '') || '0';
+        var transType = $('input[name="txtTransType"]:checked').val();
+        var transTypeText = '';
+        if (transType == '2') transTypeText = 'Deposit';
+        else if (transType == '1') transTypeText = 'Cash Out';
+        
+        // Build confirmation message
+        var confirmationMessage = `Confirm Settlement:<br><br>`;
+        confirmationMessage += `<strong>Buy-In:</strong> ${parseFloat(buyIn).toLocaleString()}<br>`;
+        confirmationMessage += `<strong>Chips Return:</strong> ${parseFloat(chipsReturn).toLocaleString()}<br>`;
+        confirmationMessage += `<strong>Win/Loss:</strong> ${parseFloat(winLoss).toLocaleString()}<br>`;
+        confirmationMessage += `<strong>Rolling:</strong> ${parseFloat(rolling).toLocaleString()}<br>`;
+        confirmationMessage += `<strong>Rate:</strong> ${parseFloat(rollingRate).toFixed(2)}%<br>`;
+        confirmationMessage += `<strong>Settlement:</strong> ${parseFloat(rollingSettlement).toLocaleString()}<br>`;
+        if (parseFloat(services) > 0) {
+            confirmationMessage += `<strong>Services:</strong> ${parseFloat(services).toLocaleString()}<br>`;
+        }
+        confirmationMessage += `<strong>Payment:</strong> ${parseFloat(payment).toLocaleString()}<br>`;
+        if (transTypeText) {
+            confirmationMessage += `<strong>Transaction Type:</strong> ${transTypeText}<br>`;
+        }
+        
+        var $btn = $('#submit-settlement-btn');
+        
+        Swal.fire({
+            icon: 'question',
+            title: 'Confirm Settlement',
+            html: confirmationMessage + '<br>Are you sure you want to proceed?',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Confirm',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            width: '500px'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // User confirmed, proceed with transaction
+                $btn.prop('disabled', true).html(`
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Loading...
+                `);
+                
+                var formData = $('#add_settlement').serialize(); // Serialize form data
 
-        $.ajax({
-            type: 'POST',
-            url: '/add_settlement',
-            data: formData,
-            success: function (response) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'The settlement has been successfully settled.',
-                    text: '',
-                    confirmButtonText: 'OK',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    customClass: {
-                        confirmButton: 'custom-ok-btn'
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // Set the flag to true
-                        isSettled = true;
-                        console.log('Settlement processed. Setting isSettled to true.');
-                        // Disable and hide the 'Save' button
-                        $('#submit-settlement-btn').prop('disabled', true).hide();
-                        // Hide modal only after SweetAlert confirmation
-                        $('#modal-settlement').modal('hide');
-						window.location.reload();
-                        // Reset the form
-                        $('#add_settlement')[0].reset();
-                        // Show the settled image
-                        $('#settledImage-modal').show();
+                $.ajax({
+                    type: 'POST',
+                    url: '/add_settlement',
+                    data: formData,
+                    success: function (response) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'The settlement has been successfully settled.',
+                            text: '',
+                            confirmButtonText: 'OK',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            customClass: {
+                                confirmButton: 'custom-ok-btn'
+                            }
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                // Set the flag to true
+                                isSettled = true;
+                                console.log('Settlement processed. Setting isSettled to true.');
+                                // Disable and hide the 'Save' button
+                                $('#submit-settlement-btn').prop('disabled', true).hide();
+                                // Hide modal only after SweetAlert confirmation
+                                $('#modal-settlement').modal('hide');
+                                window.location.reload();
+                                // Reset the form
+                                $('#add_settlement')[0].reset();
+                                // Show the settled image
+                                $('#settledImage-modal').show();
+                            }
+                        });
+                    },
+                    error: function (xhr, status, error) {
+                        // Display SweetAlert error message
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'There was an error saving the settlement.',
+                            confirmButtonText: 'OK',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false,
+                            customClass: {
+                                confirmButton: 'custom-ok-btn'
+                            }
+                        });
+                        $btn.prop('disabled', false).text('Save'); // Re-enable button and reset text
+                    },
+                    complete: function () {
+                        // Only reset if not already disabled (in case of success)
+                        if (!$btn.is(':disabled')) {
+                            $btn.prop('disabled', false).text('Save'); // Re-enable button and reset text
+                        }
                     }
                 });
-            },
-            error: function (xhr, status, error) {
-                // Display SweetAlert error message
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'There was an error saving the settlement.',
-                    confirmButtonText: 'OK',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    customClass: {
-                        confirmButton: 'custom-ok-btn'
-                    }
-                });
-            },
-			complete: function () {
-			
-				$btn.prop('disabled', false).text('Save'); // Re-enable button and reset text
-			}
+            } else {
+                // User cancelled, re-enable button
+                $btn.prop('disabled', false).text('Save');
+            }
         });
     });
 

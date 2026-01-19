@@ -9,7 +9,17 @@
 		<div class="modal-body">
 			<input type="hidden" name="game_id" class="game_list_id">
 			
-			
+			<!-- Summary Display (Total ADD, Total RETURN, Net ADD) -->
+			<div class="alert alert-info" role="alert" style="padding: 10px; margin-bottom: 15px;">
+				<small>
+					<strong>Summary:</strong><br>
+					Total ADD (NN): <span id="roller-chips-total-add-nn">0</span> | 
+					Total ADD (CC): <span id="roller-chips-total-add-cc">0</span><br>
+					Total RETURN (NN): <span id="roller-chips-total-return-nn">0</span> | 
+					Total RETURN (CC): <span id="roller-chips-total-return-cc">0</span><br>
+					Net ADD (NN): <span id="roller-chips-net-add-nn">0</span>
+				</small>
+			</div>
 
 			<!-- Input Fields -->
 			<div class="row mb-2">

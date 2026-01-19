@@ -24,6 +24,37 @@
 					</select>
 				</div>
 			</div>
+			
+			<!-- Roller Chips Return Section (Only shown if END GAME and has roller chips) -->
+			<div id="roller-chips-return-section" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+				<div class="alert alert-info" role="alert" style="padding: 10px; margin-bottom: 15px;">
+					<small>
+						<strong>Roller Chips Return Required:</strong><br>
+						Total ADD (NN): <span id="required-return-total-add-nn">0</span> | 
+						Total ADD (CC): <span id="required-return-total-add-cc">0</span><br>
+						Total RETURN (NN): <span id="required-return-total-return-nn">0</span> | 
+						Total RETURN (CC): <span id="required-return-total-return-cc">0</span><br>
+						<strong>Required RETURN (NN): <span id="required-return-nn">0</span></strong><br>
+						<strong>Required RETURN (CC): <span id="required-return-cc">0</span></strong>
+					</small>
+				</div>
+				<div class="row mb-2">
+					<div class="col-sm-6">
+						<label class="form-label">Return NN Chips <span class="text-danger">*</span></label>
+						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" 
+							class="form-control text-center txtReturnRollerNN" 
+							placeholder="NN Chips" name="txtReturnRollerNN" id="txtReturnRollerNN">
+						<small class="text-muted">Required: <span id="required-nn-display">0</span></small>
+					</div>
+					<div class="col-sm-6">
+						<label class="form-label">Return CC Chips <span class="text-danger">*</span></label>
+						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" 
+							class="form-control text-center txtReturnRollerCC" 
+							placeholder="CC Chips" name="txtReturnRollerCC" id="txtReturnRollerCC">
+						<small class="text-muted">Required: <span id="required-cc-display">0</span></small>
+					</div>
+				</div>
+			</div>
 		</div>
 		<div class="modal-footer">
 			<button type="submit" class="btn btn-sm btn-primary" id="submit-status-btn">

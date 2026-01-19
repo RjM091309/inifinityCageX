@@ -527,56 +527,96 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			txtCapital,
 			txtFinalChips,
 			txtTotalRolling,
-			txtWinloss
+			txtWinloss,
+			txtReturnRollerNN,
+			txtReturnRollerCC
 		} = req.body;
 
 		const formattedWinloss = parseFloat(txtWinloss) || 0;
 		const adjustedWinloss = formattedWinloss > 0 ? -formattedWinloss : Math.abs(formattedWinloss);
 
+		// Ensure all required parameters are defined
+		if (!txtStatus) {
+			return res.status(400).json({ error: 'Status is required' });
+		}
+		
+		const editedBy = req.session.user_id || null; // Use null instead of undefined
+		if (!editedBy) {
+			return res.status(401).json({ error: 'User session not found' });
+		}
+
 		// ✅ Update game_list status
 		await pool.execute(
 			`UPDATE game_list SET ACTIVE = ?, GAME_ENDED = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
-			[txtStatus, date_now, req.session.user_id, date_now, id]
+			[txtStatus, date_now, editedBy, date_now, id]
 		);
 
-		// ✅ If game is being closed (status = 1), send Telegram notification
-		if (txtStatus === "1") {
-			const [agentResults] = await pool.execute(`
-				SELECT agent.AGENT_CODE, agent.NAME
-				FROM agent
-				JOIN account ON account.AGENT_ID = agent.IDNo
-				WHERE account.ACTIVE = 1 AND account.IDNo = ?
-			`, [txtAccountCode]);
-
-			if (agentResults.length > 0) {
-				const agentCode = agentResults[0].AGENT_CODE;
-				const agentName = agentResults[0].NAME;
-
-				const [telegramIdResults] = await pool.execute(`
-					SELECT agent.TELEGRAM_ID 
+		// ✅ If game is being closed (status = 1 or 3), insert roller chips return
+		// Status 1 = END GAME (fully settled), Status 3 = PENDING (discrepancy, needs review)
+		if (txtStatus === "1" || txtStatus === "3") {
+			// Insert roller chips return if provided
+			const returnNNAmount = parseFloat((txtReturnRollerNN || '0').replace(/,/g, '')) || 0;
+			const returnCCAmount = parseFloat((txtReturnRollerCC || '0').replace(/,/g, '')) || 0;
+			
+			if (returnNNAmount > 0 || returnCCAmount > 0) {
+				const rollerChipsReturnSQL = `
+					INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_BY, ENCODED_DT)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				`;
+				await pool.execute(rollerChipsReturnSQL, [
+					id, 
+					date_now, 
+					5, // CAGE_TYPE 5 for ROLLER CHIPS
+					0, // AMOUNT is 0 for roller chips
+					0, // NN_CHIPS is 0 (roller chips use ROLLER_NN_CHIPS)
+					0, // CC_CHIPS is 0 (roller chips use ROLLER_CC_CHIPS)
+					returnNNAmount, // ROLLER_NN_CHIPS
+					returnCCAmount, // ROLLER_CC_CHIPS
+					2, // ROLLER_TRANSACTION: 2 = RETURN
+					req.session.user_id, 
+					date_now
+				]);
+			}
+			
+			// ✅ Only send Telegram notification for status = 1 (END GAME), not for status = 3 (PENDING)
+			if (txtStatus === "1") {
+				const [agentResults] = await pool.execute(`
+					SELECT agent.AGENT_CODE, agent.NAME
 					FROM agent
 					JOIN account ON account.AGENT_ID = agent.IDNo
 					WHERE account.ACTIVE = 1 AND account.IDNo = ?
 				`, [txtAccountCode]);
 
-				const updated_time = new Date().toLocaleTimeString();
-				const date_nowTG = new Date().toLocaleDateString();
+				if (agentResults.length > 0) {
+					const agentCode = agentResults[0].AGENT_CODE;
+					const agentName = agentResults[0].NAME;
 
-				const text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame #: ${txtGameId}\nCapital: ${parseFloat(txtCapital).toLocaleString()}\nFinal Chips: ${parseFloat(txtFinalChips).toLocaleString()}\nWin/Loss: ${parseFloat(adjustedWinloss).toLocaleString()}\nTotal Rolling: ${parseFloat(txtTotalRolling).toLocaleString()}`;
+					const [telegramIdResults] = await pool.execute(`
+						SELECT agent.TELEGRAM_ID 
+						FROM agent
+						JOIN account ON account.AGENT_ID = agent.IDNo
+						WHERE account.ACTIVE = 1 AND account.IDNo = ?
+					`, [txtAccountCode]);
 
-				if (telegramIdResults.length > 0) {
-					const telegramId = telegramIdResults[0].TELEGRAM_ID;
-					await sendTelegramMessage(text, telegramId);
+					const updated_time = new Date().toLocaleTimeString();
+					const date_nowTG = new Date().toLocaleDateString();
+
+					const text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame #: ${txtGameId}\nCapital: ${parseFloat(txtCapital).toLocaleString()}\nFinal Chips: ${parseFloat(txtFinalChips).toLocaleString()}\nWin/Loss: ${parseFloat(adjustedWinloss).toLocaleString()}\nTotal Rolling: ${parseFloat(txtTotalRolling).toLocaleString()}`;
+
+					if (telegramIdResults.length > 0) {
+						const telegramId = telegramIdResults[0].TELEGRAM_ID;
+						await sendTelegramMessage(text, telegramId);
+					} else {
+						console.warn("No TELEGRAM_ID found for Account:", txtAccountCode);
+					}
+
+					const [chatIdResults] = await pool.execute(`SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`);
+					if (chatIdResults.length > 0) {
+						await sendTelegramMessage(text, chatIdResults[0].CHAT_ID);
+					}
 				} else {
-					console.warn("No TELEGRAM_ID found for Account:", txtAccountCode);
+					console.warn("No agent info found for Account:", txtAccountCode);
 				}
-
-				const [chatIdResults] = await pool.execute(`SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`);
-				if (chatIdResults.length > 0) {
-					await sendTelegramMessage(text, chatIdResults[0].CHAT_ID);
-				}
-			} else {
-				console.warn("No agent info found for Account:", txtAccountCode);
 			}
 		}
 

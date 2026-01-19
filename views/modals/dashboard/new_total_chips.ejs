@@ -1,7 +1,7 @@
 <!-- Modal -->
 <div class="modal fade" id="modal-new-total-chips" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
     aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
     <div class="modal-content">
       <div class="modal-header bg-primary">
         <h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('dashboard_total_chips.total_chips') %></h5>
@@ -117,10 +117,90 @@
           </div>
 
         </form>
+
+        <hr style="border: none; border-top: 0.2rem solid black; margin-top: 20px; margin-bottom: 20px;">
+        
+        <!-- History Section -->
+        <div class="row mb-3">
+          <div class="col-sm-4">
+            <input type="text" id="total-chips-daterange" name="total-chips-daterange" class="form-control"
+                placeholder="Select date range" autocomplete="off" />
+          </div>
+        </div>
+
+        <table id="total-chips-history-tbl" class="table table-bordered table-responsive"
+            style="font-size: 13px !important;">
+          <thead>
+            <tr>
+              <th>Encoded By</th>
+              <th>Amount</th>
+              <th>Type</th>
+              <th>Remarks</th>
+              <th>Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+
+<style>
+  .modal-lg {
+    max-width: 90% !important;
+  }
+
+  #total-chips-history-tbl {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+  }
+
+  /* Header styles */
+  #total-chips-history-tbl thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    text-align: left;
+    border: none;
+  }
+
+  /* Row styles */
+  #total-chips-history-tbl tbody tr {
+    border-bottom: 1px solid #eee;
+  }
+
+  /* Cell styles */
+  #total-chips-history-tbl td {
+    padding: 12px 15px;
+    color: #666;
+  }
+
+  #total-chips-history-tbl tbody tr:hover {
+    background-color: #f5f5f5 !important;
+  }
+
+  /* Balance column */
+  #total-chips-history-tbl td:last-child {
+    text-align: right;
+    color: #333;
+  }
+
+  /* Footer total row */
+  #total-chips-history-tbl tfoot th {
+    padding: 10px;
+    font-weight: 600;
+    color: #333;
+    background-color: #f4f6fa;
+    border-top: 2px solid #dee2e6;
+  }
+</style>
 
 <script>
 $(document).ready(function() {
@@ -236,8 +316,8 @@ $(document).ready(function() {
 
   // 7) Spinner logic on form submit
   $('#add_junket_total_chips').on('submit', function(e) {
-    // If validation fails, stop
-    if (!validateChips()) {
+    // If validation fails, stop (only if validateChips function exists)
+    if (typeof validateChips === 'function' && !validateChips()) {
       e.preventDefault();
       return false;
     }
@@ -258,6 +338,170 @@ $(document).ready(function() {
     setTimeout(() => {
       this.submit();
     }, 1000);
+  });
+
+  // 8) Combined NN and CC Chips History
+  function loadTotalChipsHistory() {
+    const dateRange = $('#total-chips-daterange').val();
+    console.log('Total Chips History Date Range:', dateRange);
+
+    if (!dateRange) {
+      alert('Please select a date range.');
+      return;
+    }
+
+    let startDate, endDate;
+    if (dateRange.indexOf(" to ") > -1) {
+      [startDate, endDate] = dateRange.split(" to ");
+    } else {
+      startDate = dateRange;
+      endDate = dateRange;
+    }
+    console.log('Total Chips History Start Date:', startDate, 'End Date:', endDate);
+
+    // Destroy existing DataTable instance if it exists
+    if ($.fn.DataTable.isDataTable('#total-chips-history-tbl')) {
+      $('#total-chips-history-tbl').DataTable().destroy();
+    }
+
+    // Fetch both NN and CC chips data
+    Promise.all([
+      // Fetch NN Chips data
+      $.ajax({
+        url: `/junket_capital_data?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
+        type: "GET"
+      }),
+      // Fetch CC Chips data
+      $.ajax({
+        url: `/cc_chips_history?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
+        type: "GET"
+      })
+    ]).then(function([nnData, ccData]) {
+      console.log('Raw NN Chips Data:', nnData);
+      console.log('Raw CC Chips Data:', ccData);
+
+      // Process NN Chips data
+      const nnFiltered = (Array.isArray(nnData) ? nnData : []).filter(row => {
+        const chipsBuyIn = row.TRANSACTION_ID == 1 &&
+          row.capital_description === '<span class="css-red">Chips Buy-in</span>';
+        const chipsReturn = row.TRANSACTION_ID == 2 &&
+          row.capital_description === '<span class="css-red">Chips Return</span>';
+        const nnChips = parseFloat(row.NN_CHIPS) || 0;
+        return (chipsBuyIn || chipsReturn) && nnChips > 0;
+      }).map(function(row) {
+        const isChipsBuyIn = row.TRANSACTION_ID == 1 &&
+          row.capital_description === '<span class="css-red">Chips Buy-in</span>';
+        const nnChips = parseFloat(row.NN_CHIPS) || 0;
+        const amount = nnChips.toLocaleString();
+        const type = isChipsBuyIn
+          ? '<span class="css-red">NN Chips Buy-in</span>'
+          : '<span class="css-blue">NN Chips Return</span>';
+
+        return {
+          encodedBy: row.ENCODED_BY_NAME || 'N/A',
+          amount: amount,
+          type: type,
+          remarks: row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
+          date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+          action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
+          sortDate: new Date(row.ENCODED_DT)
+        };
+      });
+
+      // Process CC Chips data
+      const ccFiltered = (Array.isArray(ccData) ? ccData : []).map(function(row) {
+        const isChipsBuyIn = row.TRANSACTION_ID == 1;
+        const ccChips = parseFloat(row.CC_CHIPS) || 0;
+        const amount = ccChips.toLocaleString();
+        const type = isChipsBuyIn
+          ? '<span class="css-red">CC Chips Buy-in</span>'
+          : '<span class="css-blue">CC Chips Return</span>';
+
+        return {
+          encodedBy: row.ENCODED_BY_NAME || 'N/A',
+          amount: amount,
+          type: type,
+          remarks: '',
+          date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+          action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
+          sortDate: new Date(row.ENCODED_DT)
+        };
+      });
+
+      // Combine and sort by date descending
+      const combinedData = [...nnFiltered, ...ccFiltered].sort((a, b) => b.sortDate - a.sortDate);
+
+      // Convert to DataTable format
+      const tableData = combinedData.map(row => [
+        row.encodedBy,
+        row.amount,
+        row.type,
+        row.remarks,
+        row.date,
+        row.action
+      ]);
+
+      console.log('Combined Total Chips History Data:', tableData);
+
+      // Initialize DataTable
+      $('#total-chips-history-tbl').DataTable({
+        processing: false,
+        serverSide: false,
+        data: tableData,
+        order: [[4, 'desc']], // Sort by date descending
+        columns: [
+          { "className": "text-center" },
+          { "className": "text-end" },
+          { "className": "text-center" },
+          { "className": "text-center" },
+          { "className": "text-center" },
+          { "className": "text-center", "orderable": false }
+        ],
+        responsive: true,
+        language: {
+          "emptyTable": "No chips transactions found",
+          "processing": "Loading chips transactions..."
+        },
+        drawCallback: function(settings) {
+          $('[data-bs-toggle="tooltip"]').tooltip();
+        }
+      });
+    }).catch(function(error) {
+      console.error('Error loading chips history:', error);
+    });
+  }
+
+  // Initialize date picker and load history when modal is shown
+  let totalChipsPicker = null;
+  $('#modal-new-total-chips').on('shown.bs.modal', function () {
+    console.log('Total Chips Modal shown');
+    
+    const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
+    const currentDate = moment().format('YYYY-MM-DD');
+    
+    if ($('#total-chips-daterange').length > 0) {
+      if (!totalChipsPicker || !$('#total-chips-daterange').hasClass('flatpickr-input')) {
+        totalChipsPicker = flatpickr("#total-chips-daterange", {
+          mode: "range",
+          altInput: true,
+          altFormat: "M d, Y",
+          dateFormat: "Y-m-d",
+          defaultDate: [startOfMonth, currentDate],
+          showMonths: 2,
+          onChange: function(selectedDates, dateStr) {
+            console.log('Total Chips History Date changed:', dateStr);
+            if (selectedDates.length === 2) {
+              loadTotalChipsHistory();
+            }
+          }
+        });
+      }
+      
+      // Initial load of combined chips history data
+      loadTotalChipsHistory();
+    } else {
+      console.error('total-chips-daterange element not found');
+    }
   });
 });
 </script>
