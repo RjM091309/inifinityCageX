@@ -339,6 +339,26 @@ ON
 
 	let sqlCCChipsBuyinCashDeposit = `SELECT SUM(CC_CHIPS) AS CC_CHIPS_BUYIN_CASH_DEPOSIT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION IN (1,2) `;
 
+	// Cash-only buyins (TRANSACTION = 1 only) - excludes guest account buyins (TRANSACTION = 2)
+	// These are used for Cash Balance calculation to avoid double-counting guest deposits
+	let sqlNNChipsBuyinCashOnly = `SELECT SUM(NN_CHIPS) AS NN_CHIPS_BUYIN_CASH_ONLY FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 1`;
+
+	let sqlCCChipsBuyinCashOnly = `SELECT SUM(CC_CHIPS) AS CC_CHIPS_BUYIN_CASH_ONLY FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 1`;
+
+	// Guest account buyins (TRANSACTION = 2 only) - buyins using guest deposited money
+	// These should NOT be counted in balance because the money is already counted in ACCOUNT_DEPOSIT
+	let sqlNNChipsBuyinGuestAccount = `SELECT SUM(NN_CHIPS) AS NN_CHIPS_BUYIN_GUEST_ACCOUNT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 2`;
+
+	let sqlCCChipsBuyinGuestAccount = `SELECT SUM(CC_CHIPS) AS CC_CHIPS_BUYIN_GUEST_ACCOUNT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 2`;
+
+	// ROLLER CHIPS queries for CAGE_TYPE = 5
+	// ROLLER_TRANSACTION = 1: Subtract (LESS) from balance
+	// ROLLER_TRANSACTION = 2: Add to balance
+	let sqlRollerNNSubtract = 'SELECT SUM(ROLLER_NN_CHIPS) AS ROLLER_NN_SUBTRACT FROM game_record WHERE ACTIVE = 1 AND CAGE_TYPE = 5 AND ROLLER_TRANSACTION = 1';
+	let sqlRollerNNAdd = 'SELECT SUM(ROLLER_NN_CHIPS) AS ROLLER_NN_ADD FROM game_record WHERE ACTIVE = 1 AND CAGE_TYPE = 5 AND ROLLER_TRANSACTION = 2';
+	let sqlRollerCCSubtract = 'SELECT SUM(ROLLER_CC_CHIPS) AS ROLLER_CC_SUBTRACT FROM game_record WHERE ACTIVE = 1 AND CAGE_TYPE = 5 AND ROLLER_TRANSACTION = 1';
+	let sqlRollerCCAdd = 'SELECT SUM(ROLLER_CC_CHIPS) AS ROLLER_CC_ADD FROM game_record WHERE ACTIVE = 1 AND CAGE_TYPE = 5 AND ROLLER_TRANSACTION = 2';
+
 	try {
 
 
@@ -472,6 +492,14 @@ ON
 		// Kunin ang iba pang mga query results:
 		const [NNChipsBuyinCashDepositResult] = await pool.execute(sqlNNChipsBuyinCashDeposit);
 		const [CCChipsBuyinCashDepositResult] = await pool.execute(sqlCCChipsBuyinCashDeposit);
+		const [NNChipsBuyinCashOnlyResult] = await pool.execute(sqlNNChipsBuyinCashOnly);
+		const [CCChipsBuyinCashOnlyResult] = await pool.execute(sqlCCChipsBuyinCashOnly);
+		const [NNChipsBuyinGuestAccountResult] = await pool.execute(sqlNNChipsBuyinGuestAccount);
+		const [CCChipsBuyinGuestAccountResult] = await pool.execute(sqlCCChipsBuyinGuestAccount);
+		const [RollerNNSubtractResult] = await pool.execute(sqlRollerNNSubtract);
+		const [RollerNNAddResult] = await pool.execute(sqlRollerNNAdd);
+		const [RollerCCSubtractResult] = await pool.execute(sqlRollerCCSubtract);
+		const [RollerCCAddResult] = await pool.execute(sqlRollerCCAdd);
 		const [AgentCountResult] = await pool.execute(sqlAgentCount);
 
 		res.render('dashboard', {
@@ -542,6 +570,14 @@ ON
 			sqlWinLossTelebet: totalWinLossTelebetCalc,
 			sqlNNChipsBuyinCashDeposit: NNChipsBuyinCashDepositResult,
 			sqlCCChipsBuyinCashDeposit: CCChipsBuyinCashDepositResult,
+			sqlNNChipsBuyinCashOnly: NNChipsBuyinCashOnlyResult,
+			sqlCCChipsBuyinCashOnly: CCChipsBuyinCashOnlyResult,
+			sqlNNChipsBuyinGuestAccount: NNChipsBuyinGuestAccountResult,
+			sqlCCChipsBuyinGuestAccount: CCChipsBuyinGuestAccountResult,
+			sqlRollerNNSubtract: RollerNNSubtractResult,
+			sqlRollerNNAdd: RollerNNAddResult,
+			sqlRollerCCSubtract: RollerCCSubtractResult,
+			sqlRollerCCAdd: RollerCCAddResult,
 			sqlAgentCount: AgentCountResult
 
 		});
