@@ -285,7 +285,6 @@ $(document).ready(function () {
                             var total_rolling_cc_real = 0;
                             var total_roller_nn = 0;
                             var total_roller_cc = 0;
-                            var net_roller_nn_for_rolling = 0; // Net NN roller chips for rolling calculation (ADD - RETURN)
 
                             response.forEach(function (res) {
                                 if (res.CAGE_TYPE == 1 && (total_nn_init != 0 || total_cc_init != 0)) {
@@ -319,22 +318,16 @@ $(document).ready(function () {
                                 }
                                 
                                 if (res.CAGE_TYPE == 5) {
-                                    // ROLLER CHIPS - tracked separately
+                                    // ROLLER CHIPS - tracked separately (do NOT affect total rolling)
                                     // Use ROLLER_NN_CHIPS and ROLLER_CC_CHIPS columns
                                     // ROLLER_TRANSACTION: 1 = ADD (add), 2 = RETURN (subtract)
                                     var rollerTransaction = res.ROLLER_TRANSACTION || 1; // Default to ADD if null
                                     if (rollerTransaction == 1) {
-                                        // ADD - add the values (for display)
                                         total_roller_nn = total_roller_nn + (res.ROLLER_NN_CHIPS || 0);
                                         total_roller_cc = total_roller_cc + (res.ROLLER_CC_CHIPS || 0);
-                                        // ADD NN roller chips increases rolling (roller exchanges CC to NN, player gets chips to play)
-                                        net_roller_nn_for_rolling += (res.ROLLER_NN_CHIPS || 0);
                                     } else if (rollerTransaction == 2) {
-                                        // RETURN - subtract the values (for display)
                                         total_roller_nn = total_roller_nn - (res.ROLLER_NN_CHIPS || 0);
                                         total_roller_cc = total_roller_cc - (res.ROLLER_CC_CHIPS || 0);
-                                        // RETURN NN roller chips decreases rolling (player returns NN chips to roller, removed from play)
-                                        net_roller_nn_for_rolling -= (res.ROLLER_NN_CHIPS || 0);
                                     }
                                 }
                             });
@@ -343,12 +336,10 @@ $(document).ready(function () {
 							var total_buy_in_chips = total_nn + total_cc;
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
 							
-							// TOTAL ROLLING: Same logic as cashout - only NN chips affect rolling
-							// CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
-							// ROLLER ADD NN adds to rolling (roller exchanges CC to NN, player gets more NN chips to play)
-							// ROLLER RETURN NN subtracts from rolling (player returns NN chips to roller, chips removed from play)
-							// CC chips don't affect rolling (CC chips are winnings from dealer, not played chips)
-							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn + net_roller_nn_for_rolling;
+                            // TOTAL ROLLING: exclude roller chip movements (ADD/RETURN)
+                            // CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
+                            // CC chips don't affect rolling (CC chips are winnings from dealer, not played chips)
+                            var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 	
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real;
 							var total_roller_chips = total_roller_nn + total_roller_cc;
@@ -1375,6 +1366,7 @@ $('#edit_status').submit(function (event) {
 	if (status == '1') { // END GAME
 		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
+		var requiredReturnTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
 		
 		// Only validate if there are required returns
 		if (requiredReturnNN > 0 || requiredReturnCC > 0) {
@@ -1383,59 +1375,28 @@ $('#edit_status').submit(function (event) {
 			
 			var returnNNAmount = parseFloat(returnNN) || 0;
 			var returnCCAmount = parseFloat(returnCC) || 0;
+			var returnTotal = returnNNAmount + returnCCAmount;
 			
-			// Check if amounts match exactly
-			var nnMatches = false;
-			var ccMatches = false;
+			// Validate combined total matches required (NN/CC mix allowed)
+			var totalsMatch = true;
 			var errorMessages = [];
 			
-			// Validate NN return must be exact (even if required is 0)
-			if (requiredReturnNN > 0) {
-				// If required is > 0, input must match exactly
-				if (!returnNN || parseFloat(returnNNAmount) != parseFloat(requiredReturnNN)) {
-					nnMatches = false;
-					errorMessages.push(`NN Chips: Required <strong>${parseFloat(requiredReturnNN).toLocaleString()}</strong>, Current: <strong>${parseFloat(returnNNAmount).toLocaleString()}</strong>`);
-				} else {
-					nnMatches = true;
-				}
-			} else if (requiredReturnNN == 0) {
-				// If required is 0, input must also be 0 or empty
-				if (returnNN && parseFloat(returnNNAmount) != 0) {
-					nnMatches = false;
-					errorMessages.push(`NN Chips: Required <strong>0</strong>, Current: <strong>${parseFloat(returnNNAmount).toLocaleString()}</strong>`);
-				} else {
-					nnMatches = true;
-				}
-			} else {
-				nnMatches = true;
+			if (requiredReturnTotal > 0 && parseFloat(returnTotal) !== parseFloat(requiredReturnTotal)) {
+				totalsMatch = false;
+				errorMessages.push(`Total Required (NN+CC): <strong>${parseFloat(requiredReturnTotal).toLocaleString()}</strong>, Current Total: <strong>${parseFloat(returnTotal).toLocaleString()}</strong>`);
 			}
 			
-			// Validate CC return must be exact (even if required is 0)
-			if (requiredReturnCC > 0) {
-				// If required is > 0, input must match exactly
-				if (!returnCC || parseFloat(returnCCAmount) != parseFloat(requiredReturnCC)) {
-					ccMatches = false;
-					errorMessages.push(`CC Chips: Required <strong>${parseFloat(requiredReturnCC).toLocaleString()}</strong>, Current: <strong>${parseFloat(returnCCAmount).toLocaleString()}</strong>`);
-				} else {
-					ccMatches = true;
-				}
-			} else if (requiredReturnCC == 0) {
-				// If required is 0, input must also be 0 or empty
-				if (returnCC && parseFloat(returnCCAmount) != 0) {
-					ccMatches = false;
-					errorMessages.push(`CC Chips: Required <strong>0</strong>, Current: <strong>${parseFloat(returnCCAmount).toLocaleString()}</strong>`);
-				} else {
-					ccMatches = true;
-				}
-			} else {
-				ccMatches = true;
+			// Guard against negative input values
+			if (returnNNAmount < 0 || returnCCAmount < 0) {
+				totalsMatch = false;
+				errorMessages.push('Return amounts cannot be negative.');
 			}
-			
+
 			// If amounts don't match, show error with "Proceed Anyway" option
-			if (!nnMatches || !ccMatches) {
+			if (!totalsMatch) {
 				var errorHtml = '<strong>Invalid Roller Chips Return!</strong><br><br>';
 				errorHtml += errorMessages.join('<br>');
-				errorHtml += '<br><br><small class="text-muted">The return amounts do not match the required amounts. This will be marked as PENDING for review.</small>';
+				errorHtml += '<br><br><small class="text-muted">You can return any mix of NN/CC as long as the combined total matches the required amount. This will be marked as PENDING for review.</small>';
 				
 				Swal.fire({
 					icon: 'error',
@@ -2311,10 +2272,12 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 			// Calculate required return amounts
 			var requiredReturnNN = totalAddNN - totalReturnNN;
 			var requiredReturnCC = totalAddCC - totalReturnCC;
+			var requiredReturnTotal = requiredReturnNN + requiredReturnCC;
 			
 			// Store values for validation
 			$('#modal-change_status').data('requiredReturnNN', requiredReturnNN);
 			$('#modal-change_status').data('requiredReturnCC', requiredReturnCC);
+			$('#modal-change_status').data('requiredReturnTotal', requiredReturnTotal);
 			$('#modal-change_status').data('totalAddNN', totalAddNN);
 			$('#modal-change_status').data('totalAddCC', totalAddCC);
 			$('#modal-change_status').data('totalReturnNN', totalReturnNN);
@@ -2325,10 +2288,8 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 			$('#required-return-total-add-cc').text(parseFloat(totalAddCC).toLocaleString());
 			$('#required-return-total-return-nn').text(parseFloat(totalReturnNN).toLocaleString());
 			$('#required-return-total-return-cc').text(parseFloat(totalReturnCC).toLocaleString());
-			$('#required-return-nn').text(parseFloat(requiredReturnNN).toLocaleString());
-			$('#required-return-cc').text(parseFloat(requiredReturnCC).toLocaleString());
-			$('#required-nn-display').text(parseFloat(requiredReturnNN).toLocaleString());
-			$('#required-cc-display').text(parseFloat(requiredReturnCC).toLocaleString());
+			$('#required-return-total').text(parseFloat(requiredReturnTotal).toLocaleString());
+			$('#required-total-display').text(parseFloat(requiredReturnTotal).toLocaleString());
 			
 			// Show/hide roller chips return section based on whether there are required returns
 			if (requiredReturnNN > 0 || requiredReturnCC > 0) {
@@ -2987,7 +2948,6 @@ $(document).ready(function () {
 							var total_rolling_cc_real = 0;
 							var total_roller_nn = 0;
 							var total_roller_cc = 0;
-							var net_roller_nn_for_rolling = 0; // Net NN roller chips for rolling calculation (ADD - RETURN)
 
 							response.forEach(function (res) {
 
@@ -3021,23 +2981,17 @@ $(document).ready(function () {
 					total_rolling_cc_real = total_rolling_cc_real + res.CC_CHIPS;
 				}
 				
-				if (res.CAGE_TYPE == 5) {
-					// ROLLER CHIPS - tracked separately
+								if (res.CAGE_TYPE == 5) {
+					// ROLLER CHIPS - tracked separately (do NOT affect total rolling)
 					// Use ROLLER_NN_CHIPS and ROLLER_CC_CHIPS columns
 					// ROLLER_TRANSACTION: 1 = ADD (add), 2 = RETURN (subtract)
 					var rollerTransaction = res.ROLLER_TRANSACTION || 1; // Default to ADD if null
 					if (rollerTransaction == 1) {
-						// ADD - add the values (for display)
 						total_roller_nn = total_roller_nn + (res.ROLLER_NN_CHIPS || 0);
 						total_roller_cc = total_roller_cc + (res.ROLLER_CC_CHIPS || 0);
-						// ADD NN roller chips increases rolling (roller exchanges CC to NN, player gets chips to play)
-						net_roller_nn_for_rolling += (res.ROLLER_NN_CHIPS || 0);
 					} else if (rollerTransaction == 2) {
-						// RETURN - subtract the values (for display)
 						total_roller_nn = total_roller_nn - (res.ROLLER_NN_CHIPS || 0);
 						total_roller_cc = total_roller_cc - (res.ROLLER_CC_CHIPS || 0);
-						// RETURN NN roller chips decreases rolling (player returns NN chips to roller, removed from play)
-						net_roller_nn_for_rolling -= (res.ROLLER_NN_CHIPS || 0);
 					}
 				}
 
@@ -3046,11 +3000,9 @@ $(document).ready(function () {
 							var total_initial = total_nn_init + total_cc_init;
 							var total_buy_in_chips = total_nn + total_cc;
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
-							// TOTAL ROLLING: Same logic as cashout - only NN chips affect rolling
+							// TOTAL ROLLING: exclude roller chip movements (ADD/RETURN)
 							// CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
-							// ROLLER ADD NN adds to rolling (roller exchanges CC to NN, player gets chips to play)
-							// ROLLER RETURN NN subtracts from rolling (player returns NN chips to roller, removed from play)
-							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn + net_roller_nn_for_rolling;
+							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real;
 							var total_roller_chips = total_roller_nn + total_roller_cc;
@@ -3346,7 +3298,6 @@ function settlement_history(record_id, acc_id) {
 				var total_rolling_cc_real = 0;
 				var total_roller_nn = 0;
 				var total_roller_cc = 0;
-				var net_roller_nn_for_rolling = 0; // Net NN roller chips for rolling calculation (ADD - RETURN)
 
                 let RollingRate = data[0].COMMISSION_PERCENTAGE;
                  let CommissionType = data[0].COMMISSION_TYPE;
@@ -3430,15 +3381,15 @@ function settlement_history(record_id, acc_id) {
 					}
 					
 					if (row.CAGE_TYPE == 5) {
-						// ROLLER CHIPS - tracked separately
+						// ROLLER CHIPS - tracked separately (do NOT affect total rolling)
 						// ROLLER_TRANSACTION: 1 = ADD (add), 2 = RETURN (subtract)
 						var rollerTransaction = row.ROLLER_TRANSACTION || 1;
 						if (rollerTransaction == 1) {
-							// ADD NN roller chips increases rolling (roller exchanges CC to NN, player gets chips to play)
-							net_roller_nn_for_rolling += (row.ROLLER_NN_CHIPS || 0);
+							total_roller_nn = total_roller_nn + (row.ROLLER_NN_CHIPS || 0);
+							total_roller_cc = total_roller_cc + (row.ROLLER_CC_CHIPS || 0);
 						} else if (rollerTransaction == 2) {
-							// RETURN NN roller chips decreases rolling (player returns NN chips to roller, removed from play)
-							net_roller_nn_for_rolling -= (row.ROLLER_NN_CHIPS || 0);
+							total_roller_nn = total_roller_nn - (row.ROLLER_NN_CHIPS || 0);
+							total_roller_cc = total_roller_cc - (row.ROLLER_CC_CHIPS || 0);
 						}
 					}
 
@@ -3449,11 +3400,9 @@ function settlement_history(record_id, acc_id) {
 							var total_initial = total_nn_init + total_cc_init;
 							var total_buy_in_chips = total_nn + total_cc;
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
-							// TOTAL ROLLING: Same logic as cashout - only NN chips affect rolling
+							// TOTAL ROLLING: exclude roller chip movements (ADD/RETURN)
 							// CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
-							// ROLLER ADD NN adds to rolling (roller exchanges CC to NN, player gets chips to play)
-							// ROLLER RETURN NN subtracts from rolling (player returns NN chips to roller, removed from play)
-							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn + net_roller_nn_for_rolling;
+							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 					
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real;
 					

@@ -34,8 +34,7 @@
 						Total ADD (CC): <span id="required-return-total-add-cc">0</span><br>
 						Total RETURN (NN): <span id="required-return-total-return-nn">0</span> | 
 						Total RETURN (CC): <span id="required-return-total-return-cc">0</span><br>
-						<strong>Required RETURN (NN): <span id="required-return-nn">0</span></strong><br>
-						<strong>Required RETURN (CC): <span id="required-return-cc">0</span></strong>
+						<strong>Total Required RETURN (NN+CC): <span id="required-return-total">0</span></strong><br>
 					</small>
 				</div>
 				<div class="row mb-2">
@@ -44,14 +43,18 @@
 						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" 
 							class="form-control text-center txtReturnRollerNN" 
 							placeholder="NN Chips" name="txtReturnRollerNN" id="txtReturnRollerNN">
-						<small class="text-muted">Required: <span id="required-nn-display">0</span></small>
 					</div>
 					<div class="col-sm-6">
 						<label class="form-label">Return CC Chips <span class="text-danger">*</span></label>
 						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" 
 							class="form-control text-center txtReturnRollerCC" 
 							placeholder="CC Chips" name="txtReturnRollerCC" id="txtReturnRollerCC">
-						<small class="text-muted">Required: <span id="required-cc-display">0</span></small>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-sm-12">
+						<small class="text-info">You can return any mix of NN/CC as long as the total equals the required amount.</small>
+						<small class="text-muted d-block">Required total (NN/CC): <span id="required-total-display">0</span></small>
 					</div>
 				</div>
 			</div>
