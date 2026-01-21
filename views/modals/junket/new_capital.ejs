@@ -16,6 +16,7 @@
 width: 100%;
 font-size: 13px;
 border-collapse: collapse;
+table-layout: fixed;
 }
 
 /* Header styles */
@@ -35,8 +36,9 @@ border-bottom: 1px solid #eee;
 
 /* Cell styles */
 #capital-tbl td {
-padding: 12px 15px;
-color: #666;
+	padding: 12px 15px;
+	color: #666;
+	vertical-align: top;
 }
 
 #capital-tbl tbody tr:hover {
@@ -49,6 +51,38 @@ background-color: #f5f5f5 !important;
 #capital-tbl td:last-child {
 text-align: right;
 color: #333;
+}
+
+#capital-tbl col.col-encoded {
+	width: 9%;
+}
+
+#capital-tbl col.col-amount {
+	width: 20%;
+}
+
+#capital-tbl col.col-type {
+	width: 12%;
+}
+
+#capital-tbl col.col-remarks {
+	width: 34%;
+}
+
+#capital-tbl col.col-date {
+	width: 17%;
+}
+
+#capital-tbl col.col-action {
+	width: 8%;
+}
+
+#capital-tbl th,
+#capital-tbl td {
+	overflow: visible;
+	text-overflow: unset;
+	white-space: normal;
+	word-break: break-word;
 }
 
 
@@ -149,7 +183,16 @@ border-top: 2px solid #dee2e6;
 							id="capital-tbl"
 							class="table table-bordered table-hover"
 							style="width:100%"
-						  >							<thead>
+						  >
+							<colgroup>
+								<col class="col-encoded">
+								<col class="col-amount">
+								<col class="col-type">
+								<col class="col-remarks">
+								<col class="col-date">
+								<col class="col-action">
+							</colgroup>
+							<thead>
 								<tr>
 									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.encoded_by') %></th>
 									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.amount') %></th>

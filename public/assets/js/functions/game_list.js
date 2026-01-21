@@ -579,11 +579,11 @@ $(document).ready(function () {
 						   // Get commission type badge (R/S/L)
 						   var commissionTypeBadge = '';
 						   if (row.COMMISSION_TYPE == 1) {
-							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-r" title="Commission Type: Rolling">R</span>';
+							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-r" title="Rolling Game">R</span>';
 						   } else if (row.COMMISSION_TYPE == 2) {
-							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-s" title="Commission Type: Share">S</span>';
+							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-s" title="Shared Game">S</span>';
 						   } else if (row.COMMISSION_TYPE == 3) {
-							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-l" title="Commission Type: Loss">L</span>';
+							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
 						   }
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
@@ -684,36 +684,54 @@ $('#add_game_list').submit(function (event) {
         else if (transType == '2') transTypeText = 'Deposit';
         else if (transType == '3') transTypeText = 'Credit';
         
-        var confirmationMessage = `Confirm New Game:<br><br>`;
-        confirmationMessage += `<strong>Game Type:</strong> ${gameType}<br>`;
-        confirmationMessage += `<strong>Account:</strong> ${accountText}<br>`;
+        var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
+        var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
+        var buildRow = function (label, value) {
+            return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+        };
+
+        var confirmationRows = '';
+        confirmationRows += buildRow('Game Type:', gameType || '-');
+        confirmationRows += buildRow('Account:', accountText || '-');
+
         if (txtNNamount > 0) {
-            confirmationMessage += `<strong>NN Chips:</strong> ${parseFloat(txtNNamount).toLocaleString()}<br>`;
+            confirmationRows += buildRow('NN Chips:', parseFloat(txtNNamount).toLocaleString());
         }
         if (txtCCamount > 0) {
-            confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(txtCCamount).toLocaleString()}<br>`;
+            confirmationRows += buildRow('CC Chips:', parseFloat(txtCCamount).toLocaleString());
         }
         if (txtNNamount > 0 || txtCCamount > 0) {
-            confirmationMessage += `<strong>Total Amount:</strong> ${parseFloat(txtNNamount + txtCCamount).toLocaleString()}<br>`;
+            confirmationRows += buildRow('Total Amount:', parseFloat(txtNNamount + txtCCamount).toLocaleString());
         }
-        confirmationMessage += `<strong>Payment Type:</strong> ${transTypeText}<br>`;
+
+        confirmationRows += buildRow('Payment Type:', transTypeText || '-');
+
         if (rollerNNAmount > 0 || rollerCCAmount > 0) {
-            confirmationMessage += `<strong>Roller Chips:</strong> `;
-            if (rollerNNAmount > 0) confirmationMessage += `NN: ${parseFloat(rollerNNAmount).toLocaleString()} `;
-            if (rollerCCAmount > 0) confirmationMessage += `CC: ${parseFloat(rollerCCAmount).toLocaleString()}`;
-            confirmationMessage += `<br>`;
+            var rollerParts = [];
+            if (rollerNNAmount > 0) rollerParts.push(`NN: ${parseFloat(rollerNNAmount).toLocaleString()}`);
+            if (rollerCCAmount > 0) rollerParts.push(`CC: ${parseFloat(rollerCCAmount).toLocaleString()}`);
+            confirmationRows += buildRow('Roller Chips:', rollerParts.join('<br>'));
         }
-        confirmationMessage += `<strong>Commission Type:</strong> ${commissionTypeText}<br>`;
+
+        confirmationRows += buildRow('Commission Type:', commissionTypeText || '-');
         if (commissionRate > 0) {
-            confirmationMessage += `<strong>Commission Rate:</strong> ${commissionRate}%<br>`;
+            confirmationRows += buildRow('Commission Rate:', `${commissionRate}%`);
         }
+
+        var confirmationMessage = `
+            <div style="max-width:420px;margin:0 auto;text-align:center;">
+                <table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
+                    ${confirmationRows}
+                </table>
+            </div>
+        `;
         
         var $form = $(this); // Store form reference
         
         Swal.fire({
             icon: 'question',
             title: 'Confirm New Game',
-            html: confirmationMessage + '<br>Are you sure you want to proceed?',
+            html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
             showCancelButton: true,
             confirmButtonText: 'Yes, Confirm',
             cancelButtonText: 'Cancel',
