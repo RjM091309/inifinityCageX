@@ -119,24 +119,41 @@ function addBooking() {
             var btn = '';
             if (permissions !== 2) {
               btn = `<center>
-                        <div class="btn-group">
-                          <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown" data-bs-boundary="viewport"  aria-expanded="false">
-                            <i class="fa fa-ellipsis-h" style="color: white; background-color: transparent;"></i>
+                        <div class="btn-group booking-action-group" role="group" aria-label="Booking actions">
+                          <button type="button" class="btn btn-sm btn-primary booking-action-btn" title="${window.bookingTranslations?.check_in || 'Check-In'}" onclick="checkIn(${row.IDNo})">
+                            <i class="fa fa-sign-in-alt"></i>
                           </button>
-                          <ul class="dropdown-menu dropdown-menu-end">
-                            <li><button class="dropdown-item" onclick="checkIn(${row.IDNo})">${window.bookingTranslations?.check_in || 'Check-In'}</button></li>
-                            <li><button class="dropdown-item" onclick="checkOut(${row.IDNo})">${window.bookingTranslations?.check_out || 'Checkout'}</button></li>
-                            <li><button class="dropdown-item" onclick="togglePaymentStatus(${row.IDNo}, '${row.PAYMENT_STATUS}')">${row.PAYMENT_STATUS === 'Paid' ? (window.bookingTranslations?.mark_booking_as?.replace('${newStatus}', window.bookingTranslations?.unpaid || 'Unpaid') || `Mark as ${window.bookingTranslations?.unpaid || 'Unpaid'}`) : (window.bookingTranslations?.mark_booking_as?.replace('${newStatus}', window.bookingTranslations?.paid || 'Paid') || `Mark as ${window.bookingTranslations?.paid || 'Paid'}`)}</button></li>
-                            <li><button class="dropdown-item" onclick="editBooking(${row.IDNo}, '${row.CONFIRM_NUM.replace(/'/g, "\\'")}', '${row.CHECK_IN}', '${row.CHECK_OUT}', '${row.GUEST_NAME.replace(/'/g, "\\'")}', '${hotelFee}', '${addFee}', '${row.REMARKS.replace(/'/g, "\\'")}')">${window.bookingTranslations?.edit || 'Edit'}</button></li>
-                            <li><button class="dropdown-item" onclick="archiveBooking(${row.IDNo})">${window.bookingTranslations?.archive || 'Archive'}</button></li>
-                          </ul>
+                          <button type="button" class="btn btn-sm btn-warning booking-action-btn" title="${window.bookingTranslations?.check_out || 'Check-Out'}" onclick="checkOut(${row.IDNo})">
+                            <i class="fa fa-sign-out-alt"></i>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-info booking-action-btn" title="${row.PAYMENT_STATUS === 'Paid' ? (window.bookingTranslations?.mark_booking_as?.replace('${newStatus}', window.bookingTranslations?.unpaid || 'Unpaid') || `Mark as ${window.bookingTranslations?.unpaid || 'Unpaid'}`) : (window.bookingTranslations?.mark_booking_as?.replace('${newStatus}', window.bookingTranslations?.paid || 'Paid') || `Mark as ${window.bookingTranslations?.paid || 'Paid'}`)}" onclick="togglePaymentStatus(${row.IDNo}, '${row.PAYMENT_STATUS}')">
+                            <i class="fa fa-money-bill"></i>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-secondary booking-action-btn" title="${window.bookingTranslations?.edit || 'Edit'}" onclick="editBooking(${row.IDNo}, '${row.CONFIRM_NUM.replace(/'/g, "\\'")}', '${row.CHECK_IN}', '${row.CHECK_OUT}', '${row.GUEST_NAME.replace(/'/g, "\\'")}', '${hotelFee}', '${addFee}', '${row.REMARKS.replace(/'/g, "\\'")}')">
+                            <i class="fa fa-edit"></i>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-danger booking-action-btn" title="${window.bookingTranslations?.archive || 'Archive'}" onclick="archiveBooking(${row.IDNo})">
+                            <i class="fa fa-archive"></i>
+                          </button>
                         </div>
                       </center>`;
             } else {
               btn = `<center>
-                       <div class="btn-group">
-                          <button type="button" class="btn btn-sm btn-alt-secondary dropdown-toggle" style="background-color: #f0f1f7;" data-bs-toggle="dropdown" aria-expanded="false" disabled>
-                            <i class="fa fa-ellipsis-h" style="color: white; background-color: transparent;"></i>
+                       <div class="btn-group booking-action-group" role="group" aria-label="Booking actions disabled">
+                          <button type="button" class="btn btn-sm btn-alt-secondary booking-action-btn" style="background-color: #f0f1f7;" disabled>
+                            <i class="fa fa-sign-in-alt"></i>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-alt-secondary booking-action-btn" style="background-color: #f0f1f7;" disabled>
+                            <i class="fa fa-sign-out-alt"></i>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-alt-secondary booking-action-btn" style="background-color: #f0f1f7;" disabled>
+                            <i class="fa fa-money-bill"></i>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-alt-secondary booking-action-btn" style="background-color: #f0f1f7;" disabled>
+                            <i class="fa fa-edit"></i>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-alt-secondary booking-action-btn" style="background-color: #f0f1f7;" disabled>
+                            <i class="fa fa-archive"></i>
                           </button>
                         </div>
                       </center>`;

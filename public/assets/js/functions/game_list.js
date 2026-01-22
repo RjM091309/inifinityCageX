@@ -2008,6 +2008,7 @@ function reloadDataRecord() {
                         buy_in: 0,
                         additional_buyin: 0,
                         cash_out: 0,
+                        cash_out_nn: 0,
                         real_rolling: 0,
                         total_rolling: 0,
                         nn: 0,
@@ -2016,7 +2017,8 @@ function reloadDataRecord() {
                         roller_cc: 0,
                         remarks: row.REMARKS || '',
                         action: row.game_record_id,
-                        button: btn  
+                        button: btn,
+                        timestamp: new Date(row.record_date).getTime()
                     };
                 }
 
@@ -2039,6 +2041,7 @@ function reloadDataRecord() {
                 if (row.CAGE_TYPE == 2) { // CASH OUT
                     const cashOutAmount = (row.CC_CHIPS || 0) + (row.NN_CHIPS || 0);
                     mergedData[dateKey].cash_out += cashOutAmount;
+                    mergedData[dateKey].cash_out_nn += (row.NN_CHIPS || 0);
                     total_cash_out_nn += (row.NN_CHIPS || 0);
                     total_cash_out_cc += (row.CC_CHIPS || 0);
                     // Track NN and CC chips for CASH OUT transactions
@@ -2058,8 +2061,6 @@ function reloadDataRecord() {
                 if (row.CAGE_TYPE == 4) { // REAL ROLLING
                     const realRollingAmount = (row.AMOUNT || 0) + (row.NN_CHIPS || 0) + (row.CC_CHIPS || 0);
                     mergedData[dateKey].real_rolling += realRollingAmount;
-                    // Add to total_rolling to match game list calculation (CAGE_TYPE 3 + CAGE_TYPE 4)
-                    mergedData[dateKey].total_rolling += realRollingAmount;
                     total_rolling_real += (row.AMOUNT || 0);
                     total_rolling_nn_real += (row.NN_CHIPS || 0);
                     total_rolling_cc_real += (row.CC_CHIPS || 0);
@@ -2100,13 +2101,16 @@ function reloadDataRecord() {
             let totalRollerNN = 0;
             let totalRollerCC = 0;
 
-            for (const date in mergedData) {
+            const sortedDates = Object.keys(mergedData).sort(function (a, b) {
+                return (mergedData[a].timestamp || 0) - (mergedData[b].timestamp || 0);
+            });
+
+            for (const date of sortedDates) {
                 const rowData = mergedData[date];
                 totalBuyIn += rowData.buy_in;
                 totalAdditionalBuyIn += rowData.additional_buyin;
                 totalCashOut += rowData.cash_out;
                 totalRealRolling += rowData.real_rolling;
-                totalRolling += rowData.total_rolling; // Sum of CAGE_TYPE 3 + CAGE_TYPE 4 from individual rows
                 totalNN += rowData.nn;
                 totalCC += rowData.cc;
                 totalRollerNN += (rowData.roller_nn || 0);
@@ -2116,9 +2120,20 @@ function reloadDataRecord() {
             // Calculate total roller chips
             let totalRollerChips = totalRollerNN + totalRollerCC;
             
-            // Apply game list formula: CAGE_TYPE 3 + CAGE_TYPE 4 - cash_out_nn
-            // total_cash_out_nn is already calculated in the forEach loop above (line 1299)
-            totalRolling = totalRolling - total_cash_out_nn;
+            // Compute running total rolling:
+            // buy-in + add'l buy-in + real rolling - cash out (NN only)
+            let runningTotalRolling = 0;
+            for (const date of sortedDates) {
+                const rowData = mergedData[date];
+                const cashOutNN = rowData.cash_out_nn || 0;
+                runningTotalRolling +=
+                    rowData.buy_in +
+                    rowData.additional_buyin +
+                    rowData.real_rolling -
+                    cashOutNN;
+                rowData.total_rolling_actual = runningTotalRolling;
+            }
+            totalRolling = runningTotalRolling;
 
             // Prepare all rows data
             const allRows = [];
@@ -2138,7 +2153,7 @@ function reloadDataRecord() {
             ]);
 
             // Add individual records
-            for (const date in mergedData) {
+            for (const date of sortedDates) {
                 const rowData = mergedData[date];
                 const rollerChips = (rowData.roller_nn || 0) + (rowData.roller_cc || 0);
                 allRows.push([
@@ -2147,7 +2162,7 @@ function reloadDataRecord() {
                     rowData.additional_buyin.toLocaleString(),
                     rowData.cash_out.toLocaleString(),
                     rowData.real_rolling.toLocaleString(),
-                    rowData.total_rolling.toLocaleString(),
+                    (rowData.total_rolling_actual || 0).toLocaleString(),
                     rowData.nn.toLocaleString(),
                     rowData.cc.toLocaleString(),
                     rollerChips.toLocaleString(),
