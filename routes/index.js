@@ -10,5 +10,7 @@ module.exports = [
     require('./changeGame'),
     require('./dashboard'),
     require('./telegramData')
+    
+
   ];
   
