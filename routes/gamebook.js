@@ -275,7 +275,7 @@ router.get('/game_services/:gameId', checkSession, async (req, res) => {
 });
 
 // Add a service to a game (use /add_game_services to avoid confusion with GET)
-	router.post('/add_game_services', checkSession, async (req, res) => {
+router.post('/add_game_services', checkSession, async (req, res) => {
 	try {
 		const { game_id, service_type, amount, remarks, transaction_id } = req.body;
 		const gameId = parseInt(game_id, 10);
@@ -335,7 +335,7 @@ router.get('/game_services/:gameId', checkSession, async (req, res) => {
 });
 
 // Update a service
-	router.put('/game_services/:id', checkSession, async (req, res) => {
+router.put('/game_services/:id', checkSession, async (req, res) => {
 	try {
 		const serviceId = parseInt(req.params.id, 10);
 		const { game_id, service_type, amount, remarks, transaction_id } = req.body;

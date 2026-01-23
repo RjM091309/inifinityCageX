@@ -3485,16 +3485,16 @@ function settlement_history(record_id, acc_id) {
             url: `/game_services/${record_id}`,
             method: 'GET',
             success: function (list) {
-            const total = Array.isArray(list)
-                ? list.reduce((sum, item) => {
+                const total = Array.isArray(list)
+                    ? list.reduce((sum, item) => {
                     const transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id, 10);
                     if (transactionId !== 3) {
                         return sum;
                     }
-                    const amt = parseFloat(item.AMOUNT || item.amount || 0);
-                    return sum + (isNaN(amt) ? 0 : amt);
-                }, 0)
-                : 0;
+                        const amt = parseFloat(item.AMOUNT || item.amount || 0);
+                        return sum + (isNaN(amt) ? 0 : amt);
+                    }, 0)
+                    : 0;
                 $('#fb').val(total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
                 // trigger recalculation of payment
                 $('#fb').trigger('input');
