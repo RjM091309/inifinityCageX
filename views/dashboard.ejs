@@ -814,7 +814,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                        (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
                                       (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
                                       (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) + (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) -
-                                       (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0);
+                                       (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) - (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0);
                                  %>
                                  <div class="row">
                                     <div class="col-6">

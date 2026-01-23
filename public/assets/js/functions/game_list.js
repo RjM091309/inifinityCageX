@@ -3401,6 +3401,7 @@ function settlement_history(record_id, acc_id) {
 				var total_rolling_cc_real = 0;
 				var total_roller_nn = 0;
 				var total_roller_cc = 0;
+				var total_roller_return_cc = 0;
 
                 let RollingRate = data[0].COMMISSION_PERCENTAGE;
                  let CommissionType = data[0].COMMISSION_TYPE;
@@ -3652,21 +3653,36 @@ function settlement_history(record_id, acc_id) {
         if (transType == '2') transTypeText = 'Deposit';
         else if (transType == '1') transTypeText = 'Cash Out';
         
-        // Build confirmation message
-        var confirmationMessage = `Confirm Settlement:<br><br>`;
-        confirmationMessage += `<strong>Buy-In:</strong> ${parseFloat(buyIn).toLocaleString()}<br>`;
-        confirmationMessage += `<strong>Chips Return:</strong> ${parseFloat(chipsReturn).toLocaleString()}<br>`;
-        confirmationMessage += `<strong>Win/Loss:</strong> ${parseFloat(winLoss).toLocaleString()}<br>`;
-        confirmationMessage += `<strong>Rolling:</strong> ${parseFloat(rolling).toLocaleString()}<br>`;
-        confirmationMessage += `<strong>Rate:</strong> ${parseFloat(rollingRate).toFixed(2)}%<br>`;
-        confirmationMessage += `<strong>Settlement:</strong> ${parseFloat(rollingSettlement).toLocaleString()}<br>`;
+        // Build confirmation table-style message
+        var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
+        var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
+        var buildRow = function (label, value) {
+            return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+        };
+
+        var confirmationRows = '';
+        confirmationRows += buildRow('Buy-In:', parseFloat(buyIn).toLocaleString());
+        confirmationRows += buildRow('Chips Return:', parseFloat(chipsReturn).toLocaleString());
+        confirmationRows += buildRow('Win/Loss:', parseFloat(winLoss).toLocaleString());
+        confirmationRows += buildRow('Rolling:', parseFloat(rolling).toLocaleString());
+        confirmationRows += buildRow('Rate:', `${parseFloat(rollingRate).toFixed(2)}%`);
+        confirmationRows += buildRow('Settlement:', parseFloat(rollingSettlement).toLocaleString());
         if (parseFloat(services) > 0) {
-            confirmationMessage += `<strong>Services:</strong> ${parseFloat(services).toLocaleString()}<br>`;
+            confirmationRows += buildRow('Services:', parseFloat(services).toLocaleString());
         }
-        confirmationMessage += `<strong>Payment:</strong> ${parseFloat(payment).toLocaleString()}<br>`;
+        confirmationRows += buildRow('Payment:', parseFloat(payment).toLocaleString());
         if (transTypeText) {
-            confirmationMessage += `<strong>Transaction Type:</strong> ${transTypeText}<br>`;
+            confirmationRows += buildRow('Transaction Type:', transTypeText);
         }
+
+        var confirmationMessage = `
+            <div style="max-width:420px;margin:0 auto;text-align:center;">
+                <div style="font-weight:600;margin-bottom:8px;">Confirm Settlement:</div>
+                <table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
+                    ${confirmationRows}
+                </table>
+            </div>
+        `;
         
         var $btn = $('#submit-settlement-btn');
         

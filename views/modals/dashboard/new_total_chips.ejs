@@ -85,14 +85,14 @@
                                 " id="cashbal" name="txtcashbal" />
 
                         <!-- Match House Balance computation from dashboard.ejs -->
-                        <input type="hidden" value="<%- (  (+sqlCashDeposit[0].CASH_DEPOSIT || 0) -
+                        <input type="hidden" value="<%- (    (+sqlCashDeposit[0].CASH_DEPOSIT || 0) -
                         (+sqlCCChipsBuyin[0].CCChipsBuyin || 0)-
                         (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) -
                         (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) - (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +  (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
                         (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
                        (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
                        (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) + (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) -
-                        (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) ).toLocaleString() %>"
+                        (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) - (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) ).toLocaleString() %>"
                                 id="housebal" name="txthousebal" />
 
                         <input type="hidden" name="typedescription" id="typedescription" value="Chips Buy-in">
