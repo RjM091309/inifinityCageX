@@ -2533,6 +2533,7 @@ function openServices(id, guestName, gameStatus, settled) {
 	$('#services-type').val('');
 	$('#services-amount').val('');
 	$('#services-remarks').val('');
+	$('input[name="services-transaction"]').prop('checked', false);
 }
 
 function loadServicesList(gameId) {
@@ -2546,6 +2547,15 @@ function loadServicesList(gameId) {
 			renderServicesList([]);
 		}
 	});
+}
+
+function formatServiceTransactionLabel(id) {
+	const labels = {
+		1: 'Cash',
+		2: 'Deposit',
+		3: 'Commission'
+	};
+	return labels[id] || '';
 }
 
 function renderServicesList(list) {
@@ -2585,10 +2595,13 @@ function renderServicesList(list) {
 		const processed = item.PROCESSED_BY || item.processed_by || item.ENCODED_BY || '';
 		const dtRaw = item.DATE || item.ENCODED_DT || item.encoded_dt || item.date || '';
 		const formattedDt = dtRaw ? moment(dtRaw).format('MMM DD, HH:mm') : '';
+		const transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id || 1, 10);
+		const transactionLabel = formatServiceTransactionLabel(transactionId);
 		return `<tr>
 			<td>${service}</td>
 			<td class="text-end">${parseFloat(amount).toLocaleString()}</td>
 			<td>${remarks || ''}</td>
+			<td>${transactionLabel || '-'}</td>
 			<td>${processed || ''}</td>
 			<td>${formattedDt}</td>
 			<td class="text-center">
@@ -2599,7 +2612,8 @@ function renderServicesList(list) {
 					data-id="${id}"
 					data-service="${service}"
 					data-amount="${amount}"
-					data-remarks="${encodeURIComponent(remarks || '')}">
+					data-remarks="${encodeURIComponent(remarks || '')}"
+					data-transaction="${transactionId}">
 					<i class="fa fa-edit"></i>
 				</button>
 				<button type="button"
@@ -2641,9 +2655,14 @@ $(document).on('click', '#services-save-btn', function (e) {
 	const amount = parseFloat(amountRaw) || 0;
 	const remarks = $('#services-remarks').val().trim();
 	const editId = $('#services-edit-id-input').val();
+	const transactionId = $('input[name="services-transaction"]:checked').val();
 
 	if (!gameId || !type) {
 		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
+		return;
+	}
+	if (!transactionId) {
+		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
 		return;
 	}
 
@@ -2654,6 +2673,7 @@ $(document).on('click', '#services-save-btn', function (e) {
 	var confirmationMessage = `Confirm ${isEdit ? 'Update' : 'Add'} Service:<br><br>`;
 	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
 	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString()}<br>`;
+	confirmationMessage += `<strong>Transaction:</strong> ${formatServiceTransactionLabel(parseInt(transactionId, 10))}<br>`;
 	if (remarks) {
 		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
 	}
@@ -2680,7 +2700,7 @@ $(document).on('click', '#services-save-btn', function (e) {
 			$.ajax({
 				url,
 				method,
-				data: { game_id: gameId, service_type: type, amount, remarks },
+				data: { game_id: gameId, service_type: type, amount, remarks, transaction_id: transactionId },
 				success: function (list) {
 					// Show success message
 					Swal.fire({
@@ -2722,7 +2742,8 @@ $(document).on('click', '.service-edit-btn', function () {
 	const service = $btn.data('service');
 	const amount = $btn.data('amount');
 	const remarks = decodeURIComponent($btn.attr('data-remarks') || '');
-	editService(id, service, amount, remarks);
+	const transaction = $btn.data('transaction');
+	editService(id, service, amount, remarks, transaction);
 });
 
 // Delete button handler (delegated)
@@ -2742,9 +2763,14 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 	const amountRaw = $('#services-edit-amount').val().replace(/,/g, '').trim();
 	const amount = parseFloat(amountRaw) || 0;
 	const remarks = $('#services-edit-remarks').val().trim();
+	const transactionId = $('input[name="services-edit-transaction"]:checked').val();
 
 	if (!serviceId || !gameId || !type) {
 		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select service type and enter amount.' });
+		return;
+	}
+	if (!transactionId) {
+		Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
 		return;
 	}
 
@@ -2754,6 +2780,7 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 	var confirmationMessage = `Confirm Update Service:<br><br>`;
 	confirmationMessage += `<strong>Service Type:</strong> ${type.toUpperCase()}<br>`;
 	confirmationMessage += `<strong>Amount:</strong> ${parseFloat(amount).toLocaleString()}<br>`;
+	confirmationMessage += `<strong>Transaction:</strong> ${formatServiceTransactionLabel(parseInt(transactionId, 10))}<br>`;
 	if (remarks) {
 		confirmationMessage += `<strong>Remarks:</strong> ${remarks}<br>`;
 	}
@@ -2777,7 +2804,7 @@ $(document).on('click', '#services-edit-save-btn', function (e) {
 			$.ajax({
 				url: `/game_services/${serviceId}`,
 				method: 'PUT',
-				data: { game_id: gameId, service_type: type, amount, remarks },
+				data: { game_id: gameId, service_type: type, amount, remarks, transaction_id: transactionId },
 				success: function (list) {
 					// Show success message
 					Swal.fire({
@@ -2985,12 +3012,17 @@ $(document).ready(function () {
 	});
 })
 
-function editService(id, service, amount, remarks) {
+function editService(id, service, amount, remarks, transaction) {
 	const safeAmount = parseFloat(amount || 0);
 	$('#services-edit-id').val(id || '');
 	$('#services-edit-type').val(service || '');
 	$('#services-edit-amount').val(isNaN(safeAmount) ? '' : safeAmount.toLocaleString());
 	$('#services-edit-remarks').val(remarks || '');
+	$('input[name="services-edit-transaction"]').prop('checked', false);
+	const txnValue = parseInt(transaction, 10);
+	if ([1, 2, 3].includes(txnValue)) {
+		$(`input[name="services-edit-transaction"][value="${txnValue}"]`).prop('checked', true);
+	}
 
 	$('#modal-services-edit').modal('show');
 }
@@ -3018,6 +3050,12 @@ function deleteService(id) {
 				$('#services-type').val('');
 				$('#services-amount').val('');
 				$('#services-remarks').val('');
+				Swal.fire({
+					icon: 'success',
+					title: 'Service deleted',
+					timer: 1200,
+					showConfirmButton: false
+				});
 			},
 			error: function (xhr) {
 				const msg = xhr.responseJSON?.error || 'Failed to delete service.';
@@ -3447,12 +3485,16 @@ function settlement_history(record_id, acc_id) {
             url: `/game_services/${record_id}`,
             method: 'GET',
             success: function (list) {
-                const total = Array.isArray(list)
-                    ? list.reduce((sum, item) => {
-                        const amt = parseFloat(item.AMOUNT || item.amount || 0);
-                        return sum + (isNaN(amt) ? 0 : amt);
-                    }, 0)
-                    : 0;
+            const total = Array.isArray(list)
+                ? list.reduce((sum, item) => {
+                    const transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id, 10);
+                    if (transactionId !== 3) {
+                        return sum;
+                    }
+                    const amt = parseFloat(item.AMOUNT || item.amount || 0);
+                    return sum + (isNaN(amt) ? 0 : amt);
+                }, 0)
+                : 0;
                 $('#fb').val(total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
                 // trigger recalculation of payment
                 $('#fb').trigger('input');

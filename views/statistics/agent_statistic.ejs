@@ -3,7 +3,7 @@
 		<%- include ('../partials/sidebar'); -%>
 			<%- include ('../partials/topbar'); -%>
 
-				<link rel="stylesheet" href="assets/js/plugins/select2/css/select2.min.css">
+				<link rel="stylesheet" href="/assets/js/plugins/select2/css/select2.min.css">
 				<!-- SweetAlert2 CSS -->
 				<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 
@@ -15,7 +15,7 @@
 				<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 				<!--DATEPICKER-->
-				<link href="assets/libs/bootstrap-datepicker/css/bootstrap-datepicker.min.css" rel="stylesheet">
+				<link href="/assets/js/plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css" rel="stylesheet">
 
 				<!-- Flatpickr CSS -->
 				<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -446,27 +446,31 @@
 				</script>
 
 				<script>
-					// Pass translations to JavaScript
+					// Pass translations to JavaScript for the DataTable strings
 					window.agentStatisticTranslations = {
 						search: "<%= __('agent_statistic.search') %>",
 						showing_entries: "<%= __('agent_statistic.showing_entries') %>",
 						previous: "<%= __('agent_statistic.previous') %>",
 						next: "<%= __('agent_statistic.next') %>"
 					};
+				</script>
 
+                                <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>                                   
+                                <script src="/assets/js/plugins/datatables/jquery.dataTables.min.js"></script>                                                   
+                                <script src="/assets/js/plugins/datatables-bs5/js/dataTables.bootstrap5.min.js"></script>                                          
+                                <script src="/assets/js/plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>                                    
+                                <script src="/assets/js/plugins/datatables-buttons/dataTables.buttons.min.js"></script>                                             
+                                <script src="/assets/js/functions/agent_stats.js"></script>                                                                     
+                                <script src="/assets/js/functions/common.js"></script>                                                                          
+                                <script src="/assets/js/plugins/select2/js/select2.full.min.js"></script>                                                       
+                                <script src="/assets/js/plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js"></script>                                  
+
+				<script>
 					$('.js-select2').select2({
 						placeholder: 'Select an option',
 						dropdownParent: '#modal-new-game-list',
 					});
-
 				</script>
-
-				<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
-				<script src="/assets/js/datatables/game_list_tables_datatables.min.js"></script>
-				<script src="/assets/js/functions/agent_stats.js"></script>
-				<script src="/assets/js/functions/common.js"></script>
-				<script src="assets/js/plugins/select2/js/select2.full.min.js"></script>
-				<script src="assets/libs/bootstrap-datepicker/js/bootstrap-datepicker.min.js"></script>
 
 
 

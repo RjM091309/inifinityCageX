@@ -111,13 +111,18 @@ ON
 	FROM
 		(SELECT 
 			game_record.GAME_ID,
-			SUM(game_record.NN_CHIPS + game_record.CC_CHIPS) AS TOTAL_ROLLING,
+			SUM(
+				CASE 
+					WHEN game_record.CAGE_TYPE IN (3, 4) THEN game_record.NN_CHIPS + game_record.CC_CHIPS
+					WHEN game_record.CAGE_TYPE = 5 AND game_record.ROLLER_TRANSACTION = 2 THEN game_record.ROLLER_CC_CHIPS
+					ELSE 0
+				END
+			) AS TOTAL_ROLLING,
 			game_list.COMMISSION_PERCENTAGE AS percentage
 		 FROM game_record
 		 LEFT JOIN game_list ON game_list.IDNo = game_record.GAME_ID
 		 WHERE game_list.ACTIVE IN (1, 2) 
 		   AND game_list.COMMISSION_TYPE = 1 
-		   AND game_record.CAGE_TYPE IN (3, 4) 
 		   AND game_list.SETTLED = 1 
 		   AND game_record.RESET = 1 
 		   AND game_record.ACTIVE = 1
@@ -212,7 +217,7 @@ ON
 	  JOIN agent ON agent.IDNo = account.AGENT_ID
 	  WHERE account_ledger.ACTIVE = 1 
 		AND account_ledger.TRANSACTION_ID = 2 
-		AND account_ledger.TRANSACTION_DESC != "ACCOUNT DETAILS" 
+		 AND account_ledger.TRANSACTION_DESC NOT IN ('ACCOUNT DETAILS', 'SERVICES')
 		AND account.ACTIVE = 1 
 		AND agent.ACTIVE = 1
 	`;
@@ -225,6 +230,18 @@ ON
 	  WHERE account_ledger.ACTIVE = 1 
 		AND account_ledger.TRANSACTION_ID = 2 
 		AND account_ledger.TRANSACTION_DESC = "ACCOUNT DETAILS" 
+		AND account.ACTIVE = 1 
+		AND agent.ACTIVE = 1
+	`;
+
+	let sqlAccountServicesDeduct = `
+	  SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEDUCT_SERVICES
+	  FROM account_ledger
+	  JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
+	  JOIN agent ON agent.IDNo = account.AGENT_ID
+	  WHERE account_ledger.ACTIVE = 1 
+		AND account_ledger.TRANSACTION_ID = 2 
+		AND account_ledger.TRANSACTION_DESC = "SERVICES" 
 		AND account.ACTIVE = 1 
 		AND agent.ACTIVE = 1
 	`;
@@ -318,9 +335,22 @@ ON
 
 	let sqlWinLoss = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1';
 
-	let sqlCommisionRolling = `SELECT SUM(game_record.NN_CHIPS + game_record.CC_CHIPS) AS TOTAL_ROLLING, game_list.COMMISSION_PERCENTAGE AS percentage FROM game_record 
+	let sqlCommisionRolling = `SELECT 
+			game_record.GAME_ID,
+			SUM(
+				CASE 
+					WHEN game_record.CAGE_TYPE IN (3, 4) THEN game_record.NN_CHIPS + game_record.CC_CHIPS
+					WHEN game_record.CAGE_TYPE = 5 AND game_record.ROLLER_TRANSACTION = 2 THEN game_record.ROLLER_CC_CHIPS
+					ELSE 0
+				END
+			) AS TOTAL_ROLLING,
+			game_list.COMMISSION_PERCENTAGE AS percentage
+		FROM game_record
 			LEFT JOIN game_list ON game_list.IDNo = game_record.GAME_ID
-			WHERE game_list.ACTIVE IN (1,2) AND game_list.COMMISSION_TYPE = 1 AND game_record.CAGE_TYPE IN (3,4) AND SETTLED = 1 GROUP BY game_record.GAME_ID`;
+		WHERE game_list.ACTIVE IN (1,2)
+			AND game_list.COMMISSION_TYPE = 1
+			AND SETTLED = 1
+		GROUP BY game_record.GAME_ID`;
 
 	let sqlCommisionCashout = `SELECT SUM(game_record.NN_CHIPS + game_record.CC_CHIPS) AS TOTAL_CASHOUT FROM game_record 
 			LEFT JOIN game_list ON game_list.IDNo = game_record.GAME_ID
@@ -389,6 +419,7 @@ ON
 		const [NNChipsAccountMarkerResult] = await pool.execute(sqlNNChipsAccountMarker);
 		const [accountDeductResult] = await pool.execute(sqlAccountDeduct);
 		const [accountWithdrawResult] = await pool.execute(sqlAccountWithdraw);
+		const [accountServicesDeductResult] = await pool.execute(sqlAccountServicesDeduct);
 		const [NNChipsAccountCashResult] = await pool.execute(sqlNNChipsAccountCash);
 		const [NNChipsAccountDepositResult] = await pool.execute(sqlNNChipsAccountDeposit);
 		const [CCChipsBuyinCashoutResult] = await pool.execute(sqlCCChipsCashout);
@@ -558,6 +589,7 @@ ON
 			sqlAccountDeposit: accountDepositResult,
 			sqlAccountWithdraw: accountWithdrawResult,
 			sqlAccountDeduct: accountDeductResult,
+			sqlAccountServicesDeduct: accountServicesDeductResult,
 			sqlAccountCCChips: accountCCChips,
 			sqlAccountNNChips: accountNNChips,
 			sqlMarkerIssueGame: markerIssueGame,

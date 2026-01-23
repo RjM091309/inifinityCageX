@@ -168,7 +168,8 @@ router.get('/game_statistics_data', async (req, res) => {
 
 router.get('/game_statistics/:id/record', async (req, res) => {
     const id = parseInt(req.params.id);
-    const query = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, CAGE_TYPE
+    const query = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, CAGE_TYPE,
+                          ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION
                    FROM game_record 
                    JOIN game_list ON game_list.IDNo = game_record.GAME_ID 
                    WHERE game_list.ACTIVE != 0 

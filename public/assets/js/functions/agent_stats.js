@@ -90,6 +90,7 @@ console.log('Constructed URL = ', '/game_statistics/' + row.game_list_id + '/rec
 						var total_rolling_real = 0;
 						var total_rolling_nn_real = 0;
 						var total_rolling_cc_real = 0;
+						var total_roller_return_cc = 0;
 	
 						response.forEach(function (res) {
 							if (res.CAGE_TYPE == 1 && (total_nn_init != 0 || total_cc_init != 0)) {
@@ -121,12 +122,16 @@ console.log('Constructed URL = ', '/game_statistics/' + row.game_list_id + '/rec
 								total_rolling_nn_real += res.NN_CHIPS;
 								total_rolling_cc_real += res.CC_CHIPS;
 							}
+
+							if (res.CAGE_TYPE == 5 && parseInt(res.ROLLER_TRANSACTION) === 2) {
+								total_roller_return_cc += parseFloat(res.ROLLER_CC_CHIPS) || 0;
+							}
 						});
 	
 						var total_initial = total_nn_init + total_cc_init;
 						var total_buy_in_chips = total_nn + total_cc;
 						var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
-						var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+						var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc - total_cash_out_nn;
 	
 						var total_amount = total_buy_in_chips + total_initial;
 						var WinLoss = total_amount - total_cash_out_chips;

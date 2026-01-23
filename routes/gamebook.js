@@ -255,6 +255,7 @@ router.get('/game_services/:gameId', checkSession, async (req, res) => {
 				gs.SERVICE_TYPE,
 				gs.AMOUNT,
 				gs.REMARKS,
+				gs.TRANSACTION_ID,
 				gs.ACTIVE,
 				gs.ENCODED_BY,
 				gs.ENCODED_DT,
@@ -274,13 +275,15 @@ router.get('/game_services/:gameId', checkSession, async (req, res) => {
 });
 
 // Add a service to a game (use /add_game_services to avoid confusion with GET)
-router.post('/add_game_services', checkSession, async (req, res) => {
+	router.post('/add_game_services', checkSession, async (req, res) => {
 	try {
-		const { game_id, service_type, amount, remarks } = req.body;
+		const { game_id, service_type, amount, remarks, transaction_id } = req.body;
 		const gameId = parseInt(game_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const svc = (service_type || '').toLowerCase();
 		const validTypes = ['fnb', 'hotel'];
+		let transactionId = parseInt(transaction_id, 10);
+		transactionId = [1, 2, 3].includes(transactionId) ? transactionId : 1;
 
 		if (Number.isNaN(gameId) || !validTypes.includes(svc)) {
 			return res.status(400).json({ error: 'Invalid input' });
@@ -288,12 +291,22 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 
 		const encodedBy = req.session?.user_id || null;
 		const now = new Date();
+		const [gameRows] = await pool.execute(`SELECT ACCOUNT_ID FROM game_list WHERE IDNo = ? LIMIT 1`, [gameId]);
+		const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
 
 		await pool.execute(
-			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, ACTIVE, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?, 1, ?, ?)`,
-			[gameId, svc, amt, remarks || '', encodedBy, now]
+			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, ACTIVE, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
+			[gameId, svc, amt, remarks || '', transactionId, encodedBy, now]
 		);
+
+		if (transactionId === 2 && accountId) {
+			await pool.execute(
+				`INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, 2, 2, 'SERVICES', ?, ?, ?)`,
+				[accountId, amt, encodedBy, now]
+			);
+		}
 
 		// Return the refreshed list
 		const [rows] = await pool.execute(
@@ -322,14 +335,21 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 });
 
 // Update a service
-router.put('/game_services/:id', checkSession, async (req, res) => {
+	router.put('/game_services/:id', checkSession, async (req, res) => {
 	try {
 		const serviceId = parseInt(req.params.id, 10);
-		const { game_id, service_type, amount, remarks } = req.body;
+		const { game_id, service_type, amount, remarks, transaction_id } = req.body;
 		const gameId = parseInt(game_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const svc = (service_type || '').toLowerCase();
 		const validTypes = ['fnb', 'hotel'];
+		let transactionId = parseInt(transaction_id, 10);
+		transactionId = [1, 2, 3].includes(transactionId) ? transactionId : 1;
+
+		const [[existingService]] = await pool.execute(
+			`SELECT AMOUNT, TRANSACTION_ID, ENCODED_BY, ENCODED_DT FROM game_services WHERE IDNo = ?`,
+			[serviceId]
+		);
 
 		if (Number.isNaN(serviceId) || Number.isNaN(gameId) || !validTypes.includes(svc)) {
 			return res.status(400).json({ error: 'Invalid input' });
@@ -340,10 +360,44 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 
 		await pool.execute(
 			`UPDATE game_services
-			 SET SERVICE_TYPE = ?, AMOUNT = ?, REMARKS = ?, UPDATED_BY = ?, UPDATED_DT = ?
+			 SET SERVICE_TYPE = ?, AMOUNT = ?, REMARKS = ?, TRANSACTION_ID = ?, UPDATED_BY = ?, UPDATED_DT = ?
 			 WHERE IDNo = ?`,
-			[svc, amt, remarks || '', updatedBy, now, serviceId]
+			[svc, amt, remarks || '', transactionId, updatedBy, now, serviceId]
 		);
+
+		// delete old ledger entry if previous transaction was deposit
+		if (existingService && parseInt(existingService.TRANSACTION_ID, 10) === 2) {
+			const [gameRows] = await pool.execute(
+				`SELECT ACCOUNT_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
+				[gameId]
+			);
+			const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
+			if (accountId) {
+				await pool.execute(
+					`DELETE FROM account_ledger
+					 WHERE ACCOUNT_ID = ? AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ?
+					 ORDER BY IDNo DESC
+					 LIMIT 1`,
+					[accountId, existingService.AMOUNT]
+				);
+			}
+		}
+
+		// insert ledger entry if now a deposit
+		if (transactionId === 2) {
+			const [gameRows] = await pool.execute(
+				`SELECT ACCOUNT_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
+				[gameId]
+			);
+			const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
+			if (accountId) {
+				await pool.execute(
+					`INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+					 VALUES (?, 2, 2, 'SERVICES', ?, ?, ?)`,
+					[accountId, amt, updatedBy, now]
+				);
+			}
+		}
 
 		const [rows] = await pool.execute(
 			`SELECT 
@@ -383,12 +437,37 @@ router.delete('/game_services/:id', checkSession, async (req, res) => {
 		const updatedBy = req.session?.user_id || null;
 		const now = new Date();
 
+		// capture values before update for ledger cleanup
+		const [[existingService]] = await pool.execute(
+			`SELECT GAME_ID, AMOUNT, TRANSACTION_ID, ENCODED_BY, ENCODED_DT
+			 FROM game_services
+			 WHERE IDNo = ?`,
+			[serviceId]
+		);
+
 		await pool.execute(
 			`UPDATE game_services
 			 SET ACTIVE = 0, UPDATED_BY = ?, UPDATED_DT = ?
 			 WHERE IDNo = ?`,
 			[updatedBy, now, serviceId]
 		);
+
+		if (existingService && parseInt(existingService.TRANSACTION_ID, 10) === 2) {
+			const [gameRows] = await pool.execute(
+				`SELECT ACCOUNT_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
+				[existingService.GAME_ID]
+			);
+			const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
+			if (accountId) {
+				await pool.execute(
+					`DELETE FROM account_ledger
+					 WHERE ACCOUNT_ID = ? AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ?
+					 ORDER BY IDNo DESC
+					 LIMIT 1`,
+					[accountId, existingService.AMOUNT]
+				);
+			}
+		}
 
 		const [rows] = await pool.execute(
 			`SELECT 
