@@ -2320,8 +2320,10 @@ function reloadDataRecord() {
                 '<strong>' + totalCashOut.toLocaleString() + '</strong>',
                 '<strong>' + totalRealRolling.toLocaleString() + '</strong>',
                 '<strong>' + totalRolling.toLocaleString() + '</strong>',
-                '<strong>' + totalNN.toLocaleString() + '</strong>',
-                '<strong>' + totalCC.toLocaleString() + '</strong>',
+                // '<strong>' + totalNN.toLocaleString() + '</strong>',
+                // '<strong>' + totalCC.toLocaleString() + '</strong>',
+				'',
+				'',
                 '<strong>' + totalRollerChips.toLocaleString() + '</strong>',
                 ''  // Empty for action column
             ]);
