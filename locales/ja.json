@@ -529,7 +529,14 @@
 		"chips_buyin": "チップバイイン",
 		"chips_cashout": "チップキャッシュアウト",
 		"save": "保存",
-		"close": "閉じる"
+		"close": "閉じる",
+		"encoded_by": "エンコードされた",
+		"amount": "金額",
+		"type": "タイプ",
+		"remarks": "備考",
+		"date": "日付",
+		"action": "アクション",
+		"rolling": "ローリング"
 	},
 	"dashboard_update_nn_chips": {
 		"update_nn_chips": "NNチップの更新",

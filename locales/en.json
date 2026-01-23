@@ -528,7 +528,14 @@
 		"chips_buyin": "Chips Buy-in",
 		"chips_cashout": "Chips Cashout",
 		"save": "Save",
-		"close": "Close"
+		"close": "Close",
+		"encoded_by": "Encoded By",
+		"amount": "Amount",
+		"type": "Type",
+		"remarks": "Remarks",
+		"date": "Date",
+		"action": "Action",
+		"rolling": "Rolling"
 	},
 	"dashboard_update_nn_chips": {
 		"update_nn_chips": "Update NN Chips",

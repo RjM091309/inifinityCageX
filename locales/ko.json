@@ -530,6 +530,13 @@
 		"total_chips": "칩스 합계",
 		"chips_buyin": "칩 바이인",
 		"chips_cashout": "칩 캐시아웃",
+		"rolling": "롤링",
+		"encoded_by": "등록",
+		"amount": "항목 : 금액",
+		"type": "타입",
+		"remarks": "메모",
+		"date": "날짜",
+		"action": "행동",
 		"save": "저장",
 		"close": "닫기"
 	},
