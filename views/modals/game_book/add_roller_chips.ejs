@@ -12,12 +12,28 @@
 			<!-- Summary Display (Total ADD, Total RETURN, Net ADD) -->
 			<div class="alert alert-info" role="alert" style="padding: 10px; margin-bottom: 15px;">
 				<small>
-					<strong>Summary:</strong><br>
-					Total ADD (NN): <span id="roller-chips-total-add-nn">0</span> | 
-					Total ADD (CC): <span id="roller-chips-total-add-cc">0</span><br>
-					Total RETURN (NN): <span id="roller-chips-total-return-nn">0</span> | 
-					Total RETURN (CC): <span id="roller-chips-total-return-cc">0</span><br>
-					Net ADD (NN): <span id="roller-chips-net-add-nn">0</span>
+					<table style="margin-top:4px;width:100%;border-collapse:collapse;">
+						<tr>
+							<td style="padding:4px 0;font-weight:600;">Total ADD :</td>
+							<td style="padding:4px 0;text-align:right;">
+								<div>NN: <span id="roller-chips-total-add-nn">0</span></div>
+								<div>CC: <span id="roller-chips-total-add-cc">0</span></div>
+							</td>
+						</tr>
+						<tr>
+							<td style="padding:4px 0;font-weight:600;">Total RETURN:</td>
+							<td style="padding:4px 0;text-align:right;">
+								<div>NN: <span id="roller-chips-total-return-nn">0</span></div>
+								<div>CC: <span id="roller-chips-total-return-cc">0</span></div>
+							</td>
+						</tr>
+						<tr>
+							<td style="padding:4px 0;font-weight:600;">Required RETURN:</td>
+							<td style="padding:4px 0;text-align:right;">
+								<span id="roller-chips-required-return-total">0</span>
+							</td>
+						</tr>
+					</table>
 				</small>
 			</div>
 

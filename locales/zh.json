@@ -529,7 +529,7 @@
 		"cc_chips": "CC 筹码",
 		"total_chips": "总筹码",
 		"chips_buyin": "筹码买入",
-		"chips_return": "筹码归还",
+		"chips_cashout": "筹码兑现",
 		"save": "保存",
 		"close": "关闭"
 	},

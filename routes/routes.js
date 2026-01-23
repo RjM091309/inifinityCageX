@@ -170,7 +170,7 @@ pageRouter.get("/dashboard", checkSession, function (req, res) {
 	let sqlTotalRollingManual = 'SELECT SUM(AMOUNT) AS TOTAL_ROLLING FROM total_rolling WHERE RESET=1';
 
 	let sqlJunketExpenseReset = 'SELECT SUM(AMOUNT) AS RESET_EXPENSE FROM junket_house_expense WHERE ACTIVE =1 AND RESET=1';
-	let sqlCCChipsReturnReset = 'SELECT  SUM(CC_CHIPS) AS CCResetReturn FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2 AND RESET=1';
+	let sqlCCChipsCashoutReset = 'SELECT  SUM(CC_CHIPS) AS CCResetCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2 AND RESET=1';
 
 	let sqlTotalRollingReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_ROLLING FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE IN (3,4) AND RESET=1';
 	let sqlTotalCashOutRollingReset = 'SELECT SUM(NN_CHIPS) AS RESET_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
@@ -310,11 +310,14 @@ ON
 		let sqlCCChipsBuyinGame = 'SELECT SUM(CC_CHIPS) AS TOTAL_CC FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION IN (1 , 2, 3)';
 		let sqlNNChipsAccountCash = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_CASH FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 1';
 		let sqlNNChipsAccountDeposit = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_DEPOSIT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 2';
-		let sqlCCChipsReturn = 'SELECT  SUM(CC_CHIPS) AS CCChipsReturn FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
+		let sqlCCChipsCashout = 'SELECT  SUM(CC_CHIPS) AS CCChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
 		let sqlCCReturn = 'SELECT  SUM(CC_CHIPS) AS CCReturn FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
-		let sqlNNChipsReturn = 'SELECT  SUM(NN_CHIPS) AS NNChipsReturn FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
+		let sqlNNChipsCashout = 'SELECT  SUM(NN_CHIPS) AS NNChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
 		let sqlNNReturn = 'SELECT  SUM(NN_CHIPS) AS NNReturn FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
-		let sqlTotalChipsReturn = 'SELECT  SUM(TOTAL_CHIPS) AS TotalChipsReturn FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
+		let sqlTotalChipsCashout = 'SELECT  SUM(TOTAL_CHIPS) AS TotalChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
+		let sqlCCChipsRolling = 'SELECT  SUM(CC_CHIPS) AS CCChipsRolling FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=3';
+		let sqlNNChipsRolling = 'SELECT  SUM(NN_CHIPS) AS NNChipsRolling FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=3';
+		let sqlTotalChipsRolling = 'SELECT  SUM(TOTAL_CHIPS) AS TotalChipsRolling FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=3';
 		let sqlCCChipsBuyin = 'SELECT  SUM(CC_CHIPS) AS CCChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1';
 		let sqlCCBuyin = 'SELECT  SUM(CC_CHIPS) AS CCBuyin FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1';
 		let sqlNNChipsBuyin = 'SELECT  SUM(NN_CHIPS) AS NNChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1';
@@ -551,24 +554,33 @@ ON
 																					connection.query(sqlNNChipsAccountDeposit, (err, NNChipsAccountDepositResult) => {
 																						if (err) throw err;
 
-																						connection.query(sqlCCChipsReturn, (err, CCChipsBuyinReturnResult) => {
+																						connection.query(sqlCCChipsCashout, (err, CCChipsBuyinCashoutResult) => {
 																							if (err) throw err;
-																							connection.query(sqlCCChipsReturnReset, (err, CCResetBuyinReturnResult) => {
+																							connection.query(sqlCCChipsCashoutReset, (err, CCResetBuyinCashoutResult) => {
 																								if (err) throw err;
 
 																								connection.query(sqlCCReturn, (err, CCBuyinReturnResult) => {
 																									if (err) throw err;
 
-																									connection.query(sqlNNChipsReturn, (err, NNChipsBuyinReturnResult) => {
+																									connection.query(sqlNNChipsCashout, (err, NNChipsBuyinCashoutResult) => {
 																										if (err) throw err;
 
 																										connection.query(sqlNNReturn, (err, NNBuyinReturnResult) => {
 																											if (err) throw err;
 
-																											connection.query(sqlTotalChipsReturn, (err, TotalChipsBuyinReturnResult) => {
+																											connection.query(sqlTotalChipsCashout, (err, TotalChipsBuyinCashoutResult) => {
 																												if (err) throw err;
 
-																												connection.query(sqlCCChipsBuyin, (err, CCChipsBuyinResult) => {
+																												connection.query(sqlCCChipsRolling, (err, CCChipsRollingResult) => {
+																													if (err) throw err;
+
+																													connection.query(sqlNNChipsRolling, (err, NNChipsRollingResult) => {
+																														if (err) throw err;
+
+																														connection.query(sqlTotalChipsRolling, (err, TotalChipsRollingResult) => {
+																															if (err) throw err;
+
+																															connection.query(sqlCCChipsBuyin, (err, CCChipsBuyinResult) => {
 																													if (err) throw err;
 
 																													connection.query(sqlCCBuyin, (err, CCBuyinResult) => {
@@ -783,12 +795,15 @@ ON
 																																																																sqlNNChipsAccountMarker: NNChipsAccountMarkerResult,
 																																																																sqlNNChipsAccountCash: NNChipsAccountCashResult,
 																																																																sqlNNChipsAccountDeposit: NNChipsAccountDepositResult,
-																																																																sqlCCChipsReturn: CCChipsBuyinReturnResult,
-																																																																sqlCCChipsReturnReset: CCResetBuyinReturnResult,
+																																																																sqlCCChipsCashout: CCChipsBuyinCashoutResult,
+																																																																sqlCCChipsCashoutReset: CCResetBuyinCashoutResult,
 																																																																sqlCCReturn: CCBuyinReturnResult,
-																																																																sqlNNChipsReturn: NNChipsBuyinReturnResult,
+																																																																sqlNNChipsCashout: NNChipsBuyinCashoutResult,
 																																																																sqlNNReturn: NNBuyinReturnResult,
-																																																																sqlTotalChipsReturn: TotalChipsBuyinReturnResult,
+																																																																sqlTotalChipsCashout: TotalChipsBuyinCashoutResult,
+																																																																sqlCCChipsRolling: CCChipsRollingResult,
+																																																																sqlNNChipsRolling: NNChipsRollingResult,
+																																																																sqlTotalChipsRolling: TotalChipsRollingResult,
 																																																																sqlCCChipsBuyin: CCChipsBuyinResult,
 																																																																sqlCCBuyin: CCBuyinResult,
 																																																																sqlNNChipsBuyin: NNChipsBuyinResult,
@@ -826,6 +841,9 @@ ON
 
 																																																															});
 																																																														});
+																																																													});
+																																																												});
+																																																											});
 																																																													});
 																																																												});
 

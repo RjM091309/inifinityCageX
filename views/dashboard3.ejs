@@ -42,7 +42,7 @@
 																sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT -
 																sqlCashWithdraw[0].CASH_WITHDRAW -
 																sqlNNChipsBuyin[0].NNChipsBuyin +
-																sqlNNChipsReturn[0].NNChipsReturn +
+																sqlNNChipsCashout[0].NNChipsCashout +
 																sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER -
 																sqlAccountSettlement[0].ACCOUNT_SETTLEMENT +
 																sqlMArkerReturnCash[0].MARKER_RETURN_CASH -
@@ -88,8 +88,10 @@
 													<h4 class="mb-0">
 														<span>
 															<%- parseFloat(sqlCCChipsBuyin[0].CCChipsBuyin -
-																sqlCCChipsReturn[0].CCChipsReturn +
+																sqlCCChipsCashout[0].CCChipsCashout +
 																sqlTotalRealRolling[0].TOTAL_REAL_ROLLING +
+																sqlCCChipsRolling[0].CCChipsRolling -
+																sqlNNChipsRolling[0].NNChipsRolling +
 																sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN -
 																sqlCCChipsBuyinGame[0].TOTAL_CC + sqlCCBuyin[0].CCBuyin
 																- sqlCCReturn[0].CCReturn).toLocaleString() %>
@@ -125,12 +127,14 @@
 													<h4 class="mb-0">
 														<span>
 															<%- parseFloat(sqlNNChipsBuyin[0].NNChipsBuyin -
-																sqlNNChipsReturn[0].NNChipsReturn -
+																sqlNNChipsCashout[0].NNChipsCashout -
 																sqlAccountNNChips[0].TOTAL_NN +
 																sqlTotalCashOutRolling[0].TOTAL_CASHOUT -
 																sqlTotalRealRolling[0].TOTAL_REAL_ROLLING -
 																sqlCCChipsBuyin[0].CCChipsBuyin +
-																sqlCCChipsReturn[0].CCChipsReturn +
+																sqlCCChipsCashout[0].CCChipsCashout +
+																sqlNNChipsRolling[0].NNChipsRolling -
+																sqlCCChipsRolling[0].CCChipsRolling +
 																sqlNNBuyin[0].NNBuyin -
 																sqlNNReturn[0].NNReturn).toLocaleString() %>
 														</span>
@@ -165,12 +169,12 @@
 														<h4 class="mb-0">
 															<span>
 																<%- parseFloat(sqlTotalChipsBuyin[0].TotalChipsBuyin -
-																	sqlTotalChipsReturn[0].TotalChipsReturn -
+																	sqlTotalChipsCashout[0].TotalChipsCashout -
 																	sqlAccountNNChips[0].TOTAL_NN +
 																	sqlTotalCashOutRolling[0].TOTAL_CASHOUT +
 																	sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN -
 																	sqlCCChipsBuyin[0].CCChipsBuyin +
-																	sqlCCChipsReturn[0].CCChipsReturn -
+																	sqlCCChipsCashout[0].CCChipsCashout -
 																	sqlCCChipsBuyinGame[0].TOTAL_CC +
 																	sqlCCBuyin[0].CCBuyin - sqlCCReturn[0].CCReturn +
 																	sqlNNBuyin[0].NNBuyin -
@@ -342,12 +346,12 @@
 														class="fa fa-building fa-3x text-muted push"></i>
 													<!-- <a href="#modal-new-rolling" data-bs-toggle="modal">  -->
 													<h4 id="totalhouserolling" class="mb-0">
-														<%- parseFloat(sqlCCChipsReturnReset[0].CCResetReturn ||
+														<%- parseFloat(sqlCCChipsCashoutReset[0].CCResetCashout ||
 															0).toLocaleString() %>
 													</h4>
 
 													<input type="hidden" name="HOUSE_ROLLING_HISTORY"
-														value="<%- parseFloat(sqlCCChipsReturnReset[0].CCResetReturn || 0) %>">
+														value="<%- parseFloat(sqlCCChipsCashoutReset[0].CCResetCashout || 0) %>">
 
 													<!-- </a> -->
 												</div>

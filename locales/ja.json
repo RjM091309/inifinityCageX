@@ -527,7 +527,7 @@
 		"cc_chips": "CCチップ",
 		"total_chips": "総チップ",
 		"chips_buyin": "チップバイイン",
-		"chips_return": "チップリターン",
+		"chips_cashout": "チップキャッシュアウト",
 		"save": "保存",
 		"close": "閉じる"
 	},

@@ -289,12 +289,12 @@ c103 -64 195 -293 198 -495 2 -114 -12 -152 -73 -192 -44 -31 -173 -32 -237
                                                    </a>
                                              </h6>
                                              <h6 class="counter">₱ <%- ( (+sqlTotalChipsBuyin[0].TotalChipsBuyin || 0) -
-                                                   (+sqlTotalChipsReturn[0].TotalChipsReturn || 0) -
+                                                  (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
+                                                  (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
                                                    (+sqlAccountNNChips[0].TOTAL_NN || 0) +
                                                    (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) +
                                                    (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
-                                                   (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
-                                                   (+sqlCCChipsReturn[0].CCChipsReturn || 0) -
+                                                   (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
                                                    (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + (+sqlCCBuyin[0].CCBuyin ||
                                                    0) - (+sqlCCReturn[0].CCReturn || 0) + (+sqlNNBuyin[0].NNBuyin || 0)
                                                    - (+sqlNNReturn[0].NNReturn || 0) - (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
@@ -423,12 +423,12 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                                    </a>
                                              </h6>
                                              <h6 class="counter">₱ <%- ( (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
-                                                   (+sqlNNChipsReturn[0].NNChipsReturn || 0) -
+                                                  (+sqlNNChipsCashout[0].NNChipsCashout || 0) -
                                                    (+sqlAccountNNChips[0].TOTAL_NN || 0) +
                                                    (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
-                                                   (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
-                                                   (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
-                                                   (+sqlCCChipsReturn[0].CCChipsReturn || 0) + (+sqlNNBuyin[0].NNBuyin
+                                                   (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0)   +
+                                                  (+sqlNNChipsRolling[0].NNChipsRolling || 0) -
+                                                  (+sqlCCChipsRolling[0].CCChipsRolling || 0) + (+sqlNNBuyin[0].NNBuyin
                                                    || 0) - (+sqlNNReturn[0].NNReturn || 0) -
                                                    (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
                                                    (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) ).toLocaleString() %>
@@ -585,8 +585,10 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                                    </a>
                                              </h6>
                                              <h6 class="counter">₱ <%- ( (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-                                                   (+sqlCCChipsReturn[0].CCChipsReturn || 0) +
+                                                  (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
                                                    (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
+                                                   (+sqlCCChipsRolling[0].CCChipsRolling || 0) -
+                                                   (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
                                                    (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
                                                    (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + (+sqlCCBuyin[0].CCBuyin ||
                                                    0) - (+sqlCCReturn[0].CCReturn || 0) -
@@ -774,8 +776,8 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     const baseBalance = 
                                        (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
                                        (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
-                                       (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) -
-                                       (+sqlNNChipsReturn[0].NNChipsReturn || 0) +
+                                      (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
+                                      <!-- (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) + -->
                                        (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
                                        (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
                                        (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
@@ -806,11 +808,12 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     // NO chips, NO guest transactions, NO buy-ins, NO returns - just pure cash movement
                                     const cashBalance = 
                                        (+sqlCashDeposit[0].CASH_DEPOSIT || 0) -
+                                       (+sqlCCChipsBuyin[0].CCChipsBuyin || 0)-
                                        (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) -
                                        (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) - (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +  (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
                                        (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
-                                       (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) -
-                                       (+sqlNNChipsReturn[0].NNChipsReturn || 0) + (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) -
+                                      (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
+                                      (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) + (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) -
                                        (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0);
                                  %>
                                  <div class="row">
@@ -1098,12 +1101,12 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     <!-- In-update na chart container: -->
                                     <div id="myChart" class="col-md-12 col-lg-12 myChart"
                                        data-totalrolling="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0)) %>"
-                                       data-houserolling="<%- (+sqlCCChipsReturnReset[0].CCResetReturn || 0) %>">
+                                      data-houserolling="<%- (+sqlCCChipsCashoutReset[0].CCResetCashout || 0) %>">
                                        <span id="totalrolling"></span>
                                        <span id="totalhouserolling"></span>
                                     </div>
                                     <input type="hidden" name="HOUSE_ROLLING_HISTORY"
-                                       value="<%- (+sqlCCChipsReturnReset[0].CCResetReturn || 0) %>">
+                                      value="<%- (+sqlCCChipsCashoutReset[0].CCResetCashout || 0) %>">
                                     <input type="hidden" name="TOTAL_ROLLING_HISTORY"
                                        value="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0)) %>">
 

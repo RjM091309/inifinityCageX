@@ -21,7 +21,7 @@ router.get("/dashboard", checkSession, async (req, res) => {
 	let sqlTotalRollingManual = 'SELECT SUM(AMOUNT) AS TOTAL_ROLLING FROM total_rolling WHERE RESET=1';
 
 	let sqlJunketExpenseReset = 'SELECT SUM(AMOUNT) AS RESET_EXPENSE FROM junket_house_expense WHERE ACTIVE =1 AND RESET=1';
-	let sqlCCChipsReturnReset = 'SELECT  SUM(CC_CHIPS) AS CCResetReturn FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2 AND RESET=1';
+	let sqlCCChipsCashoutReset = 'SELECT  SUM(CC_CHIPS) AS CCResetCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2 AND RESET=1';
 
 	let sqlTotalRollingReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_ROLLING FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE IN (3,4) AND RESET=1';
 	let sqlTotalCashOutRollingReset = 'SELECT SUM(NN_CHIPS) AS RESET_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
@@ -161,11 +161,14 @@ ON
 	let sqlCCChipsBuyinGame = 'SELECT SUM(CC_CHIPS) AS TOTAL_CC FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION IN (1 , 2, 3)';
 	let sqlNNChipsAccountCash = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_CASH FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 1';
 	let sqlNNChipsAccountDeposit = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_DEPOSIT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 2';
-	let sqlCCChipsReturn = 'SELECT  SUM(CC_CHIPS) AS CCChipsReturn FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
+	let sqlCCChipsCashout = 'SELECT  SUM(CC_CHIPS) AS CCChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
 	let sqlCCReturn = 'SELECT  SUM(CC_CHIPS) AS CCReturn FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
-	let sqlNNChipsReturn = 'SELECT  SUM(NN_CHIPS) AS NNChipsReturn FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
+	let sqlNNChipsCashout = 'SELECT  SUM(NN_CHIPS) AS NNChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
 	let sqlNNReturn = 'SELECT  SUM(NN_CHIPS) AS NNReturn FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
-	let sqlTotalChipsReturn = 'SELECT  SUM(TOTAL_CHIPS) AS TotalChipsReturn FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
+	let sqlTotalChipsCashout = 'SELECT  SUM(TOTAL_CHIPS) AS TotalChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
+	let sqlCCChipsRolling = 'SELECT  SUM(CC_CHIPS) AS CCChipsRolling FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=3';
+	let sqlNNChipsRolling = 'SELECT  SUM(NN_CHIPS) AS NNChipsRolling FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=3';
+	let sqlTotalChipsRolling = 'SELECT  SUM(TOTAL_CHIPS) AS TotalChipsRolling FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=3';
 	let sqlCCChipsBuyin = 'SELECT  SUM(CC_CHIPS) AS CCChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1';
 	let sqlCCBuyin = 'SELECT  SUM(CC_CHIPS) AS CCBuyin FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1';
 	let sqlNNChipsBuyin = 'SELECT  SUM(NN_CHIPS) AS NNChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1';
@@ -369,7 +372,7 @@ ON
 		const [JunketCreditResult] = await pool.execute(sqlJunketCredit);
 		const [JunketExpenseResult] = await pool.execute(sqlJunketExpense);
 		const [ResetExpenseResult] = await pool.execute(sqlJunketExpenseReset);
-		const [CCResetBuyinReturnResult] = await pool.execute(sqlCCChipsReturnReset);
+		const [CCResetBuyinCashoutResult] = await pool.execute(sqlCCChipsCashoutReset);
 		const [TotalRollingResetResult] = await pool.execute(sqlTotalRollingReset);
 		const [TotalCashOutResetResult] = await pool.execute(sqlTotalCashOutReset);
 		const [TotalCashOutRollingResetResult] = await pool.execute(sqlTotalCashOutRollingReset);
@@ -388,11 +391,14 @@ ON
 		const [accountWithdrawResult] = await pool.execute(sqlAccountWithdraw);
 		const [NNChipsAccountCashResult] = await pool.execute(sqlNNChipsAccountCash);
 		const [NNChipsAccountDepositResult] = await pool.execute(sqlNNChipsAccountDeposit);
-		const [CCChipsBuyinReturnResult] = await pool.execute(sqlCCChipsReturn);
+		const [CCChipsBuyinCashoutResult] = await pool.execute(sqlCCChipsCashout);
 		const [CCBuyinReturnResult] = await pool.execute(sqlCCReturn);
-		const [NNChipsBuyinReturnResult] = await pool.execute(sqlNNChipsReturn);
+		const [NNChipsBuyinCashoutResult] = await pool.execute(sqlNNChipsCashout);
 		const [NNBuyinReturnResult] = await pool.execute(sqlNNReturn);
-		const [TotalChipsBuyinReturnResult] = await pool.execute(sqlTotalChipsReturn);
+		const [TotalChipsBuyinCashoutResult] = await pool.execute(sqlTotalChipsCashout);
+		const [CCChipsRollingResult] = await pool.execute(sqlCCChipsRolling);
+		const [NNChipsRollingResult] = await pool.execute(sqlNNChipsRolling);
+		const [TotalChipsRollingResult] = await pool.execute(sqlTotalChipsRolling);
 		const [CCChipsBuyinResult] = await pool.execute(sqlCCChipsBuyin);
 		const [CCBuyinResult] = await pool.execute(sqlCCBuyin);
 		const [NNChipsBuyinResult] = await pool.execute(sqlNNChipsBuyin);
@@ -533,12 +539,15 @@ ON
 			sqlNNChipsAccountMarker: NNChipsAccountMarkerResult,
 			sqlNNChipsAccountCash: NNChipsAccountCashResult,
 			sqlNNChipsAccountDeposit: NNChipsAccountDepositResult,
-			sqlCCChipsReturn: CCChipsBuyinReturnResult,
-			sqlCCChipsReturnReset: CCResetBuyinReturnResult,
+			sqlCCChipsCashout: CCChipsBuyinCashoutResult,
+			sqlCCChipsCashoutReset: CCResetBuyinCashoutResult,
 			sqlCCReturn: CCBuyinReturnResult,
-			sqlNNChipsReturn: NNChipsBuyinReturnResult,
+			sqlNNChipsCashout: NNChipsBuyinCashoutResult,
 			sqlNNReturn: NNBuyinReturnResult,
-			sqlTotalChipsReturn: TotalChipsBuyinReturnResult,
+			sqlTotalChipsCashout: TotalChipsBuyinCashoutResult,
+			sqlCCChipsRolling: CCChipsRollingResult,
+			sqlNNChipsRolling: NNChipsRollingResult,
+			sqlTotalChipsRolling: TotalChipsRollingResult,
 			sqlCCChipsBuyin: CCChipsBuyinResult,
 			sqlCCBuyin: CCBuyinResult,
 			sqlNNChipsBuyin: NNChipsBuyinResult,
@@ -844,7 +853,7 @@ router.get('/cc_chips_history', async (req, res) => {
 			return res.status(400).json({ error: 'start_date and end_date are required' });
 		}
 
-		// Query specifically for CC chips buy-in and return from junket_total_chips
+		// Query specifically for CC chips buy-in, cashout, and rolling from junket_total_chips
 		const query = `
 			SELECT 
 				j.IDNo,
@@ -856,7 +865,7 @@ router.get('/cc_chips_history', async (req, res) => {
 			FROM junket_total_chips j
 			LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
 			WHERE j.ACTIVE = 1 
-				AND j.TRANSACTION_ID IN (1, 2)
+				AND j.TRANSACTION_ID IN (1, 2, 3)
 				AND j.CC_CHIPS > 0
 				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
 			ORDER BY j.ENCODED_DT DESC

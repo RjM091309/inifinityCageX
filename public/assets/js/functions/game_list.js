@@ -280,11 +280,13 @@ $(document).ready(function () {
                             var total_rolling_nn = 0;
                             var total_rolling_cc = 0;
 
-                            var total_rolling_real = 0;
-                            var total_rolling_nn_real = 0;
-                            var total_rolling_cc_real = 0;
-                            var total_roller_nn = 0;
-                            var total_roller_cc = 0;
+					var total_rolling_real = 0;
+					var total_rolling_nn_real = 0;
+					var total_rolling_cc_real = 0;
+					var total_roller_nn = 0;
+					var total_roller_cc = 0;
+					var total_roller_return_cc = 0;
+                            var total_roller_return_cc = 0;
 
                             response.forEach(function (res) {
                                 if (res.CAGE_TYPE == 1 && (total_nn_init != 0 || total_cc_init != 0)) {
@@ -328,6 +330,7 @@ $(document).ready(function () {
                                     } else if (rollerTransaction == 2) {
                                         total_roller_nn = total_roller_nn - (res.ROLLER_NN_CHIPS || 0);
                                         total_roller_cc = total_roller_cc - (res.ROLLER_CC_CHIPS || 0);
+                                        total_roller_return_cc += (res.ROLLER_CC_CHIPS || 0);
                                     }
                                 }
                             });
@@ -339,9 +342,10 @@ $(document).ready(function () {
                             // TOTAL ROLLING: exclude roller chip movements (ADD/RETURN)
                             // CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
                             // CC chips don't affect rolling (CC chips are winnings from dealer, not played chips)
-                            var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+							var totalRollingCCWithReturns = total_rolling_cc + total_roller_return_cc;
+                            var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 	
-							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real;
+							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
 							var total_roller_chips = total_roller_nn + total_roller_cc;
 	
 							var gross = total_buy_in - total_cash_out;
@@ -841,25 +845,40 @@ $('#add_buyin').submit(function (event) {
 		if (transType == '1') transTypeText = 'Cash';
 		else if (transType == '2') transTypeText = 'Deposit';
 		else if (transType == '3') transTypeText = 'Credit';
-		
-		var confirmationMessage = `Confirm Buy In Transaction:<br><br>`;
-		confirmationMessage += `<strong>Payment Type:</strong> ${transTypeText}<br>`;
+
+		var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
+		var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
+		var buildRow = function (label, value) {
+			return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+		};
+
+		var confirmationRows = '';
+		confirmationRows += buildRow('Payment Type:', transTypeText || '-');
 		if (txtNNamount > 0) {
-			confirmationMessage += `<strong>NN Chips:</strong> ${parseFloat(txtNNamount).toLocaleString()}<br>`;
+			confirmationRows += buildRow('NN Chips:', parseFloat(txtNNamount).toLocaleString());
 		}
 		if (txtCCamount > 0) {
-			confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(txtCCamount).toLocaleString()}<br>`;
+			confirmationRows += buildRow('CC Chips:', parseFloat(txtCCamount).toLocaleString());
 		}
 		if (totalEnteredAmount > 0) {
-			confirmationMessage += `<strong>Total Amount:</strong> ${parseFloat(totalEnteredAmount).toLocaleString()}<br>`;
+			confirmationRows += buildRow('Total Amount:', parseFloat(totalEnteredAmount).toLocaleString());
 		}
+
+		var confirmationMessage = `
+			<div style="max-width:420px;margin:0 auto;text-align:left;">
+				<div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm Buy In Transaction:</div>
+				<table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
+					${confirmationRows}
+				</table>
+			</div>
+		`;
 		
 		var $form = $(this); // Store form reference
 		
 		Swal.fire({
 			icon: 'question',
 			title: 'Confirm Transaction',
-			html: confirmationMessage + '<br>Are you sure you want to proceed?',
+			html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
 			showCancelButton: true,
 			confirmButtonText: 'Yes, Confirm',
 			cancelButtonText: 'Cancel',
@@ -976,25 +995,40 @@ $('#add_buyin').submit(function (event) {
 		else if (txtTransType == '2') transTypeText = 'Deposit';
 		else if (txtTransType == '3') transTypeText = 'Credit';
 		else if (txtTransType == '4') transTypeText = 'Marker';
-		
-		var confirmationMessage = `Confirm Chips Return Transaction:<br><br>`;
-		confirmationMessage += `<strong>Payment Type:</strong> ${transTypeText}<br>`;
+
+		var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
+		var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
+		var buildRow = function (label, value) {
+			return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+		};
+
+		var confirmationRows = '';
+		confirmationRows += buildRow('Payment Type:', transTypeText || '-');
 		if (txtNN > 0) {
-			confirmationMessage += `<strong>NN Chips:</strong> ${parseFloat(txtNN).toLocaleString()}<br>`;
+			confirmationRows += buildRow('NN Chips:', parseFloat(txtNN).toLocaleString());
 		}
 		if (txtCC > 0) {
-			confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(txtCC).toLocaleString()}<br>`;
+			confirmationRows += buildRow('CC Chips:', parseFloat(txtCC).toLocaleString());
 		}
 		if ((txtNN + txtCC) > 0) {
-			confirmationMessage += `<strong>Total Amount:</strong> ${parseFloat(txtNN + txtCC).toLocaleString()}<br>`;
+			confirmationRows += buildRow('Total Amount:', parseFloat(txtNN + txtCC).toLocaleString());
 		}
+
+		var confirmationMessage = `
+			<div style="max-width:420px;margin:0 auto;text-align:left;">
+				<div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm Cash-out Transaction:</div>
+				<table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
+					${confirmationRows}
+				</table>
+			</div>
+		`;
 		
 		var $form = $(this); // Store form reference
 		
 		Swal.fire({
 			icon: 'question',
 			title: 'Confirm Transaction',
-			html: confirmationMessage + '<br>Are you sure you want to proceed?',
+			html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
 			showCancelButton: true,
 			confirmButtonText: 'Yes, Confirm',
 			cancelButtonText: 'Cancel',
@@ -1191,42 +1225,50 @@ $('#add_buyin').submit(function (event) {
 			return;
 		}
 		
-		// Validation for RETURN: Check if RETURN doesn't exceed Net ADD
+		// Validation for RETURN: ensure return does not exceed remaining required amount
 		if (transType == 2) { // RETURN
 			var totalAddNN = parseFloat($('#modal-add-roller-chips').data('totalAddNN')) || 0;
-			var totalReturnNN = parseFloat($('#modal-add-roller-chips').data('totalReturnNN')) || 0;
-			var netAddNN = totalAddNN - totalReturnNN; // Current net ADD (before this transaction)
-			
-			if (nnAmount > netAddNN) {
-				Swal.fire({
-					icon: 'error',
-					title: 'Validation Error',
-					html: `RETURN NN Chips (${parseFloat(nnAmount).toLocaleString()}) cannot exceed Net ADD (${parseFloat(netAddNN).toLocaleString()})!<br><br>Total ADD (NN): ${parseFloat(totalAddNN).toLocaleString()}<br>Total RETURN (NN): ${parseFloat(totalReturnNN).toLocaleString()}<br>Net ADD (NN): ${parseFloat(netAddNN).toLocaleString()}`,
-					confirmButtonText: 'OK',
-					allowOutsideClick: false,
-					allowEscapeKey: false
-				}).then(() => {
-					$('#modal-add-roller-chips').modal('show');
-				});
-				$btn.prop('disabled', false).text('Save');
-				return;
-			}
-			
 			var totalAddCC = parseFloat($('#modal-add-roller-chips').data('totalAddCC')) || 0;
+			var totalReturnNN = parseFloat($('#modal-add-roller-chips').data('totalReturnNN')) || 0;
 			var totalReturnCC = parseFloat($('#modal-add-roller-chips').data('totalReturnCC')) || 0;
-			var netAddCC = totalAddCC - totalReturnCC; // Current net ADD (before this transaction)
-			
-			if (ccAmount > netAddCC) {
+			var totalAddAll = totalAddNN + totalAddCC;
+			var totalReturnAll = nnAmount + ccAmount;
+			var requiredReturnTotal = Math.max(0, totalAddAll - (totalReturnNN + totalReturnCC));
+
+			if (totalReturnAll > requiredReturnTotal) {
+				var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;';
+				var valueStyle = 'padding:4px 0 4px 0;text-align:left;font-weight:400;';
+				var buildValidationRow = function (label, value) {
+					return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+				};
+
+				var validationRows = '';
+				var totalAddValue = `NN: ${parseFloat(totalAddNN).toLocaleString()}<br>CC: ${parseFloat(totalAddCC).toLocaleString()}`;
+				var totalReturnValue = `NN: ${parseFloat(totalReturnNN).toLocaleString()}<br>CC: ${parseFloat(totalReturnCC).toLocaleString()}`;
+				validationRows += buildValidationRow('Total ADD:', totalAddValue);
+				validationRows += buildValidationRow('Total RETURN:', totalReturnValue);
+				validationRows += buildValidationRow('Total Required RETURN (NN+CC):', parseFloat(requiredReturnTotal).toLocaleString());
+
+				var validationMessage = `
+					<div style="max-width:420px;margin:0 auto;text-align:left;">
+						<table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
+							${validationRows}
+						</table>
+						<div style="margin-top:12px;font-weight:600;text-align:center;">
+							Total RETURN (${parseFloat(totalReturnAll).toLocaleString()}) cannot exceed required return total (${parseFloat(requiredReturnTotal).toLocaleString()})!
+						</div>
+					</div>
+				`;
+
 				Swal.fire({
 					icon: 'error',
 					title: 'Validation Error',
-					html: `RETURN CC Chips (${parseFloat(ccAmount).toLocaleString()}) cannot exceed Net ADD (${parseFloat(netAddCC).toLocaleString()})!<br><br>Total ADD (CC): ${parseFloat(totalAddCC).toLocaleString()}<br>Total RETURN (CC): ${parseFloat(totalReturnCC).toLocaleString()}<br>Net ADD (CC): ${parseFloat(netAddCC).toLocaleString()}`,
+					html: validationMessage,
 					confirmButtonText: 'OK',
 					allowOutsideClick: false,
 					allowEscapeKey: false
-				}).then(() => {
-					$('#modal-add-roller-chips').modal('show');
-				});
+				}).then(() => $('#modal-add-roller-chips').modal('show'));
+
 				$btn.prop('disabled', false).text('Save');
 				return;
 			}
@@ -1234,21 +1276,37 @@ $('#add_buyin').submit(function (event) {
 	
 		// Show confirmation dialog before proceeding
 		var transTypeText = (transType == 1) ? 'ADD' : 'RETURN';
-		var confirmationMessage = `Confirm Roller Chips Transaction:<br><br>`;
-		confirmationMessage += `<strong>Transaction Type:</strong> ${transTypeText}<br>`;
+
+		var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
+		var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
+		var buildRow = function (label, value) {
+			return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+		};
+
+		var confirmationRows = '';
+		confirmationRows += buildRow('Transaction Type:', transTypeText || '-');
 		if (nnAmount > 0) {
-			confirmationMessage += `<strong>NN Chips:</strong> ${parseFloat(nnAmount).toLocaleString()}<br>`;
+			confirmationRows += buildRow('NN Chips:', parseFloat(nnAmount).toLocaleString());
 		}
 		if (ccAmount > 0) {
-			confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(ccAmount).toLocaleString()}<br>`;
+			confirmationRows += buildRow('CC Chips:', parseFloat(ccAmount).toLocaleString());
 		}
+
+		var confirmationMessage = `
+			<div style="max-width:420px;margin:0 auto;text-align:left;">
+				<div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm Roller Chips Transaction:</div>
+				<table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
+					${confirmationRows}
+				</table>
+			</div>
+		`;
 		
 		var $form = $(this); // Store form reference
 		
 		Swal.fire({
 			icon: 'question',
 			title: 'Confirm Transaction',
-			html: confirmationMessage + '<br>Are you sure you want to proceed?',
+			html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
 			showCancelButton: true,
 			confirmButtonText: 'Yes, Confirm',
 			cancelButtonText: 'Cancel',
@@ -1368,8 +1426,8 @@ $('#edit_status').submit(function (event) {
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
 		var requiredReturnTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
 		
-		// Only validate if there are required returns
-		if (requiredReturnNN > 0 || requiredReturnCC > 0) {
+		// Only validate if there is a required return total
+		if (requiredReturnTotal > 0) {
 			var returnNN = $('#txtReturnRollerNN').val().trim().replace(/,/g, '');
 			var returnCC = $('#txtReturnRollerCC').val().trim().replace(/,/g, '');
 			
@@ -1470,41 +1528,63 @@ $('#edit_status').submit(function (event) {
 
 	// All validations passed, show confirmation dialog
 	var statusText = (status == '1') ? 'END GAME' : (status == '2') ? 'ON GAME' : (status == '3') ? 'PENDING' : status;
-	var confirmationMessage = `Confirm Status Change:<br><br>`;
-	confirmationMessage += `<strong>New Status:</strong> ${statusText}<br>`;
-	
+
+	var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
+	var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
+	var buildRow = function (label, value) {
+		return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+	};
+
+	var confirmationRows = '';
+	confirmationRows += buildRow('New Status:', statusText);
+
 	// Add roller chips return info if END GAME and has required returns
 	if (status == '1') {
 		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
-		
+
 		if (requiredReturnNN > 0 || requiredReturnCC > 0) {
 			var returnNN = $('#txtReturnRollerNN').val().trim().replace(/,/g, '');
 			var returnCC = $('#txtReturnRollerCC').val().trim().replace(/,/g, '');
 			var returnNNAmount = parseFloat(returnNN) || 0;
 			var returnCCAmount = parseFloat(returnCC) || 0;
-			
-			confirmationMessage += `<br><strong>Roller Chips Return:</strong><br>`;
+
+			var rollerText = '';
 			if (returnNNAmount > 0) {
-				confirmationMessage += `NN Chips: ${parseFloat(returnNNAmount).toLocaleString()}<br>`;
+				rollerText += `NN Chips: ${parseFloat(returnNNAmount).toLocaleString()}`;
 			}
 			if (returnCCAmount > 0) {
-				confirmationMessage += `CC Chips: ${parseFloat(returnCCAmount).toLocaleString()}<br>`;
+				if (rollerText) rollerText += '<br>';
+				rollerText += `CC Chips: ${parseFloat(returnCCAmount).toLocaleString()}`;
+			}
+
+			if (rollerText) {
+				confirmationRows += buildRow('Roller Chips Return:', rollerText);
 			}
 		}
 	}
+
+	var confirmationMessage = `
+		<div style="max-width:420px;margin:0 auto;text-align:left;">
+			
+			<table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
+				${confirmationRows}
+			</table>
+		</div>
+	`;
 	
 	Swal.fire({
 		icon: 'question',
 		title: 'Confirm Status Change',
-		html: confirmationMessage + '<br>Are you sure you want to proceed?',
+		html: confirmationMessage + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
 		showCancelButton: true,
 		confirmButtonText: 'Yes, Confirm',
 		cancelButtonText: 'Cancel',
 		confirmButtonColor: '#3085d6',
 		cancelButtonColor: '#d33',
 		allowOutsideClick: false,
-		allowEscapeKey: false
+		allowEscapeKey: false,
+		width: '500px'
 	}).then((result) => {
 		if (result.isConfirmed) {
 			// User confirmed, proceed with transaction
@@ -1756,12 +1836,17 @@ function addRollerChips(id) {
 			// Note: Only NN chips affect rolling, so we calculate based on NN
 			var suggestedReturnNN = Math.max(0, netAddNN - (totalRollingChips > 0 ? (totalRollingChips - (totalRollingNN + totalRollingCC + totalRolling + totalRollingReal + totalRollingRealNN + totalRollingRealCC - totalCashOutNN)) : 0));
 			
+			var totalAddAll = totalAddNN + totalAddCC;
 			// Display totals in modal (for information)
 			$('#roller-chips-total-add-nn').text(parseFloat(totalAddNN).toLocaleString());
 			$('#roller-chips-total-add-cc').text(parseFloat(totalAddCC).toLocaleString());
 			$('#roller-chips-total-return-nn').text(parseFloat(totalReturnNN).toLocaleString());
 			$('#roller-chips-total-return-cc').text(parseFloat(totalReturnCC).toLocaleString());
-			$('#roller-chips-net-add-nn').text(parseFloat(netAddNN).toLocaleString());
+			var totalReturnAll = totalReturnNN + totalReturnCC;
+			var requiredReturnNN = totalAddNN - totalReturnNN;
+			var requiredReturnCC = totalAddCC - totalReturnCC;
+			var requiredReturnTotal = requiredReturnNN + requiredReturnCC;
+			$('#roller-chips-required-return-total').text(parseFloat(requiredReturnTotal).toLocaleString());
 			
 			// Store values for validation
 			$('#modal-add-roller-chips').data('totalAddNN', totalAddNN);
@@ -2287,7 +2372,7 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 			// Calculate required return amounts
 			var requiredReturnNN = totalAddNN - totalReturnNN;
 			var requiredReturnCC = totalAddCC - totalReturnCC;
-			var requiredReturnTotal = requiredReturnNN + requiredReturnCC;
+			var requiredReturnTotal = Math.max(0, requiredReturnNN + requiredReturnCC);
 			
 			// Store values for validation
 			$('#modal-change_status').data('requiredReturnNN', requiredReturnNN);
@@ -2307,7 +2392,7 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 			$('#required-total-display').text(parseFloat(requiredReturnTotal).toLocaleString());
 			
 			// Show/hide roller chips return section based on whether there are required returns
-			if (requiredReturnNN > 0 || requiredReturnCC > 0) {
+			if (requiredReturnTotal > 0) {
 				// If current status is PENDING (3), show the section immediately since END GAME is already selected
 				if (currentStatus == 3) {
 					$('#roller-chips-return-section').show();
@@ -2963,6 +3048,7 @@ $(document).ready(function () {
 							var total_rolling_cc_real = 0;
 							var total_roller_nn = 0;
 							var total_roller_cc = 0;
+							var total_roller_return_cc = 0;
 
 							response.forEach(function (res) {
 
@@ -3007,6 +3093,7 @@ $(document).ready(function () {
 					} else if (rollerTransaction == 2) {
 						total_roller_nn = total_roller_nn - (res.ROLLER_NN_CHIPS || 0);
 						total_roller_cc = total_roller_cc - (res.ROLLER_CC_CHIPS || 0);
+						total_roller_return_cc += (res.ROLLER_CC_CHIPS || 0);
 					}
 				}
 
@@ -3017,9 +3104,10 @@ $(document).ready(function () {
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
 							// TOTAL ROLLING: exclude roller chip movements (ADD/RETURN)
 							// CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
-							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+							var totalRollingCCWithReturns = total_rolling_cc + total_roller_return_cc;
+							var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 
-							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real;
+							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
 							var total_roller_chips = total_roller_nn + total_roller_cc;
 
 							var gross = total_buy_in - total_cash_out;
@@ -3405,6 +3493,7 @@ function settlement_history(record_id, acc_id) {
 						} else if (rollerTransaction == 2) {
 							total_roller_nn = total_roller_nn - (row.ROLLER_NN_CHIPS || 0);
 							total_roller_cc = total_roller_cc - (row.ROLLER_CC_CHIPS || 0);
+							total_roller_return_cc += (row.ROLLER_CC_CHIPS || 0);
 						}
 					}
 
@@ -3417,9 +3506,10 @@ function settlement_history(record_id, acc_id) {
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
 							// TOTAL ROLLING: exclude roller chip movements (ADD/RETURN)
 							// CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
-							var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+							var totalRollingCCWithReturns = total_rolling_cc + total_roller_return_cc;
+							var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 					
-							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real;
+							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
 					
 							var gross = total_buy_in - total_cash_out;
 					

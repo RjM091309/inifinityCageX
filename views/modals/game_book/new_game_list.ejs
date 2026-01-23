@@ -7,26 +7,26 @@
         </div>
         <form id="add_game_list">
         <div class="modal-body">
-            <h6 class="counter d-none" id="availableNN">₱ <%- ( 
-                (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
-                (+sqlNNChipsReturn[0].NNChipsReturn || 0) -
-                (+sqlAccountNNChips[0].TOTAL_NN || 0) +
-                (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
-                (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) -
-                (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) +
-                (+sqlCCChipsReturn[0].CCChipsReturn || 0) +
-                (+sqlNNBuyin[0].NNBuyin || 0) -
-                (+sqlNNReturn[0].NNReturn || 0)
-            ).toLocaleString() %></h6>
-            <h6 id="availableCC" class="counter d-none">₱ <%- (
-                (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-                (+sqlCCChipsReturn[0].CCChipsReturn || 0) +
-                (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
-                (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
-                (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) +
-                (+sqlCCBuyin[0].CCBuyin || 0) -
-                (+sqlCCReturn[0].CCReturn || 0)
-             ).toLocaleString() %></h6>
+            <h6 class="counter d-none" id="availableNN">₱  <%- ( (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
+                (+sqlNNChipsCashout[0].NNChipsCashout || 0) -
+                 (+sqlAccountNNChips[0].TOTAL_NN || 0) +
+                 (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
+                 (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0)   +
+                (+sqlNNChipsRolling[0].NNChipsRolling || 0) -
+                (+sqlCCChipsRolling[0].CCChipsRolling || 0) + (+sqlNNBuyin[0].NNBuyin
+                 || 0) - (+sqlNNReturn[0].NNReturn || 0) -
+                 (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
+                 (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) ).toLocaleString() %></h6>
+            <h6 id="availableCC" class="counter d-none">₱<%- ( (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
+                (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
+                 (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
+                 (+sqlCCChipsRolling[0].CCChipsRolling || 0) -
+                 (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
+                 (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
+                 (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + (+sqlCCBuyin[0].CCBuyin ||
+                 0) - (+sqlCCReturn[0].CCReturn || 0) -
+                 (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
+                 (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) ).toLocaleString() %></h6>
              
           
                 <!-- Total Balance Display -->

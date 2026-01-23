@@ -897,26 +897,32 @@ function loadNNChipsHistory() {
                     return [];
                 }
                 
-                // Filter for NN Chips Buy-in or NN Chips Return and only those with NN_CHIPS > 0
+    // Filter for NN Chips Buy-in, Cashout, or Rolling and only those with NN_CHIPS > 0
                 const filteredData = json.filter(row => {
                     const chipsBuyIn = row.TRANSACTION_ID == 1 &&
                         row.capital_description === '<span class="css-red">Chips Buy-in</span>';
-                    const chipsReturn = row.TRANSACTION_ID == 2 &&
-                        row.capital_description === '<span class="css-red">Chips Return</span>';
+        const chipsCashout = row.TRANSACTION_ID == 2 &&
+            row.capital_description === '<span class="css-red">Chips Cashout</span>';
+        const chipsRolling = row.TRANSACTION_ID == 3 &&
+            row.capital_description === '<span class="css-red">Chips Rolling</span>';
                     
                     // Use only NN_CHIPS value. Exclude if NN_CHIPS is not greater than 0.
                     const nnChips = parseFloat(row.NN_CHIPS) || 0;
-                    return (chipsBuyIn || chipsReturn) && nnChips > 0;
+        return (chipsBuyIn || chipsCashout || chipsRolling) && nnChips > 0;
                 }).map(function(row) {
-                    const isChipsBuyIn = row.TRANSACTION_ID == 1 &&
-                        row.capital_description === '<span class="css-red">Chips Buy-in</span>';
+        const isChipsBuyIn = row.TRANSACTION_ID == 1 &&
+            row.capital_description === '<span class="css-red">Chips Buy-in</span>';
+        const isChipsCashout = row.TRANSACTION_ID == 2 &&
+            row.capital_description === '<span class="css-red">Chips Cashout</span>';
 
                     // Use NN_CHIPS exclusively
                     const nnChips = parseFloat(row.NN_CHIPS) || 0;
                     const amount = nnChips.toLocaleString();
-                    const type = isChipsBuyIn
-                        ? '<span class="css-red">NN Chips Buy-in</span>'
-                        : '<span class="css-blue">NN Chips Return</span>';
+        const type = isChipsBuyIn
+            ? '<span class="badge-cashin">NN Chips Buy-in</span>'
+            : (isChipsCashout
+                ? '<span class="badge-cashout">NN Chips Cashout</span>'
+                : '<span class="badge-rolling">NN Chips Rolling</span>');
 
                     return [
                         row.ENCODED_BY_NAME || 'N/A',
@@ -999,9 +1005,11 @@ function loadCCChipsHistory() {
                     // Use CC_CHIPS exclusively
                     const ccChips = parseFloat(row.CC_CHIPS) || 0;
                     const amount = ccChips.toLocaleString();
-                    const type = isChipsBuyIn
-                        ? '<span class="css-red">CC Chips Buy-in</span>'
-                        : '<span class="css-blue">CC Chips Return</span>';
+            const type = isChipsBuyIn
+                ? '<span class="badge-cashin">CC Chips Buy-in</span>'
+                : (row.TRANSACTION_ID == 2
+                    ? '<span class="badge-cashout">CC Chips Cashout</span>'
+                    : '<span class="badge-rolling">CC Chips Rolling</span>');
 
                     return [
                         row.ENCODED_BY_NAME || 'N/A',

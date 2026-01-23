@@ -16,12 +16,18 @@ router.get("/game_list", checkSession, async function (req, res) {
 	  // Load chip-related queries
 	  const [
 		sqlNNChipsBuyin,
-		sqlNNChipsReturn,
+		sqlNNChipsCashout,
 		sqlAccountNNChips,
 		sqlTotalCashOutRolling,
 		sqlTotalRealRolling,
 		sqlCCChipsBuyin,
-		sqlCCChipsReturn,
+		sqlCCChipsCashout,
+		sqlNNChipsRolling,
+		sqlCCChipsRolling,
+		sqlRollerNNSubtract,
+		sqlRollerNNAdd,
+		sqlRollerCCSubtract,
+		sqlRollerCCAdd,
 		sqlNNBuyin,
 		sqlNNReturn,
 		// Add CC-specific queries
@@ -31,12 +37,18 @@ router.get("/game_list", checkSession, async function (req, res) {
 		sqlCCReturn
 	  ] = await Promise.all([
 		dashboardQueries.getNNChipsBuyin(),
-		dashboardQueries.getNNChipsReturn(),
+		dashboardQueries.getNNChipsCashout(),
 		dashboardQueries.getAccountNNChips(),
 		dashboardQueries.getTotalCashOutRolling(),
 		dashboardQueries.getTotalRealRolling(),
 		dashboardQueries.getCCChipsBuyin(),
-		dashboardQueries.getCCChipsReturn(),
+		dashboardQueries.getCCChipsCashout(),
+		dashboardQueries.getNNChipsRolling(),
+		dashboardQueries.getCCChipsRolling(),
+		dashboardQueries.getRollerNNSubtract(),
+		dashboardQueries.getRollerNNAdd(),
+		dashboardQueries.getRollerCCSubtract(),
+		dashboardQueries.getRollerCCAdd(),
 		dashboardQueries.getNNBuyin(),
 		dashboardQueries.getNNReturn(),
 		// CC-specific queries
@@ -49,12 +61,18 @@ router.get("/game_list", checkSession, async function (req, res) {
 	  // Attach values to `data`
 	  Object.assign(data, {
 		sqlNNChipsBuyin,
-		sqlNNChipsReturn,
+		sqlNNChipsCashout,
 		sqlAccountNNChips,
 		sqlTotalCashOutRolling,
 		sqlTotalRealRolling,
 		sqlCCChipsBuyin,
-		sqlCCChipsReturn,
+		sqlCCChipsCashout,
+		sqlNNChipsRolling,
+		sqlCCChipsRolling,
+		sqlRollerNNSubtract,
+		sqlRollerNNAdd,
+		sqlRollerCCSubtract,
+		sqlRollerCCAdd,
 		sqlNNBuyin,
 		sqlNNReturn,
 		// Attach CC-related data
