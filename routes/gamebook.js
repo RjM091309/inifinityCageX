@@ -1018,6 +1018,65 @@ router.post('/game_list/add/rolling', async (req, res) => {
 	}
 });
 
+router.get('/game_list/:game_id/rolling/last', async (req, res) => {
+	const gameId = parseInt(req.params.game_id, 10);
+
+	if (Number.isNaN(gameId)) {
+		return res.status(400).json({ error: 'Invalid game id' });
+	}
+
+	try {
+		const query = `
+			SELECT IDNo, NN_CHIPS, CC_CHIPS
+			FROM game_record
+			WHERE GAME_ID = ? AND CAGE_TYPE = 4
+			ORDER BY IDNo DESC
+			LIMIT 1
+		`;
+		const [rows] = await pool.execute(query, [gameId]);
+
+		if (rows.length === 0) {
+			return res.json({ data: null });
+		}
+
+		return res.json({ data: rows[0] });
+	} catch (error) {
+		console.error('Error fetching last rolling entry:', error);
+		return res.status(500).json({ error: 'Unable to fetch last rolling entry' });
+	}
+});
+
+router.post('/game_list/rolling/:id/update', async (req, res) => {
+	const recordId = parseInt(req.params.id, 10);
+	const { txtNN, txtCC } = req.body;
+
+	if (Number.isNaN(recordId)) {
+		return res.status(400).json({ error: 'Invalid rolling record id' });
+	}
+
+	const nnAmount = parseFloat((txtNN || '0').toString().replace(/,/g, '')) || 0;
+	const ccAmount = parseFloat((txtCC || '0').toString().replace(/,/g, '')) || 0;
+
+	try {
+		const query = `
+			UPDATE game_record
+			SET NN_CHIPS = ?, CC_CHIPS = ?
+			WHERE IDNo = ? AND CAGE_TYPE = 4
+		`;
+
+		const [result] = await pool.execute(query, [nnAmount, ccAmount, recordId]);
+
+		if (result.affectedRows === 0) {
+			return res.status(404).json({ error: 'Rolling record not found' });
+		}
+
+		return res.json({ success: true });
+	} catch (error) {
+		console.error('Error updating rolling record:', error);
+		return res.status(500).json({ error: 'Unable to update rolling entry' });
+	}
+});
+
 // ADD GAME RECORD ROLLER CHIPS
 router.post('/game_list/add/roller_chips', async (req, res) => {
 	const { game_id, txtRollerNN, txtRollerCC, txtTransType } = req.body;

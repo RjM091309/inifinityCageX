@@ -1084,6 +1084,13 @@ $('#add_buyin').submit(function (event) {
 	
 		var $btn = $('#submit-rolling-btn'); // Reference to the submit button
 		
+		// Determine if we're adding or updating a record
+		var rollingAction = $('.rolling_action').val() || 'add';
+		var rollingRecordId = $('.rolling_record_id').val();
+		var isUpdate = rollingAction === 'update' && rollingRecordId;
+		var requestUrl = isUpdate ? `/game_list/rolling/${rollingRecordId}/update` : '/game_list/add/rolling';
+		var buttonLabel = isUpdate ? 'Update' : 'Save';
+
 		// Get form values for confirmation
 		var ccChips = $('#modal-add-rolling input[name="txtCC"]').val().trim().replace(/,/g, '') || $('#modal-add-rolling .txtCC').val().trim().replace(/,/g, '') || '';
 		var ccAmount = parseFloat(ccChips) || 0;
@@ -1112,7 +1119,7 @@ $('#add_buyin').submit(function (event) {
 		
 		Swal.fire({
 			icon: 'question',
-			title: 'Confirm Transaction',
+			title: isUpdate ? 'Confirm Update' : 'Confirm Transaction',
 			html: confirmationMessage + '<br>Are you sure you want to proceed?',
 			showCancelButton: true,
 			confirmButtonText: 'Yes, Confirm',
@@ -1130,17 +1137,20 @@ $('#add_buyin').submit(function (event) {
 				`);
 		  
 				var formData = $form.serialize();
-	
+
 				$.ajax({
-					url: '/game_list/add/rolling',
+					url: requestUrl,
 					type: 'POST',
 					data: formData,
 					success: function (response) {
 						// Show success message
+						var successTitle = isUpdate ? 'Updated!' : 'Success!';
+						var successText = isUpdate ? 'Rolling entry successfully updated.' : 'Rolling transaction successfully added.';
+
 						Swal.fire({
 							icon: 'success',
-							title: 'Success!',
-							text: 'Rolling transaction successfully added.',
+							title: successTitle,
+							text: successText,
 							confirmButtonText: 'OK',
 							allowOutsideClick: false,
 							allowEscapeKey: false
@@ -1148,8 +1158,11 @@ $('#add_buyin').submit(function (event) {
 							if (result.isConfirmed) {
 								reloadData(); // Reload data after confirmation
 								$('#modal-add-rolling').modal('hide'); // Close modal
+								var currentGameId = $('.game_list_id').val();
 								$('#add_rolling')[0].reset(); // Reset form
-								$btn.prop('disabled', false).text('Save'); // Re-enable button
+								$('.game_list_id').val(currentGameId);
+								setRollingMode('add'); // Back to default
+								$btn.prop('disabled', false).text('Save'); // Re-enable button with default label
 							}
 						});
 					},
@@ -1165,12 +1178,12 @@ $('#add_buyin').submit(function (event) {
 							confirmButtonText: 'OK'
 						});
 			
-						$btn.prop('disabled', false).text('Save'); // Re-enable button after error
+						$btn.prop('disabled', false).text(buttonLabel); // Re-enable button after error
 					}
 				});
 			} else {
 				// User cancelled, re-enable button
-				$btn.prop('disabled', false).text('Save');
+				$btn.prop('disabled', false).text(buttonLabel);
 			}
 		});
 	});
@@ -1763,14 +1776,90 @@ function addBuyin(id, account) {
 	});
 }
 
-function addRolling(id) {
-	$('#modal-add-rolling').modal('show');
+function setRollingMode(mode, recordId) {
+	var normalizedMode = mode === 'update' && recordId ? 'update' : 'add';
 
-	$('.txtAmount').val('');
-	$('.txtCC').val('');
-
-	$('.game_list_id').val(id);
+	$('.rolling_action').val(normalizedMode);
+	$('.rolling_record_id').val(normalizedMode === 'update' ? recordId : '');
+	$('#submit-rolling-btn').text(normalizedMode === 'update' ? 'Update' : 'Save');
 }
+
+function prepareRollingModal(gameId) {
+	var form = document.getElementById('add_rolling');
+	if (form) {
+		form.reset();
+	}
+
+	$('.txtCC').val('');
+	setRollingMode('add');
+
+	$('.game_list_id').val(gameId || '');
+}
+
+function addRolling(id) {
+	prepareRollingModal(id);
+	$('#modal-add-rolling').modal('show');
+}
+
+$(document).on('click', '#load-last-rolling-btn', function () {
+	var gameId = $('.game_list_id').val();
+	if (!gameId) {
+		Swal.fire({
+			icon: 'warning',
+			title: 'No Game Selected',
+			text: 'Please open the rolling modal from a game row first.',
+			confirmButtonText: 'OK'
+		});
+		return;
+	}
+
+	var $button = $(this);
+	var originalText = $button.text();
+	$button.prop('disabled', true).text('Loading...');
+
+	$.ajax({
+		url: `/game_list/${gameId}/rolling/last`,
+		method: 'GET',
+		dataType: 'json',
+		success: function (response) {
+			var record = response?.data;
+			if (!record) {
+				Swal.fire({
+					icon: 'info',
+					title: 'No Rolling History',
+					text: 'There is no previous rolling entry for this game yet.',
+					confirmButtonText: 'OK'
+				});
+				return;
+			}
+
+			var ccValue = parseFloat(record.CC_CHIPS) || 0;
+			$('.txtCC').val(ccValue ? ccValue.toLocaleString() : '');
+			setRollingMode('update', record.IDNo);
+		},
+		error: function (xhr) {
+			var err = xhr.responseJSON?.error || 'Unable to load the last rolling entry.';
+			Swal.fire({
+				icon: 'error',
+				title: 'Error',
+				text: err,
+				confirmButtonText: 'OK'
+			});
+		},
+		complete: function () {
+			$button.prop('disabled', false).text(originalText);
+		}
+	});
+});
+
+$('#modal-add-rolling').on('hidden.bs.modal', function () {
+	var form = document.getElementById('add_rolling');
+	if (form) {
+		form.reset();
+	}
+	setRollingMode('add');
+	$('#submit-rolling-btn').prop('disabled', false).text('Save');
+});
 
 function addRollerChips(id) {
 	$('#modal-add-roller-chips').modal('show');

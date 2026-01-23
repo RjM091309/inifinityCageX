@@ -8,6 +8,8 @@
 		<form id="add_rolling">
 		<div class="modal-body">
 			<input type="hidden" name="game_id" class="game_list_id">
+			<input type="hidden" name="rolling_action" class="rolling_action" value="add">
+			<input type="hidden" name="rolling_record_id" class="rolling_record_id">
 				<div class="row mb-2">
 					<!-- <div class="col-sm-6">
 						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center txtNN" placeholder="NN Chips" name="txtNN">
@@ -18,6 +20,9 @@
 				</div>
 		</div>
 		<div class="modal-footer">
+			<button type="button" id="load-last-rolling-btn" class="btn btn-sm btn-danger me-auto">
+				Edit Last Rolling
+			</button>
 			<button type="submit" id="submit-rolling-btn" class="btn btn-sm btn-primary">
 				Save
 			</button>
