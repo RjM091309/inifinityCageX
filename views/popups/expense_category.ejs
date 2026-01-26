@@ -28,11 +28,12 @@
 								<!-- DataTables init on table by adding .js-dataTable-responsive class, functionality is initialized in js/pages/be_tables_datatables.min.js which was auto compiled from _js/pages/be_tables_datatables.js -->
 								<table id="expense-category-tbl" class="table  nowrap small-text" style="width:100%">
 									<thead>
-										<tr>
-											<th class="d-none d-sm-table-cell"><%= __('expense_category.category') %></th>
-											<th class="d-none d-sm-table-cell" style="width: 150px;"><%= __('expense_category.status') %></th>
-											<th class="d-none d-sm-table-cell" style="width: 100px;"><%= __('expense_category.action') %></th>
-										</tr>
+									<tr>
+										<th class="d-none d-sm-table-cell"><%= __('expense_category.category') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('expense_category.type') %></th>
+										<th class="d-none d-sm-table-cell" style="width: 150px;"><%= __('expense_category.status') %></th>
+										<th class="d-none d-sm-table-cell" style="width: 100px;"><%= __('expense_category.action') %></th>
+									</tr>
 									</thead>
 									<tbody>
 									</tbody>
@@ -59,7 +60,10 @@
 							previous: "<%= __('expense_category.previous') %>",
 							next: "<%= __('expense_category.next') %>",
 							active: "<%= __('expense_category.active') %>",
-							inactive: "<%= __('expense_category.inactive') %>"
+							inactive: "<%= __('expense_category.inactive') %>",
+							type: "<%= __('expense_category.type') %>",
+							goods_label: "<%= __('expense_category.goods') %>",
+							non_goods_label: "<%= __('expense_category.non_goods') %>"
 						};
 					</script>
 
@@ -185,5 +189,17 @@
 								.input-daterange .form-control {
 									padding: 5px; /* Mas maliit na padding */
 								}
+							}
+							#expense-category-tbl th,
+							#expense-category-tbl td {
+								white-space: nowrap;
+							}
+							#expense-category-tbl th:nth-child(1),
+							#expense-category-tbl td:nth-child(1) {
+								width: 30%;
+							}
+							#expense-category-tbl th:nth-child(2),
+							#expense-category-tbl td:nth-child(2) {
+								width: 30%;
 							}
 						</style>

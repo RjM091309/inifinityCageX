@@ -160,6 +160,20 @@ ON
 	let sqlAgentCount = 'SELECT COUNT(*) AS TOTAL_AGENT FROM agent WHERE ACTIVE =1';
 	let sqlJunketCredit = 'SELECT SUM(AMOUNT) AS JUNKET_CREDIT FROM junket_credit WHERE ACTIVE =1';
 	let sqlJunketExpense = 'SELECT SUM(AMOUNT) AS JUNKET_EXPENSE FROM junket_house_expense WHERE ACTIVE =1';
+	let sqlJunketExpenseGoods = `
+		SELECT SUM(jhe.AMOUNT) AS JUNKET_EXPENSE_GOODS
+		FROM junket_house_expense jhe
+		JOIN expense_category ec ON ec.IDNo = jhe.CATEGORY_ID
+		WHERE jhe.ACTIVE = 1
+			AND ec.TYPE = 1
+	`;
+	let sqlJunketExpenseNonGoods = `
+		SELECT SUM(jhe.AMOUNT) AS JUNKET_EXPENSE_NON_GOODS
+		FROM junket_house_expense jhe
+		JOIN expense_category ec ON ec.IDNo = jhe.CATEGORY_ID
+		WHERE jhe.ACTIVE = 1
+			AND ec.TYPE = 2
+	`;
 	let sqlNNChipsReturnDeposit = 'SELECT SUM(NN_CHIPS) AS NN_DEPOSIT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION = 2';
 	let sqlCageRolling = 'SELECT SUM(ROLLING_AMOUNT) AS ROLLING_AMOUNT FROM cage_rolling WHERE ACTIVE =1';
 	let sqlNNChipsAccountMarker = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_MARKER FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION = 3';
@@ -401,6 +415,8 @@ ON
 		const [CChipsBuyinGameResult] = await pool.execute(sqlCCChipsBuyinGame);
 		const [JunketCreditResult] = await pool.execute(sqlJunketCredit);
 		const [JunketExpenseResult] = await pool.execute(sqlJunketExpense);
+		const [JunketExpenseGoodsResult] = await pool.execute(sqlJunketExpenseGoods);
+		const [JunketExpenseNonGoodsResult] = await pool.execute(sqlJunketExpenseNonGoods);
 		const [ResetExpenseResult] = await pool.execute(sqlJunketExpenseReset);
 		const [CCResetBuyinCashoutResult] = await pool.execute(sqlCCChipsCashoutReset);
 		const [TotalRollingResetResult] = await pool.execute(sqlTotalRollingReset);
@@ -554,6 +570,8 @@ ON
 			sqlCCChipsBuyinGame: CChipsBuyinGameResult,
 			sqlJunketCredit: JunketCreditResult,
 			sqlJunketExpense: JunketExpenseResult,
+			sqlJunketExpenseGoods: JunketExpenseGoodsResult,
+			sqlJunketExpenseNonGoods: JunketExpenseNonGoodsResult,
 			sqlJunketExpenseReset: ResetExpenseResult,
 
 			sqlAccountTransfer: AccountTransferResult,

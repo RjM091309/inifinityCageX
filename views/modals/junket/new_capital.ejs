@@ -54,7 +54,7 @@ color: #333;
 }
 
 #capital-tbl col.col-encoded {
-	width: 9%;
+	width: 11%;
 }
 
 #capital-tbl col.col-amount {
@@ -66,7 +66,7 @@ color: #333;
 }
 
 #capital-tbl col.col-remarks {
-	width: 34%;
+	width: 32%;
 }
 
 #capital-tbl col.col-date {
@@ -103,107 +103,107 @@ border-top: 2px solid #dee2e6;
 
 </style>
 
-<div class="modal fade" id="modal-new-capital" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
-	data-keyboard="false" data-bs-backdrop="static">
-	<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable  modal-lg">
-		<div class="modal-content">
-			
-				<div class="modal-header bg-primary ">
-					<h5 class="block-title text-white"><%= __('dashboard_new_capital.house_balance') %></h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-				</div>
-				<div class="loading-overlay" style="display: none;">
-                    <div class="progress-container">
-                        <div class="progress-bar"></div>
-                        <p><%= __('dashboard_new_capital.loading_house_balance') %></p>
-                    </div>
-                </div>
-			
+	<div class="modal fade" id="modal-new-capital" role="dialog" aria-labelledby="modal-default-popout" aria-hidden="true"
+		data-keyboard="false" data-bs-backdrop="static">
+		<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable  modal-lg">
+			<div class="modal-content">
 				
-				<div class="modal-body">
-					<form id="add_junket_capital" action="/add_junket_capital" method="POST">
-						<div class="row">
-							<div class="col-4">
-								<input type="text" id="txtAmount" name="txtAmount" class="form-control" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
-							</div>
-							<div class="col-sm-4">
-								<input type="text" id="main-daterange" name="daterange" class="input-daterange input-group" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
-							</div>
-							<div class="col-sm-12 mt-2">
-								<textarea class="form-control" name="Remarks" placeholder="<%= __('dashboard_new_capital.remarks_placeholder') %>" cols="10" rows="2"></textarea>
-							</div>
+					<div class="modal-header bg-primary ">
+						<h5 class="block-title text-white"><%= __('dashboard_new_capital.house_balance') %></h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+					<div class="loading-overlay" style="display: none;">
+						<div class="progress-container">
+							<div class="progress-bar"></div>
+							<p><%= __('dashboard_new_capital.loading_house_balance') %></p>
 						</div>
-						
-						<div class="row mb-2 align-items-center mt-3 justify-content-end">
-							<div class="col-auto">
-								<div class="form-check">
-									<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="deposit" name="optWithdrawDeposit" value="1" onclick="updateDescription()" required>
-									<label class="form-check-label" for="deposit"><%= __('dashboard_new_capital.cash_in') %></label>
+					</div>
+				
+					
+					<div class="modal-body">
+						<form id="add_junket_capital" action="/add_junket_capital" method="POST">
+							<div class="row">
+								<div class="col-4">
+									<input type="text" id="txtAmount" name="txtAmount" class="form-control" placeholder="<%= __('dashboard_new_capital.junket_balance_amount') %>" onkeypress="return onlyNumberKey(event)" data-type="number" autocomplete="off"/>
+								</div>
+								<div class="col-sm-4">
+									<input type="text" id="main-daterange" name="daterange" class="input-daterange input-group" placeholder="<%= __('dashboard_new_capital.select_date_range') %>" autocomplete="off"/>
+								</div>
+								<div class="col-sm-12 mt-2">
+									<textarea class="form-control" name="Remarks" placeholder="<%= __('dashboard_new_capital.remarks_placeholder') %>" cols="10" rows="2"></textarea>
 								</div>
 							</div>
-							<div class="col-auto">
-								<div class="form-check">
-									<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="withdraw" name="optWithdrawDeposit" value="2" onclick="updateDescription()" required>
-									<label class="form-check-label" for="withdraw"><%= __('dashboard_new_capital.cash_out') %></label>
+							
+							<div class="row mb-2 align-items-center mt-3 justify-content-end">
+								<div class="col-auto">
+									<div class="form-check">
+										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="deposit" name="optWithdrawDeposit" value="1" onclick="updateDescription()" required>
+										<label class="form-check-label" for="deposit"><%= __('dashboard_new_capital.cash_in') %></label>
+									</div>
+								</div>
+								<div class="col-auto">
+									<div class="form-check">
+										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="withdraw" name="optWithdrawDeposit" value="2" onclick="updateDescription()" required>
+										<label class="form-check-label" for="withdraw"><%= __('dashboard_new_capital.cash_out') %></label>
+									</div>
+								</div>
+								<div class="col-auto">
+									<button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check-circle me-1"></i><%= __('dashboard_new_capital.save') %></button>
 								</div>
 							</div>
-							<div class="col-auto">
-								<button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-check-circle me-1"></i><%= __('dashboard_new_capital.save') %></button>
-							</div>
-						</div>
-						
-						
-						
-						
-						<input type="hidden" value=" <%- (
-							(+sqlCashDeposit[0].CASH_DEPOSIT || 0) -
-							(+sqlCCChipsBuyin[0].CCChipsBuyin || 0)-
-							(+sqlCashWithdraw[0].CASH_WITHDRAW || 0) -
-							(+sqlJunketExpense[0].JUNKET_EXPENSE || 0) - (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +  (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
-							(+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
-						   (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
-						   (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) + (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) -
-							(+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) - (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0)
-						 ).toLocaleString() %>" id="cashbal" name="txtcashbal"/>
-						
-						<input type="hidden" name="description" id="description" value="Cash-in">
-						
-						<hr style="border: none; border-top: 0.2rem solid black;">
-						<div class="custom-datatable-entries">
+							
+							
+							
+							
+							<input type="hidden" value=" <%- (
+								(+sqlCashDeposit[0].CASH_DEPOSIT || 0) -
+								(+sqlCCChipsBuyin[0].CCChipsBuyin || 0)-
+								(+sqlCashWithdraw[0].CASH_WITHDRAW || 0) -
+								(+sqlJunketExpense[0].JUNKET_EXPENSE || 0) - (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +  (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
+								(+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
+							(+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
+							(+sqlTotalChipsCashout[0].TotalChipsCashout || 0) + (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) -
+								(+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) - (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0)
+							).toLocaleString() %>" id="cashbal" name="txtcashbal"/>
+							
+							<input type="hidden" name="description" id="description" value="Cash-in">
+							
+							<hr style="border: none; border-top: 0.2rem solid black;">
+							<div class="custom-datatable-entries">
 							<table
-							id="capital-tbl"
-							class="table table-bordered table-hover"
-							style="width:100%"
-						  >
-							<colgroup>
-								<col class="col-encoded">
-								<col class="col-amount">
-								<col class="col-type">
-								<col class="col-remarks">
-								<col class="col-date">
-								<col class="col-action">
-							</colgroup>
-							<thead>
-								<tr>
-									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.encoded_by') %></th>
-									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.amount') %></th>
-									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.type') %></th>
-									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.remarks') %></th>
-									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.date') %></th>
-									<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.action') %></th>
-								</tr>
-							</thead>
-							<tbody>
-							</tbody>
-						</table>
-					</form>
-				</div>
-				</div>
+								id="capital-tbl"
+								class="table table-bordered table-hover"
+								style="width:100%"
+							>
+								<colgroup>
+									<col class="col-encoded">
+									<col class="col-amount">
+									<col class="col-type">
+									<col class="col-remarks">
+									<col class="col-date">
+									<col class="col-action">
+								</colgroup>
+								<thead>
+									<tr>
+										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.encoded_by') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.amount') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.type') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.remarks') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.date') %></th>
+										<th class="d-none d-sm-table-cell"><%= __('dashboard_new_capital.action') %></th>
+									</tr>
+								</thead>
+								<tbody>
+								</tbody>
+							</table>
+						</form>
+					</div>
+					</div>
+					
+					<div class="modal-footer">
+						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('dashboard_new_capital.close') %></button>
+					</div>
 				
-				<div class="modal-footer">
-					<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('dashboard_new_capital.close') %></button>
-				</div>
-			
 		</div>
 	</div>
 </div>

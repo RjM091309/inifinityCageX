@@ -24,6 +24,13 @@ $(document).ready(function () {
         }
     });
 
+    const goodsLabel = window.expenseCategoryTranslations?.goods_label || 'Goods / Consumables';
+    const nonGoodsLabel = window.expenseCategoryTranslations?.non_goods_label || 'Non-goods / Services';
+    const escapeForInline = (value) => {
+        if (value === undefined || value === null) return '';
+        return value.toString().replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    };
+
     function reloadData() {
         $.ajax({
             url: '/expense_category_data',
@@ -39,8 +46,16 @@ $(document).ready(function () {
                     } else {
                         status = '<span class="css-red">' + inactiveText + '</span>';
                     }
+                    const parsedType = parseInt(row.TYPE, 10);
+                    const typeValue = isNaN(parsedType) ? 1 : parsedType;
+                    let typeLabel = goodsLabel;
+                    if (typeValue === 2) {
+                        typeLabel = nonGoodsLabel;
+                    }
+                    const escapedCategory = escapeForInline(row.CATEGORY);
+                    const escapedType = escapeForInline(typeValue);
                     var btn = `<div class="btn-group">
-                        <button type="button" onclick="editCreditStatus(${row.IDNo}, '${row.CATEGORY}')" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled"
+                        <button type="button" onclick="editCreditStatus(${row.IDNo}, '${escapedCategory}', '${escapedType}')" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled"
                         data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
                         <i class="fa fa-pencil-alt"></i>
                         </button>
@@ -50,7 +65,7 @@ $(document).ready(function () {
                         </button>
                     </div>`;
 
-                    dataTable.row.add([row.CATEGORY, status, btn]).draw();
+                    dataTable.row.add([row.CATEGORY, typeLabel, status, btn]).draw();
                 });
             },
             error: function (xhr, status, error) {
@@ -85,10 +100,10 @@ function addExpenseCategory() {
     $('#modal-new-expense-category').modal('show');
 }
 
-function editCreditStatus(id, category ) {
+function editCreditStatus(id, category, typeValue) {
     $('#modal-edit-expense-category').modal('show');
     $('#txtCategory').val(category);
-  
+    $('#txtType').val(typeValue || '1');
     expense_category_id = id;
 }
 

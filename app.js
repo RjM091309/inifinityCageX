@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const passport = require('passport');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
+const db = require('./config/db');
 const flash = require('connect-flash');
 const i18n = require('i18n');
 require('dotenv').config();
@@ -79,7 +80,25 @@ const sessionStore = new MySQLStore({
   }
 });
 
-sessionStore.onReady().then(() => {
+const ensureSessionExpirationIndex = async () => {
+  const tableName = sessionStore.options.schema.tableName;
+  const expiresColumn = sessionStore.options.schema.columnNames.expires;
+  const expiresIndex = `idx_${tableName}_${expiresColumn}`;
+  const sql = `ALTER TABLE \`${tableName}\` ADD INDEX \`${expiresIndex}\` (\`${expiresColumn}\`)`;
+
+  try {
+    await db.query(sql);
+    console.log(`✅ Session expiration index (${expiresIndex}) ensured on ${tableName}`);
+  } catch (error) {
+    if (error && ['ER_DUP_KEYNAME', 'ER_DUP_NAME', 'ER_DUP_INDEX'].includes(error.code)) {
+      return;
+    }
+    console.error('❌ Failed to ensure session expiration index', error);
+  }
+};
+
+sessionStore.onReady().then(async () => {
+  await ensureSessionExpirationIndex();
   console.log('✅ MySQL Session Store connected successfully!');
 }).catch((error) => {
   console.error('❌ MySQL Session Store connection error:', error);
