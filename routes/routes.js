@@ -986,7 +986,6 @@ pageRouter.get("/commission", function (req, res) {
 	res.render("junket/commission", sessions(req, 'commission'));
 });
 
-
 pageRouter.get("/concierge", function (req, res) {
 	res.render("junket/concierge", sessions(req, 'concierge'));
 });

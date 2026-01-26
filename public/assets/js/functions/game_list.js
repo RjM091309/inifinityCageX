@@ -242,7 +242,7 @@ $(document).ready(function () {
                         </button>
                     </div>`;
                     var btn_services = `<div class="btn-group" role="group">
-                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_name || '')}', ${row.game_status}, ${row.SETTLED || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
+                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_name || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
                             data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
                             style="font-size:8px !important; margin-right: 5px;">
                             <i class="fa fa-concierge-bell"></i>
@@ -2507,7 +2507,7 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	});
 }
 
-function openServices(id, guestName, gameStatus, settled) {
+function openServices(id, guestName, gameStatus, settled, agentId) {
 	// Track settled state
 	_servicesSettled = parseInt(settled || 0, 10);
 
@@ -2520,6 +2520,8 @@ function openServices(id, guestName, gameStatus, settled) {
 	if ($gameInput.length) $gameInput.val(id);
 	const $guestInput = $('#services-guest-name-input');
 	if ($guestInput.length) $guestInput.val(decodedGuest || '');
+	const $agentInput = $('#services-agent-id-input');
+	if ($agentInput.length) $agentInput.val(agentId != null ? agentId : '');
 
 	// Hide save form only when already settled
 	const showActions = parseInt(settled || 0, 10) !== 1;
@@ -2534,6 +2536,7 @@ function openServices(id, guestName, gameStatus, settled) {
 	$('#services-amount').val('');
 	$('#services-remarks').val('');
 	$('input[name="services-transaction"]').prop('checked', false);
+	$('input[name="services-transaction"][value="3"]').prop('checked', true);
 }
 
 function loadServicesList(gameId) {
@@ -2668,6 +2671,10 @@ $(document).on('click', '#services-save-btn', function (e) {
 
 	const $btn = $('#services-save-btn');
 	const isEdit = !!editId;
+	let agentId = parseInt($('#services-agent-id-input').val(), 10);
+	if (Number.isNaN(agentId)) {
+		agentId = null;
+	}
 	
 	// Build confirmation message
 	var confirmationMessage = `Confirm ${isEdit ? 'Update' : 'Add'} Service:<br><br>`;
@@ -2700,7 +2707,7 @@ $(document).on('click', '#services-save-btn', function (e) {
 			$.ajax({
 				url,
 				method,
-				data: { game_id: gameId, service_type: type, amount, remarks, transaction_id: transactionId },
+				data: { game_id: gameId, service_type: type, amount, remarks, transaction_id: transactionId, agent_id: agentId },
 				success: function (list) {
 					// Show success message
 					Swal.fire({
@@ -3131,7 +3138,7 @@ $(document).ready(function () {
                     </button>
                </div>`;
                     var btn_services = `<div class="btn-group" role="group">
-                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_name || '')}', ${row.game_status}, ${row.SETTLED || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
+                        <button type="button" onclick="openServices(${row.game_list_id}, '${encodeURIComponent(row.agent_name || '')}', ${row.game_status}, ${row.SETTLED || 0}, ${row.AGENT_ID || 0})" class="btn btn-sm btn-primary-subtle action-btn-square js-bs-tooltip-enabled"
                             data-bs-toggle="tooltip" aria-label="Services" data-bs-original-title="Services" title="Services"
                             style="font-size:8px !important; margin-right: 5px;">
                             <i class="fa fa-concierge-bell"></i>

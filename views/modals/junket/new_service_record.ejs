@@ -1,0 +1,60 @@
+<div class="modal fade" id="modal-services-new-record" tabindex="-1" aria-labelledby="modal-services-new-record-label" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="modal-services-new-record-label">New Service Record</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="new-services-game-id" />
+        <input type="hidden" id="new-services-agent-id" />
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="fw-semibold text-muted">Account</div>
+            <select id="new-services-account" class="form-select">
+              <option value="" selected disabled>Select account</option>
+              <!-- Options filled via JS -->
+            </select>
+          </div>
+          <div class="col-md-4">
+            <div class="fw-semibold text-muted">Service Type</div>
+            <select id="new-services-type" class="form-select">
+              <option value="" selected disabled>Select service</option>
+              <option value="fnb">F &amp; B</option>
+              <option value="hotel">Hotel</option>
+              <option value="delivery">Delivery</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <div class="fw-semibold text-muted">Amount</div>
+            <input type="text" id="new-services-amount" class="form-control" data-type="number" placeholder="Enter amount" />
+          </div>
+        </div>
+
+        <div class="mt-3 mb-1 fw-semibold text-muted">Remarks</div>
+        <textarea id="new-services-remarks" class="form-control" rows="2" placeholder="Optional remarks"></textarea>
+
+        <div class="row mt-3 gx-4 justify-content-center">
+          <div class="col-sm-3">
+            <div class="form-check">
+              <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="new-services-transaction-cash" name="new-services-transaction" />
+              <label class="form-check-label" for="new-services-transaction-cash">Cash</label>
+            </div>
+          </div>
+          <div class="col-sm-3">
+            <div class="form-check">
+              <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="new-services-transaction-deposit" name="new-services-transaction" />
+              <label class="form-check-label" for="new-services-transaction-deposit">Deposit</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="new-services-save" class="btn btn-sm btn-primary">Save</button>
+        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+

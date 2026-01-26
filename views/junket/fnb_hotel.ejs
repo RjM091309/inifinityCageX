@@ -1,0 +1,78 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/topbar') %>
+<%
+	const formatDate = (value) => {
+		if (!value) return '-';
+		const d = new Date(value);
+		const pad = (n) => String(n).padStart(2, '0');
+		const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+		return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+	};
+%>
+
+<div class="container-fluid content-inner mt-4">
+	<div class="row gy-3">
+		<div class="col-12">
+			<div class="card">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<h3 class="card-title mb-0">
+						<div class="breadcrumb1 flat">
+							<a href="/dashboard"><span class="fa fa-home"></span></a>
+							<a href="#">F&B / Hotel</a>
+							<a href="/fnb-hotel" class="active">Dashboard</a>
+						</div>
+					</h3>
+					<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-services-new-record">
+						<i class="fa fa-plus" aria-hidden="true"></i> New Record
+					</button>
+				</div>
+				<div class="card-body">
+					<div class="row mt-4">
+						<div class="col-12">
+							<div class="table-responsive">
+								<table class="table table-striped align-middle text-center">
+									<thead class="table-secondary">
+										<tr>
+											<th>Agent</th>
+											<th>Game ID</th>
+											<th>Service Type</th>
+											<th>Amount</th>
+											<th>Remarks</th>
+											<th>Encoded By</th>
+											<th>Date</th>
+										</tr>
+									</thead>
+									<tbody>
+										<% if (gameServices && gameServices.length) { %>
+											<% gameServices.forEach(service => { %>
+												<tr>
+													<td><%= service.agent_name || 'Unknown' %></td>
+													<td><%= service.GAME_ID ? service.GAME_ID : '-' %></td>
+													<td><%= service.SERVICE_TYPE %></td>
+													<td><%= service.AMOUNT.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+													<td><%= service.REMARKS || '-' %></td>
+													<td><%= service.encoded_by_name || '-' %></td>
+													<td><%= formatDate(service.ENCODED_DT) %></td>
+												</tr>
+											<% }) %>
+										<% } else { %>
+											<tr>
+												<td colspan="7" class="text-center text-muted">No game services recorded yet.</td>
+											</tr>
+										<% } %>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<%- include('../partials/footer') %>
+<%- include('../modals/junket/new_service_record') %>
+

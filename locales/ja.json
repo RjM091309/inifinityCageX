@@ -67,7 +67,9 @@
 		"no_recent_activity": "最近の活動はありません。",
 		"week": "週",
 		"vs_last_month": "先月比",
-		"cash_out": "キャッシュアウト"
+		"cash_out": "キャッシュアウト",
+		"net_junket_money": "dashboard.net_junket_money",
+		"net_junket_cash": "dashboard.net_junket_cash"
 	},
 	"sidebar": {
 		"home": "ホーム",

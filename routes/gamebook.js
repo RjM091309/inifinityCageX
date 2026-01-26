@@ -256,6 +256,7 @@ router.get('/game_services/:gameId', checkSession, async (req, res) => {
 				gs.AMOUNT,
 				gs.REMARKS,
 				gs.TRANSACTION_ID,
+				gs.AGENT_ID,
 				gs.ACTIVE,
 				gs.ENCODED_BY,
 				gs.ENCODED_DT,
@@ -277,13 +278,17 @@ router.get('/game_services/:gameId', checkSession, async (req, res) => {
 // Add a service to a game (use /add_game_services to avoid confusion with GET)
 router.post('/add_game_services', checkSession, async (req, res) => {
 	try {
-		const { game_id, service_type, amount, remarks, transaction_id } = req.body;
+		const { game_id, service_type, amount, remarks, transaction_id, agent_id } = req.body;
 		const gameId = parseInt(game_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const svc = (service_type || '').toLowerCase();
-		const validTypes = ['fnb', 'hotel'];
+		const validTypes = ['fnb', 'hotel', 'delivery'];
 		let transactionId = parseInt(transaction_id, 10);
 		transactionId = [1, 2, 3].includes(transactionId) ? transactionId : 1;
+		let agentId = parseInt(agent_id, 10);
+		if (Number.isNaN(agentId)) {
+			agentId = null;
+		}
 
 		if (Number.isNaN(gameId) || !validTypes.includes(svc)) {
 			return res.status(400).json({ error: 'Invalid input' });
@@ -295,9 +300,9 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 		const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
 
 		await pool.execute(
-			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, ACTIVE, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
-			[gameId, svc, amt, remarks || '', transactionId, encodedBy, now]
+			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, ACTIVE, ENCODED_BY, ENCODED_DT)
+			 VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+			[gameId, svc, amt, remarks || '', transactionId, agentId, encodedBy, now]
 		);
 
 		if (transactionId === 2 && accountId) {
@@ -316,6 +321,8 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 				gs.SERVICE_TYPE,
 				gs.AMOUNT,
 				gs.REMARKS,
+				gs.TRANSACTION_ID,
+				gs.AGENT_ID,
 				gs.ACTIVE,
 				gs.ENCODED_BY,
 				gs.ENCODED_DT,
@@ -342,7 +349,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 		const gameId = parseInt(game_id, 10);
 		const amt = parseFloat((amount || '0').toString().replace(/,/g, '')) || 0;
 		const svc = (service_type || '').toLowerCase();
-		const validTypes = ['fnb', 'hotel'];
+		const validTypes = ['fnb', 'hotel', 'delivery'];
 		let transactionId = parseInt(transaction_id, 10);
 		transactionId = [1, 2, 3].includes(transactionId) ? transactionId : 1;
 
@@ -406,6 +413,8 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 				gs.SERVICE_TYPE,
 				gs.AMOUNT,
 				gs.REMARKS,
+				gs.TRANSACTION_ID,
+				gs.AGENT_ID,
 				gs.ACTIVE,
 				gs.ENCODED_BY,
 				gs.ENCODED_DT,
@@ -476,6 +485,8 @@ router.delete('/game_services/:id', checkSession, async (req, res) => {
 				gs.SERVICE_TYPE,
 				gs.AMOUNT,
 				gs.REMARKS,
+				gs.TRANSACTION_ID,
+				gs.AGENT_ID,
 				gs.ACTIVE,
 				gs.ENCODED_BY,
 				gs.ENCODED_DT,

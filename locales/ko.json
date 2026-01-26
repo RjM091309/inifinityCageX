@@ -9,6 +9,8 @@
 		"total_chips": "칩스 합계",
 		"expense": "비용",
 		"guest_balance": "게스트 밸런스",
+		"net_junket_money": "정켓 순자금",
+		"net_junket_cash": "정켓 순현금",
 		"guest_credit": "게스트 마커(대여금)",
 		"commission": "커미션",
 		"win_loss": "윈 | 로스",

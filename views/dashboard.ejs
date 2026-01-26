@@ -756,67 +756,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                         </div>
                      </div>
                   </div>
-<!-- NEW CARDS START -->
-                  <div class="row g-3 mb-4 justify-content-between">
-                     <div class="col-12 d-flex gap-3 flex-wrap">
-                        <div class="card flex-fill shadow-sm text-center border-0">
-                           <div class="card-body py-4">
-                              <div class="mb-2 text-muted small">
-                                 <i class="fa-solid fa-money-bill-1"></i>
-                                Junket Money
-                              </div>
-                              <div class="h5 mb-0 fw-semibold">
-                               0
-                              </div>
-                           </div>
-                        </div>
-                        <div class="card flex-fill shadow-sm text-center border-0">
-                           <div class="card-body py-4">
-                              <div class="mb-2 text-muted small">
-                                 <i class="fa-solid fa-wallet me-1"></i>
-                                Junket Cash
-                              </div>
-                              <div class="h5 mb-0 fw-semibold">
-                              0
-                              </div>
-                           </div>
-                        </div>
-                        <div class="card flex-fill shadow-sm text-center border-0">
-                           <div class="card-body py-4">
-                              <div class="mb-2 text-muted small">
-                                 <i class="fa-solid fa-users me-1"></i>
-                                Guest Balance
-                              </div>
-                              <div class="h5 mb-0 fw-semibold">
-                               0
-                              </div>
-                           </div>
-                        </div>
-                        <div class="card flex-fill shadow-sm text-center border-0">
-                           <div class="card-body py-4">
-                              <div class="mb-2 text-muted small">
-                                 <i class="fa-solid fa-circle-dollar-to-slot me-1"></i>
-                                  Net Junket Money
-                               </div>
-                              <div class="h5 mb-0 fw-semibold">
-                               0
-                              </div>
-                           </div>
-                        </div>
-                        <div class="card flex-fill shadow-sm text-center border-0">
-                           <div class="card-body py-4">
-                              <div class="mb-2 text-muted small">
-                                 <i class="fa-solid fa-cash-register me-1"></i>
-                                 Net Junket Cash
-                               </div>
-                              <div class="h5 mb-0 fw-semibold">
-                                0
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-<!-- NEW CARDS END-->
+
                   <style>
                      .highlight-row {
                         background-color: #ffeaa7 !important;
@@ -827,7 +767,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                   <div class="col-md-12 col-lg-12">
                      <div class="row">
 
-                        <div class="col-lg-6">
+                        <div class="col-lg-4">
                            <div class="card">
                               <div class="card-body">
                                  <%
@@ -972,8 +912,75 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                         </div>
 
+                        <!-- GUEST BALANCE -->
+
+                        <div class="col-lg-4">
+                           <div class="d-flex flex-column gap-3 h-100">
+                              <div class="card flex-grow-1" data-aos="fade-up" data-aos-delay="500">
+                                 <div class="text-center card-body d-flex justify-content-around">
+                                    <div>
+                                       <h6 class="mb-2 ">
+                                          <%= __('dashboard.guest_balance') %>
+
+                                       </h6>
+                                       <h4 class="counter ">₱ <%- Math.round( (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0)
+                                             + (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
+                                             (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) -
+                                             (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) -
+                                             (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
+                                             (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
+                                             (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) ).toLocaleString() %>
+                                       </h4>
+                                    </div>
+                                    <div class="vr"></div> <!-- Bootstrap vertical divider -->
+                                    <span class="ms-2 plus-spacing">
+                                       <a href="#" class="btn btn-sm btn-primary-subtle" data-bs-toggle="modal"
+                                          data-bs-target="#modal-guestAccount">
+                                          <%= __('dashboard.details') %>
+                                       </a>
+                                    </span>
+                                 </div>
+                              </div>
+
+                              <div class="card" data-aos="fade-up" data-aos-delay="700">
+                                 <div class="text-center card-body d-flex justify-content-around">
+                                    <div>
+                                       <h6 class="mb-2 ">
+                                          <%= __('dashboard.net_junket_money') %>
+                                       </h6>
+                                       <h4 class="counter ">₱ 0</h4>
+                                    </div>
+                                    <div class="vr"></div> <!-- Bootstrap vertical divider -->
+                                    <span class="ms-2 plus-spacing">
+                                       <a href="#" class="btn btn-sm btn-primary-subtle" data-bs-toggle="modal"
+                                          data-bs-target=#>
+                                          <%= __('dashboard.details') %>
+                                       </a>
+                                    </span>
+                                 </div>
+                              </div>
+
+                              <div class="card" data-aos="fade-up" data-aos-delay="900">
+                                 <div class="text-center card-body d-flex justify-content-around">
+                                    <div>
+                                       <h6 class="mb-2 ">
+                                          <%= __('dashboard.net_junket_cash') %>
+                                       </h6>
+                                       <h4 class="counter ">₱ 0</h4>
+                                    </div>
+                                    <div class="vr"></div> <!-- Bootstrap vertical divider -->
+                                    <span class="ms-2 plus-spacing">
+                                       <a href="#" class="btn btn-sm btn-primary-subtle" data-bs-toggle="modal"
+                                          data-bs-target=#>
+                                          <%= __('dashboard.details') %>
+                                       </a>
+                                    </span>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
                        
-                        <div class="col-lg-6">
+                        <div class="col-lg-4">
                            <div class="card" data-aos="fade-up" data-aos-delay="600">
                               <div class="card-header">
                                  <!-- Top Row: Win/Loss + Dropdown -->
@@ -1051,7 +1058,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                         </div>
 
 
-                        <div class="col-lg-4">
+                        <!-- <div class="col-lg-4">
 
 
                            <div class="card" data-aos="fade-up" data-aos-delay="500">
@@ -1079,53 +1086,6 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
 
 
-                           <div class="card" data-aos="fade-up" data-aos-delay="500">
-                              <div class="text-center card-body d-flex justify-content-around">
-                                 <div>
-                                    <h6 class="mb-2 ">
-                                       <%= __('dashboard.guest_balance') %>
-
-                                    </h6>
-                                    <h4 class="counter ">₱ <%- Math.round( (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0)
-                                          + (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
-                                          (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) -
-                                          (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) -
-                                          (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
-                                          (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
-                                          (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) ).toLocaleString() %>
-
-                                          <span class="ms-2 plus-spacing">
-                                             <a href="#" class="btn btn-sm btn-primary-subtle" data-bs-toggle="modal"
-                                                data-bs-target="#modal-guestAccount">
-                                                <%= __('dashboard.details') %>
-                                             </a></span>
-                                    </h4>
-
-                                 </div>
-
-                                 <div class="vr"></div> <!-- Bootstrap vertical divider -->
-
-                                 <div>
-                                    <h6 class="mb-2 ">
-                                       <%= __('dashboard.accounts') %>
-
-                                    </h6>
-                                    <h4><%- Math.round( (+sqlAgentCount[0].TOTAL_AGENT || 0) ).toLocaleString() %>
-                                          <a href="/agent" target="_blank">
-                                             <span class="ms-2 plus-spacing">
-                                                <i class="fa-solid fa-eye plus-icon tooltip-hover"
-                                                   data-bs-toggle="tooltip" data-bs-placement="top" title="Details"></i>
-                                             </span>
-                                          </a>
-                                    </h4>
-
-                                 </div>
-                              </div>
-                           </div>
-
-
-
-                           <div class="card" data-aos="fade-up" data-aos-delay="500">
                               <div class="text-center card-body d-flex justify-content-around">
                                  <div>
                                     <h6 class="mb-2 ">
@@ -1148,42 +1108,9 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     </a>
                                  </div>
                               </div>
-                           </div>
-                        </div>
-                        <div class="col-lg-8">
-                           <div class="card" data-aos="fade-up" data-aos-delay="900">
-                              <div class="flex-wrap card-header d-flex justify-content-between">
-                                 <div class="header-title">
-                                    <h4 class="card-title">
-                                       <%= __('dashboard.rolling') %>
-                                    </h4>
-                                 </div>
-                              </div>
-                              <div class="card-body">
-                                 <div class="flex-wrap d-flex align-items-center justify-content-between">
-
-                                    <!-- In-update na chart container: -->
-                                    <div id="myChart" class="col-md-12 col-lg-12 myChart"
-                                       data-totalrolling="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0)) %>"
-                                      data-houserolling="<%- (+sqlCCChipsCashoutReset[0].CCResetCashout || 0) %>">
-                                       <span id="totalrolling"></span>
-                                       <span id="totalhouserolling"></span>
-                                    </div>
-                                    <input type="hidden" name="HOUSE_ROLLING_HISTORY"
-                                      value="<%- (+sqlCCChipsCashoutReset[0].CCResetCashout || 0) %>">
-                                    <input type="hidden" name="TOTAL_ROLLING_HISTORY"
-                                       value="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0)) %>">
-
-
-
-                                 </div>
-                              </div>
-                           </div>
-                        </div>
-
-                        
-                        <!-- ON GAME -->
-                        <div class="col-lg-12">
+                           </div> -->
+                             <!-- ON GAME -->
+                        <div class="col-lg-4">
                            <div class="overflow-hidden card" data-aos="fade-up" data-aos-delay="600">
                               <div class="flex-wrap card-header d-flex justify-content-between">
                                  <div class="header-title">
@@ -1242,31 +1169,59 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                            </div>
                         </div>
                         <!-- END ON GAME -->
-                        
+                           <!-- ROLLING -->
+                           <div class="col-lg-4">
+                              <div class="card" data-aos="fade-up" data-aos-delay="900">
+                                 <div class="flex-wrap card-header d-flex justify-content-between">
+                                    <div class="header-title">
+                                       <h4 class="card-title">
+                                          <%= __('dashboard.rolling') %>
+                                       </h4>
+                                    </div>
+                                 </div>
+                                 <div class="card-body">
+                                    <div class="flex-wrap d-flex align-items-center justify-content-between">
 
-                        <div class="col-lg-12">
-                           <div class="card" data-aos="fade-up" data-aos-delay="600">
-                              <div class="flex-wrap card-header d-flex justify-content-between">
-                                 <div class="header-title">
-                                    <h4 class="mb-2 card-title">
-                                       <%= __('dashboard.activity_overview') %>
-                                    </h4>
-                                    <p class="mb-0">
-                                       <svg class="me-2 icon-24" width="24" height="24" viewBox="0 0 24 24">
-                                          <path fill="#17904b"
-                                             d="M13,20H11V8L5.5,13.5L4.08,12.08L12,4.16L19.92,12.08L18.5,13.5L13,8V20Z" />
-                                       </svg>
-                                       <%= __('dashboard.latest_activities') %>
+                                       <!-- In-update na chart container: -->
+                                       <div id="myChart" class="col-md-12 col-lg-12 myChart"
+                                          data-totalrolling="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0)) %>"
+                                       data-houserolling="<%- (+sqlCCChipsCashoutReset[0].CCResetCashout || 0) %>">
+                                          <span id="totalrolling"></span>
+                                          <span id="totalhouserolling"></span>
+                                       </div>
+                                       <input type="hidden" name="HOUSE_ROLLING_HISTORY"
+                                       value="<%- (+sqlCCChipsCashoutReset[0].CCResetCashout || 0) %>">
+                                       <input type="hidden" name="TOTAL_ROLLING_HISTORY"
+                                          value="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0)) %>">
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>    
+                           <!-- END ROLLING -->
+                           <!-- Activity Overview -->
+                           <div class="col-lg-4">
+                              <div class="card" data-aos="fade-up" data-aos-delay="600">
+                                 <div class="flex-wrap card-header d-flex justify-content-between">
+                                    <div class="header-title">
+                                       <h4 class="mb-2 card-title">
+                                          <%= __('dashboard.activity_overview') %>
+                                       </h4>
+                                       <p class="mb-0">
+                                          <svg class="me-2 icon-24" width="24" height="24" viewBox="0 0 24 24">
+                                             <path fill="#17904b"
+                                                d="M13,20H11V8L5.5,13.5L4.08,12.08L12,4.16L19.92,12.08L18.5,13.5L13,8V20Z" />
+                                          </svg>
+                                          <%= __('dashboard.latest_activities') %>
+                                       </p>
+                                    </div>
+                                 </div>
+                                 <div class="card-body" id="activity-overview">
+                                    <p class='text-muted'>
+                                       <%= __('dashboard.loading_activity_logs') %>
                                     </p>
                                  </div>
                               </div>
-                              <div class="card-body" id="activity-overview">
-                                 <p class='text-muted'>
-                                    <%= __('dashboard.loading_activity_logs') %>
-                                 </p>
-                              </div>
                            </div>
-                        </div>
                         <!-- END ACTIVITY OVERVIEW CARDS -->
                      </div>
                   </div>
