@@ -1,4 +1,36 @@
 <main class="main-content">
+  <style>
+    #dropdownMenuButton2,
+    #notification-drop,
+    #mail-drop,
+    #navbarDropdown {
+  
+      color: #ffffff !important;
+      border-radius: 20px;
+      padding: 6px 12px;
+    }
+    #dropdownMenuButton2:hover,
+    #notification-drop:hover,
+    #mail-drop:hover,
+    #navbarDropdown:hover,
+    #dropdownMenuButton2:focus,
+    #notification-drop:focus,
+    #mail-drop:focus,
+    #navbarDropdown:focus {
+ 
+      color: #ffffff !important;
+    }
+    #dropdownMenuButton2 svg {
+      filter: none !important;
+    }
+    #dropdownMenuButton2 .text-white {
+      color: inherit !important;
+    }
+    #navbarDropdown .caption-title,
+    #navbarDropdown .caption-sub-title {
+      color: inherit;
+    }
+  </style>
   <div class="position-relative iq-banner">
     <!--Nav Start-->
     <nav class="nav navbar navbar-expand-xl navbar-light iq-navbar">
@@ -74,7 +106,7 @@
                 zh: __('topbar.zh')
               };
               %>
-              <a href="#" class="search-toggle nav-link d-flex align-items-center" id="dropdownMenuButton2" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="padding: 6px 12px; border-radius: 20px; transition: all 0.3s ease; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+              <a href="#" class="search-toggle nav-link d-flex align-items-center" id="dropdownMenuButton2" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="padding: 6px 12px; border-radius: 20px; transition: all 0.3s ease; background: rgba(222, 226, 230, 0.4) !important;">
                 <img 
                 src="/login/images/flags/<%= flagImages[currentLang] %>"  
                   class="img-fluid rounded-circle" 
@@ -112,7 +144,7 @@
                       <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.kr') %></div>
                       <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">한국어</div>
                     </div>
-                    <span class="badge rounded-pill" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Kr</span>
+                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Kr</span>
                   </a>
             
                   <!-- Japanese -->
@@ -135,7 +167,7 @@
                       <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.jp') %></div>
                       <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">日本語</div>
                     </div>
-                    <span class="badge rounded-pill" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Jp</span>
+                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Jp</span>
                   </a>
             
                   <!-- English -->
@@ -158,7 +190,7 @@
                       <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.us') %></div>
                       <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">English</div>
                     </div>
-                    <span class="badge rounded-pill" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Us</span>
+                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Us</span>
                   </a>
             
                   <!-- Chinese -->
@@ -181,7 +213,7 @@
                       <div class="fw-semibold" style="font-size: 14px; color: #1a202c;"><%= __('topbar.zh') %></div>
                       <div class="text-muted small" style="font-size: 11px; margin-top: 2px;">中文</div>
                     </div>
-                    <span class="badge rounded-pill" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Zh</span>
+                    <span class="badge rounded-pill" style="background: rgba(222, 226, 230, 0.4) !important; color: white; font-size: 10px; padding: 4px 8px; font-weight: 600;">Zh</span>
                   </a>
                 </div>
               </div>
@@ -363,8 +395,7 @@
                 <div class="col-md-12">
                     <div class="flex-wrap d-flex justify-content-between align-items-center">
                       <div>
-                        <h1><%= __('topbar.welcome_to_the_cage_system_demo') %></h1>
-                        <p><%= __('topbar.manage_transactions_track_funds_and_ensure_seamless_operations_with_our_advanced_cage_system') %></p>
+                         <img class="logo-title" src="/assets/images/infinityLOGO.png" alt="Infinity CageX">
                     </div>
                     
                         <div>
@@ -381,12 +412,12 @@
             </div>
         </div>
         <div class="iq-header-img">
-            <img src="../assets/images/dashboard/top-header.png" alt="header" class="theme-color-default-img img-fluid w-100 h-100 animated-scaleX">
-            <img src="../assets/images/dashboard/top-header1.png" alt="header" class="theme-color-purple-img img-fluid w-100 h-100 animated-scaleX">
-            <img src="../assets/images/dashboard/top-header2.png" alt="header" class="theme-color-blue-img img-fluid w-100 h-100 animated-scaleX">
-            <img src="../assets/images/dashboard/top-header3.png" alt="header" class="theme-color-green-img img-fluid w-100 h-100 animated-scaleX">
-            <img src="../assets/images/dashboard/top-header4.png" alt="header" class="theme-color-yellow-img img-fluid w-100 h-100 animated-scaleX">
-            <img src="../assets/images/dashboard/top-header5.png" alt="header" class="theme-color-pink-img img-fluid w-100 h-100 animated-scaleX">
+            <img src="../assets/images/dashboard/top-header.jpg" alt="header" class="theme-color-default-img img-fluid w-100 h-100 animated-scaleX">
+            <img src="../assets/images/dashboard/top-header.jpg" alt="header" class="theme-color-purple-img img-fluid w-100 h-100 animated-scaleX">
+            <img src="../assets/images/dashboard/top-header.jpg" alt="header" class="theme-color-blue-img img-fluid w-100 h-100 animated-scaleX">
+            <img src="../assets/images/dashboard/top-header.jpg" alt="header" class="theme-color-green-img img-fluid w-100 h-100 animated-scaleX">
+            <img src="../assets/images/dashboard/top-header.jpg" alt="header" class="theme-color-yellow-img img-fluid w-100 h-100 animated-scaleX">
+            <img src="../assets/images/dashboard/top-header.jpg" alt="header" class="theme-color-pink-img img-fluid w-100 h-100 animated-scaleX">
         </div>
     </div>          <!-- Nav Header Component End -->
   <!--Nav End-->

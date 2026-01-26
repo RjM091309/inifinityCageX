@@ -21651,7 +21651,7 @@ body.offcanvas-active {
   right: -12px;
   top: 16px;
   cursor: pointer;
-  background: var(--bs-primary);
+  background: linear-gradient(135deg, #01081A 0%, #0b1526 50%, #46627f 100%) !important;
   color: var(--bs-white);
   padding: 0.2rem;
   -webkit-border-radius: 50rem;

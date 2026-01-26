@@ -34,11 +34,7 @@ hr {
   opacity: 0.25;
 }
 
-.iq-scroller-effect {
-  /* Scroll Track */
-  /* Scroll Handle */
-  /* Scroll Handle on hover */
-}
+
 .iq-scroller-effect ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -790,6 +786,63 @@ body.uikit .btn-download {
 .elem-list {
   max-height: calc(80vh + 4rem);
   overflow: auto;
+}
+
+.iq-navbar-header .logo-title {
+  height: 100px;
+  width: auto;
+  max-width: 100%;
+  display: block;
+  margin-top: -6px;
+}
+
+.iq-header-img {
+  position: relative;
+}
+.iq-header-img::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #00000066;
+  pointer-events: none;
+  z-index: 1;
+}
+.iq-header-img > img {
+  position: relative;
+  z-index: 0;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link:focus,
+.sidebar .nav-link.active,
+.sidebar .nav-link[aria-expanded="true"] {
+  background: linear-gradient(135deg, #000000 0%, #01081A 50%, #3F597C 100%) !important;
+  color: #ffffff !important;
+}
+.sidebar .nav-link:hover svg,
+.sidebar .nav-link:focus svg,
+.sidebar .nav-link.active svg,
+.sidebar .nav-link[aria-expanded="true"] svg {
+  color: #ffffff !important;
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #01081A 0%, #0b1526 50%, #46627f 100%) !important;
+  color: #ffffff !important;
+}
+.bg-gradient-primary:hover,
+.bg-gradient-primary:focus {
+  background: linear-gradient(135deg, #000000 0%, #01081A 50%, #3F597C 100%) !important;
+  color: #ffffff !important;
+}
+.bg-gradient-secondary {
+  background: linear-gradient(135deg, #564428 0%, #9D8559 50%, #EACC90 100%) !important;
+  color: #ffffff !important;
+}
+.bg-gradient-secondary:hover,
+.bg-gradient-secondary:focus {
+  background: linear-gradient(135deg, #44341f 0%, #8a734c 50%, #d6b477 100%) !important;
+  color: #ffffff !important;
 }
 
 #modal-edit-house-expense {

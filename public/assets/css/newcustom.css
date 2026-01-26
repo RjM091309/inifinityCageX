@@ -196,6 +196,51 @@
     border-radius: 999px;
 }
 
+.bg-gradient-secondary {
+    background: linear-gradient(135deg, #564428 0%, #9D8559 50%, #EACC90 100%) !important;
+
+    border: none !important;
+}
+
+.bg-gradient-secondary:hover,
+.bg-gradient-secondary:focus {
+    background: linear-gradient(135deg, #44341f 0%, #8a734c 50%, #d6b477 100%) !important;
+  
+}
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #01081A 0%, #0b1526 50%, #46627f 100%) !important;
+ 
+    border: none !important;
+  }
+  .bg-gradient-primary:hover,
+  .bg-gradient-primary:focus {
+    background: linear-gradient(135deg, #000000 0%, #01081A 50%, #3F597C 100%) !important;
+ 
+  }
+
+.bg-gradient-dark-silver {
+    background: linear-gradient(135deg, #1b1f24 0%, #5f6a75 50%, #c3cbd3 100%) !important;
+
+    border: none !important;
+}
+
+.bg-gradient-dark-silver:hover,
+.bg-gradient-dark-silver:focus {
+    background: linear-gradient(135deg, #15191d 0%, #4f5861 50%, #aeb6bf 100%) !important;
+   
+}
+
+.bg-gradient-gold {
+    background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%) !important;
+
+    border: none !important;
+}
+
+.bg-gradient-gold:hover,
+.bg-gradient-gold:focus {
+    background: linear-gradient(135deg, #5a3f0f 0%, #b38f42 50%, #e0c378 100%) !important;
+   
+}
 .btn-alt-secondary {
     --bs-btn-color: #212529;
     --bs-btn-bg: #f0f1f7;

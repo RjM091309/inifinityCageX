@@ -4,15 +4,26 @@
 .sidebar.sidebar-white {
     background-color: #ffffff; 
 }
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link:focus {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #01081A 0%, #0b1526 50%, #46627f 100%) !important;
+}
+
+.sidebar .nav-link.active {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #01081A 0%, #0b1526 50%, #46627f 100%) !important;
+}
 </style>
 
 <aside class="sidebar sidebar-default sidebar-white sidebar-base navs-rounded-all " >
   <div class="sidebar-header d-flex align-items-center justify-content-start">
-      <a href="/dashboard" class="navbar-brand">
+      <!-- <a href="/dashboard" class="navbar-brand">
           
-          <!--Logo start-->
+          Logo start
           <div class="logo-main">
-              <!-- <div class="logo-normal">
+              <div class="logo-normal">
                   <svg class=" icon-30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <rect x="-0.757324" y="19.2427" width="28" height="4" rx="2" transform="rotate(-45 -0.757324 19.2427)" fill="currentColor"/>
                       <rect x="7.72803" y="27.728" width="28" height="4" rx="2" transform="rotate(-45 7.72803 27.728)" fill="currentColor"/>
@@ -27,15 +38,15 @@
                       <rect x="10.5366" y="16.3945" width="16" height="4" rx="2" transform="rotate(45 10.5366 16.3945)" fill="currentColor"/>
                       <rect x="10.5562" y="-0.556152" width="28" height="4" rx="2" transform="rotate(45 10.5562 -0.556152)" fill="currentColor"/>
                   </svg>
-              </div> -->
+              </div>
           </div>
-          <!--logo End-->
+          logo End
           
           
           
           
-          <h4 class="logo-title">Infinity CageX</h4>
-      </a>
+          <img class="logo-title" src="/assets/images/infinityLOGO.png" alt="Infinity CageX">
+      </a> -->
       <div class="sidebar-toggle" data-toggle="sidebar" data-active="true">
           <i class="icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -56,7 +67,7 @@
                   </a>
               </li>
               <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'dashboard' ? 'active' : '' %>" href="/dashboard">
+                  <a class="nav-link <%= currentPage === 'dashboard' ? 'active bg-gradient-primary' : '' %>" href="/dashboard">
                       <i class="icon">
                           <svg width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="icon-20">
                               <path opacity="0.4" d="M16.0756 2H19.4616C20.8639 2 22.0001 3.14585 22.0001 4.55996V7.97452C22.0001 9.38864 20.8639 10.5345 19.4616 10.5345H16.0756C14.6734 10.5345 13.5371 9.38864 13.5371 7.97452V4.55996C13.5371 3.14585 14.6734 2 16.0756 2Z" fill="currentColor"></path>
@@ -68,7 +79,7 @@
               </li>
 
               <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'dashboard_history' ? 'active' : '' %>" href="/dashboard_history">
+                <a class="nav-link <%= currentPage === 'dashboard_history' ? 'active bg-gradient-primary' : '' %>" href="/dashboard_history">
                     <i class="icon">
                         <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path fill-rule="evenodd" clip-rule="evenodd" d="M3 16.8701V9.25708H21V16.9311C21 20.0701 19.0241 22.0001 15.8628 22.0001H8.12733C4.99561 22.0001 3 20.0301 3 16.8701ZM7.95938 14.4101C7.50494 14.4311 7.12953 14.0701 7.10977 13.6111C7.10977 13.1511 7.46542 12.7711 7.91987 12.7501C8.36443 12.7501 8.72997 13.1011 8.73985 13.5501C8.7596 14.0111 8.40395 14.3911 7.95938 14.4101ZM12.0198 14.4101C11.5653 14.4311 11.1899 14.0701 11.1701 13.6111C11.1701 13.1511 11.5258 12.7711 11.9802 12.7501C12.4248 12.7501 12.7903 13.1011 12.8002 13.5501C12.82 14.0111 12.4643 14.3911 12.0198 14.4101ZM16.0505 18.0901C15.596 18.0801 15.2305 17.7001 15.2305 17.2401C15.2206 16.7801 15.5862 16.4011 16.0406 16.3911H16.0505C16.5148 16.3911 16.8902 16.7711 16.8902 17.2401C16.8902 17.7101 16.5148 18.0901 16.0505 18.0901ZM11.1701 17.2401C11.1899 17.7001 11.5653 18.0611 12.0198 18.0401C12.4643 18.0211 12.82 17.6411 12.8002 17.1811C12.7903 16.7311 12.4248 16.3801 11.9802 16.3801C11.5258 16.4011 11.1701 16.7801 11.1701 17.2401ZM7.09989 17.2401C7.11965 17.7001 7.49506 18.0611 7.94951 18.0401C8.39407 18.0211 8.74973 17.6411 8.72997 17.1811C8.72009 16.7311 8.35456 16.3801 7.90999 16.3801C7.45554 16.4011 7.09989 16.7801 7.09989 17.2401ZM15.2404 13.6011C15.2404 13.1411 15.596 12.7711 16.0505 12.7611C16.4951 12.7611 16.8507 13.1201 16.8705 13.5611C16.8804 14.0211 16.5247 14.4011 16.0801 14.4101C15.6257 14.4201 15.2503 14.0701 15.2404 13.6111V13.6011Z" fill="currentColor"/>
@@ -127,7 +138,7 @@
                       </li> -->
                     
                       <li class="nav-item">
-                        <a class="nav-link <%= currentPage === 'agency' ? 'active bg-primary-subtle text-primary' : '' %>" href="/agency">
+                        <a class="nav-link <%= currentPage === 'agency' ? 'active bg-gradient-primary text-white' : '' %>" href="/agency">
                             <i class="icon">
                                 <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
                                     <g>
@@ -139,7 +150,7 @@
                         </a>
                       </li>
                       <li class="nav-item">
-                        <a class="nav-link  <%= currentPage === 'agent' ? 'active bg-primary-subtle text-primary' : '' %>" href="/agent">
+                        <a class="nav-link  <%= currentPage === 'agent' ? 'active bg-gradient-primary text-white' : '' %>" href="/agent">
                             <i class="icon">
                                 <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
                                     <g>
@@ -172,7 +183,7 @@
             </li> -->
 
               <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'game_list' ? 'active' : '' %>" href="/game_list">
+                <a class="nav-link <%= currentPage === 'game_list' ? 'active bg-gradient-primary' : '' %>" href="/game_list">
                     <i class="icon">
                         <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path fill-rule="evenodd" clip-rule="evenodd" d="M21.9964 8.37513H17.7618C15.7911 8.37859 14.1947 9.93514 14.1911 11.8566C14.1884 13.7823 15.7867 15.3458 17.7618 15.3484H22V15.6543C22 19.0136 19.9636 21 16.5173 21H7.48356C4.03644 21 2 19.0136 2 15.6543V8.33786C2 4.97862 4.03644 3 7.48356 3H16.5138C19.96 3 21.9964 4.97862 21.9964 8.33786V8.37513ZM6.73956 8.36733H12.3796H12.3831H12.3902C12.8124 8.36559 13.1538 8.03019 13.152 7.61765C13.1502 7.20598 12.8053 6.87318 12.3831 6.87491H6.73956C6.32 6.87664 5.97956 7.20858 5.97778 7.61852C5.976 8.03019 6.31733 8.36559 6.73956 8.36733Z" fill="currentColor"/>
@@ -203,7 +214,7 @@
                   </a>
                   <ul class="sub-nav collapse" id="sidebar-user" data-bs-parent="#sidebar-menu">
                       <li class="nav-item">
-                          <a class="nav-link <%= currentPage === 'house_expense' ? 'active bg-primary-subtle text-primary' : '' %>" href="/house_expense">
+                          <a class="nav-link <%= currentPage === 'house_expense' ? 'active bg-gradient-primary text-white' : '' %>" href="/house_expense">
                               <i class="icon">
                                   <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
                                       <g>
@@ -216,7 +227,7 @@
                           </a>
                       </li>
                       <li class="nav-item">
-                          <a class="nav-link <%= currentPage === 'booking' ? 'active bg-primary-subtle text-primary' : '' %>" href="/booking">
+                          <a class="nav-link <%= currentPage === 'booking' ? 'active bg-gradient-primary text-white' : '' %>" href="/booking">
                               <i class="icon">
                                   <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
                                       <g>
@@ -229,7 +240,7 @@
                           </a>
                       </li>
                       <li class="nav-item">
-                          <a class="nav-link <%= currentPage === 'commission' ? 'active bg-primary-subtle text-primary' : '' %>" href="/commission">
+                          <a class="nav-link <%= currentPage === 'commission' ? 'active bg-gradient-primary text-white' : '' %>" href="/commission">
                               <i class="icon">
                                   <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
                                       <g>
@@ -245,7 +256,7 @@
               </li>
 
             <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'agent_statistic' ? 'active' : '' %>" href="/agent_statistic">
+                <a class="nav-link <%= currentPage === 'agent_statistic' ? 'active bg-gradient-primary' : '' %>" href="/agent_statistic">
                     <i class="icon">
                         <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path opacity="0.4" d="M16.6756 2H7.33333C3.92889 2 2 3.92889 2 7.33333V16.6667C2 20.0711 3.92889 22 7.33333 22H16.6756C20.08 22 22 20.0711 22 16.6667V7.33333C22 3.92889 20.08 2 16.6756 2Z" fill="currentColor"/>
