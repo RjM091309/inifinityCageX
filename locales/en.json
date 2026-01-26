@@ -265,6 +265,7 @@
 		"junket_expenses": "Junket Expenses",
 		"new_record": "New Record",
 		"division": "DIVISION",
+		"name": "NAME",
 		"receipt_no": "RECEIPT #",
 		"description": "DESCRIPTION",
 		"amount": "AMOUNT",
@@ -298,7 +299,13 @@
 		"download_receipt": "Download Receipt",
 		"archive_expense": "Archive Expense",
 		"type": "Type",
-		"date": "Date"
+		"date": "Date",
+		"expense_type": "Expense Type",
+		"type_goods": "Goods / Consumables",
+		"type_non_goods": "Non-goods / Services",
+		"type_salary": "Salary",
+		"type_maintenance": "Maintenance",
+		"type_other": "Other"
 	},
 	"hotel_booking": {
 		"junket": "Junket",
@@ -474,7 +481,7 @@
 		"active": "Active",
 		"inactive": "Inactive"
 	},
-	"expense_category": {
+		"expense_category": {
 		"expense_category": "Expense Category",
 		"new_category": "New Category",
 		"category": "Expense Category",
@@ -485,7 +492,10 @@
 		"previous": "Previous",
 		"next": "Next",
 		"active": "Active",
-		"inactive": "Inactive"
+		"inactive": "Inactive",
+		"type": "Type",
+		"goods": "Goods / Consumables",
+		"non_goods": "Non-goods / Services"
 	},
 	"change_game_no": {
 		"modify_game": "Modify Game",
@@ -770,7 +780,9 @@
 		"new_category": "New Category",
 		"category_placeholder": "Category",
 		"save": "Save",
-		"close": "Close"
+		"close": "Close",
+		"saved": "modal_new_expense_category.saved",
+		"error": "modal_new_expense_category.error"
 	},
 	"modal_edit_expense_category": {
 		"edit_category": "Edit Category",

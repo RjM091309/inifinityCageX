@@ -62,13 +62,15 @@ router.get('/expense_category_data', async (req, res) => {
 
 // ADD EXPENSE CATEGORY
 router.post('/add_expense_category', async (req, res) => {
-	const { txtCategory } = req.body;
+	const { txtCategory, txtType } = req.body;
 	const date_now = new Date();
 
-	const query = `INSERT INTO expense_category(CATEGORY, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?)`;
+	const categoryType = parseInt(txtType, 10);
+	const normalizedType = categoryType === 2 ? 2 : 1;
+	const query = `INSERT INTO expense_category(CATEGORY, TYPE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?)`;
 
 	try {
-		await pool.execute(query, [txtCategory, req.session.user_id, date_now]);
+		await pool.execute(query, [txtCategory, normalizedType, req.session.user_id, date_now]);
 		res.redirect('/expense_category');
 	} catch (err) {
 		console.error('Error inserting Expense Category:', err);
@@ -79,13 +81,16 @@ router.post('/add_expense_category', async (req, res) => {
 // EDIT EXPENSE CATEGORY
 router.put('/expense_category/:id', async (req, res) => {
 	const id = parseInt(req.params.id);
-	const { txtCategory } = req.body;
+	const { txtCategory, txtType } = req.body;
 	const date_now = new Date();
 
-	const query = `UPDATE expense_category SET CATEGORY = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
+	const categoryType = parseInt(txtType, 10);
+	const normalizedType = categoryType === 2 ? 2 : 1;
+
+	const query = `UPDATE expense_category SET CATEGORY = ?, TYPE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
 
 	try {
-		await pool.execute(query, [txtCategory, req.session.user_id, date_now, id]);
+		await pool.execute(query, [txtCategory, normalizedType, req.session.user_id, date_now, id]);
 		res.send('Expense category updated successfully');
 	} catch (err) {
 		console.error('Error updating Expense category:', err);
@@ -175,7 +180,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				junket_house_expense.*, 
 				junket_house_expense.IDNo AS expense_id, 
 				expense_category.IDNo AS expense_category_id, 
-				expense_category.CATEGORY AS expense_category, 
+				expense_category.CATEGORY AS expense_category,
+				expense_category.TYPE AS expense_type,
 				user_info.FIRSTNAME AS FIRSTNAME
 			FROM junket_house_expense
 			JOIN expense_category ON expense_category.IDNo = junket_house_expense.CATEGORY_ID

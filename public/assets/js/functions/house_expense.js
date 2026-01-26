@@ -36,11 +36,13 @@ $(document).ready(function () {
             $('#expense-tbl').DataTable().destroy();
         }
 
+        const goodsTypeLabel = window.houseExpenseTranslations?.type_goods || 'Goods / Consumables';
+        const nonGoodsTypeLabel = window.houseExpenseTranslations?.type_non_goods || 'Non-goods / Services';
         var dataTable = $('#expense-tbl').DataTable({
-            "order": [[5, 'desc']],
+            "order": [[6, 'desc']],
             "columnDefs": [
                 {
-                    "targets": 5,
+                    "targets": 6,
                     "render": function (data, type, row) {
                         if (type === 'sort') {
                             return moment.utc(data, 'MMMM DD, YYYY HH:mm:ss').format('YYYY-MM-DD HH:mm:ss');
@@ -98,7 +100,7 @@ $(document).ready(function () {
                         // Put "No data found" in the first column to avoid "Invalid Date"
                         const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
                         dataTable.row.add([
-                            noDataText, '', '', '', '', '', ''
+                            noDataText, '', '', '', '', '', '', ''
                         ]).draw();
                         $('#GRAND_TOTAL_AMOUNT').text(`₱0.00`);
                         return;
@@ -158,9 +160,14 @@ $(document).ready(function () {
                                 </div>`;
                         }
                     
-                        const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
+                    const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
+                    const typeValue = parseInt(row.expense_type, 10);
+                    const expenseTypeLabel = (typeValue === 2)
+                        ? nonGoodsTypeLabel
+                        : goodsTypeLabel;
                         dataTable.row.add([
                             row.expense_category,
+                        expenseTypeLabel,
                             row.RECEIPT_NO,
                             row.DESCRIPTION,
                             amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }),

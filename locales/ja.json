@@ -265,6 +265,7 @@
 		"junket_expenses": "ジャンケット経費",
 		"new_record": "新規記録",
 		"division": "部門",
+		"name": "名前",
 		"receipt_no": "レシート番号",
 		"description": "説明",
 		"amount": "金額",
@@ -298,7 +299,13 @@
 		"download_receipt": "レシートをダウンロード",
 		"archive_expense": "経費をアーカイブ",
 		"type": "タイプ",
-		"date": "日付"
+		"date": "日付",
+		"expense_type": "経費タイプ",
+		"type_goods": "物品／消耗品",
+		"type_non_goods": "非物販／サービス",
+		"type_salary": "給与",
+		"type_maintenance": "メンテナンス",
+		"type_other": "その他"
 	},
 	"hotel_booking": {
 		"junket": "ジャンケット",
@@ -486,7 +493,12 @@
 		"previous": "前へ",
 		"next": "次へ",
 		"active": "アクティブ",
-		"inactive": "非アクティブ"
+		"inactive": "非アクティブ",
+		"type": "タイプ",
+		"goods": "物品／消耗品",
+		"non_goods": "非物販／サービス",
+		"goods_label": "物品／消耗品",
+		"non_goods_label": "非物販／サービス"
 	},
 	"change_game_no": {
 		"modify_game": "ゲームの変更",
@@ -771,7 +783,9 @@
 		"new_category": "新しいカテゴリー",
 		"category_placeholder": "カテゴリー",
 		"save": "保存",
-		"close": "閉じる"
+		"close": "閉じる",
+		"saved": "modal_new_expense_category.saved",
+		"error": "modal_new_expense_category.error"
 	},
 	"modal_edit_expense_category": {
 		"edit_category": "カテゴリーの編集",
