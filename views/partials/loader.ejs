@@ -16,28 +16,18 @@
     justify-content: center;
     align-items: center;
     height: 100%;
-    background-color: #fff;
+    background-color: #0b0b0b;
     text-align: center;
     padding: 0 2em;
     position: relative;
     z-index: 2;
   }
 
-  #loader-container .loader {
-    font-size: 2vw;
-    letter-spacing: 0.7em;
-    font-family: "ROBOTO", sans-serif;
-    font-weight: 400;
-    color: #faebd7;
+  #loader-container .loader-logo {
+    width: min(70vw, 520px);
+    height: auto;
+    object-fit: contain;
     z-index: 4;
-  }
-
-  /* Loader Letter Animation */
-  #loader-container .loader span {
-    color: #faebd7;
-    text-shadow: 0 0 0 #faebd7;
-    animation: loading 1s ease-in-out infinite alternate;
-    -webkit-animation: loading 1s ease-in-out infinite alternate;
   }
 
   @keyframes loading {
@@ -55,36 +45,21 @@
 }
 
 
-  #loader-container .loader span:nth-child(2)  { animation-delay: 0.03s; }
-  #loader-container .loader span:nth-child(3)  { animation-delay: 0.06s; }
-  #loader-container .loader span:nth-child(4)  { animation-delay: 0.09s; }
-  #loader-container .loader span:nth-child(5)  { animation-delay: 0.12s; }
-  #loader-container .loader span:nth-child(6)  { animation-delay: 0.15s; }
-  #loader-container .loader span:nth-child(7)  { animation-delay: 0.18s; }
-  #loader-container .loader span:nth-child(8)  { animation-delay: 0.21s; }
-  #loader-container .loader span:nth-child(9)  { animation-delay: 0.24s; }
-  #loader-container .loader span:nth-child(10) { animation-delay: 0.27s; }
-  #loader-container .loader span:nth-child(11) { animation-delay: 0.30s; }
-  #loader-container .loader span:nth-child(12) { animation-delay: 0.33s; }
-  #loader-container .loader span:nth-child(13) { animation-delay: 0.36s; }
-  #loader-container .loader span:nth-child(14) { animation-delay: 0.39s; }
-  #loader-container .loader span:nth-child(15) { animation-delay: 0.42s; }
-  #loader-container .loader span:nth-child(16) { animation-delay: 0.45s; }
-  #loader-container .loader span:nth-child(17) { animation-delay: 0.48s; }
-  #loader-container .loader span:nth-child(18) { animation-delay: 0.51s; }
-  #loader-container .loader span:nth-child(19) { animation-delay: 0.54s; }
-  #loader-container .loader span:nth-child(20) { animation-delay: 0.57s; }
-  #loader-container .loader span:nth-child(21) { animation-delay: 0.60s; }
-  #loader-container .loader span:nth-child(22) { animation-delay: 0.63s; }
+  #loader-container .loader-logo {
+    animation: logoPulse 1.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes logoPulse {
+    to {
+      filter: drop-shadow(0 0 24px rgba(0, 0, 0, 0.35));
+      transform: scale(1.02);
+    }
+  }
 </style>
 
 <div id="loader-container">
   <section class="nav">
-    <h3 class="loader">
-      <span class="m">3</span><span class="m">C</span><span class="m">O</span><span class="m">R</span><span class="m">E</span><span class="m">&nbsp;</span>
-      <span class="m">L</span><span class="m">E</span><span class="m">A</span><span class="m">D</span><span class="m">E</span><span class="m">R</span><span class="m">S</span><span class="m">T</span><span class="m">E</span><span class="m">C</span><span class="m">H</span>
-      <span class="m">&nbsp;</span><span class="m">C</span><span class="m">O</span><span class="m">R</span><span class="m">P</span>
-    </h3>
+    <img src="/assets/images/infinityLOGO.png" alt="Cage-X Infinity" class="loader-logo">
   </section>
 </div>
 

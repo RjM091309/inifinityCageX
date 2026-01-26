@@ -136,9 +136,18 @@ Index Of Script
 
         // For Sidebar Color
         const sidebarColors = sessionStorage.getItem('sidebar')
-        if (sidebarColors !== null && sidebarColors !== undefined) {
-            checkSettingMenu('sidebar', 'sidebar-color', sidebarColors, 'addedClass')
-            changeMode('sidebar', sidebarColors)
+        const sidebarDefault = 'sidebar-white'
+        const sidebarValue = (sidebarColors !== null && sidebarColors !== undefined) ? sidebarColors : sidebarDefault
+        const sidebarClassList = ['sidebar-white', 'sidebar-dark', 'sidebar-color', 'sidebar-transparent']
+        const sidebarEl = document.querySelector('.sidebar-default')
+        if (sidebarEl) {
+            sidebarClassList.forEach((cls) => sidebarEl.classList.remove(cls))
+            sidebarEl.classList.add(sidebarValue)
+        }
+        checkSettingMenu('sidebar', 'sidebar-color', sidebarValue, 'addedClass')
+        changeMode('sidebar', sidebarValue)
+        if (sidebarColors === null || sidebarColors === undefined) {
+            sessionStorage.setItem('sidebar', sidebarValue)
         }
 
         // For Sidebar Types
@@ -164,15 +173,20 @@ Index Of Script
 
         // For Navbar & Header Style
         const allNavbarType = sessionStorage.getItem('navbarTypes')
-        if (allNavbarType !== null && allNavbarType !== undefined) {
-            if (allNavbarType == 'nav-glass' || allNavbarType == 'navs-sticky' || allNavbarType == 'navs-transparent') {
-                document.querySelector('.iq-navbar').classList.add(`${allNavbarType}`)
-            }
-            if (allNavbarType == 'default') {
-                document.querySelector('.iq-navbar').classList.remove('nav-glass', 'navs-sticky', 'navs-transparent')
-            }
-            checkSettingMenu('navbar', 'navbar-type', allNavbarType, 'noClass')
+        const navbarDefault = 'navs-transparent'
+        const navbarValue = (allNavbarType === null || allNavbarType === undefined) ? navbarDefault : allNavbarType
+
+        if (allNavbarType === null || allNavbarType === undefined) {
+            sessionStorage.setItem('navbarTypes', navbarValue)
         }
+
+        if (navbarValue == 'nav-glass' || navbarValue == 'navs-sticky' || navbarValue == 'navs-transparent') {
+            document.querySelector('.iq-navbar').classList.add(`${navbarValue}`)
+        }
+        if (navbarValue == 'default' || navbarValue === '') {
+            document.querySelector('.iq-navbar').classList.remove('nav-glass', 'navs-sticky', 'navs-transparent')
+        }
+        checkSettingMenu('navbar', 'navbar-type', navbarValue, 'noClass')
     }
 
     updateMode()
