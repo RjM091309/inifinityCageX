@@ -230,6 +230,59 @@
    
 }
 
+
+
+
+
+/* Dashboard guest balance cards (white background + left border color) */
+.card-guest-balance {
+ 
+    border-left: 4px solid #46627f !important;
+}
+
+.card-net-junket-money {
+  
+    border-left: 4px solid #5f6a75 !important;
+}
+
+.card-net-junket-cash {
+   
+    border-left: 4px solid #8a734c !important;
+}
+
+/* Dashboard guest balance buttons (match card border colors) */
+.btn-guest-balance {
+    background: #46627f !important;
+    border: 1px solid #46627f !important;
+    color: #eee !important;
+   
+}
+
+.btn-net-junket-money {
+    background: #5f6a75 !important;
+    border: 1px solid #5f6a75 !important;
+    color: #eee !important;
+   
+}
+
+.btn-net-junket-cash {
+    background: #8a734c !important;
+    border: 1px solid #8a734c !important;
+    color: #eee !important;
+    
+}
+
+.btn-guest-balance:hover,
+.btn-net-junket-money:hover,
+.btn-net-junket-cash:hover,
+.btn-guest-balance:focus,
+.btn-net-junket-money:focus,
+.btn-net-junket-cash:focus {
+    filter: brightness(0.85);
+    color: #ffffff !important;
+    opacity: 0.75;
+}
+
 .bg-gradient-gold {
     background: linear-gradient(135deg, #6b4a12 0%, #c8a24c 50%, #f1d48a 100%) !important;
 
