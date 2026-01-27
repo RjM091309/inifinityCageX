@@ -14,7 +14,6 @@
             <div class="fw-semibold text-muted">Account</div>
             <select id="new-services-account" class="form-select">
               <option value="" selected disabled>Select account</option>
-              <!-- Options filled via JS -->
             </select>
           </div>
           <div class="col-md-4">
@@ -29,6 +28,9 @@
           <div class="col-md-4">
             <div class="fw-semibold text-muted">Amount</div>
             <input type="text" id="new-services-amount" class="form-control" data-type="number" placeholder="Enter amount" />
+            <div id="deposit-balance" class="text-muted small mt-1" style="display:none">
+              Available balance: <span id="deposit-balance-value">0</span>
+            </div>
           </div>
         </div>
 
@@ -57,4 +59,187 @@
     </div>
   </div>
 </div>
+
+<script>
+	(function () {
+		const $modal = $('#modal-services-new-record');
+		const $accountSelect = $('#new-services-account');
+		const $agentInput = $('#new-services-agent-id');
+		const $gameInput = $('#new-services-game-id');
+		const $saveBtn = $('#new-services-save');
+		const $balanceHint = $('#deposit-balance');
+		const $balanceValue = $('#deposit-balance-value');
+		let depositBalance = 0;
+
+		function resetForm() {
+			$accountSelect.val('');
+			$agentInput.val('');
+			$gameInput.val('');
+			$('#new-services-type').val('');
+			$('#new-services-amount').val('');
+			$('#new-services-remarks').val('');
+			$('input[name="new-services-transaction"]').prop('checked', false);
+		}
+
+		async function populateAccounts() {
+			$accountSelect.prop('disabled', true);
+			try {
+				const res = await fetch('/fnb-hotel/accounts');
+				if (!res.ok) {
+					throw new Error('Unable to load accounts.');
+				}
+				const accounts = await res.json();
+				$accountSelect.empty();
+				$accountSelect.append('<option value="" selected disabled>Select account</option>');
+				accounts.forEach(acc => {
+					const label = acc.agent_name
+						? `${acc.agent_name} (${acc.agent_code || 'No code'})`
+						: `Account #${acc.account_id}`;
+					const $option = $('<option>')
+						.val(acc.account_id)
+						.text(label)
+						.data('agentId', acc.agent_id)
+						.data('gameId', acc.current_game_id || '')
+						.data('balance', acc.balance || 0);
+					$accountSelect.append($option);
+				});
+			} catch (err) {
+				console.error(err);
+				$accountSelect.empty().append('<option value="" disabled>Failed to load accounts</option>');
+			} finally {
+				$accountSelect.prop('disabled', false);
+			}
+		}
+
+		$modal.on('show.bs.modal', function () {
+			resetForm();
+			populateAccounts();
+		});
+
+		function updateBalanceHint() {
+			const transaction = $('input[name="new-services-transaction"]:checked').val();
+			if (transaction === '2' && depositBalance !== null) {
+				$balanceValue.text(depositBalance.toLocaleString('en-US'));
+				$balanceHint.show();
+			} else {
+				$balanceHint.hide();
+			}
+		}
+
+		async function loadDepositBalance(accountId) {
+			depositBalance = 0;
+			if (!accountId) return;
+
+			try {
+				const response = await fetch(`/account_details_data_deposit/${accountId}`);
+				if (!response.ok) throw new Error('Failed to fetch deposit data');
+				const data = await response.json();
+
+				let deposit_amount = 0;
+				let withdraw_amount = 0;
+				let marker_issue_amount = 0;
+				let marker_return = 0;
+
+				data.forEach(row => {
+					const amount = parseFloat(row.AMOUNT || 0);
+					if (row.TRANSACTION === 'DEPOSIT') {
+						deposit_amount += amount;
+					} else if (row.TRANSACTION === 'WITHDRAW') {
+						withdraw_amount += amount;
+					} else if (row.TRANSACTION === 'Credit Cash') {
+						marker_issue_amount += amount;
+					} else if (row.TRANSACTION === 'Credit Returned thru Deposit') {
+						marker_return += amount;
+					}
+				});
+
+				depositBalance = deposit_amount + marker_issue_amount - withdraw_amount - marker_return;
+			} catch (err) {
+				console.error('Error loading deposit balance', err);
+				depositBalance = 0;
+			}
+		}
+
+		$accountSelect.on('change', async function () {
+			const $selected = $(this).find('option:selected');
+			$agentInput.val($selected.data('agentId') || '');
+			$gameInput.val($selected.data('gameId') || '');
+			await loadDepositBalance($selected.val());
+			updateBalanceHint();
+		});
+
+		$('input[name="new-services-transaction"]').on('change', updateBalanceHint);
+
+		$('#new-services-amount').on('input', function (event) {
+			// allow digits and single decimal point, format with commas
+			const $input = $(this);
+			let raw = $input.val() || '';
+			raw = raw.replace(/[^\d.]/g, '');
+			const parts = raw.split('.');
+			if (parts.length > 2) {
+				raw = `${parts[0]}.${parts.slice(1).join('')}`;
+			}
+			const [intPart, decPart] = raw.split('.');
+			const formattedInt = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+			const formatted = decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
+			$input.val(formatted);
+		});
+
+		$saveBtn.on('click', async function () {
+			const accountId = $accountSelect.val();
+			const agentId = $agentInput.val();
+			const gameId = $gameInput.val();
+			const serviceType = $('#new-services-type').val();
+			const amountRaw = $('#new-services-amount').val().replace(/,/g, '').trim();
+			const amount = parseFloat(amountRaw) || 0;
+			const remarks = $('#new-services-remarks').val().trim();
+			const transactionId = $('input[name="new-services-transaction"]:checked').val();
+
+			if (!accountId || !serviceType) {
+				Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select an account and service type.' });
+				return;
+			}
+			if (!transactionId) {
+				Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
+				return;
+			}
+
+			$saveBtn.prop('disabled', true).text('Saving...');
+
+			try {
+				const response = await fetch('/fnb-hotel/service', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						account_id: accountId,
+						agent_id: agentId,
+						game_id: gameId,
+						service_type: serviceType,
+						amount,
+						remarks,
+						transaction_id: transactionId
+					})
+				});
+
+				if (!response.ok) {
+					const error = await response.json().catch(() => ({}));
+					throw new Error(error.error || 'Failed to create service record.');
+				}
+
+				await Swal.fire({
+					icon: 'success',
+					title: 'Service recorded',
+					timer: 1200,
+					showConfirmButton: false
+				});
+
+				window.location.reload();
+			} catch (err) {
+				Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Failed to save record.' });
+			} finally {
+				$saveBtn.prop('disabled', false).text('Save');
+			}
+		});
+	})();
+</script>
 

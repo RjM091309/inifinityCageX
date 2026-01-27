@@ -51,7 +51,14 @@
 													<td><%= service.agent_name || 'Unknown' %></td>
 													<td><%= service.GAME_ID ? service.GAME_ID : '-' %></td>
 													<td><%= service.SERVICE_TYPE %></td>
-													<td><%= service.AMOUNT.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %></td>
+													<%
+													const amt = Number(service.AMOUNT) || 0;
+													const hasDecimals = amt % 1 !== 0;
+													const formattedAmt = hasDecimals
+														? amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+														: amt.toLocaleString('en-US');
+													%>
+													<td><%= formattedAmt %></td>
 													<td><%= service.REMARKS || '-' %></td>
 													<td><%= service.encoded_by_name || '-' %></td>
 													<td><%= formatDate(service.ENCODED_DT) %></td>

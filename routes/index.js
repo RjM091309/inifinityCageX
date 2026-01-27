@@ -9,8 +9,7 @@ module.exports = [
     require('./commission'),
     require('./changeGame'),
     require('./dashboard'),
-    require('./telegramData')
-    
-
-  ];
+    require('./telegramData'),
+    require('./fnb_hotel')
+];
   
