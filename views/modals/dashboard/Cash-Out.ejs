@@ -11,7 +11,7 @@
             <div class="modal-body">
             <div class="row mb-2">
                 <div class="col-sm-12">
-                    <div id="cash-out-filter" class="filter-breadcrumb">
+                    <div id="cash-out-filter" class="filter-breadcrumb-cash-out">
                         <a href="#" class="filter-link active" data-filter="all">All</a>
                         <a href="#" class="filter-link" data-filter="capital">Capital</a>
                         <a href="#" class="filter-link" data-filter="buychips">Buy Chips</a>
@@ -120,13 +120,13 @@
 </style>
 
 <style>
-.filter-breadcrumb {
+.filter-breadcrumb-cash-out {
     margin-top: 1rem;
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
 }
-.filter-breadcrumb .filter-link {
+.filter-breadcrumb-cash-out .filter-link {
     padding: 0.35rem 0.9rem;
     border-radius: 999px;
     border: 1px solid var(--bs-warning);
@@ -135,7 +135,7 @@
     letter-spacing: 0.5px;
     font-size: 0.85rem;
 }
-.filter-breadcrumb .filter-link.active {
+.filter-breadcrumb-cash-out .filter-link.active {
     background: var(--bs-warning);
     color: #fff;
 }
