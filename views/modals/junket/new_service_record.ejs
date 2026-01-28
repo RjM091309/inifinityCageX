@@ -10,9 +10,18 @@
         <input type="hidden" id="new-services-agent-id" />
 
         <div class="row g-3">
-          <div class="col-md-4">
+			<div class="col-md-4">
+				<div class="fw-semibold text-muted">Transaction Type</div>
+				<select id="new-transaction-type" class="form-select">
+				  <option value="" selected disabled>Select Transaction</option>
+				  <option value="JUNKET">Junket Payment</option>
+				  <option value="GUEST">Guest Payment</option>
+				
+				</select>
+			  </div>
+          <div class="col-md-4" id="new-services-account-wrapper" style="display:none">
             <div class="fw-semibold text-muted">Account</div>
-            <select id="new-services-account" class="form-select">
+            <select id="new-services-account" class="form-select" disabled>
               <option value="" selected disabled>Select account</option>
             </select>
           </div>
@@ -37,7 +46,7 @@
         <div class="mt-3 mb-1 fw-semibold text-muted">Remarks</div>
         <textarea id="new-services-remarks" class="form-control" rows="2" placeholder="Optional remarks"></textarea>
 
-        <div class="row mt-3 gx-4 justify-content-center">
+        <div class="row mt-3 gx-4 justify-content-center" id="new-services-payment-methods">
           <div class="col-sm-3">
             <div class="form-check">
               <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="new-services-transaction-cash" name="new-services-transaction" />
@@ -64,6 +73,9 @@
 	(function () {
 		const $modal = $('#modal-services-new-record');
 		const $accountSelect = $('#new-services-account');
+		const $accountWrapper = $('#new-services-account-wrapper');
+		const $transactionType = $('#new-transaction-type');
+		const $paymentMethods = $('#new-services-payment-methods');
 		const $agentInput = $('#new-services-agent-id');
 		const $gameInput = $('#new-services-game-id');
 		const $saveBtn = $('#new-services-save');
@@ -72,6 +84,7 @@
 		let depositBalance = 0;
 
 		function resetForm() {
+			$transactionType.val('');
 			$accountSelect.val('');
 			$agentInput.val('');
 			$gameInput.val('');
@@ -79,6 +92,26 @@
 			$('#new-services-amount').val('');
 			$('#new-services-remarks').val('');
 			$('input[name="new-services-transaction"]').prop('checked', false);
+			$paymentMethods.show();
+		}
+
+		function toggleAccountByTransactionType() {
+			const type = $transactionType.val();
+			const shouldShow = type === 'GUEST';
+			if (shouldShow) {
+				$accountWrapper.show();
+				$accountSelect.prop('disabled', false);
+				$paymentMethods.show();
+			} else {
+				$accountWrapper.hide();
+				$accountSelect.val('').prop('disabled', true);
+				$agentInput.val('');
+				$gameInput.val('');
+				depositBalance = 0;
+				updateBalanceHint();
+				$paymentMethods.hide();
+				$('#new-services-transaction-cash').prop('checked', true);
+			}
 		}
 
 		async function populateAccounts() {
@@ -114,6 +147,7 @@
 		$modal.on('show.bs.modal', function () {
 			resetForm();
 			populateAccounts();
+			toggleAccountByTransactionType();
 		});
 
 		function updateBalanceHint() {
@@ -169,6 +203,7 @@
 		});
 
 		$('input[name="new-services-transaction"]').on('change', updateBalanceHint);
+		$transactionType.on('change', toggleAccountByTransactionType);
 
 		$('#new-services-amount').on('input', function (event) {
 			// allow digits and single decimal point, format with commas
@@ -194,9 +229,18 @@
 			const amount = parseFloat(amountRaw) || 0;
 			const remarks = $('#new-services-remarks').val().trim();
 			const transactionId = $('input[name="new-services-transaction"]:checked').val();
+			const sourceType = $transactionType.val();
 
-			if (!accountId || !serviceType) {
-				Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select an account and service type.' });
+			if (!sourceType) {
+				Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select who is paying.' });
+				return;
+			}
+			if (!serviceType) {
+				Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select a service type.' });
+				return;
+			}
+			if (sourceType === 'GUEST' && !accountId) {
+				Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select an account for guest payment.' });
 				return;
 			}
 			if (!transactionId) {
@@ -217,7 +261,8 @@
 						service_type: serviceType,
 						amount,
 						remarks,
-						transaction_id: transactionId
+						transaction_id: transactionId,
+						source_type: sourceType
 					})
 				});
 
