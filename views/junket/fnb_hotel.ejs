@@ -35,6 +35,7 @@
 								<table class="table table-striped align-middle text-center">
 									<thead class="table-secondary">
 										<tr>
+											<th>Source</th>
 											<th>Agent</th>
 											<th>Game ID</th>
 											<th>Service Type</th>
@@ -48,7 +49,8 @@
 										<% if (gameServices && gameServices.length) { %>
 											<% gameServices.forEach(service => { %>
 												<tr>
-													<td><%= service.agent_name || 'Unknown' %></td>
+													<td><%= service.SOURCE_TYPE || '-' %></td>
+													<td><%= service.SOURCE_TYPE === 'JUNKET' ? '-' : (service.agent_name || 'Unknown') %></td>
 													<td><%= service.GAME_ID ? service.GAME_ID : '-' %></td>
 													<td><%= service.SERVICE_TYPE %></td>
 													<%
@@ -66,7 +68,7 @@
 											<% }) %>
 										<% } else { %>
 											<tr>
-												<td colspan="7" class="text-center text-muted">No game services recorded yet.</td>
+												<td colspan="8" class="text-center text-muted">No game services recorded yet.</td>
 											</tr>
 										<% } %>
 									</tbody>

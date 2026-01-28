@@ -362,16 +362,28 @@ ON
 
 	let sqlWinLoss = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1';
 	
-let sqlServiceCash = `
+let sqlServiceCashGuest = `
 	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 	FROM game_services
-	WHERE ACTIVE = 1 AND TRANSACTION_ID = 1
+	WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'GUEST'
 	
 `;
-let sqlServiceDeposit = `
+let sqlServiceDepositGuest = `
 	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
 	FROM game_services
-	WHERE ACTIVE = 1 AND TRANSACTION_ID = 2
+	WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'GUEST'
+	
+`;
+let sqlServiceCashJunket = `
+	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+	FROM game_services
+	WHERE ACTIVE = 1 AND TRANSACTION_ID = 1 AND SOURCE_TYPE = 'JUNKET'
+	
+`;
+let sqlServiceDepositJunket = `
+	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+	FROM game_services
+	WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
 	
 `;
 let sqlServiceCommission = `
@@ -498,8 +510,10 @@ let sqlServiceCommission = `
 		const [totalCashOutRolling] = await pool.execute(sqlTotalCashOutRolling);
 		const [totalCashOut] = await pool.execute(sqlTotalCashOut);
 		const [totalWinLoss] = await pool.execute(sqlWinLoss);
-		const [serviceCashResults] = await pool.execute(sqlServiceCash);
-		const [serviceDepositResults] = await pool.execute(sqlServiceDeposit);
+		const [serviceCashGuestResults] = await pool.execute(sqlServiceCashGuest);
+		const [serviceDepositGuestResults] = await pool.execute(sqlServiceDepositGuest);
+		const [serviceCashJunketResults] = await pool.execute(sqlServiceCashJunket);
+		const [serviceDepositJunketResults] = await pool.execute(sqlServiceDepositJunket);
 		const [serviceCommissionResults] = await pool.execute(sqlServiceCommission);
 		const [totalCommisionRolling] = await pool.execute(sqlCommisionRolling);
 
@@ -677,8 +691,10 @@ let sqlServiceCommission = `
 			sqlRollerCCSubtract: RollerCCSubtractResult,
 			sqlRollerCCAdd: RollerCCAddResult,
 			sqlAgentCount: AgentCountResult,
-			sqlServiceCash: serviceCashResults,
-			sqlServiceDeposit: serviceDepositResults,
+			sqlServiceCashGuest: serviceCashGuestResults,
+			sqlServiceDepositGuest: serviceDepositGuestResults,
+			sqlServiceCashJunket: serviceCashJunketResults,
+			sqlServiceDepositJunket: serviceDepositJunketResults,
 			sqlServiceCommission: serviceCommissionResults
 
 		});
@@ -1779,6 +1795,7 @@ if (range === 'week') {
 				agent.NAME AS agent_name,
 				gs.GAME_ID,
 				gs.SERVICE_TYPE,
+				gs.SOURCE_TYPE,
 				gs.AMOUNT,
 				gs.REMARKS,
 				gs.ENCODED_BY,
