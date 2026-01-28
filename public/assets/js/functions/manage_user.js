@@ -98,6 +98,11 @@ $(document).ready(function () {
 			success: function (response) {
 				reloadData();
 				$('#modal-new_user').modal('hide');
+				Swal.fire({
+					icon: "success",
+					title: "Successfully",
+					text: "User added successfully."
+				});
 			},
 			error: function (xhr, status, error) {
 				var errorMessage = xhr.responseJSON.error;

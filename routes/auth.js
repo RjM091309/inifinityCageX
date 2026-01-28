@@ -169,11 +169,12 @@ router.post('/add_user', async (req, res) => {
       }
   
       const hashedPassword = await argon2.hash(txtPassword); // ✅ Secure password
+      const salt = crypto.randomBytes(16).toString('hex');
   
       const query = `
         INSERT INTO user_info 
-        (FIRSTNAME, LASTNAME, USERNAME, PASSWORD, PERMISSIONS, LAST_LOGIN, ENCODED_BY, ENCODED_DT) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (FIRSTNAME, LASTNAME, USERNAME, PASSWORD, SALT, PERMISSIONS, LAST_LOGIN, ENCODED_BY, ENCODED_DT) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
   
       await pool.execute(query, [
@@ -181,6 +182,7 @@ router.post('/add_user', async (req, res) => {
         txtLastName,
         txtUserName,
         hashedPassword,
+        salt,
         user_role,
         date_now,
         req.session.user_id,
