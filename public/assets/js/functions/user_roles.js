@@ -40,24 +40,24 @@ $(document).ready(function() {
                 status = '<span class="css-red">' + inactiveText + '</span>';
             }
                 // WITH DELETE FUNCTION ACTION
-        //     var btn = `<div class="btn-group">
-        //     <button type="button" onclick="edit_role(${row.IDNo}, '${row.ROLE}')" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled"
-        //       data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
-        //       <i class="fa fa-pencil-alt"></i>
-        //     </button>
-        //     <button type="button" onclick="archive_role(${row.IDNo})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
-        //       data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
-        //       <i class="fa fa-trash-alt"></i>
-        //     </button>
-        //   </div>`;
-                
-                // WITHOUT DELETE FUNCTION ACTION
-        var btn = `<div class="btn-group">
+            var btn = `<div class="btn-group">
             <button type="button" onclick="edit_role(${row.IDNo}, '${row.ROLE}')" class="btn btn-sm bg-info-subtle js-bs-tooltip-enabled"
               data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
               <i class="fa fa-pencil-alt"></i>
             </button>
+            <button type="button" onclick="archive_role(${row.IDNo})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
+              data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
+              <i class="fa fa-trash-alt"></i>
+            </button>
           </div>`;
+                
+        //         // WITHOUT DELETE FUNCTION ACTION
+        // var btn = `<div class="btn-group">
+        //     <button type="button" onclick="edit_role(${row.IDNo}, '${row.ROLE}')" class="btn btn-sm bg-info-subtle js-bs-tooltip-enabled"
+        //       data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
+        //       <i class="fa fa-pencil-alt"></i>
+        //     </button>
+        //   </div>`;
 
             dataTable.row.add([row.ROLE,status,btn]).draw();
           });

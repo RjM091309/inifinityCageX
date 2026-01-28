@@ -372,9 +372,9 @@ if ($('.d-slider1').length > 0) {
             991: { slidesPerView: 3 },
             1400: { slidesPerView: 3 },
             1500: { slidesPerView: 4 },
-            1920: { slidesPerView: 6 },
-            2040: { slidesPerView: 7 },
-            2440: { slidesPerView: 8 }
+            1920: { slidesPerView: 4 },
+            2040: { slidesPerView: 4 },
+            2440: { slidesPerView: 4 }
         },
         pagination: {
             el: '.swiper-pagination'

@@ -1042,8 +1042,7 @@ router.post('/add_junket_total_chips', async (req, res) => {
 router.get('/marker_data_cashout/:id', async (req, res) => {
 	const id = parseInt(req.params.id);
 	const query = `
-		SELECT account.IDNo AS ACCOUNT_ID, account_ledger.TRANSACTION_ID AS TRANSACTION_ID, 
-			account_ledger.ENCODED_DT AS ENCODED_DT, account_ledger.TRANSACTION_TYPE AS TRANSACTION_TYPE, 
+		SELECT account.IDNo AS ACCOUNT_ID,
 			SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) - 
 			SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT, 
 			agent.AGENT_CODE AS AGENT_CODE, agent.NAME AS AGENT_NAME 
@@ -1067,8 +1066,7 @@ router.get('/marker_data_cashout/:id', async (req, res) => {
 // GET MARKER DATA
 router.get('/marker_data', async (req, res) => {
 	const query = `
-		SELECT account.IDNo AS ACCOUNT_ID, account_ledger.TRANSACTION_ID AS TRANSACTION_ID, 
-			account_ledger.ENCODED_DT AS ENCODED_DT, account_ledger.TRANSACTION_TYPE AS TRANSACTION_TYPE, 
+		SELECT account.IDNo AS ACCOUNT_ID,
 			SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) - 
 			SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT, 
 			agent.AGENT_CODE AS AGENT_CODE, agent.NAME AS AGENT_NAME 
@@ -1241,6 +1239,13 @@ router.post('/insert-dash-history', async (req, res) => {
 	} = req.body;
 
 	let date_now = new Date();
+	const normalizeNumber = (value) => {
+		if (value === undefined || value === null || value === '') {
+			return 0;
+		}
+		const num = Number(value);
+		return Number.isFinite(num) ? num : 0;
+	};
 
 	try {
 		const query = `
@@ -1250,11 +1255,11 @@ router.post('/insert-dash-history', async (req, res) => {
 		`;
 
 		await pool.execute(query, [
-			EXPENSE_HISTORY,
-			TOTAL_ROLLING_HISTORY,
-			HOUSE_ROLLING_HISTORY,
-			WINLOSS_HISTORY,
-			COMMISSION_HISTORY,
+			normalizeNumber(EXPENSE_HISTORY),
+			normalizeNumber(TOTAL_ROLLING_HISTORY),
+			normalizeNumber(HOUSE_ROLLING_HISTORY),
+			normalizeNumber(WINLOSS_HISTORY),
+			normalizeNumber(COMMISSION_HISTORY),
 			req.session.user_id,
 			date_now
 		]);

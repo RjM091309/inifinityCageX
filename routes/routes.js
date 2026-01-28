@@ -5380,7 +5380,7 @@ WHERE
 //GET MARKER DATA CASHOUT
 pageRouter.get('/marker_data_cashout/:id', (req, res) => {
 	const id = parseInt(req.params.id);
-	const query = `SELECT account.IDNo AS ACCOUNT_ID, account_ledger.TRANSACTION_ID AS TRANSACTION_ID, account_ledger.ENCODED_DT AS ENCODED_DT, account_ledger.TRANSACTION_TYPE AS TRANSACTION_TYPE, SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) - SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT, agent.AGENT_CODE AS AGENT_CODE, agent.NAME AS AGENT_NAME FROM agent JOIN account ON agent.IDNo = account.AGENT_ID JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND agent.ACTIVE = 1 AND account_ledger.ACCOUNT_ID = ? GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME HAVING TOTAL_AMOUNT <> 0`;
+	const query = `SELECT account.IDNo AS ACCOUNT_ID, SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) - SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT, agent.AGENT_CODE AS AGENT_CODE, agent.NAME AS AGENT_NAME FROM agent JOIN account ON agent.IDNo = account.AGENT_ID JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND agent.ACTIVE = 1 AND account_ledger.ACCOUNT_ID = ? GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME HAVING TOTAL_AMOUNT <> 0`;
 
 
 	connection.query(query, [id], (error, results, fields) => {
@@ -5394,7 +5394,7 @@ pageRouter.get('/marker_data_cashout/:id', (req, res) => {
 });
 //GET MARKER DATA
 pageRouter.get('/marker_data', (req, res) => {
-	const query = `SELECT account.IDNo AS ACCOUNT_ID, account_ledger.TRANSACTION_ID AS TRANSACTION_ID, account_ledger.ENCODED_DT AS ENCODED_DT, account_ledger.TRANSACTION_TYPE AS TRANSACTION_TYPE, SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) - SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT, agent.AGENT_CODE AS AGENT_CODE, agent.NAME AS AGENT_NAME FROM agent JOIN account ON agent.IDNo = account.AGENT_ID JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND agent.ACTIVE = 1 GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME HAVING TOTAL_AMOUNT <> 0`;
+	const query = `SELECT account.IDNo AS ACCOUNT_ID, SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) - SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT, agent.AGENT_CODE AS AGENT_CODE, agent.NAME AS AGENT_NAME FROM agent JOIN account ON agent.IDNo = account.AGENT_ID JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND agent.ACTIVE = 1 GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME HAVING TOTAL_AMOUNT <> 0`;
 
 
 	connection.query(query, (error, results, fields) => {

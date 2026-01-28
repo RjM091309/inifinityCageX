@@ -114,15 +114,22 @@ router.post('/verify-password', async (req, res) => {
       
       if (results.length > 0) {
         const manager = results[0]; // Assume there's only one manager
+        const storedPassword = manager.PASSWORD;
         const salt = manager.SALT;
-        const hashedPassword = generateMD5(salt + password);
-        
-        // Verify if the password matches the manager's password
-        if (hashedPassword === manager.PASSWORD) {
-          return res.json({ permissions: manager.PERMISSIONS });
+        let isValid = false;
+
+        if (isArgonHash(storedPassword)) {
+          isValid = await argon2.verify(storedPassword, password);
         } else {
-          return res.status(403).json({ message: 'Incorrect password' });
+          const hashedPassword = generateMD5(salt + password);
+          isValid = (hashedPassword === storedPassword);
         }
+
+        if (isValid) {
+          return res.json({ permissions: manager.PERMISSIONS });
+        }
+
+        return res.status(403).json({ message: 'Incorrect password' });
       } else {
         return res.status(404).json({ message: 'Manager not found' });
       }

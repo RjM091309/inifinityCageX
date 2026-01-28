@@ -300,7 +300,10 @@
 		"download_receipt": "Download Receipt",
 		"archive_expense": "Archive Expense",
 		"type": "Type",
-		"date": "Date"
+		"date": "Date",
+		"name": "house_expense.name",
+		"type_goods": "house_expense.type_goods",
+		"type_non_goods": "house_expense.type_non_goods"
 	},
 	"hotel_booking": {
 		"junket": "Junket",
@@ -487,7 +490,10 @@
 		"previous": "Previous",
 		"next": "Next",
 		"active": "Active",
-		"inactive": "Inactive"
+		"inactive": "Inactive",
+		"type": "expense_category.type",
+		"goods": "expense_category.goods",
+		"non_goods": "expense_category.non_goods"
 	},
 	"change_game_no": {
 		"modify_game": "Modify Game",
