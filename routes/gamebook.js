@@ -183,7 +183,7 @@ router.post('/add_game_list', async (req, res) => {
 
 		// 4. Get agent info
 		const [agentResults] = await pool.execute(`
-			SELECT agent.AGENT_CODE, agent.NAME
+			SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
 			FROM agent
 			JOIN account ON account.AGENT_ID = agent.IDNo
 			WHERE account.ACTIVE = 1 AND account.IDNo = ?`,
@@ -195,7 +195,7 @@ router.post('/add_game_list', async (req, res) => {
 			return res.redirect('/game_list');
 		}
 
-		const { AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
+		const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
 
 		// 5. Get telegram ID
 		const [telegramIdResults] = await pool.execute(`
@@ -219,7 +219,7 @@ router.post('/add_game_list', async (req, res) => {
 			text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start - IOU\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()}`;
 		}
 
-		if (text && telegramIdResults.length > 0) {
+		if (text && telegramIdResults.length > 0 && agentId) {
 			const telegramId = telegramIdResults[0].TELEGRAM_ID;
 
 			const [chatIdResults] = await pool.execute(`SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`);
@@ -229,6 +229,24 @@ router.post('/add_game_list', async (req, res) => {
 			if (additionalChatId) {
 				await sendTelegramMessage(text, additionalChatId);
 			}
+		}
+
+		// 6. Insert cash_transaction entry for cash buy-in
+		if (transType === 1 && agentId) {
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+			await pool.execute(cashTransactionQuery, [
+				gameId,
+				agentId,
+				totalAmount.toString(),
+				'Game buy-in',
+				1,
+				`Game - ${gameId}`,
+				encodedBy,
+				date_now
+			]);
 		}
 
 		res.redirect('/game_list');
@@ -299,11 +317,37 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 		const [gameRows] = await pool.execute(`SELECT ACCOUNT_ID FROM game_list WHERE IDNo = ? LIMIT 1`, [gameId]);
 		const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
 
-		await pool.execute(
+		const [insertResult] = await pool.execute(
 			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, ACTIVE, ENCODED_BY, ENCODED_DT)
 			 VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
 			[gameId, svc, amt, remarks || '', transactionId, agentId, encodedBy, now]
 		);
+
+
+		const insertCashEntry = async (type) => {
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+
+			await pool.execute(cashTransactionQuery, [
+				insertResult.insertId,
+				agentId,
+				amt.toString(),
+				svc,
+				type,
+				`Game - ${gameId} ${remarks ? '- ' + remarks : ''}`.trim(),
+				encodedBy,
+				now
+			]);
+		};
+
+		if (transactionId === 1 || transactionId === 3) {
+			await insertCashEntry(1);
+			await insertCashEntry(2);
+		} else if (transactionId === 2) {
+			await insertCashEntry(2);
+		}
 
 		if (transactionId === 2 && accountId) {
 			await pool.execute(
@@ -354,7 +398,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 		transactionId = [1, 2, 3].includes(transactionId) ? transactionId : 1;
 
 		const [[existingService]] = await pool.execute(
-			`SELECT AMOUNT, TRANSACTION_ID, ENCODED_BY, ENCODED_DT FROM game_services WHERE IDNo = ?`,
+			`SELECT AMOUNT, TRANSACTION_ID, ENCODED_BY, ENCODED_DT, SERVICE_TYPE, AGENT_ID, REMARKS, GAME_ID FROM game_services WHERE IDNo = ?`,
 			[serviceId]
 		);
 
@@ -404,6 +448,34 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 					[accountId, amt, updatedBy, now]
 				);
 			}
+		}
+
+		await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ?', [serviceId]);
+
+		const insertCashTransactions = async (type) => {
+			const remarkText = [`Game - ${gameId}`, remarks ? remarks : ''].filter(Boolean).join(' - ');
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+
+			await pool.execute(cashTransactionQuery, [
+				serviceId,
+				existingService?.AGENT_ID || null,
+				amt.toString(),
+				svc,
+				type,
+				remarkText,
+				encodedBy,
+				now
+			]);
+		};
+
+		if (transactionId === 1) {
+			await insertCashTransactions(1);
+			await insertCashTransactions(2);
+		} else if (transactionId === 2) {
+			await insertCashTransactions(2);
 		}
 
 		const [rows] = await pool.execute(
@@ -497,6 +569,8 @@ router.delete('/game_services/:id', checkSession, async (req, res) => {
 			ORDER BY gs.ENCODED_DT DESC, gs.IDNo DESC`,
 			[gameId]
 		);
+
+		await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ?', [serviceId]);
 
 		return res.json(rows);
 	} catch (err) {
@@ -772,7 +846,7 @@ router.post('/add_settlement', async (req, res) => {
 
 		// Fetch AGENT_CODE, NAME, and TELEGRAM_ID
 		const agentQuery = `
-            SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+            SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
             FROM agent
             JOIN account ON account.AGENT_ID = agent.IDNo
             WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -786,9 +860,7 @@ router.post('/add_settlement', async (req, res) => {
 		const [agentResults] = await pool.query(agentQuery, [txtAccountIDSettle]);
 
 		if (agentResults.length > 0) {
-			const agentCode = agentResults[0].AGENT_CODE;
-			const agentName = agentResults[0].NAME;
-			const telegramId = agentResults[0].TELEGRAM_ID;
+			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentResults[0];
 
 			// Fetch additional CHAT_ID from telegram_api table
 			const chatIdQuery = `SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`;
@@ -813,6 +885,31 @@ router.post('/add_settlement', async (req, res) => {
 				}
 			} else {
 				console.error("No TELEGRAM_ID found for Account ID:", txtAccountIDSettle);
+			}
+
+			const insertCashEntry = async (category, type, remark) => {
+				if (!agentId) return;
+				const cashTransactionQuery = `
+					INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				`;
+				await pool.execute(cashTransactionQuery, [
+					game_id_settle,
+					agentId,
+					paymentValue.toString(),
+					category,
+					type,
+					remark,
+					req.session.user_id,
+					date_now
+				]);
+			};
+
+			if (txtTransType == 5) {
+				await insertCashEntry('Commission Cash-out', 2, `Game - ${game_id_settle}`);
+			} else if (txtTransType == 1) {
+				await insertCashEntry('Commission Deposit', 1, `Game - ${game_id_settle}`);
+				await insertCashEntry('Commission', 2, `Game - ${game_id_settle}`);
 			}
 		} else {
 			console.error("No AGENT_CODE or NAME found for Account ID:", txtAccountIDSettle);
@@ -907,7 +1004,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 
 		// Fetch AGENT_CODE and NAME
 		const agentQuery = `
-			SELECT agent.AGENT_CODE, agent.NAME
+			SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
 			FROM agent
 			JOIN account ON account.AGENT_ID = agent.IDNo
 			WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -915,8 +1012,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 		const [agentResults] = await pool.execute(agentQuery, [txtAccountCode]);
 
 		if (agentResults.length > 0) {
-			const agentCode = agentResults[0].AGENT_CODE;
-			const agentName = agentResults[0].NAME;
+			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
 
 			// Fetch TELEGRAM_ID
 			const telegramIdQuery = `
@@ -951,7 +1047,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			}
 
 			// Send Telegram messages
-			if (text !== '' && telegramIdResults.length > 0) {
+		if (text !== '' && telegramIdResults.length > 0) {
 				const telegramId = telegramIdResults[0].TELEGRAM_ID;
 				await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
 
@@ -961,6 +1057,24 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			} else {
 				console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 			}
+		}
+
+		if (txtTransType == 1 && agentResults.length > 0 && agentResults[0].agent_id) {
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+
+			await pool.execute(cashTransactionQuery, [
+				game_id,
+				agentResults[0].agent_id,
+				(totalAmount).toString(),
+				'Additional buy-in',
+				1,
+				`Game - ${game_id}`,
+				req.session.user_id,
+				date_now
+			]);
 		}
 
 		res.redirect('/game_list');
@@ -1029,7 +1143,7 @@ router.post('/game_list/add/cashout', async (req, res) => {
 
 		// Fetch AGENT_CODE and NAME for Telegram
 		const agentQuery = `
-			SELECT agent.AGENT_CODE, agent.NAME
+			SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
 			FROM agent
 			JOIN account ON account.AGENT_ID = agent.IDNo
 			WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -1037,8 +1151,7 @@ router.post('/game_list/add/cashout', async (req, res) => {
 		const [agentResults] = await pool.execute(agentQuery, [txtAccountCode]);
 
 		if (agentResults.length > 0) {
-			const agentCode = agentResults[0].AGENT_CODE;
-			const agentName = agentResults[0].NAME;
+			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
 
 			// Fetch TELEGRAM_ID for the agent
 			const telegramIdQuery = `
@@ -1079,6 +1192,24 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			} else {
 				console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 			}
+		}
+
+		if (txtTransType == 1 && agentResults.length > 0 && agentResults[0].agent_id) {
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+
+			await pool.execute(cashTransactionQuery, [
+				gameRecordId,
+				agentResults[0].agent_id,
+				chipsReturn.toString(),
+				'Game Cash-out',
+				2,
+				`Game - ${game_id}`,
+				req.session.user_id,
+				date_now
+			]);
 		}
 
 		res.redirect('/game_list');

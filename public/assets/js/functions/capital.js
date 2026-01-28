@@ -419,6 +419,13 @@ function computeTotalCashOut() {
  * Function para sa pag-load ng DataTable ng mga cash transactions.
  * Dito lang nakatuon ang pag-filter at pag-display ng mga transaction sa table.
  */
+function getCashInFilterValue() {
+    return $('#cash-in-filter .filter-link.active').data('filter') || 'all';
+}
+function getCashOutFilterValue() {
+    return $('#cash-out-filter .filter-link.active').data('filter') || 'capital';
+}
+
 function loadCashInData() {
     const dateRange = $('#daterange').val();
     console.log('Date Range:', dateRange);
@@ -443,13 +450,13 @@ function loadCashInData() {
     }
 
     $('#cash-in-tbl').DataTable({
-        "processing": false, // Disable processing message to prevent flicker
+        "processing": false,
         "serverSide": false,
-        "order": [[4, 'desc']],
+        "order": [[5, 'desc']],
        "ajax": {
-        "url": `/junket_capital_data?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
-        "type": "GET",
-        "dataSrc": function(json) {
+            "url": `/cash_transaction_data?start_date=${startDate}&end_date=${endDate}&type=1&` + new Date().getTime(),
+            "type": "GET",
+            "dataSrc": function(json) {
             console.log('Raw Data:', json);
 
             if (!Array.isArray(json)) {
@@ -457,46 +464,60 @@ function loadCashInData() {
                 return [];
             }
             
-            // Filter only rows that are Cash-In transactions
-            const filteredData = json.filter(row => {
-                const isCashIn = row.TRANSACTION_ID == 1 && row.capital_description === '<span class="css-blue">Cash-in</span>';
-                return isCashIn;
-            }).map(function(row) {
-                // Since we only expect Cash-In transactions, we can directly set the type and amount
-                const isCashIn = row.TRANSACTION_ID == 1 && row.capital_description === '<span class="css-blue">Cash-in</span>';
-                
-                let amount = parseFloat(row.capital_amount || 0).toLocaleString();
-                let type   = '<span class="css-blue">CASH-IN</span>';
+                const filterValue = getCashInFilterValue();
+                const filterConfig = {
+                    all: null,
+                    capital: { categories: ['Capital In'], lower: false },
+                    gamemoney: { categories: ['Game buy-in', 'additional buy-in'], lower: false },
+                    account: { categories: ['Account Deposit', 'Commission Deposit'], lower: false },
+                    services: { categories: ['fnb', 'hotel', 'delivery'], lower: true },
+                    cashout: { categories: ['Chips Cash-out to Casino'], lower: false }
+                };
+                const config = filterConfig[filterValue];
 
-                return [
-                    row.ENCODED_BY_NAME || 'N/A',
+                return json
+                    .filter(row => parseInt(row.TYPE, 10) === 1)
+                    .filter(row => {
+                        if (!config) {
+                            return true;
+                        }
+                        const value = row.CATEGORY || '';
+                        if (config.lower) {
+                            return config.categories.includes(value.toLowerCase());
+                        }
+                        return config.categories.includes(value);
+                    })
+                    .map(row => {
+                        const typeText = row.CATEGORY || 'Capital In';
+                        const accountName = row.AGENT_NAME || '-';
+                        const amount = parseFloat(row.AMOUNT || 0).toLocaleString();
+                        const remarks = row.REMARKS || '';
+                        const encodedBy = row.ENCODED_BY_NAME || 'N/A';
+                        const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
+
+                        return [
+                            typeText,
+                            accountName,
                     amount,
-                    type,
-                    row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
-                    moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
-                    getActionButton(row.IDNo)
+                            remarks,
+                            encodedBy,
+                            formattedDate
                 ];
             });
-
-            console.log('Filtered Data:', filteredData);
-            return filteredData;
         }
     },
         "columns": [
             { "className": "text-center" },
+            { "className": "text-start" },
             { "className": "text-end" },
+            { "className": "text-start" },
             { "className": "text-center" },
-            { "className": "text-center" },
-            { "className": "text-center" },
-            { "className": "text-center", "orderable": false }
+            { "className": "text-center" }
         ],
         "responsive": true,
         "language": {
-            "emptyTable": "No cash transactions found",
+            "emptyTable": "No cash-in transactions found",
             "processing": "Loading cash transactions..."
-        },
-        "drawCallback": function(settings) {
-            $('[data-bs-toggle="tooltip"]').tooltip();
         }
     });
 }
@@ -525,13 +546,13 @@ function loadCashOutData() {
     }
 
     $('#cash-out-tbl').DataTable({
-        "processing": false, // Disable processing message to prevent flicker
+        "processing": false,
         "serverSide": false,
-        "order": [[4, 'desc']],
+        "order": [[5, 'desc']],
        "ajax": {
-        "url": `/junket_capital_data?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
+            "url": `/cash_transaction_data?start_date=${startDate}&end_date=${endDate}&type=2&` + new Date().getTime(),
         "type": "GET",
-        "dataSrc": function(json) {
+            "dataSrc": function(json) {
             console.log('Raw Cash-Out Data:', json);
 
             if (!Array.isArray(json)) {
@@ -539,51 +560,85 @@ function loadCashOutData() {
                 return [];
             }
             
-            // Filter only rows that are Cash-Out transactions
-            const filteredData = json.filter(row => {
-                const isCashOut = (row.TRANSACTION_ID == 2 && row.capital_description === '<span class="css-blue">Cash-out</span>') ||
-                                  (row.TRANSACTION_ID == 1 && row.capital_description === '<span class="css-blue">Cash-out</span>');
-                return isCashOut;
-            }).map(function(row) {
-                // Since we only expect Cash-Out transactions, we can directly set the type and amount
-                const isCashOut = (row.TRANSACTION_ID == 2 && row.capital_description === '<span class="css-blue">Cash-out</span>') ||
-                                  (row.TRANSACTION_ID == 1 && row.capital_description === '<span class="css-blue">Cash-out</span>');
-                
-                let amount = parseFloat(row.capital_amount || 0).toLocaleString();
-                let type   = '<span class="css-yellow">CASH-OUT</span>';
+                const filterValue = getCashOutFilterValue();
+                const filterConfig = {
+                    all: null,
+                    capital: { categories: ['Capital Out'], lower: false },
+                    buychips: { categories: ['Chips Buy-in'], lower: false },
+                    gamemoney: { categories: ['Game Cash-out'], lower: false },
+                    account: { categories: ['Account Withdraw', 'Account Credit'], lower: false },
+                    commission: { categories: ['Commission Cash-out', 'Commission'], lower: false },
+                    services: { categories: ['fnb', 'hotel', 'delivery'], lower: true },
+                    expenses: { categories: ['Expenses'], lower: false }
+                };
+                const config = filterConfig[filterValue];
 
-                return [
-                    row.ENCODED_BY_NAME || 'N/A',
-                    amount,
-                    type,
-                    row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
-                    moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
-                    getActionButton(row.IDNo)
-                ];
-            });
+                return json
+                    .filter(row => parseInt(row.TYPE, 10) === 2)
+                    .filter(row => {
+                        if (!config) {
+                            return true;
+                        }
+                        const value = row.CATEGORY || '';
+                        if (config.lower) {
+                            return config.categories.includes(value.toLowerCase());
+                        }
+                        return config.categories.includes(value);
+                    })
+                    .map(row => {
+                        const typeText = row.CATEGORY || 'Capital Out';
+                        const accountName = row.AGENT_NAME || '-';
+                        const amount = parseFloat(row.AMOUNT || 0).toLocaleString();
+                        const remarks = row.REMARKS || '';
+                        const encodedBy = row.ENCODED_BY_NAME || 'N/A';
+                        const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
 
-            console.log('Filtered Cash-Out Data:', filteredData);
-            return filteredData;
+                        return [
+                            typeText,
+                            accountName,
+                            amount,
+                            remarks,
+                            encodedBy,
+                            formattedDate
+                        ];
+                    });
         }
     },
         "columns": [
             { "className": "text-center" },
+            { "className": "text-start" },
             { "className": "text-end" },
+            { "className": "text-start" },
             { "className": "text-center" },
-            { "className": "text-center" },
-            { "className": "text-center" },
-            { "className": "text-center", "orderable": false }
+            { "className": "text-center" }
         ],
         "responsive": true,
         "language": {
             "emptyTable": "No cash-out transactions found",
             "processing": "Loading cash-out transactions..."
-        },
-        "drawCallback": function(settings) {
-            $('[data-bs-toggle="tooltip"]').tooltip();
         }
     });
 }
+
+// Filter links for cash-in
+$(document).on('click', '#cash-in-filter .filter-link', function(event) {
+    event.preventDefault();
+    $('#cash-in-filter .filter-link').removeClass('active');
+    $(this).addClass('active');
+    loadCashInData();
+});
+
+// Filter links for cash-out
+$(document).on('click', '#cash-out-filter .filter-link', function(event) {
+    event.preventDefault();
+    $('#cash-out-filter .filter-link').removeClass('active');
+    $(this).addClass('active');
+    loadCashOutData();
+});
+
+$('#cash-in-filter').on('change', function () {
+    loadCashInData();
+});
 
 function chipsTransactionComputation() {
     // Use current month as the default date range

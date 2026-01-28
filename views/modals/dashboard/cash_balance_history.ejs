@@ -1,0 +1,163 @@
+<div class="modal fade" id="modal-cash-balance-history" tabindex="-1" aria-labelledby="modal-cash-balance-label" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+        <div class="modal-header bg-primary ">
+            <h5 class="block-title text-white" id="modal-cash-balance-label">Cash Balance History</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="cash-balance-date-range" value="">
+            <div class="row mb-2">
+          <div class="col-12">
+            <div id="cash-balance-filter" class="filter-breadcrumb">
+              <a href="#" class="filter-link active" data-type="all">All</a>
+              <a href="#" class="filter-link" data-type="1">Cash-in</a>
+              <a href="#" class="filter-link" data-type="2">Cash-out</a>
+            </div>
+          </div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-sm-5">
+            <input type="text" id="cash-balance-daterange" class="form-control" placeholder="Select date range" readonly>
+          </div>
+        </div>
+        <table id="cash-balance-history-tbl" class="table table-bordered table-responsive" style="font-size: 13px;">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Remarks</th>
+              <th>Encoded By</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.filter-breadcrumb {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+}
+.filter-breadcrumb .filter-link {
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--bs-primary);
+  color: var(--bs-primary);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.filter-breadcrumb .filter-link.active {
+  background: var(--bs-primary);
+  color: #fff;
+}
+#cash-balance-history-tbl td {
+  padding: 12px 15px;
+}
+#cash-balance-history-tbl thead th {
+  background: var(--bs-primary-bg-subtle);
+  color: var(--bs-primary);
+  font-weight: 500;
+  border: none;
+}
+#cash-balance-history-tbl {
+  width: 100%;
+  border-collapse: collapse;
+}
+</style>
+
+<script>
+$(document).ready(function() {
+  const picker = flatpickr("#cash-balance-daterange", {
+    altInput: true,
+    altFormat: "M d, Y",
+    dateFormat: "Y-m-d",
+    mode: "range",
+    defaultDate: [
+      moment().startOf('month').format('YYYY-MM-DD'),
+      moment().format('YYYY-MM-DD')
+    ],
+    onChange: function(selectedDates, dateStr) {
+      if (selectedDates.length === 2) {
+        loadCashBalanceHistory(getSelectedType());
+      }
+    }
+  });
+
+  function getSelectedType() {
+    return $('#cash-balance-filter .filter-link.active').data('type') || 'all';
+  }
+
+  function formatAmount(value) {
+    return parseFloat(value || 0).toLocaleString();
+  }
+
+  function loadCashBalanceHistory(type) {
+    const range = $('#cash-balance-daterange').val();
+    if (!range) return;
+    let [start, end] = range.split(" to ");
+    if (!end) end = start;
+    if ($.fn.DataTable.isDataTable('#cash-balance-history-tbl')) {
+      $('#cash-balance-history-tbl').DataTable().destroy();
+    }
+    $('#cash-balance-history-tbl').DataTable({
+      processing: false,
+      serverSide: false,
+      order: [[4, 'desc']],
+      ajax: {
+        url: `/cash_transaction_data?start_date=${start}&end_date=${end}${type && type !== 'all' ? `&type=${type}` : ''}&` + new Date().getTime(),
+        dataSrc: function(json) {
+          if (!Array.isArray(json)) return [];
+          return json.map(row => ({
+            typeText: row.CATEGORY || (row.TYPE == 1 ? 'Cash-in' : 'Cash-out'),
+            amount: formatAmount(row.AMOUNT),
+            remarks: row.REMARKS || '',
+            encodedBy: row.ENCODED_BY_NAME || 'N/A',
+            date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+            typeValue: parseInt(row.TYPE, 10)
+          }));
+        }
+      },
+      columns: [
+        { data: 'typeText', className: 'text-center' },
+        { data: 'amount', className: 'text-end' },
+        { data: 'remarks', className: 'text-start' },
+        { data: 'encodedBy', className: 'text-center' },
+        { data: 'date', className: 'text-center' }
+      ],
+      createdRow(row, data) {
+        if (data.typeValue === 1) {
+          $('td:eq(0), td:eq(1)', row).addClass('text-success');
+        } else if (data.typeValue === 2) {
+          $('td:eq(0), td:eq(1)', row).addClass('text-danger');
+        }
+      },
+      responsive: true,
+      language: {
+        emptyTable: 'No cash transactions found',
+        processing: 'Loading cash transactions...'
+      }
+    });
+  }
+
+  $(document).on('click', '#cash-balance-filter .filter-link', function(e) {
+    e.preventDefault();
+    $('#cash-balance-filter .filter-link').removeClass('active');
+    $(this).addClass('active');
+    loadCashBalanceHistory(getSelectedType());
+  });
+
+  $('#modal-cash-balance-history').on('shown.bs.modal', function() {
+    loadCashBalanceHistory(getSelectedType());
+  });
+});
+</script>
+

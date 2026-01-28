@@ -301,9 +301,9 @@
 		"archive_expense": "Archive Expense",
 		"type": "Type",
 		"date": "Date",
-		"name": "house_expense.name",
-		"type_goods": "house_expense.type_goods",
-		"type_non_goods": "house_expense.type_non_goods"
+		"name": "NAME",
+		"type_goods": "Goods / Consumables",
+		"type_non_goods": "Non-goods / Services"
 	},
 	"hotel_booking": {
 		"junket": "Junket",
@@ -492,8 +492,8 @@
 		"active": "Active",
 		"inactive": "Inactive",
 		"type": "expense_category.type",
-		"goods": "expense_category.goods",
-		"non_goods": "expense_category.non_goods"
+		"goods": "Goods/Consumables",
+		"non_goods": "Non-goods/Services"
 	},
 	"change_game_no": {
 		"modify_game": "Modify Game",

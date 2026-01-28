@@ -179,6 +179,7 @@ ON
 	let sqlNNChipsAccountMarker = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_MARKER FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION = 3';
 	let sqlCCChipsBuyinGame = 'SELECT SUM(CC_CHIPS) AS TOTAL_CC FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION IN (1 , 2, 3)';
 	let sqlNNChipsAccountCash = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_CASH FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 1';
+	let sqlCCChipsAccountCash = 'SELECT SUM(CC_CHIPS) AS TOTAL_CC_CASH FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 1';
 	let sqlNNChipsAccountDeposit = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_DEPOSIT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 2';
 	let sqlCCChipsCashout = 'SELECT  SUM(CC_CHIPS) AS CCChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
 	let sqlCCReturn = 'SELECT  SUM(CC_CHIPS) AS CCReturn FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2';
@@ -283,6 +284,18 @@ ON
 		AND agent.ACTIVE = 1
 	`;
 
+	let sqlSettlementCashOutAmount = `
+	  SELECT SUM(account_ledger.AMOUNT) AS SETTLEMENT_CASHOUT
+	  FROM account_ledger
+	  JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
+	  JOIN agent ON agent.IDNo = account.AGENT_ID
+	  WHERE account_ledger.ACTIVE = 1 
+		AND account_ledger.TRANSACTION_TYPE = 5 
+		AND account_ledger.TRANSACTION_ID = 5 
+		AND account.ACTIVE = 1 
+		AND agent.ACTIVE = 1
+	`;
+
 	let sqlMArkerReturnCash = `
 	  SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_CASH
 	  FROM account_ledger
@@ -348,6 +361,25 @@ ON
 	let sqlTotalCashOut = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2';
 
 	let sqlWinLoss = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1';
+	
+let sqlServiceCash = `
+	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+	FROM game_services
+	WHERE ACTIVE = 1 AND TRANSACTION_ID = 1
+	
+`;
+let sqlServiceDeposit = `
+	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+	FROM game_services
+	WHERE ACTIVE = 1 AND TRANSACTION_ID = 2
+	
+`;
+let sqlServiceCommission = `
+	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+	FROM game_services
+	WHERE ACTIVE = 1 AND TRANSACTION_ID = 3
+	
+`;
 
 	let sqlCommisionRolling = `SELECT 
 			game_record.GAME_ID,
@@ -428,6 +460,7 @@ ON
 		const [MArkerReturnDepositResult] = await pool.execute(sqlMArkerReturnDeposit);
 		const [MArkerReturnCashResult] = await pool.execute(sqlMArkerReturnCash);
 		const [SettlementDepositAmountResult] = await pool.execute(sqlSettlementDepositAmount);
+		const [SettlementCashOutAmountResult] = await pool.execute(sqlSettlementCashOutAmount);
 		const [AccountSettlementResult] = await pool.execute(sqlAccountSettlement);
 		const [NNChipsReturnDepositResult] = await pool.execute(sqlNNChipsReturnDeposit);
 		const [CageRollingResult] = await pool.execute(sqlCageRolling);
@@ -437,6 +470,7 @@ ON
 		const [accountWithdrawResult] = await pool.execute(sqlAccountWithdraw);
 		const [accountServicesDeductResult] = await pool.execute(sqlAccountServicesDeduct);
 		const [NNChipsAccountCashResult] = await pool.execute(sqlNNChipsAccountCash);
+		const [CCChipsAccountCashResult] = await pool.execute(sqlCCChipsAccountCash);
 		const [NNChipsAccountDepositResult] = await pool.execute(sqlNNChipsAccountDeposit);
 		const [CCChipsBuyinCashoutResult] = await pool.execute(sqlCCChipsCashout);
 		const [CCBuyinReturnResult] = await pool.execute(sqlCCReturn);
@@ -464,6 +498,9 @@ ON
 		const [totalCashOutRolling] = await pool.execute(sqlTotalCashOutRolling);
 		const [totalCashOut] = await pool.execute(sqlTotalCashOut);
 		const [totalWinLoss] = await pool.execute(sqlWinLoss);
+		const [serviceCashResults] = await pool.execute(sqlServiceCash);
+		const [serviceDepositResults] = await pool.execute(sqlServiceDeposit);
+		const [serviceCommissionResults] = await pool.execute(sqlServiceCommission);
 		const [totalCommisionRolling] = await pool.execute(sqlCommisionRolling);
 
 		const [totalCommisionCashout] = await pool.execute(sqlCommisionCashout);
@@ -581,12 +618,14 @@ ON
 			sqlMArkerReturnDeposit: MArkerReturnDepositResult,
 			sqlMArkerReturnCash: MArkerReturnCashResult,
 			sqlSettlementDepositAmount: SettlementDepositAmountResult,
+			sqlSettlementCashOutAmount: SettlementCashOutAmountResult,
 			sqlAccountSettlement: AccountSettlementResult,
 			sqlNNChipsReturnDeposit: NNChipsReturnDepositResult,
 			sqlCageRolling: CageRollingResult,
 			sqlAccountCCChipsReturn: AccountCCChipsReturnResult,
 			sqlNNChipsAccountMarker: NNChipsAccountMarkerResult,
 			sqlNNChipsAccountCash: NNChipsAccountCashResult,
+			sqlCCChipsAccountCash: CCChipsAccountCashResult,
 			sqlNNChipsAccountDeposit: NNChipsAccountDepositResult,
 			sqlCCChipsCashout: CCChipsBuyinCashoutResult,
 			sqlCCChipsCashoutReset: CCResetBuyinCashoutResult,
@@ -637,7 +676,10 @@ ON
 			sqlRollerNNAdd: RollerNNAddResult,
 			sqlRollerCCSubtract: RollerCCSubtractResult,
 			sqlRollerCCAdd: RollerCCAddResult,
-			sqlAgentCount: AgentCountResult
+			sqlAgentCount: AgentCountResult,
+			sqlServiceCash: serviceCashResults,
+			sqlServiceDeposit: serviceDepositResults,
+			sqlServiceCommission: serviceCommissionResults
 
 		});
 
@@ -722,7 +764,7 @@ router.post('/add_junket_capital', async (req, res) => {
 			) VALUES (?, ?, ?, ?, ?, ?, ?)
 		`;
 
-		await pool.execute(query, [
+		const [insertResult] = await pool.execute(query, [
 			optWithdrawDeposit,
 			txtFullname,
 			description,
@@ -731,6 +773,35 @@ router.post('/add_junket_capital', async (req, res) => {
 			req.session?.user_id ?? null,
 			date_now
 		]);
+
+		const transactionConfig = {
+			1: { category: 'Capital In', type: 1 },
+			2: { category: 'Capital Out', type: 2 }
+		}[parseInt(optWithdrawDeposit, 10)];
+
+		if (transactionConfig) {
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (
+					TRANSACTION_ID,
+					AMOUNT,
+					CATEGORY,
+					TYPE,
+					REMARKS,
+					ENCODED_BY,
+					ENCODED_DT
+				) VALUES (?, ?, ?, ?, ?, ?, ?)
+			`;
+
+			await pool.execute(cashTransactionQuery, [
+				insertResult.insertId,
+				txtAmount2.toString(),
+				transactionConfig.category,
+				transactionConfig.type,
+				Remarks,
+				req.session?.user_id ?? null,
+				date_now
+			]);
+		}
 
 		res.redirect('/dashboard');
 	} catch (err) {
@@ -894,6 +965,57 @@ router.get('/junket_capital_data', async (req, res) => {
 	}
 });
 
+// FETCH CASH TRANSACTIONS (TYPE 1 = Cash-in, TYPE 2 = Cash-out)
+router.get('/cash_transaction_data', async (req, res) => {
+	try {
+		const { start_date, end_date, type, category } = req.query;
+
+		if (!start_date || !end_date) {
+			return res.status(400).json({ error: 'start_date and end_date are required' });
+		}
+
+		const conditions = ['DATE(ct.ENCODED_DT) BETWEEN ? AND ?'];
+		const params = [start_date, end_date];
+
+		if (type) {
+			const typeValue = parseInt(type, 10);
+			if (!Number.isNaN(typeValue)) {
+				conditions.push('ct.TYPE = ?');
+				params.push(typeValue);
+			}
+		}
+
+		if (category) {
+			conditions.push('ct.CATEGORY = ?');
+			params.push(category);
+		}
+
+		const query = `
+			SELECT
+				ct.IDNo,
+				ct.AMOUNT,
+				ct.CATEGORY,
+				ct.TYPE,
+				ct.REMARKS,
+				ct.ENCODED_BY,
+				ct.ENCODED_DT,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME,
+				COALESCE(agent.NAME, '-') AS AGENT_NAME
+			FROM cash_transaction ct
+			LEFT JOIN user_info u ON ct.ENCODED_BY = u.IDNo
+			LEFT JOIN agent ON ct.AGENT_ID = agent.IDNo
+			WHERE ${conditions.join(' AND ')}
+			ORDER BY ct.ENCODED_DT DESC
+		`;
+		const [results] = await pool.execute(query, params);
+
+		res.json(results);
+	} catch (error) {
+		console.error('Error fetching cash transactions:', error);
+		res.status(500).json({ error: 'Database error' });
+	}
+});
+
 // GET CC CHIPS HISTORY
 router.get('/cc_chips_history', async (req, res) => {
 	try {
@@ -978,6 +1100,8 @@ router.put('/junket_capital/remove/:id', async (req, res) => {
 		const query2 = `UPDATE junket_total_chips SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
 		await pool.execute(query2, [0, req.session.user_id, date_now, id]);
 
+		await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ?', [id]);
+
 		res.send('Junket updated successfully');
 	} catch (err) {
 		console.error('Error updating Junket:', err);
@@ -1024,7 +1148,37 @@ router.post('/add_junket_total_chips', async (req, res) => {
 
 	const query = `INSERT INTO junket_total_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
 	try {
-		await pool.execute(query, [optBuyinReturn, typedescription, nnChips, ccChips, totalChips, req.session.user_id, date_now]);
+		const [insertResult] = await pool.execute(query, [optBuyinReturn, typedescription, nnChips, ccChips, totalChips, req.session.user_id, date_now]);
+
+		const cashConfig = {
+			'1': { category: 'Chips Buy-in', type: 2 },
+			'2': { category: 'Chips Cash-out to Casino', type: 1 }
+		}[String(optBuyinReturn)];
+
+		if (cashConfig) {
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (
+					TRANSACTION_ID,
+					AMOUNT,
+					CATEGORY,
+					TYPE,
+					REMARKS,
+					ENCODED_BY,
+					ENCODED_DT
+				) VALUES (?, ?, ?, ?, ?, ?, ?)
+			`;
+
+			await pool.execute(cashTransactionQuery, [
+				insertResult.insertId,
+				totalChips.toString(),
+				cashConfig.category,
+				cashConfig.type,
+				null,
+				req.session.user_id,
+				date_now
+			]);
+		}
+
 		res.redirect('/dashboard');
 	} catch (err) {
 		console.error('Error inserting junket total chips', err);

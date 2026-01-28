@@ -9,12 +9,24 @@
 
 
             <div class="modal-body">
-                <div class="row">
-                    <div class="col-sm-4">
-                        <input type="text" id="daterange" name="daterange" class="form-control"
-                            placeholder="Select date range" autocomplete="off" />
+            <div class="row mb-2">
+                <div class="col-sm-12">
+                    <div id="cash-in-filter" class="filter-breadcrumb-cashin">
+                        <a href="#" class="filter-link active" data-filter="all">All</a>
+                        <a href="#" class="filter-link" data-filter="capital">Capital</a>
+                        <a href="#" class="filter-link" data-filter="gamemoney">Game Money</a>
+                        <a href="#" class="filter-link" data-filter="account">Account Deposit</a>
+                        <a href="#" class="filter-link" data-filter="services">F&B/Hotel/Delivery</a>
+                        <a href="#" class="filter-link" data-filter="cashout">Chips Cash-out</a>
                     </div>
                 </div>
+            </div>
+            <div class="row">
+                <div class="col-sm-4">
+                    <input type="text" id="daterange" name="daterange" class="form-control"
+                        placeholder="Select date range" autocomplete="off" />
+                </div>
+            </div>
 
                 <hr style="border: none; border-top: 0.2rem solid black;">
                 
@@ -22,12 +34,12 @@
                     style="font-size: 13px !important;">
                     <thead>
                         <tr>
-                            <th>Encoded By</th>
-                            <th>Amount</th>
                             <th>Type</th>
+                            <th>Account</th>
+                            <th>Amount</th>
                             <th>Remarks</th>
+                            <th>Encoded By</th>
                             <th>Date</th>
-                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -103,4 +115,26 @@
         background-color: #f4f6fa;
         border-top: 2px solid #dee2e6;
     }
+</style>
+
+<style>
+.filter-breadcrumb-cashin {
+    margin-top: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.filter-breadcrumb-cashin .filter-link {
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--bs-primary);
+    color: var(--bs-primary);
+    text-decoration: none;
+    letter-spacing: 0.5px;
+    font-size: 0.85rem;
+}
+.filter-breadcrumb-cashin .filter-link.active {
+    background: var(--bs-primary);
+    color: #fff;
+}
 </style>

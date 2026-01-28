@@ -139,13 +139,34 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		`;
 
-		await pool.execute(query, [
+		const [insertResult] = await pool.execute(query, [
 			category,
 			receiptNo,
 			dateTime,
 			description,
 			amount,
 			receiptFileName,
+			encodedBy,
+			date_now
+		]);
+
+		const [categoryRows] = await pool.execute('SELECT CATEGORY FROM expense_category WHERE IDNo = ? LIMIT 1', [
+			category
+		]);
+		const expenseCategoryName = (categoryRows[0] && categoryRows[0].CATEGORY) ? categoryRows[0].CATEGORY : '-';
+
+		const cashTransactionQuery = `
+			INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`;
+
+		await pool.execute(cashTransactionQuery, [
+			insertResult.insertId,
+			null,
+			amount.toString(),
+			'Expenses',
+			2,
+			expenseCategoryName,
 			encodedBy,
 			date_now
 		]);
@@ -235,6 +256,18 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		params.push(id);
 
 		await pool.execute(query, params);
+		const [categoryRows] = await pool.execute('SELECT CATEGORY FROM expense_category WHERE IDNo = ? LIMIT 1', [
+			txtCategory
+		]);
+		const expenseCategoryName = (categoryRows[0] && categoryRows[0].CATEGORY) ? categoryRows[0].CATEGORY : '-';
+
+		const cashTransactionUpdateQuery = `
+			UPDATE cash_transaction
+			SET AMOUNT = ?, CATEGORY = ?, REMARKS = ?, ENCODED_BY = ?, ENCODED_DT = ?
+			WHERE TRANSACTION_ID = ? AND CATEGORY = 'Expenses'
+		`;
+		await pool.execute(cashTransactionUpdateQuery, [editXAmount.toString(), 'Expenses', expenseCategoryName, req.session.user_id, date_now, id]);
+
 		res.send('Junket updated successfully');
 	} catch (err) {
 		console.error('Error updating Junket:', err);
@@ -255,6 +288,7 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 		`;
 
 		await pool.execute(query, [0, req.session.user_id, date_now, id]);
+		await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ? AND CATEGORY = ?', [id, 'Expenses']);
 		res.send('Junket updated successfully');
 	} catch (err) {
 		console.error('Error updating Junket:', err);

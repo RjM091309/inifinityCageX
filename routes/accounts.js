@@ -511,15 +511,16 @@ router.post('/add_account_details', async (req, res) => {
 	} = req.body;
 	let date_now = new Date();
 
-
 	const amountRaw = (txtAmount || '0').split(',').join('');
 	const amountNumber = parseFloat(amountRaw) || 0;
 	let txtAmountNum = amountRaw;
 	const balanceBefore = await getCurrentBalance(txtAccountId);
 
+	const [[accountRow]] = await pool.query('SELECT AGENT_ID FROM account WHERE IDNo = ?', [txtAccountId]);
+	const agentId = accountRow?.AGENT_ID ?? null;
+
 	// Set transaction description
 	let transacDesc = 'ACCOUNT DETAILS';
-
 
 	const insertQuery = `INSERT INTO  account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
@@ -608,6 +609,30 @@ router.post('/add_account_details', async (req, res) => {
 
 			// Adjust for display
 			const displayWithdraw = (txtTrans === '2') ? -amountNumber : amountNumber;
+
+			const cashConfig = {
+				'1': { category: 'Account Deposit', type: 1 },
+				'2': { category: 'Account Withdraw', type: 2 },
+				'3': { category: 'Account Credit', type: 2 }
+			}[txtTrans];
+
+			if (cashConfig) {
+				const cashTransactionQuery = `
+					INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+				`;
+
+				await pool.execute(cashTransactionQuery, [
+					insertResult.insertId,
+					agentId,
+					amountNumber.toString(),
+					cashConfig.category,
+					cashConfig.type,
+					txtRemarks || null,
+					req.session.user_id,
+					date_now
+				]);
+			}
 
 			if (telegramIdResults.length > 0 && guestAccountNumResults.length > 0 && guestNameResults.length > 0) {
 				const telegramId = telegramIdResults[0].TELEGRAM_ID;

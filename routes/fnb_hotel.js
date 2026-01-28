@@ -64,11 +64,50 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 		const encodedBy = req.session?.user_id || null;
 		const now = new Date();
 
-		await pool.execute(
+		const [insertResult] = await pool.execute(
 			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, ACTIVE, ENCODED_BY, ENCODED_DT)
 			 VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
 			[resolvedGameId || null, svc, amt, remarks || '', parsedTransactionId, !Number.isNaN(parsedAgentId) ? parsedAgentId : null, encodedBy, now]
 		);
+
+		if (parsedTransactionId === 1) {
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+
+			const insertCashRows = [];
+			[1, 2].forEach(type => {
+				insertCashRows.push(pool.execute(cashTransactionQuery, [
+					insertResult.insertId,
+					!Number.isNaN(parsedAgentId) ? parsedAgentId : null,
+					amt.toString(),
+					svc,
+					type,
+					remarks || '',
+					encodedBy,
+					now
+				]));
+			});
+
+			await Promise.all(insertCashRows);
+		} else if (parsedTransactionId === 2) {
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+
+			await pool.execute(cashTransactionQuery, [
+				insertResult.insertId,
+				!Number.isNaN(parsedAgentId) ? parsedAgentId : null,
+				amt.toString(),
+				svc,
+				2,
+				remarks || '',
+				encodedBy,
+				now
+			]);
+		}
 
 		if (parsedTransactionId === 2) {
 			await pool.execute(
