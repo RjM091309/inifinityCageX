@@ -10,6 +10,19 @@
 		const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 		return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 	};
+
+	const paymentLabel = (transactionId) => {
+		switch (transactionId) {
+			case 1:
+				return 'Cash';
+			case 2:
+				return 'Deposit';
+			case 3:
+				return 'Commission';
+			default:
+				return '-';
+		}
+	};
 %>
 
 <div class="container-fluid content-inner mt-4">
@@ -34,33 +47,37 @@
 							<div class="table-responsive">
 								<table class="table table-striped align-middle text-center">
 									<thead class="table-secondary">
-										<tr>
-											<th>Source</th>
-											<th>Agent</th>
-											<th>Game ID</th>
-											<th>Service Type</th>
-											<th>Amount</th>
-											<th>Remarks</th>
-											<th>Encoded By</th>
-											<th>Date</th>
-										</tr>
+											<tr>
+												<th>Source</th>
+												<th>Agent</th>
+												<th>Game ID</th>
+												<th>Service Type</th>
+												<th>Amount</th>
+												<th>Payment</th>
+												<th>Remarks</th>
+												<th>Encoded By</th>
+												<th>Date</th>
+											</tr>
 									</thead>
 									<tbody>
 										<% if (gameServices && gameServices.length) { %>
 											<% gameServices.forEach(service => { %>
+												<%
+												const amt = Number(service.AMOUNT) || 0;
+												const hasDecimals = amt % 1 !== 0;
+												const formattedAmt = hasDecimals
+													? amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+													: amt.toLocaleString('en-US');
+												const isJunketSource = service.SOURCE_TYPE === 'JUNKET';
+												const displayAmt = `${isJunketSource ? '-' : ''}${formattedAmt}`;
+												%>
 												<tr>
 													<td><%= service.SOURCE_TYPE || '-' %></td>
 													<td><%= service.SOURCE_TYPE === 'JUNKET' ? '-' : (service.agent_name || 'Unknown') %></td>
 													<td><%= service.GAME_ID ? service.GAME_ID : '-' %></td>
 													<td><%= service.SERVICE_TYPE %></td>
-													<%
-													const amt = Number(service.AMOUNT) || 0;
-													const hasDecimals = amt % 1 !== 0;
-													const formattedAmt = hasDecimals
-														? amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-														: amt.toLocaleString('en-US');
-													%>
-													<td><%= formattedAmt %></td>
+													<td class="<%= isJunketSource ? 'text-danger' : '' %>"><%= displayAmt %></td>
+													<td><%= paymentLabel(service.TRANSACTION_ID) %></td>
 													<td><%= service.REMARKS || '-' %></td>
 													<td><%= service.encoded_by_name || '-' %></td>
 													<td><%= formatDate(service.ENCODED_DT) %></td>
@@ -68,7 +85,7 @@
 											<% }) %>
 										<% } else { %>
 											<tr>
-												<td colspan="8" class="text-center text-muted">No game services recorded yet.</td>
+												<td colspan="9" class="text-center text-muted">No game services recorded yet.</td>
 											</tr>
 										<% } %>
 									</tbody>
