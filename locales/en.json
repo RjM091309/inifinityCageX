@@ -260,7 +260,8 @@
 		"next": "Next",
 		"cash": "Cash",
 		"deposit": "Deposit",
-		"marker": "Credit"
+		"marker": "Credit",
+		"select_day": "gamelist.select_day"
 	},
 	"house_expense": {
 		"junket": "Junket",

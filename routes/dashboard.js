@@ -1785,38 +1785,5 @@ if (range === 'week') {
 	}
 });
 
-	router.get("/fnb-hotel", checkSession, async function (req, res) {
-	const permissions = req.session.permissions;
-
-	try {
-		const [gameServices] = await pool.query(`
-			SELECT 
-				gs.IDNo,
-				agent.NAME AS agent_name,
-				gs.GAME_ID,
-				gs.SERVICE_TYPE,
-				gs.SOURCE_TYPE,
-				gs.AMOUNT,
-				gs.REMARKS,
-				gs.ENCODED_BY,
-				user_info.FIRSTNAME AS encoded_by_name,
-				gs.ENCODED_DT
-			FROM game_services gs
-			LEFT JOIN agent ON agent.IDNo = gs.AGENT_ID
-			LEFT JOIN user_info ON user_info.IDNo = gs.ENCODED_BY
-			WHERE gs.ACTIVE = 1
-			ORDER BY gs.ENCODED_DT DESC
-		`);
-
-		res.render("junket/fnb_hotel", {
-			...sessions(req, 'fnb-hotel'),
-			permissions: permissions,
-			gameServices: gameServices
-		});
-	} catch (err) {
-		console.error("Error loading F&B / Hotel data:", err);
-		res.status(500).send("Internal Server Error");
-	}
-});
 
 module.exports = router;
