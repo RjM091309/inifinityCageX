@@ -94,11 +94,10 @@
 													<td><%= formatDate(service.ENCODED_DT) %></td>
 												</tr>
 											<% }) %>
-										<% } else { %>
-											<tr>
-												<td colspan="9" class="text-center text-muted">No game services recorded yet.</td>
-											</tr>
 										<% } %>
+										<tr class="no-data-row text-center text-muted <%= (gameServices && gameServices.length) ? '' : 'visible' %>">
+											<td colspan="9">No data available.</td>
+										</tr>
 									</tbody>
 								</table>
 							</div>
@@ -130,17 +129,34 @@
     background: var(--bs-primary);
     color: #fff;
 }
+.no-data-row {
+    display: none;
+}
+.no-data-row.visible {
+    display: table-row;
+}
 </style>
 <script>
 	document.addEventListener('DOMContentLoaded', () => {
 		const filterLinks = document.querySelectorAll('#fnb-hotel-filter .filter-link');
 		const tableBodyRows = document.querySelectorAll('#fnb-hotel-table tbody tr[data-service-type]');
+		const noDataRow = document.querySelector('#fnb-hotel-table .no-data-row');
 
 		const updateFilter = (filter) => {
+			let hasVisibleRows = false;
 			tableBodyRows.forEach((row) => {
 				const rowType = row.dataset.serviceType?.toLowerCase() || '';
-				row.style.display = filter === 'all' || rowType === filter ? '' : 'none';
+				const shouldShow = filter === 'all' || rowType === filter;
+				row.style.display = shouldShow ? '' : 'none';
+				if (shouldShow) {
+					hasVisibleRows = true;
+				}
 			});
+
+			if (noDataRow) {
+				const noDataVisible = !hasVisibleRows;
+				noDataRow.classList.toggle('visible', noDataVisible);
+			}
 		};
 
 		filterLinks.forEach((link) => {
@@ -153,6 +169,8 @@
 				updateFilter(selectedFilter);
 			});
 		});
+
+		updateFilter('all');
 	});
 </script>
 <%- include('../partials/footer') %>
