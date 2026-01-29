@@ -250,6 +250,37 @@
     border-left: 4px solid #8a734c !important;
 }
 
+.stat-card-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.card-net-junket-money .stat-card-icon {
+    background: #5f6a75;
+}
+
+.card-net-junket-cash .stat-card-icon {
+    background: #8a734c;
+}
+
+.stat-card-icon-img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+opacity: 0.95;
+   
+}
+
+.card-net-junket-money .stat-card-icon-img {
+    filter: brightness(0) invert(1);
+}
+
+.card-net-junket-cash .stat-card-icon-img {
+    filter: brightness(0) invert(1);
+}
+
 /* Dashboard guest balance buttons (match card border colors) */
 .btn-guest-balance {
     background: #46627f !important;

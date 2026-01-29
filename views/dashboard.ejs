@@ -981,29 +981,28 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                        </h6>
                                        <h4 class="counter ">₱ <%- netJunketMoney.toLocaleString() %></h4>
                                     </div>
-                                    <span class="plus-spacing d-flex align-items-center justify-content-center">
-                                       <a href="#" class="btn btn-sm btn-net-junket-money" data-bs-toggle="modal"
-                                          data-bs-target=#>
-                                          <%= __('dashboard.details') %>
-                                       </a>
-                                    </span>
-                                 </div>
-                              </div>
-
-                              <div class="card card-net-junket-cash" data-aos="fade-up" data-aos-delay="900">
-                                 <div class="card-body d-flex align-items-center justify-content-between">
                                     <div class="text-start">
                                        <h6 class="mb-2 ">
                                           <%= __('dashboard.net_junket_cash') %>
                                        </h6>
                                        <h4 class="counter ">₱ <%- netJunketCash.toLocaleString() %></h4>
                                     </div>
-                                    <span class="plus-spacing d-flex align-items-center justify-content-center">
-                                       <a href="#" class="btn btn-sm btn-net-junket-cash" data-bs-toggle="modal"
-                                          data-bs-target=#>
-                                          <%= __('dashboard.details') %>
+                                 </div>
+                              </div>
+
+                              <div class="card " data-aos="fade-up" data-aos-delay="900">
+                                 <div class="card-body d-flex align-items-center justify-content-between">
+                                    <div class="d-flex gap-2 w-100">
+                                       <a href="/agent" target="_blank" class="btn btn-sm btn-guest-balance flex-fill text-center">
+                                          Guest
                                        </a>
-                                    </span>
+                                       <a href="#" class="btn btn-sm btn-net-junket-money flex-fill text-center" data-bs-toggle="modal" data-bs-target="#modal-services-new-record">
+                                          Service
+                                       </a>
+                                       <a href="#" class="btn btn-sm btn-net-junket-cash flex-fill text-center">
+                                          Settle
+                                       </a>
+                                    </div>
                                  </div>
                               </div>
                            </div>
@@ -1275,7 +1274,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                              <%- include ('modals/dashboard/ccchips') %>
                                              <%- include('modals/accounts/account_details_alt') %>
                                              <%- include('modals/dashboard/cash_balance_history') %>
-
+                                             <%- include ('modals/junket/new_service_record') %>
 
 
 
