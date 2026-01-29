@@ -34,6 +34,48 @@
     pointer-events: none;
 }
 
+.css-online {
+    max-width: 100%;
+    font-family: Inter, sans-serif;
+    font-size: 0.75rem; /* Slightly smaller font */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px; /* Reduced height for a badge-like appearance */
+    cursor: unset;
+    vertical-align: middle;
+    box-sizing: border-box;
+    padding: 2px 10px; /* Reduced padding for a thinner look */
+    color: #2e7d32; /* Green text */
+    background-color: rgba(46, 125, 50, 0.12); /* Light green background */
+    white-space: nowrap;
+    transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    outline: 0px;
+    text-decoration: none;
+    border-radius: 999px; /* Make it oblong */
+}
+.css-offline {
+    max-width: 100%;
+    font-family: Inter, sans-serif;
+    font-size: 0.75rem; /* Slightly smaller font */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px; /* Reduced height for a badge-like appearance */
+    cursor: unset;
+    vertical-align: middle;
+    box-sizing: border-box;
+    padding: 2px 10px; /* Reduced padding for a thinner look */
+    color: #757575; /* Gray text */
+    background-color: rgba(117, 117, 117, 0.12); /* Light gray background */
+    white-space: nowrap;
+    transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    outline: 0px;
+    text-decoration: none;
+    border-radius: 999px; /* Make it oblong */
+}
+
+
 .css-red {
     max-width: 100%;
     font-family: Inter, sans-serif;

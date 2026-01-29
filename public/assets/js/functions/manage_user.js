@@ -29,13 +29,12 @@ $(document).ready(function () {
 				dataTable.clear();
 				data.forEach(function (row) {
 
+					// ONLINE / OFFLINE based on USER_STATUS (1 = online, 0 = offline)
 					var status = '';
-					var activeText = window.manageUsersTranslations?.active || 'ACTIVE';
-					var inactiveText = window.manageUsersTranslations?.inactive || 'INACTIVE';
-					if (row.ACTIVE.data[0] == 1) {
-						status = '<span class="css-blue">' + activeText + '</span>';
+					if (row.USER_STATUS === 1 || row.USER_STATUS === '1') {
+						status = '<span class="css-online">ONLINE</span>';
 					} else {
-						status = '<span class="css-red">' + inactiveText + '</span>';
+						status = '<span class="css-offline">OFFLINE</span>';
 					}
 
 					var btn = `<div class="btn-group">
