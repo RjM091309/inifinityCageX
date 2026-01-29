@@ -262,7 +262,8 @@
 		"next": "下一页",
 		"cash": "现金",
 		"deposit": "存款",
-		"marker": "信用"
+		"marker": "信用",
+		"select_day": "gamelist.select_day"
 	},
 	"house_expense": {
 		"junket": "接待",
