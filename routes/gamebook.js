@@ -407,6 +407,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 		}
 
 		const updatedBy = req.session?.user_id || null;
+		const encodedBy = updatedBy;
 		const now = new Date();
 
 		await pool.execute(

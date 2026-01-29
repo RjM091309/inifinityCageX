@@ -1457,6 +1457,45 @@ $('#edit_status').submit(function (event) {
 		return;
 	}
 
+	// Prevent settlement issues when awaiting END GAME
+	if (status == '1') {
+		const $modal = $('#modal-change_status');
+		const servicesValueRaw = $modal.data('servicesValue');
+		const settlementValueRaw = $modal.data('settlementValue');
+
+		if (servicesValueRaw === null) {
+			Swal.fire({
+				icon: 'info',
+				title: 'Please wait',
+				text: 'Service totals are still loading. Please try again in a moment.',
+				confirmButtonText: 'OK',
+				allowOutsideClick: false,
+				allowEscapeKey: false
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		const servicesValue = parseFloat(servicesValueRaw) || 0;
+		const settlementValue = parseFloat(settlementValueRaw) || 0;
+
+		if (servicesValue > settlementValue) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid!',
+				text: 'Service exceeds the commission. Please select Cash or Deposit.',
+				confirmButtonText: 'OK',
+				allowOutsideClick: false,
+				allowEscapeKey: false,
+				customClass: {
+					confirmButton: 'custom-ok-btn'
+				}
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+	}
+
 	// Validation for roller chips return when END GAME
 	if (status == '1') { // END GAME
 		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
@@ -2449,6 +2488,12 @@ function checkPermissionToDeleteHistory(id) {
 function changeStatus(id, net, account, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, currentStatus) {
 	$('#modal-change_status').modal('show');
 
+	// Store settlement preview data for validation
+	const $changeStatusModal = $('#modal-change_status');
+	$changeStatusModal.data('settlementValue', net);
+	$changeStatusModal.data('servicesValue', null); // reset while loading
+	loadServiceTotalForStatusModal(id);
+
 	$('.txtGameId').val(id);
 	$('.txtAccountCode').val(account);
 	$('.txtCapital').val(total_amount);
@@ -2537,6 +2582,34 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 		},
 		error: function (xhr, status, error) {
 			console.error('Error fetching game records:', error);
+		}
+	});
+}
+
+function loadServiceTotalForStatusModal(gameId) {
+	const $modal = $('#modal-change_status');
+	if (!$modal.length) return;
+
+	$modal.data('servicesValue', null);
+	$.ajax({
+		url: `/game_services/${gameId}`,
+		method: 'GET',
+		success: function (list) {
+			const totalServices = Array.isArray(list)
+				? list.reduce((sum, item) => {
+					const transactionId = parseInt(item.TRANSACTION_ID || item.transaction_id || 0, 10);
+					if (transactionId !== 3) {
+						return sum;
+					}
+					const amt = parseFloat(item.AMOUNT || item.amount || 0);
+					return sum + (isNaN(amt) ? 0 : amt);
+				}, 0)
+				: 0;
+
+			$modal.data('servicesValue', totalServices);
+		},
+		error: function () {
+			$modal.data('servicesValue', 0);
 		}
 	});
 }
