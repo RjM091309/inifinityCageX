@@ -972,25 +972,29 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     </span>
                                  </div>
                               </div>
-
-                              <div class="card card-net-junket-money" data-aos="fade-up" data-aos-delay="700">
-                                 <div class="card-body d-flex align-items-center justify-content-between">
-                                    <div class="text-start">
-                                       <h6 class="mb-2 ">
-                                          <%= __('dashboard.net_junket_money') %>
-                                       </h6>
-                                       <h4 class="counter ">₱ <%- netJunketMoney.toLocaleString() %></h4>
+                              <div class="d-flex gap-2">
+                                 <div class="card card-net-junket-money flex-fill" data-aos="fade-up" data-aos-delay="700">
+                                    <div class="card-body d-flex align-items-center justify-content-between">
+                                       <div class="text-start">
+                                          <h6 class="mb-2 ">
+                                             <%= __('dashboard.net_junket_money') %>
+                                          </h6>
+                                          <h4 class="counter ">₱ <%- netJunketMoney.toLocaleString() %></h4>
+                                       </div>
                                     </div>
-                                    <div class="text-start">
-                                       <h6 class="mb-2 ">
-                                          <%= __('dashboard.net_junket_cash') %>
-                                       </h6>
-                                       <h4 class="counter ">₱ <%- netJunketCash.toLocaleString() %></h4>
+                                 </div>
+                                 <div class="card card-net-junket-cash flex-fill" data-aos="fade-up" data-aos-delay="700">
+                                    <div class="card-body d-flex align-items-center justify-content-between">
+                                       <div class="text-start">
+                                          <h6 class="mb-2 ">
+                                             <%= __('dashboard.net_junket_cash') %>
+                                          </h6>
+                                          <h4 class="counter ">₱ <%- netJunketCash.toLocaleString() %></h4>
+                                       </div>
                                     </div>
                                  </div>
                               </div>
-
-                              <div class="card " data-aos="fade-up" data-aos-delay="900">
+                              <div class="card" data-aos="fade-up" data-aos-delay="900">
                                  <div class="card-body d-flex align-items-center justify-content-between">
                                     <div class="d-flex gap-2 w-100">
                                        <a href="/agent" target="_blank" class="btn btn-sm btn-guest-balance flex-fill text-center">
