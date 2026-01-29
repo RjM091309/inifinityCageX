@@ -37,6 +37,16 @@
 							<a href="/fnb-hotel" class="active">Dashboard</a>
 						</div>
 					</h3>
+					<div class="row mb-2">
+						<div class="col-sm-12">
+							<div id="fnb-hotel-filter" class="filter-breadcrumb-services">
+								<a href="#" class="filter-link active" data-filter="all">All</a>
+								<a href="#" class="filter-link" data-filter="fnb">F&B</a>
+								<a href="#" class="filter-link" data-filter="hotel">Hotel</a>
+								<a href="#" class="filter-link" data-filter="delivery">Delivery</a>
+							</div>
+						</div>
+					</div>
 					<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-services-new-record">
 						<i class="fa fa-plus" aria-hidden="true"></i> New Record
 					</button>
@@ -44,8 +54,9 @@
 				<div class="card-body">
 					<div class="row mt-4">
 						<div class="col-12">
+							
 							<div class="table-responsive">
-								<table class="table table-striped align-middle text-center">
+								<table id="fnb-hotel-table" class="table table-striped align-middle text-center">
 									<thead class="table-secondary">
 											<tr>
 												<th>Source</th>
@@ -71,7 +82,7 @@
 												const isJunketSource = service.SOURCE_TYPE === 'JUNKET';
 												const displayAmt = `${isJunketSource ? '-' : ''}${formattedAmt}`;
 												%>
-												<tr>
+												<tr data-service-type="<%= service.SERVICE_TYPE %>">
 													<td><%= service.SOURCE_TYPE || '-' %></td>
 													<td><%= service.SOURCE_TYPE === 'JUNKET' ? '-' : (service.agent_name || 'Unknown') %></td>
 													<td><%= service.GAME_ID ? service.GAME_ID : '-' %></td>
@@ -99,6 +110,51 @@
 	</div>
 </div>
 
+<style>
+	.filter-breadcrumb-services {
+    margin-top: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.filter-breadcrumb-services .filter-link {
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--bs-primary);
+    color: var(--bs-primary);
+    text-decoration: none;
+    letter-spacing: 0.5px;
+    font-size: 0.85rem;
+}
+.filter-breadcrumb-services .filter-link.active {
+    background: var(--bs-primary);
+    color: #fff;
+}
+</style>
+<script>
+	document.addEventListener('DOMContentLoaded', () => {
+		const filterLinks = document.querySelectorAll('#fnb-hotel-filter .filter-link');
+		const tableBodyRows = document.querySelectorAll('#fnb-hotel-table tbody tr[data-service-type]');
+
+		const updateFilter = (filter) => {
+			tableBodyRows.forEach((row) => {
+				const rowType = row.dataset.serviceType?.toLowerCase() || '';
+				row.style.display = filter === 'all' || rowType === filter ? '' : 'none';
+			});
+		};
+
+		filterLinks.forEach((link) => {
+			link.addEventListener('click', (event) => {
+				event.preventDefault();
+				const selectedFilter = link.dataset.filter;
+				if (!selectedFilter) return;
+				filterLinks.forEach((otherLink) => otherLink.classList.remove('active'));
+				link.classList.add('active');
+				updateFilter(selectedFilter);
+			});
+		});
+	});
+</script>
 <%- include('../partials/footer') %>
 <%- include('../modals/junket/new_service_record') %>
 
