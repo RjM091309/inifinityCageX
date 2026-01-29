@@ -342,12 +342,8 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 			]);
 		};
 
-		if (transactionId === 1 || transactionId === 3) {
-			await insertCashEntry(1);
-			await insertCashEntry(2);
-		} else if (transactionId === 2) {
-			await insertCashEntry(2);
-		}
+		// Services from game_list modal always go to Cash-In (type 1), regardless of Cash/Deposit/Commission
+		await insertCashEntry(1);
 
 		if (transactionId === 2 && accountId) {
 			await pool.execute(
@@ -472,12 +468,8 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 			]);
 		};
 
-		if (transactionId === 1) {
-			await insertCashTransactions(1);
-			await insertCashTransactions(2);
-		} else if (transactionId === 2) {
-			await insertCashTransactions(2);
-		}
+		// Services from game_list modal always go to Cash-In (type 1), regardless of Cash/Deposit/Commission
+		await insertCashTransactions(1);
 
 		const [rows] = await pool.execute(
 			`SELECT 
