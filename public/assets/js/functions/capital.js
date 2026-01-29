@@ -468,7 +468,7 @@ function loadCashInData() {
                 const filterConfig = {
                     all: null,
                     capital: { categories: ['Capital In'], lower: false },
-                    gamemoney: { categories: ['Game buy-in', 'additional buy-in'], lower: false },
+                    gamemoney: { categories: ['Game buy-in', 'additional buy-in', 'Game buy-in - Deposit', 'Additional buy-in - Deposit'], lower: false },
                     account: { categories: ['Account Deposit', 'Commission Deposit'], lower: false },
                     services: { categories: ['fnb', 'hotel', 'delivery'], lower: true },
                     cashout: { categories: ['Chips Cash-out to Casino'], lower: false }
