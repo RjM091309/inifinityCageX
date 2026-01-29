@@ -6,19 +6,57 @@ const crypto = require('crypto');
 
 function isArgonHash(hash) {
     return typeof hash === 'string' && hash.startsWith('$argon2');
-  }
-  
-  // Fallback MD5 for legacy support
-  function generateMD5(input) {
+}
+
+// Fallback MD5 for legacy support
+function generateMD5(input) {
     return crypto.createHash('md5').update(input).digest('hex');
-  }
-// Middleware to check session
-const checkSession = (req, res, next) => {
-    if (!req.session || !req.session.username) {
-        res.redirect('/login');
-    } else {
-        next();
+}
+
+// Middleware to check session, enforce single-login, and update activity
+const checkSession = async (req, res, next) => {
+    if (!req.session || !req.session.username || !req.session.user_id) {
+        return res.redirect('/login');
     }
+
+    const userId = req.session.user_id;
+    const sessionToken = req.session.sessionToken;
+
+    try {
+        const [rows] = await pool.execute(
+            'SELECT SESSION_TOKEN FROM user_info WHERE IDNo = ? AND ACTIVE = 1',
+            [userId]
+        );
+
+        // User no longer exists or is inactive
+        if (!rows || rows.length === 0) {
+            req.session.destroy(() => {
+                res.redirect('/login');
+            });
+            return;
+        }
+
+        const currentToken = rows[0].SESSION_TOKEN;
+
+        // If there's a token in DB and it doesn't match this session -> kicked out by another login
+        if (currentToken && sessionToken && currentToken !== sessionToken) {
+            req.session.destroy(() => {
+                res.redirect('/login?kicked=1');
+            });
+            return;
+        }
+
+        // Still the valid session: keep user online and bump activity
+        await pool.execute(
+            'UPDATE user_info SET USER_STATUS = 1, LAST_ACTIVITY = NOW() WHERE IDNo = ?',
+            [userId]
+        );
+    } catch (err) {
+        console.error('Error checking/updating user activity status:', err);
+        // Continue anyway; don't block page render
+    }
+
+    next();
 };
 function sessions(req, page) {
 	return {
@@ -34,7 +72,9 @@ function sessions(req, page) {
 
 
 
-router.get(["/", "/login"], (req, res) => res.render("login"));
+router.get(["/", "/login"], (req, res) => {
+    res.render("login", { showKickedMessage: req.query.kicked === '1' });
+});
 
 router.get("/user_roles", checkSession, function (req, res) {
 	res.render("user_accounts/user_roles", sessions(req, 'user_roles'));
@@ -71,10 +111,31 @@ router.post('/login', async (req, res) => {
         }
   
         if (isValid) {
+          // If non-admin and already online, trigger confirmation on login page via Swal
+          if (user.PERMISSIONS !== 1 && user.USER_STATUS === 1) {
+            req.session.pending_login_user_id = user.IDNo;
+            req.session.pending_login_username = user.USERNAME;
+            req.flash('error', 'ACCOUNT_CONFLICT');
+            return res.redirect('/login');
+          }
+
           // Optional: auto-upgrade legacy MD5 password to Argon2
           if (isLegacy) {
             const newHash = await argon2.hash(password);
             await pool.execute(`UPDATE user_info SET PASSWORD = ?, SALT = NULL WHERE IDNo = ?`, [newHash, user.IDNo]);
+          }
+
+          // Generate a new session token for this login
+          const newSessionToken = crypto.randomBytes(32).toString('hex');
+
+          // Mark user as online, update timestamps, and store session token
+          try {
+            await pool.execute(
+              'UPDATE user_info SET USER_STATUS = 1, LAST_LOGIN = NOW(), LAST_ACTIVITY = NOW(), SESSION_TOKEN = ? WHERE IDNo = ?',
+              [newSessionToken, user.IDNo]
+            );
+          } catch (err) {
+            console.error('Error updating user status on login:', err);
           }
   
           req.session.username = username;
@@ -82,6 +143,7 @@ router.post('/login', async (req, res) => {
           req.session.lastname = user.LASTNAME;
           req.session.user_id = user.IDNo;
           req.session.permissions = user.PERMISSIONS;
+          req.session.sessionToken = newSessionToken;
   
           req.session.save(err => {
             if (err) {
@@ -104,6 +166,69 @@ router.post('/login', async (req, res) => {
       return res.redirect('/login');
     }
   });
+
+// Force login route (after confirmation)
+router.post('/login/force', async (req, res) => {
+  const pendingUserId = req.session.pending_login_user_id;
+
+  if (!pendingUserId) {
+    req.flash('error', 'Login confirmation expired. Please log in again.');
+    return res.redirect('/login');
+  }
+
+  try {
+    const [results] = await pool.execute(
+      'SELECT * FROM user_info WHERE IDNo = ? AND ACTIVE = 1',
+      [pendingUserId]
+    );
+
+    if (results.length === 0) {
+      req.flash('error', 'User not found or inactive.');
+      req.session.pending_login_user_id = null;
+      req.session.pending_login_username = null;
+      return res.redirect('/login');
+    }
+
+    const user = results[0];
+
+    // Generate a new session token for this forced login
+    const newSessionToken = crypto.randomBytes(32).toString('hex');
+
+    // Mark this user as online, update timestamps, and store new session token
+    try {
+      await pool.execute(
+        'UPDATE user_info SET USER_STATUS = 1, LAST_LOGIN = NOW(), LAST_ACTIVITY = NOW(), SESSION_TOKEN = ? WHERE IDNo = ?',
+        [newSessionToken, user.IDNo]
+      );
+    } catch (err) {
+      console.error('Error updating user status on force login:', err);
+    }
+
+    // Clear pending login info
+    req.session.pending_login_user_id = null;
+    req.session.pending_login_username = null;
+
+    // Create session
+    req.session.username = user.USERNAME;
+    req.session.firstname = user.FIRSTNAME;
+    req.session.lastname = user.LASTNAME;
+    req.session.user_id = user.IDNo;
+    req.session.permissions = user.PERMISSIONS;
+    req.session.sessionToken = newSessionToken;
+
+    req.session.save(err => {
+      if (err) {
+        req.flash('error', 'Session error, please try again.');
+        return res.redirect('/login');
+      }
+      return res.redirect('/dashboard');
+    });
+  } catch (error) {
+    console.error('Force login error:', error);
+    req.flash('error', 'Internal server error');
+    return res.redirect('/login');
+  }
+});
   
 // Verify Password route using async/await
 router.post('/verify-password', async (req, res) => {
@@ -152,9 +277,23 @@ router.post('/check-permission', (req, res) => {
 });
 
 // Logout route
-router.post('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/login');
+router.post('/logout', async (req, res) => {
+    const userId = req.session ? req.session.user_id : null;
+
+    try {
+        if (userId) {
+            await pool.execute(
+                'UPDATE user_info SET USER_STATUS = 0, LAST_ACTIVITY = NOW() WHERE IDNo = ?',
+                [userId]
+            );
+        }
+    } catch (err) {
+        console.error('Error updating user status on logout:', err);
+    } finally {
+        req.session.destroy(() => {
+            res.redirect('/login');
+        });
+    }
 });
 
 // Add user route

@@ -35,11 +35,52 @@
                 <h2 class="mb-2 text-center">Sign In</h2>
                 <p class="text-center">Login to stay connected.</p>
                 <!-- Login form with proper id and input fields -->
-                <% if (messages.error && messages.error.length > 0) { %>
+                <% 
+                  var hasError = messages.error && messages.error.length > 0;
+                  var errorMsg = hasError ? messages.error[0] : null;
+                %>
+                <% if (hasError && errorMsg !== 'ACCOUNT_CONFLICT' && errorMsg !== 'KICKED') { %>
                   <div class="alert alert-danger text-center mb-4 d-flex align-items-center justify-content-center gap-2" role="alert">
                     <i class="bi bi-exclamation-triangle-fill"></i>
-                    <span><%= messages.error[0] %></span>
+                    <span><%= errorMsg %></span>
                   </div>
+                <% } %>
+
+                <% if (hasError && errorMsg === 'ACCOUNT_CONFLICT') { %>
+                  <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                      if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                          title: 'Account already online',
+                          text: 'This account is already logged in on another device. Continuing will disconnect the other session.',
+                          icon: 'warning',
+                          showCancelButton: true,
+                          confirmButtonText: 'Continue and disconnect',
+                          cancelButtonText: 'Cancel'
+                        }).then((result) => {
+                          if (result.isConfirmed) {
+                            const form = document.getElementById('force-login-form');
+                            if (form) form.submit();
+                          }
+                        });
+                      }
+                    });
+                  </script>
+                <% } %>
+
+                <% if ((hasError && errorMsg === 'KICKED') || (typeof showKickedMessage !== 'undefined' && showKickedMessage)) { %>
+                  <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                      if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                          title: 'Session disconnected',
+                          text: 'Your account was logged in from another device. This session has been disconnected.',
+                          icon: 'info',
+                          confirmButtonText: 'OK'
+                        });
+                      }
+                    });
+                  </script>
                 <% } %>
                 
                 <form class="login100-form validate-form" id="login" action="/login" method="POST">
@@ -86,6 +127,8 @@
                   </div>
                   
                 </form>
+                <!-- Hidden form for force login (used by Swal confirmation) -->
+                <form id="force-login-form" action="/login/force" method="POST" style="display:none;"></form>
               </div>
             </div>
           </div>
@@ -122,4 +165,6 @@
   <script src="/assets/js/plugins/slider-tabs.js"></script>
   <script src="/assets/js/plugins/form-wizard.js"></script>
   <script src="/assets/vendor/aos/dist/aos.js"></script>
+  <!-- SweetAlert2 for login conflict confirmation -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="/assets/js/hope-ui.js" defer></script>

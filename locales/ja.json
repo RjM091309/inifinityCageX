@@ -260,7 +260,8 @@
 		"next": "次へ",
 		"cash": "キャッシュ",
 		"deposit": "デポジット",
-		"marker": "クレジット"
+		"marker": "クレジット",
+		"select_day": "gamelist.select_day"
 	},
 	"house_expense": {
 		"junket": "ジャンケット",

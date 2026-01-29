@@ -108,6 +108,31 @@
 										</tfoot>
 									</table>
 
+									<%
+										const now = new Date();
+										const currentYear = now.getFullYear();
+										const currentMonth = now.getMonth();
+										const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+										const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+										const pad = value => value.toString().padStart(2, '0');
+									%>
+									<div class="day-selector-wrapper mt-4">
+										<div class="day-selector-header mb-2">
+											<h6 class="mb-0 text-uppercase fw-semibold"><%= monthLabel %></h6>
+										</div>
+										<div class="d-flex flex-wrap gap-2 day-selector justify-content-center" aria-label="Month days">
+											<% for (let day = 1; day <= daysInMonth; day++) { %>
+												<button
+													type="button"
+													class="btn btn-outline-secondary day-selector-btn"
+													data-date="<%= `${currentYear}-${pad(currentMonth + 1)}-${pad(day)}` %>"
+												>
+													<%= pad(day) %>
+												</button>
+											<% } %>
+										</div>
+									</div>
+
 								</div>
 							</div>
 						</div>
@@ -115,8 +140,19 @@
 				</div>
 
 				<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-
+				<script>
+					document.addEventListener('DOMContentLoaded', () => {
+						const dayButtons = document.querySelectorAll('.day-selector-btn');
+						if (!dayButtons.length) return;
+						dayButtons[0].classList.add('active');
+						dayButtons.forEach(btn => {
+							btn.addEventListener('click', () => {
+								dayButtons.forEach(b => b.classList.remove('active'));
+								btn.classList.add('active');
+							});
+						});
+					});
+				</script>
 
 
 				<%- include ('../partials/footer'); -%>
@@ -386,6 +422,46 @@ table.dataTable tbody tr.highlight-row {
 						.input-daterange .form-control:last-child {
 							margin-right: 0;
 						}
+
+.day-selector-wrapper {
+	border-top: 1px solid rgba(33, 37, 41, 0.08);
+	padding-top: 1rem;
+	text-align: center;
+}
+
+.day-selector {
+	gap: 0.5rem;
+	justify-content: center;
+}
+
+.day-selector-header {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.day-selector-btn {
+	min-width: 36px;
+	padding: 0.32rem 0.45rem;
+	font-size: 0.78rem;
+	font-weight: 600;
+	border-radius: 6px;
+	border: 1px solid #dee2e6;
+	transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.day-selector-btn:hover {
+	background-color: #f1f5ff;
+	transform: translateY(-1px);
+	color: #0d6efd;
+}
+
+.day-selector-btn.active {
+	background-color: #0d6efd;
+	color: #fff;
+	border-color: #0d6efd;
+	box-shadow: 0 2px 6px rgba(13,110,253,0.25);
+}
 
 
 						.nav-tabs-custom .nav-link {

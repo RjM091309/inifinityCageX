@@ -262,7 +262,8 @@
 		"next": "다음",
 		"cash": "현금",
 		"deposit": "입금",
-		"marker": "크레딧"
+		"marker": "크레딧",
+		"select_day": "gamelist.select_day"
 	},
 	"house_expense": {
 		"junket": "정켓",
