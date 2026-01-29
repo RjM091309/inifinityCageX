@@ -380,6 +380,9 @@ $(document).ready(function () {
 	
 							var btn_settle = '';
 							var status = '';
+							var isSettled = row.SETTLED === 1;
+							var settledTooltip = window.gamelistTranslations?.settled || 'Game already settled';
+							var statusDateClass = 'status-date-link text-decoration-none';
 	
 							var buyin_td = '';
 							var rolling_td = '';
@@ -389,16 +392,29 @@ $(document).ready(function () {
 							if (row.game_status == 2) {
 								const onGameText = window.gamelistTranslations?.on_game || "ON GAME";
 								if (userPermissions === 11 || userPermissions === 1) { // If manager
-								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss})" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
-									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:8px !important;">${onGameText}</button>`;
+									if (isSettled) {
+										status = `<button type="button" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
+											data-bs-toggle="tooltip" aria-label="Status" data-bs-original-title="${settledTooltip}"
+											style="font-size:10px !important;" onclick="showSettledAlert(); return false;">${onGameText}</button>`;
+									} else {
+										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss})" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
+											data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:8px !important;">${onGameText}</button>`;
+									}
 								} else {
-									// Show SweetAlert for cashier or other users
-									status = `<button type="button" 
-												class="btn btn-sm btn-primary-subtle btn-on-game" 
-												style="font-size:8px !important;"
-												onclick="showSweetAlert()">
-											${onGameText}
-										</button>`;
+									if (isSettled) {
+										status = `<button type="button" class="btn btn-sm btn-primary-subtle btn-on-game"
+											style="font-size:10px !important;"
+											data-bs-toggle="tooltip" aria-label="Status" data-bs-original-title="${settledTooltip}"
+											onclick="showSettledAlert(); return false;">${onGameText}</button>`;
+									} else {
+										// Show SweetAlert for cashier or other users
+										status = `<button type="button" 
+													class="btn btn-sm btn-primary-subtle btn-on-game" 
+											style="font-size:8px !important;"
+													onclick="showSweetAlert()">
+												${onGameText}
+											</button>`;
+									}
 								}
 
 								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
@@ -473,10 +489,14 @@ $(document).ready(function () {
 								const pendingText = "PENDING";
 								if (userPermissions === 11 || userPermissions === 1) { // If manager
 									// PENDING STATUS EDITABLE - pass current status (3) so modal auto-selects END GAME
-									status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3)" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:8px !important;">${pendingText}</button>`;
+									if (isSettled) {
+										status = `<button type="button" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="${settledTooltip}" style="font-size:10px !important;" onclick="showSettledAlert(); return false;">${pendingText}</button>`;
+									} else {
+										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3)" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
+									}
 								} else {
 									// PENDING STATUS NOT EDITABLE
-									status = `<button type="button" class="btn btn-sm btn-warning-subtle" style="font-size:8px !important;" onclick="showEndGameAlert()">${pendingText}</button>`;
+									status = `<button type="button" class="btn btn-sm btn-warning-subtle" style="font-size:10px !important;" onclick="showEndGameAlert()">${pendingText}</button>`;
 								}
 								
 								buyin_td = parseFloat(total_amount).toLocaleString();
@@ -538,8 +558,12 @@ $(document).ready(function () {
 								// END GAME STATUS (status = 1)
 								if (userPermissions === 11 || userPermissions === 1) { // If manager
 									// END GAME STATUS EDITABLE(ON GAME & END GAME)
-								status = `<a href="#" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss})">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
-	
+									if (isSettled) {
+										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" aria-label="Status" data-bs-toggle="tooltip" data-bs-original-title="${settledTooltip}" onclick="showSettledAlert(); return false;">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
+									} else {
+										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss})">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
+									}
+
 								} else {
 									
 								// //END GAME STATUS NOT EDITABLE
@@ -2411,6 +2435,16 @@ function checkPermissionToDeleteHistory(id) {
 		});
 	}
 
+	function showSettledAlert() {
+		Swal.fire({
+			title: 'Game Settled',
+			text: 'Cannot change status because this game is already settled.',
+			icon: 'error',
+			confirmButtonText: 'OK',
+			confirmButtonColor: '#6f9c40'
+		});
+	}
+
 
 function changeStatus(id, net, account, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, currentStatus) {
 	$('#modal-change_status').modal('show');
@@ -3268,7 +3302,7 @@ $(document).ready(function () {
 							if (row.game_status == 2) {
 								const onGameText = window.gamelistTranslations?.on_game || "ON GAME";
 								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss})" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
-									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:8px !important;">${onGameText}</button>`;
+									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:10px !important;">${onGameText}</button>`;
 
 								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
@@ -3278,7 +3312,7 @@ $(document).ready(function () {
 							} else if (row.game_status == 3) {
 								// PENDING STATUS (discrepancy in roller chips return)
 								const pendingText = "PENDING";
-								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3)" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:8px !important;">${pendingText}</button>`;
+								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3)" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
 								
 								buyin_td = parseFloat(total_amount).toLocaleString();
 								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
@@ -3485,6 +3519,26 @@ function settlement_history(record_id, acc_id) {
 
     // Initialize flag for settlement processing
     var isSettled = false;
+    var fbEditUnlocked = false;
+
+    function parseCurrency(value) {
+        if (value === undefined || value === null) return 0;
+        return parseFloat(String(value).replace(/,/g, '')) || 0;
+    }
+
+    function evaluateFbEditability() {
+        if (fbEditUnlocked) {
+            return;
+        }
+        const fbValue = parseCurrency($('#fb').val());
+        const settlementValue = parseCurrency($('#rollingSettlement').val());
+
+        if (settlementValue >= 0 && fbValue > settlementValue) {
+            fbEditUnlocked = true;
+            $('#fb').prop('readonly', false);
+            $('#fb').attr('title', 'Services exceeded settlement; you can adjust the value.');
+        }
+    }
 
     // Fetch services total and populate FB
     function loadServicesTotal() {
@@ -3505,6 +3559,7 @@ function settlement_history(record_id, acc_id) {
                 $('#fb').val(total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
                 // trigger recalculation of payment
                 $('#fb').trigger('input');
+                evaluateFbEditability();
             },
             error: function () {
                 // fallback to 0
@@ -3721,6 +3776,7 @@ function settlement_history(record_id, acc_id) {
                     let updatedRollingRate = parseFloat($('#rollingRate').val()) || 0;
                     let updatedRollingSettlement = total_rolling_chips * (updatedRollingRate / 100);
                     $('#rollingSettlement').val(updatedRollingSettlement.toLocaleString());
+                    evaluateFbEditability();
                 }
 
                 // After handlers are ready, load services total into FB
@@ -3792,6 +3848,23 @@ function settlement_history(record_id, acc_id) {
         var transTypeText = '';
         if (transType == '2') transTypeText = 'Deposit';
         else if (transType == '1') transTypeText = 'Cash Out';
+        var servicesValue = parseFloat(services) || 0;
+        var settlementValue = parseFloat(rollingSettlement) || 0;
+
+        if (servicesValue > settlementValue) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid!',
+                text: 'Services cannot exceed the computed settlement/commission amount.',
+                confirmButtonText: 'OK',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                customClass: {
+                    confirmButton: 'custom-ok-btn'
+                }
+            });
+            return;
+        }
         
         // Build confirmation table-style message
         var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';

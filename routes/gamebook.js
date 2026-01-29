@@ -318,9 +318,9 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 		const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
 
 		const [insertResult] = await pool.execute(
-			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, ACTIVE, ENCODED_BY, ENCODED_DT)
-			 VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-			[gameId, svc, amt, remarks || '', transactionId, agentId, encodedBy, now]
+			`INSERT INTO game_services (GAME_ID, SERVICE_TYPE, AMOUNT, REMARKS, TRANSACTION_ID, AGENT_ID, ACTIVE, ENCODED_BY, ENCODED_DT, SOURCE_TYPE)
+			 VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+			[gameId, svc, amt, remarks || '', transactionId, agentId, encodedBy, now, 'GUEST']
 		);
 
 
@@ -1068,7 +1068,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			await pool.execute(cashTransactionQuery, [
 				game_id,
 				agentResults[0].agent_id,
-				(totalAmount).toString(),
+				totalAmount.toString(),
 				'Additional buy-in',
 				1,
 				`Game - ${game_id}`,

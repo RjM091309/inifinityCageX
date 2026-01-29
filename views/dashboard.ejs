@@ -801,14 +801,14 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                       <!-- (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) + -->
                                        (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
                                        (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
-                                       (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
-                                       (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) +
+                                       (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
                                        (+sqlAccountMarkerReturn[0].MARKER_RETURN || 0) -
                                        (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
                                        (+sqlNNChipsBuyinCashOnly[0].NN_CHIPS_BUYIN_CASH_ONLY || 0) +
                                        (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) -
-                                       (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0)  +
-                                       (+sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT || 0) - (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
+                                       (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0)  
+                                       - (+sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT || 0) 
+                                       - (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
                                        (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
                                        (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
                                        (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) - (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) - (+sqlCCChipsAccountCash[0].TOTAL_CC_CASH || 0) -
@@ -914,7 +914,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                           <p class="mb-0">
                                             <%= __('dashboard.cash_out') %>
                                           </p>
-                                          <h6><%- ( (+sqlTotalChipsBuyin[0].TotalChipsBuyin || 0) + (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) + (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) + (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) + (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) + (+sqlSettlementCashOutAmount[0].SETTLEMENT_CASHOUT || 0) +  (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) + (+sqlServiceCashJunket[0].TOTAL || 0) + (+sqlServiceDepositJunket[0].TOTAL || 0) + (+sqlServiceCommission[0].TOTAL || 0) ).toLocaleString() %></h6>
+                                          <h6><%- ( (+sqlTotalChipsBuyin[0].TotalChipsBuyin || 0) + (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) + (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) + (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) + (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) + (+sqlSettlementCashOutAmount[0].SETTLEMENT_CASHOUT || 0) +  (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) + (+sqlServiceCashJunket[0].TOTAL || 0) + (+sqlServiceDepositJunket[0].TOTAL || 0) + (+sqlServiceCommission[0].TOTAL || 0) + (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) ).toLocaleString() %></h6>
                                        </div>
                                        <div class="progress bg-warning-subtle shadow-none w-100 mb-1"
                                           style="height: 10px">
