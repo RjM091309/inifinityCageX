@@ -17,20 +17,27 @@
 										<a href="/game_list" class="active"><%= __('gamelist.game_book') %></a>
 										<a href="#"  onclick="addGameList()"><span class="fa fa-plus me-2"></span><%= __('gamelist.new_game') %></a>
 									  </div>								 
+									</div>
+									<div class="mb-2 mb-md-0">
+										<button type="button" id="btn-daily-settle" class="btn btn-sm btn-primary">
+											<%= __('gamelist.settle') || 'Settle' %>
+										</button>
 									</div>								  
 									<!-- DATE FILTER -->																
 								</div>
 
-								<div class="dataTables_wrapper">
-									<div class="row mb-2">
-										<div class="col-sm-4">
-											<input type="text" id="daterange" class="input-daterange input-group" placeholder="Select Date Range" autocomplete="off"/>
+								<div class="card-body">
+									<%
+										const now = new Date();
+										const pad = value => value.toString().padStart(2, '0');
+										const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+										const maxSettlementDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr;
+									%>
+									<div class="day-selector-wrapper mb-3" data-today="<%= todayStr %>" data-default-settlement-date="<%= maxSettlementDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
+										<div class="d-flex flex-wrap align-items-center gap-2">
+											<input type="text" id="settlement-date-picker" class="form-control form-control-sm" style="max-width: 160px;" placeholder="YYYY-MM-DD" value="<%= maxSettlementDate %>" readonly />
 										</div>
 									</div>
-								</div>
-
-								<div class="card-body">
-							
 									<table id="game_list-tbl" class="table  nowrap small-text" style="width:100%">
 
 										<thead>
@@ -108,31 +115,6 @@
 										</tfoot>
 									</table>
 
-									<%
-										const now = new Date();
-										const currentYear = now.getFullYear();
-										const currentMonth = now.getMonth();
-										const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-										const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-										const pad = value => value.toString().padStart(2, '0');
-									%>
-									<div class="day-selector-wrapper mt-4">
-										<div class="day-selector-header mb-2">
-											<h6 class="mb-0 text-uppercase fw-semibold"><%= monthLabel %></h6>
-										</div>
-										<div class="d-flex flex-wrap gap-2 day-selector justify-content-center" aria-label="Month days">
-											<% for (let day = 1; day <= daysInMonth; day++) { %>
-												<button
-													type="button"
-													class="btn btn-outline-secondary day-selector-btn"
-													data-date="<%= `${currentYear}-${pad(currentMonth + 1)}-${pad(day)}` %>"
-												>
-													<%= pad(day) %>
-												</button>
-											<% } %>
-										</div>
-									</div>
-
 								</div>
 							</div>
 						</div>
@@ -142,15 +124,26 @@
 				<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 				<script>
 					document.addEventListener('DOMContentLoaded', () => {
-						const dayButtons = document.querySelectorAll('.day-selector-btn');
-						if (!dayButtons.length) return;
-						dayButtons[0].classList.add('active');
-						dayButtons.forEach(btn => {
-							btn.addEventListener('click', () => {
-								dayButtons.forEach(b => b.classList.remove('active'));
-								btn.classList.add('active');
+						const wrapper = document.querySelector('.day-selector-wrapper');
+						const todayStr = wrapper ? wrapper.getAttribute('data-today') : '';
+						const defaultDate = wrapper ? wrapper.getAttribute('data-default-settlement-date') : '';
+						window.selectedSettlementDate = defaultDate || todayStr || '';
+						const pickerEl = document.getElementById('settlement-date-picker');
+						if (pickerEl && typeof flatpickr !== 'undefined') {
+							flatpickr(pickerEl, {
+								dateFormat: 'Y-m-d',
+								altInput: true,
+								altFormat: 'F d, Y',
+								defaultDate: defaultDate || todayStr,
+								maxDate: defaultDate || todayStr,
+								allowInput: false,
+								onChange: function (selectedDates, dateStr) {
+									window.selectedSettlementDate = dateStr || '';
+									if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
+									if (typeof window.reloadGameListBySettlementDate === 'function') window.reloadGameListBySettlementDate();
+								}
 							});
-						});
+						}
 					});
 				</script>
 
@@ -400,29 +393,6 @@ table.dataTable tbody tr.highlight-row {
 							/* Adjust spacing as needed */
 						}
 
-						/* Flexbox layout for the date range picker */
-						.input-daterange {
-							display: flex;
-							justify-content: space-between;
-							position: relative;
-
-							top: 2.9rem;
-							max-width: 300px;
-							/* Limit the width */
-						}
-
-						/* Styling for form controls */
-						.input-daterange .form-control {
-							flex: 1;
-							max-width: 120px;
-							/* Limit the input width */
-						}
-
-						/* Remove margin from the last input */
-						.input-daterange .form-control:last-child {
-							margin-right: 0;
-						}
-
 .day-selector-wrapper {
 	border-top: 1px solid rgba(33, 37, 41, 0.08);
 	padding-top: 1rem;
@@ -461,6 +431,14 @@ table.dataTable tbody tr.highlight-row {
 	color: #fff;
 	border-color: #0d6efd;
 	box-shadow: 0 2px 6px rgba(13,110,253,0.25);
+}
+
+.day-selector-btn.disabled,
+.day-selector-btn.day-selector-btn-disabled,
+.day-selector-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	pointer-events: none;
 }
 
 
@@ -544,50 +522,6 @@ table.dataTable tbody tr.highlight-row {
 							margin-bottom: 15px;
 							font-size: 12px;
 							/* Pareho sa commission-tbl */
-						}
-
-						/* Flexbox layout for the date range picker */
-						.input-daterange {
-							display: flex;
-							justify-content: space-between;
-							position: relative;
-							left: 7.5rem;
-							top: 4rem;
-							max-width: 300px;
-							font-size: 12px;
-							/* Pareho sa commission-tbl */
-						}
-
-						/* Styling for form controls */
-						.input-daterange .form-control {
-							flex: 1;
-							margin-right: 5px;
-							max-width: 120px;
-							font-size: 12px;
-							/* Pareho sa commission-tbl */
-							padding: 8px;
-							/* Pareho sa cell padding ng table */
-						}
-
-						/* Remove margin from the last input */
-						.input-daterange .form-control:last-child {
-							margin-right: 0;
-						}
-
-						/* Responsive tweaks */
-						@media (max-width: 768px) {
-
-							.dataTables_wrapper .row,
-							.input-daterange,
-							.input-daterange .form-control {
-								font-size: 10px;
-								/* Mas maliit sa mobile */
-							}
-
-							.input-daterange .form-control {
-								padding: 5px;
-								/* Mas maliit na padding */
-							}
 						}
 
 						/* Make breadcrumbs + buttons layout clean on small screens */

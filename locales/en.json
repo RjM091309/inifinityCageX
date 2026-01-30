@@ -261,7 +261,19 @@
 		"cash": "Cash",
 		"deposit": "Deposit",
 		"marker": "Credit",
-		"select_day": "gamelist.select_day"
+		"select_day": "gamelist.select_day",
+		"select_date": "Select date",
+		"settle": "Settle",
+		"settle_btn_settled": "Settled",
+		"current": "Current",
+		"day_now": "Day Now",
+		"day_now_unsettled": "Day Now (unsettled games)",
+		"current_unsettled": "Current (unsettled games)",
+		"settle_confirm": "Settle all unsettled games for today? New games will go to the next day.",
+		"settle_confirm_date": "Settle all games for this date?",
+		"settle_success_title": "Settled",
+		"settle_success_text": "Settlement for {{date}} completed.",
+		"settled": "Game already settled"
 	},
 	"house_expense": {
 		"junket": "Junket",

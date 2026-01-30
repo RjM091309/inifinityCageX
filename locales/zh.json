@@ -263,7 +263,13 @@
 		"cash": "现金",
 		"deposit": "存款",
 		"marker": "信用",
-		"select_day": "gamelist.select_day"
+		"select_day": "gamelist.select_day",
+		"settle": "gamelist.settle",
+		"current_unsettled": "gamelist.current_unsettled",
+		"current": "gamelist.current",
+		"day_now_unsettled": "gamelist.day_now_unsettled",
+		"day_now": "gamelist.day_now",
+		"select_date": "gamelist.select_date"
 	},
 	"house_expense": {
 		"junket": "接待",
