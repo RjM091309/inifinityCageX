@@ -139,6 +139,11 @@
 							var raw = wrapper ? wrapper.getAttribute('data-settled-dates') : '';
 							settledDates = (raw ? JSON.parse(raw) : []).map(function (d) { return String(d).slice(0, 10); });
 						} catch (e) {}
+						function dayDateStr(dayElem) {
+							if (!dayElem || !dayElem.dateObj) return '';
+							var d = dayElem.dateObj;
+							return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+						}
 						const pickerEl = document.getElementById('settlement-date-picker');
 						if (pickerEl && typeof flatpickr !== 'undefined') {
 							flatpickr(pickerEl, {
@@ -148,21 +153,18 @@
 								defaultDate: defaultDate || todayStr,
 								maxDate: defaultDate || todayStr,
 								allowInput: false,
-								onDayCreate: function () {
-									var dayElem, dStr;
-									for (var i = 0; i < arguments.length; i++) {
-										if (arguments[i] && arguments[i].classList && (arguments[i].className + '').indexOf('flatpickr-day') !== -1) dayElem = arguments[i];
-										if (typeof arguments[i] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(arguments[i])) dStr = arguments[i];
-									}
-									if (dayElem && dStr && settledDates.indexOf(dStr) !== -1) dayElem.classList.add('settled-day');
+								onDayCreate: function (dayElem) {
+									var dStr = dayDateStr(dayElem);
+									if (dStr && settledDates.indexOf(dStr) !== -1) dayElem.classList.add('settled-day');
 								},
 								onOpen: function (selectedDates, dateStr, instance) {
 									setTimeout(function () {
 										if (!instance.calendarContainer) return;
 										var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
 										days.forEach(function (el) {
-											var dateStr = el.getAttribute('data-date') || (el.dateObj && el.dateObj.getFullYear && [el.dateObj.getFullYear(), String(el.dateObj.getMonth() + 1).padStart(2, '0'), String(el.dateObj.getDate()).padStart(2, '0')].join('-'));
-											if (dateStr && settledDates.indexOf(dateStr.slice(0, 10)) !== -1) el.classList.add('settled-day');
+											el.classList.remove('settled-day');
+											var dStr = dayDateStr(el);
+											if (dStr && settledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
 										});
 									}, 0);
 								},
@@ -170,6 +172,17 @@
 									window.selectedSettlementDate = dateStr || '';
 									if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
 									if (typeof window.reloadGameListBySettlementDate === 'function') window.reloadGameListBySettlementDate();
+								},
+								onMonthChange: function (selectedDates, dateStr, instance) {
+									setTimeout(function () {
+										if (!instance.calendarContainer) return;
+										var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+										days.forEach(function (el) {
+											el.classList.remove('settled-day');
+											var dStr = dayDateStr(el);
+											if (dStr && settledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
+										});
+									}, 0);
 								}
 							});
 						}
