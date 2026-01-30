@@ -10,27 +10,40 @@
 						<div class="col-sm-12">
 							<div class="card">
 								<div id="user-role" data-permissions="<%= permissions %>"></div>
-								<div class="card-header d-flex flex-wrap justify-content-between align-items-center">
+								<div class="card-header border-bottom-0 d-flex flex-wrap justify-content-between align-items-center">
 									<div class="mb-2 mb-md-0">
 									  <div class="breadcrumb1 flat">
 										<a href="/dashboard"><span class="fa fa-home"></span></a>
 										<a href="/game_list" class="active"><%= __('gamelist.game_book') %></a>
 										<a href="#"  onclick="addGameList()"><span class="fa fa-plus me-2"></span><%= __('gamelist.new_game') %></a>
+										<a href="#"  id="btn-daily-settle"><%= __('gamelist.settle') || 'Settle' %></a>
 									  </div>								 
-									</div>								  
-									<!-- DATE FILTER -->																
+									</div>
+																  
+								
+								
+										<!-- DATE FILTER -->																
 								</div>
 
 								<div class="dataTables_wrapper">
 									<div class="row mb-2">
 										<div class="col-sm-4">
-											<input type="text" id="daterange" class="input-daterange input-group" placeholder="Select Date Range" autocomplete="off"/>
+											<%
+												const now = new Date();
+												const pad = value => value.toString().padStart(2, '0');
+												const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+												const maxSettlementDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr;
+											%>
+											<div class="day-selector-wrapper mb-3" data-today="<%= todayStr %>" data-default-settlement-date="<%= maxSettlementDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
+											
+													<input type="text" id="settlement-date-picker" class="form-control input-group" placeholder="YYYY-MM-DD" value="<%= maxSettlementDate %>" readonly />
+												
+											</div>
 										</div>
 									</div>
 								</div>
-
 								<div class="card-body">
-							
+									
 									<table id="game_list-tbl" class="table  nowrap small-text" style="width:100%">
 
 										<thead>
@@ -108,31 +121,6 @@
 										</tfoot>
 									</table>
 
-									<%
-										const now = new Date();
-										const currentYear = now.getFullYear();
-										const currentMonth = now.getMonth();
-										const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-										const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-										const pad = value => value.toString().padStart(2, '0');
-									%>
-									<div class="day-selector-wrapper mt-4">
-										<div class="day-selector-header mb-2">
-											<h6 class="mb-0 text-uppercase fw-semibold"><%= monthLabel %></h6>
-										</div>
-										<div class="d-flex flex-wrap gap-2 day-selector justify-content-center" aria-label="Month days">
-											<% for (let day = 1; day <= daysInMonth; day++) { %>
-												<button
-													type="button"
-													class="btn btn-outline-secondary day-selector-btn"
-													data-date="<%= `${currentYear}-${pad(currentMonth + 1)}-${pad(day)}` %>"
-												>
-													<%= pad(day) %>
-												</button>
-											<% } %>
-										</div>
-									</div>
-
 								</div>
 							</div>
 						</div>
@@ -142,15 +130,62 @@
 				<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 				<script>
 					document.addEventListener('DOMContentLoaded', () => {
-						const dayButtons = document.querySelectorAll('.day-selector-btn');
-						if (!dayButtons.length) return;
-						dayButtons[0].classList.add('active');
-						dayButtons.forEach(btn => {
-							btn.addEventListener('click', () => {
-								dayButtons.forEach(b => b.classList.remove('active'));
-								btn.classList.add('active');
+						const wrapper = document.querySelector('.day-selector-wrapper');
+						const todayStr = wrapper ? wrapper.getAttribute('data-today') : '';
+						const defaultDate = wrapper ? wrapper.getAttribute('data-default-settlement-date') : '';
+						window.selectedSettlementDate = defaultDate || todayStr || '';
+						var settledDates = [];
+						try {
+							var raw = wrapper ? wrapper.getAttribute('data-settled-dates') : '';
+							settledDates = (raw ? JSON.parse(raw) : []).map(function (d) { return String(d).slice(0, 10); });
+						} catch (e) {}
+						function dayDateStr(dayElem) {
+							if (!dayElem || !dayElem.dateObj) return '';
+							var d = dayElem.dateObj;
+							return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+						}
+						const pickerEl = document.getElementById('settlement-date-picker');
+						if (pickerEl && typeof flatpickr !== 'undefined') {
+							flatpickr(pickerEl, {
+								dateFormat: 'Y-m-d',
+								altInput: true,
+								altFormat: 'F d, Y',
+								defaultDate: defaultDate || todayStr,
+								maxDate: defaultDate || todayStr,
+								allowInput: false,
+								onDayCreate: function (dayElem) {
+									var dStr = dayDateStr(dayElem);
+									if (dStr && settledDates.indexOf(dStr) !== -1) dayElem.classList.add('settled-day');
+								},
+								onOpen: function (selectedDates, dateStr, instance) {
+									setTimeout(function () {
+										if (!instance.calendarContainer) return;
+										var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+										days.forEach(function (el) {
+											el.classList.remove('settled-day');
+											var dStr = dayDateStr(el);
+											if (dStr && settledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
+										});
+									}, 0);
+								},
+								onChange: function (selectedDates, dateStr) {
+									window.selectedSettlementDate = dateStr || '';
+									if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
+									if (typeof window.reloadGameListBySettlementDate === 'function') window.reloadGameListBySettlementDate();
+								},
+								onMonthChange: function (selectedDates, dateStr, instance) {
+									setTimeout(function () {
+										if (!instance.calendarContainer) return;
+										var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+										days.forEach(function (el) {
+											el.classList.remove('settled-day');
+											var dStr = dayDateStr(el);
+											if (dStr && settledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
+										});
+									}, 0);
+								}
 							});
-						});
+						}
 					});
 				</script>
 
@@ -159,6 +194,16 @@
 
 
 					<style>
+
+/* Day selector - usog lang ito, hindi gagalaw ibang element (position, hindi margin) */
+.day-selector-wrapper {
+	position: relative;
+	top: 83px;      /* positive = pababa, negative = pataas */
+	right: 0;    /* positive = kaliwa, negative = kanan */
+	bottom: 0;
+	left: 120px;
+	width: 260px;     /* positive = kanan, negative = kaliwa */
+}
 
 .card-body {
   overflow-x: auto;
@@ -400,34 +445,7 @@ table.dataTable tbody tr.highlight-row {
 							/* Adjust spacing as needed */
 						}
 
-						/* Flexbox layout for the date range picker */
-						.input-daterange {
-							display: flex;
-							justify-content: space-between;
-							position: relative;
 
-							top: 2.9rem;
-							max-width: 300px;
-							/* Limit the width */
-						}
-
-						/* Styling for form controls */
-						.input-daterange .form-control {
-							flex: 1;
-							max-width: 120px;
-							/* Limit the input width */
-						}
-
-						/* Remove margin from the last input */
-						.input-daterange .form-control:last-child {
-							margin-right: 0;
-						}
-
-.day-selector-wrapper {
-	border-top: 1px solid rgba(33, 37, 41, 0.08);
-	padding-top: 1rem;
-	text-align: center;
-}
 
 .day-selector {
 	gap: 0.5rem;
@@ -463,6 +481,31 @@ table.dataTable tbody tr.highlight-row {
 	box-shadow: 0 2px 6px rgba(13,110,253,0.25);
 }
 
+.day-selector-btn.disabled,
+.day-selector-btn.day-selector-btn-disabled,
+.day-selector-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+	pointer-events: none;
+}
+
+/* Settled dates = green in calendar */
+.flatpickr-day.settled-day {
+	background: #28bd69 !important;
+	color: #fff !important;
+	border-color: #28a86c !important;
+}
+.flatpickr-day.settled-day:hover {
+	background: #21b16e !important;
+	color: #fff !important;
+	border-color: #28a86c !important;
+}
+.flatpickr-day.settled-day.selected,
+.flatpickr-day.settled-day.startRange {
+	background: #28bd69 !important;
+	border-color: #28a86c !important;
+	color: #fff !important;
+}
 
 						.nav-tabs-custom .nav-link {
 							padding: 0.5rem 1rem;
@@ -544,50 +587,6 @@ table.dataTable tbody tr.highlight-row {
 							margin-bottom: 15px;
 							font-size: 12px;
 							/* Pareho sa commission-tbl */
-						}
-
-						/* Flexbox layout for the date range picker */
-						.input-daterange {
-							display: flex;
-							justify-content: space-between;
-							position: relative;
-							left: 7.5rem;
-							top: 4rem;
-							max-width: 300px;
-							font-size: 12px;
-							/* Pareho sa commission-tbl */
-						}
-
-						/* Styling for form controls */
-						.input-daterange .form-control {
-							flex: 1;
-							margin-right: 5px;
-							max-width: 120px;
-							font-size: 12px;
-							/* Pareho sa commission-tbl */
-							padding: 8px;
-							/* Pareho sa cell padding ng table */
-						}
-
-						/* Remove margin from the last input */
-						.input-daterange .form-control:last-child {
-							margin-right: 0;
-						}
-
-						/* Responsive tweaks */
-						@media (max-width: 768px) {
-
-							.dataTables_wrapper .row,
-							.input-daterange,
-							.input-daterange .form-control {
-								font-size: 10px;
-								/* Mas maliit sa mobile */
-							}
-
-							.input-daterange .form-control {
-								padding: 5px;
-								/* Mas maliit na padding */
-							}
 						}
 
 						/* Make breadcrumbs + buttons layout clean on small screens */

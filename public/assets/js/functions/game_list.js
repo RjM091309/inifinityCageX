@@ -86,24 +86,6 @@ $(document).ready(function () {
 
 
 	const highlightId = getQueryParam('id');
-	
-    // Initialize Flatpickr for date range
-    flatpickr("#daterange", {
-        mode: "range",
-        altInput: true,
-        altFormat: "M d, Y",
-        dateFormat: "Y-m-d",
-        defaultDate: [
-            moment().startOf('month').format('YYYY-MM-DD'),
-            moment().format('YYYY-MM-DD')
-        ],
-        showMonths: 2, // Display two months side-by-side
-        onReady: function (selectedDates, dateStr, instance) {
-            // Automatically navigate the calendar to show previous and current month side by side
-            const today = new Date();
-            instance.changeMonth(-1, true); // Go to the previous month programmatically
-        },
-    });
 
     if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
         $('#game_list-tbl').DataTable().destroy();
@@ -117,10 +99,11 @@ $(document).ready(function () {
 		ordering: true,
 		info: true,
 		autoWidth: false,
-		order: [[0, 'desc']],
+		order: [[2, 'desc']],  // GAME # column: latest game ID first
 		pageLength: 10,
 	
 		columnDefs: [
+			{ targets: 2, type: 'num', className: 'text-center' },       // GAME # (IDNo): numeric sort, latest first
 			{ targets: 4, className: 'text-center col-buyin' },          // BUY-IN (Blue)
 			{ targets: 7, className: 'text-center col-total-rolling' }, // TOTAL ROLLING (Green)
 			{ targets: 11, className: 'text-center col-winloss' },      // WIN/LOSS (Orange) - Column 11, not 10
@@ -165,29 +148,19 @@ $(document).ready(function () {
 	
 
     function reloadData() {
-		const dateRange = $('#daterange').val();
-
 		// Build params; if highlightId exists, pass it to bypass date filtering on backend
 		const params = {};
 		if (highlightId) {
 			params.id = highlightId;
-		}
-
-		// If there is a date range, include it; otherwise, only require it when no highlightId
-		if (dateRange) {
-			if (dateRange.indexOf(" to ") > -1) {
-				const [start, end] = dateRange.split(' to ');
-				params.start = start;
-				params.end = end;
-			} else {
-				params.start = dateRange;
-				params.end = dateRange;
+		} else {
+			// Always use selected day (from day selector)
+			var date = window.selectedSettlementDate || $('.day-selector-wrapper').attr('data-default-settlement-date');
+			if (!date) {
+				alert('Please select a day.');
+				return;
 			}
-		} else if (!highlightId) {
-			alert('Please select a date range.');
-			return;
+			params.date = date;
 		}
-      
 
         $.ajax({
             url: '/game_list_data', // Endpoint to fetch data
@@ -201,6 +174,14 @@ $(document).ready(function () {
 					data = data.filter(row => row.game_list_id === parseInt(highlightId));
 				}
 
+                if (!data || data.length === 0) {
+                    dataTable.draw();
+                    $('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT, #GRAND_CHIPS_RETURN, #GRAND_TOTAL_ROLLING, #GRAND_ROLLER_CHIPS, #GRAND_REAL_ROLLING, #GRAND_COMMISSION, #GRAND_WIN_LOSS').text('0.00');
+                    if (params.date && typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState(0);
+                    return;
+                }
+                if (params.date && typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState(data.length);
+
                 // Assume you have the user's permissions stored in a variable `userPermissions`
                 var userPermissions = parseInt(document.getElementById('user-role').getAttribute('data-permissions'));
 
@@ -212,6 +193,8 @@ $(document).ready(function () {
                 let totalChipsReturn = 0;
                 let totalWinLoss = 0;
                 let totalRollerChips = 0;
+                let totalRealRolling = 0;
+                let totalCommission = 0;
 
                 data.forEach(function (row) {
 
@@ -623,10 +606,97 @@ $(document).ready(function () {
         });
     }
 
-    reloadData(); // Load data initially
+    window.reloadGameListBySettlementDate = function () { reloadData(); };
 
-    $('#daterange').on('change', function () {
-        reloadData(); // Reload data when date range changes
+    var settledDatesRaw = $('.day-selector-wrapper').attr('data-settled-dates');
+    try {
+        window.settledDatesForMonth = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
+    } catch (e) {
+        window.settledDatesForMonth = [];
+    }
+    var settleBtnLabel = (window.gamelistTranslations && window.gamelistTranslations.settle) || 'Settle';
+    var settledBtnLabel = (window.gamelistTranslations && window.gamelistTranslations.settle_btn_settled) || 'Settled';
+    window.updateSettleButtonState = function (recordCount) {
+        var date = window.selectedSettlementDate;
+        var todayStr = $('.day-selector-wrapper').attr('data-today') || new Date().toISOString().slice(0, 10);
+        if (!date) {
+            $('#btn-daily-settle').prop('disabled', true).text(settleBtnLabel);
+            return;
+        }
+        var settled = (window.settledDatesForMonth || []).indexOf(date) !== -1;
+        var isPastDate = date < todayStr;
+        var noRecordsForPastDate = (recordCount !== undefined && recordCount === 0 && isPastDate);
+        var $btn = $('#btn-daily-settle');
+        if (settled) {
+            $btn.prop('disabled', true).text(settledBtnLabel);
+        } else if (noRecordsForPastDate) {
+            $btn.prop('disabled', true).text(settleBtnLabel);
+        } else {
+            $btn.prop('disabled', false).text(settleBtnLabel);
+        }
+    };
+
+    reloadData(); // Load data initially (uses selectedSettlementDate = 'current' from EJS)
+    if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
+
+    $('#btn-daily-settle').on('click', function () {
+        if ($(this).prop('disabled')) return;
+        var settlementDate = window.selectedSettlementDate || new Date().toISOString().slice(0, 10);
+        var formattedDate = settlementDate ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : settlementDate;
+        var msg = (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_date) || ('Settle all games for ' + formattedDate + '?');
+        var $btn = $(this);
+        Swal.fire({
+            title: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_title) || 'Confirm Settlement',
+            text: msg,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_yes) || 'Yes, Settle',
+            cancelButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_cancel) || 'Cancel',
+            confirmButtonColor: '#0d6efd',
+            cancelButtonColor: '#6c757d'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            $btn.prop('disabled', true);
+            $.ajax({
+                url: '/game_list/daily_settlement/run',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ settlement_date: settlementDate }),
+                success: function (res) {
+                    var settledDate = (res && res.settlement_date) ? res.settlement_date : $('.day-selector-wrapper').attr('data-today');
+                    window.selectedSettlementDate = settledDate || '';
+                    var pickerEl = document.getElementById('settlement-date-picker');
+                    if (pickerEl && pickerEl._flatpickr) pickerEl._flatpickr.setDate(settledDate || '', false);
+                    var settledFormatted = (settledDate || settlementDate) ? new Date((settledDate || settlementDate) + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : (settledDate || settlementDate);
+                    var successText = (window.gamelistTranslations && window.gamelistTranslations.settle_success_text);
+                    if (successText && successText.indexOf('{{date}}') !== -1) successText = successText.replace('{{date}}', settledFormatted);
+                    else if (!successText) successText = 'Settlement for ' + settledFormatted + ' completed.';
+                    Swal.fire({
+                        title: (window.gamelistTranslations && window.gamelistTranslations.settle_success_title) || 'Settled',
+                        text: successText,
+                        icon: 'success',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#0d6efd'
+                    }).then(function () {
+                        window.location.reload();
+                    });
+                },
+                error: function (xhr) {
+                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to run settlement';
+                    console.error('[Daily Settlement] Settle error:', err, xhr);
+                    Swal.fire({
+                        title: 'Error',
+                        text: err,
+                        icon: 'error',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                },
+                complete: function () {
+                    if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
+                }
+            });
+        });
     });
 
 // Function to format numbers with commas

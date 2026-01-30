@@ -1,6 +1,17 @@
 
 <style>
 
+aside.sidebar {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+aside.sidebar .sidebar-footer {
+    margin-top: auto;
+    flex-shrink: 0;
+}
+
 .sidebar.sidebar-white {
     background-color: #ffffff; 
 }
@@ -379,7 +390,9 @@
            
           <!-- Sidebar Menu End -->        </div>
   </div>
-  <div class="sidebar-footer"></div>
+  <div class="sidebar-footer text-center py-2">
+    <small class="text-muted">v2.0.0</small>
+  </div>
   <script>
     // Pass translations to JavaScript for monthly reset
     window.monthlyResetTranslations = {
