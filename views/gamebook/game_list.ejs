@@ -10,7 +10,7 @@
 						<div class="col-sm-12">
 							<div class="card">
 								<div id="user-role" data-permissions="<%= permissions %>"></div>
-								<div class="card-header d-flex flex-wrap justify-content-between align-items-center">
+								<div class="card-header border-bottom-0 d-flex flex-wrap justify-content-between align-items-center">
 									<div class="mb-2 mb-md-0">
 									  <div class="breadcrumb1 flat">
 										<a href="/dashboard"><span class="fa fa-home"></span></a>
@@ -23,21 +23,30 @@
 											<%= __('gamelist.settle') || 'Settle' %>
 										</button>
 									</div>								  
-									<!-- DATE FILTER -->																
+								
+								
+										<!-- DATE FILTER -->																
 								</div>
 
-								<div class="card-body">
-									<%
-										const now = new Date();
-										const pad = value => value.toString().padStart(2, '0');
-										const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-										const maxSettlementDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr;
-									%>
-									<div class="day-selector-wrapper mb-3" data-today="<%= todayStr %>" data-default-settlement-date="<%= maxSettlementDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
-										<div class="d-flex flex-wrap align-items-center gap-2">
-											<input type="text" id="settlement-date-picker" class="form-control form-control-sm" style="max-width: 160px;" placeholder="YYYY-MM-DD" value="<%= maxSettlementDate %>" readonly />
+								<div class="dataTables_wrapper">
+									<div class="row mb-2">
+										<div class="col-sm-4">
+											<%
+												const now = new Date();
+												const pad = value => value.toString().padStart(2, '0');
+												const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+												const maxSettlementDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr;
+											%>
+											<div class="day-selector-wrapper mb-3" data-today="<%= todayStr %>" data-default-settlement-date="<%= maxSettlementDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
+											
+													<input type="text" id="settlement-date-picker" class="form-control input-group" placeholder="YYYY-MM-DD" value="<%= maxSettlementDate %>" readonly />
+												
+											</div>
 										</div>
 									</div>
+								</div>
+								<div class="card-body">
+									
 									<table id="game_list-tbl" class="table  nowrap small-text" style="width:100%">
 
 										<thead>
@@ -152,6 +161,16 @@
 
 
 					<style>
+
+/* Day selector - usog lang ito, hindi gagalaw ibang element (position, hindi margin) */
+.day-selector-wrapper {
+	position: relative;
+	top: 83px;      /* positive = pababa, negative = pataas */
+	right: 0;    /* positive = kaliwa, negative = kanan */
+	bottom: 0;
+	left: 120px;
+	width: 260px;     /* positive = kanan, negative = kaliwa */
+}
 
 .card-body {
   overflow-x: auto;
@@ -393,11 +412,7 @@ table.dataTable tbody tr.highlight-row {
 							/* Adjust spacing as needed */
 						}
 
-.day-selector-wrapper {
-	border-top: 1px solid rgba(33, 37, 41, 0.08);
-	padding-top: 1rem;
-	text-align: center;
-}
+
 
 .day-selector {
 	gap: 0.5rem;
