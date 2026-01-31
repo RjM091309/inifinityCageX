@@ -77,7 +77,7 @@ async function startTelegramBot() {
 
       const balance = deposit + iouCash - withdraw - iouReturn;
 
-      const msg = `DEMO CAGE\n\nAccount #: ${AGENT_CODE}\nGuest: ${NAME}\nBalance: ${balance.toLocaleString()}`;
+      const msg = `Infinity Cage\n\nAccount #: ${AGENT_CODE}\nGuest: ${NAME}\nBalance: ${balance.toLocaleString()}`;
       bot.sendMessage(telegramId, msg, { parse_mode: 'Markdown' });
 
     } catch (err) {
@@ -109,7 +109,7 @@ async function startTelegramBot() {
 
     shownKeyboard.add(chatId);
 
-    bot.sendMessage(chatId, "Welcome to Demo Cage!", {
+    bot.sendMessage(chatId, "Welcome to Infinity Cage!", {
       reply_markup: {
         keyboard: [[{ text: "💰 Check Balance" }]],
         resize_keyboard: true,

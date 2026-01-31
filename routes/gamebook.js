@@ -254,11 +254,11 @@ router.post('/add_game_list', async (req, res) => {
 
 		if (transType === 2) {
 			const newTotalBalance = totalBalanceGuest - totalAmount;
-			text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start \nGame #: ${result.insertId} - ${txtGameType} \nBuy-in: -${parseFloat(totalAmount).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}`;
+			text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start \nGame #: ${result.insertId} - ${txtGameType} \nBuy-in: -${parseFloat(totalAmount).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}`;
 		} else if (transType === 1) {
-			text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start - Cash\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()}`;
+			text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start - Cash\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()}`;
 		} else if (transType === 3) {
-			text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start - IOU\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()}`;
+			text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start - IOU\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()}`;
 		}
 
 		if (text && telegramIdResults.length > 0 && agentId) {
@@ -943,7 +943,7 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 					const updated_time = new Date().toLocaleTimeString();
 					const date_nowTG = new Date().toLocaleDateString();
 
-					const text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame #: ${txtGameId}\nCapital: ${parseFloat(txtCapital).toLocaleString()}\nFinal Chips: ${parseFloat(txtFinalChips).toLocaleString()}\nWin/Loss: ${parseFloat(adjustedWinloss).toLocaleString()}\nTotal Rolling: ${parseFloat(txtTotalRolling).toLocaleString()}`;
+					const text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame #: ${txtGameId}\nCapital: ${parseFloat(txtCapital).toLocaleString()}\nFinal Chips: ${parseFloat(txtFinalChips).toLocaleString()}\nWin/Loss: ${parseFloat(adjustedWinloss).toLocaleString()}\nTotal Rolling: ${parseFloat(txtTotalRolling).toLocaleString()}`;
 
 					if (telegramIdResults.length > 0) {
 						const telegramId = telegramIdResults[0].TELEGRAM_ID;
@@ -1030,9 +1030,9 @@ router.post('/add_settlement', async (req, res) => {
 			let text;
 			if (txtTransType == 1) {
 				const currentBalance = parseFloat(txtSettlementBalance.replace(/,/g, '')) + parseFloat(paymentValue);
-				text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: ${game_id_settle} - Commission\nAmount: ${parseFloat(paymentValue).toLocaleString()}\nAccount Balance: ${parseFloat(currentBalance).toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: ${game_id_settle} - Commission\nAmount: ${parseFloat(paymentValue).toLocaleString()}\nAccount Balance: ${parseFloat(currentBalance).toLocaleString()}`;
 			} else {
-				text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: ${game_id_settle} - Commission\nAmount: ${parseFloat(paymentValue).toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: ${game_id_settle} - Commission\nAmount: ${parseFloat(paymentValue).toLocaleString()}`;
 			}
 
 			// Send the Telegram message
@@ -1201,11 +1201,11 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			// Prepare Telegram message text
 			let text = '';
 			if (txtTransType == 2) {
-				text = `Demo Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}`;
 			} else if (txtTransType == 1) {
-				text = `Demo Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in - Cash\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in - Cash\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}`;
 			} else if (txtTransType == 3) {
-				text = `Demo Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in - IOU\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in - IOU\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}`;
 			}
 
 			// Send Telegram messages
@@ -1336,11 +1336,11 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			// Prepare Telegram message
 			let text = '';
 			if (txtTransType == 2) {
-				text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nChips Return\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}\nAccount Balance: ${currentBalanceCashout.toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nChips Return\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}\nAccount Balance: ${currentBalanceCashout.toLocaleString()}`;
 			} else if (txtTransType == 1) {
-				text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nChips Return - Cash\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nChips Return - Cash\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}`;
 			} else if (txtTransType == 4) {
-				text = `Demo Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nChips Return - IOU\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nChips Return - IOU\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}`;
 			}
 
 			// Send Telegram message if TELEGRAM_ID is found
