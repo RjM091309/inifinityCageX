@@ -46,28 +46,6 @@
                   </div>
                 <% } %>
 
-                <% if (hasError && errorMsg === 'ACCOUNT_CONFLICT') { %>
-                  <script>
-                    document.addEventListener('DOMContentLoaded', function () {
-                      if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                          title: 'Account already online',
-                          text: 'This account is already logged in on another device. Continuing will disconnect the other session.',
-                          icon: 'warning',
-                          showCancelButton: true,
-                          confirmButtonText: 'Continue and disconnect',
-                          cancelButtonText: 'Cancel'
-                        }).then((result) => {
-                          if (result.isConfirmed) {
-                            const form = document.getElementById('force-login-form');
-                            if (form) form.submit();
-                          }
-                        });
-                      }
-                    });
-                  </script>
-                <% } %>
-
                 <% if ((hasError && errorMsg === 'KICKED') || (typeof showKickedMessage !== 'undefined' && showKickedMessage)) { %>
                   <script>
                     document.addEventListener('DOMContentLoaded', function () {
@@ -127,8 +105,6 @@
                   </div>
                   
                 </form>
-                <!-- Hidden form for force login (used by Swal confirmation) -->
-                <form id="force-login-form" action="/login/force" method="POST" style="display:none;"></form>
               </div>
             </div>
           </div>

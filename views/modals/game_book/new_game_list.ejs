@@ -216,6 +216,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Handle different commission type logic based on transaction
         if (commissionType.value === "1") { // Rolling Game
+            commissionRate.setAttribute("step", "0.05"); // 0.05 increment for Rolling Game only
             if (selectedTransaction === "3") { // Marker selected
                 commissionRate.value = defaultMarkerRollingRate; // Set to 0% for Marker
                 commissionRate.setAttribute("min", "0"); // Minimum 0% for Marker
@@ -224,6 +225,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 commissionRate.setAttribute("min", "0"); // Minimum 1.4% for Rolling Game (CASH/DEPOSIT)
             }
         } else if (commissionType.value === "2") { // Shared Game
+            commissionRate.setAttribute("step", "0.1"); // Shared keeps its own increment (keydown 2.5)
             commissionRate.value = defaultSharedGameRate; // Default 45% for both CASH/DEPOSIT and Marker
             commissionRate.setAttribute("min", "45"); // Minimum 45% for Shared Game
         }
@@ -244,13 +246,24 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Event listener for keydown (Arrow Up & Arrow Down for Shared Game)
+    // Set initial step and rate (Rolling Game selected by default)
+    setCommissionRate();
+
+    // Event listener for keydown (Arrow Up & Arrow Down)
     commissionRate.addEventListener('keydown', function (event) {
-        if (commissionType.value === "2") { // Only apply to Shared Game
-            if (event.key === "ArrowUp") { // Increment by 2.5% with Arrow Up
+        if (commissionType.value === "1") { // Rolling Game: increment/decrement by 0.05
+            if (event.key === "ArrowUp") {
+                event.preventDefault();
+                incrementRollingGameRate();
+            } else if (event.key === "ArrowDown") {
+                event.preventDefault();
+                decrementRollingGameRate();
+            }
+        } else if (commissionType.value === "2") { // Shared Game: increment/decrement by 2.5
+            if (event.key === "ArrowUp") {
                 event.preventDefault();
                 incrementSharedGameRate();
-            } else if (event.key === "ArrowDown") { // Decrement by 2.5% with Arrow Down
+            } else if (event.key === "ArrowDown") {
                 event.preventDefault();
                 decrementSharedGameRate();
             }
@@ -272,6 +285,24 @@ document.addEventListener('DOMContentLoaded', function () {
         let newRate = currentRate - 2.5;
         if (newRate >= 45) { // Limit to min 45%
             commissionRate.value = newRate.toFixed(1);
+        }
+    };
+
+    // Function to increment Rolling Game commission rate by 0.05%
+    const incrementRollingGameRate = () => {
+        let currentRate = parseFloat(commissionRate.value) || 0;
+        let newRate = currentRate + 0.05;
+        if (newRate <= 100) {
+            commissionRate.value = newRate.toFixed(2);
+        }
+    };
+
+    // Function to decrement Rolling Game commission rate by 0.05%
+    const decrementRollingGameRate = () => {
+        let currentRate = parseFloat(commissionRate.value) || 0;
+        let newRate = currentRate - 0.05;
+        if (newRate >= 0) {
+            commissionRate.value = newRate.toFixed(2);
         }
     };
 

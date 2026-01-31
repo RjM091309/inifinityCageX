@@ -111,14 +111,6 @@ router.post('/login', async (req, res) => {
         }
   
         if (isValid) {
-          // If non-admin and already online, trigger confirmation on login page via Swal
-          if (user.PERMISSIONS !== 1 && user.USER_STATUS === 1) {
-            req.session.pending_login_user_id = user.IDNo;
-            req.session.pending_login_username = user.USERNAME;
-            req.flash('error', 'ACCOUNT_CONFLICT');
-            return res.redirect('/login');
-          }
-
           // Optional: auto-upgrade legacy MD5 password to Argon2
           if (isLegacy) {
             const newHash = await argon2.hash(password);

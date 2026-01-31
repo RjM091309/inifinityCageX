@@ -1019,6 +1019,29 @@ router.get('/account_passportphoto_data/:account_id', async (req, res) => {
 	}
 });
 
+// UPDATE ACCOUNT (AGENT) PHOTO from Guest Portal modal
+router.post('/account/:accountId/update_photo', uploadPassportImg.single('photo'), async (req, res) => {
+	try {
+		const accountId = req.params.accountId;
+		const file = req.file;
+		if (!file) {
+			return res.status(400).json({ error: 'No photo file' });
+		}
+		const [[row]] = await pool.query('SELECT AGENT_ID FROM account WHERE IDNo = ?', [accountId]);
+		if (!row || row.AGENT_ID == null) {
+			return res.status(404).json({ error: 'Account or agent not found' });
+		}
+		const date_now = new Date();
+		await pool.execute(
+			'UPDATE agent SET PHOTO = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[file.filename, req.session.user_id, date_now, row.AGENT_ID]
+		);
+		res.json({ success: true, photo: file.filename });
+	} catch (error) {
+		console.error('Error updating account photo:', error);
+		res.status(500).json({ error: 'Error updating photo' });
+	}
+});
 
 // DELETE ACCOUNT DETAILS
 router.put('/account_details/remove/:id', async (req, res) => {
