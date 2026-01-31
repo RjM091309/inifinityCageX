@@ -1550,23 +1550,31 @@ $('#edit_status').submit(function (event) {
 		const settlementValue = parseFloat(settlementValueRaw) || 0;
 
 		if (servicesValue > settlementValue) {
-			Swal.fire({
-				icon: 'error',
-				title: 'Invalid!',
-				text: 'Service exceeds the commission. Please select Cash or Deposit.',
-				confirmButtonText: 'OK',
-				allowOutsideClick: false,
-				allowEscapeKey: false,
-				customClass: {
-					confirmButton: 'custom-ok-btn'
-				}
-			});
-			$btn.prop('disabled', false).html('Save');
-			return;
+			if ($btn.data('skipServiceCheck')) {
+				$btn.removeData('skipServiceCheck');
+			} else {
+				Swal.fire({
+					icon: 'warning',
+					title: 'Service Exceeds Settlement',
+					text: 'Service has exceeded the settlement amount.',
+					confirmButtonText: 'Ok',
+					confirmButtonColor: '#3085d6',
+					allowOutsideClick: false,
+					allowEscapeKey: false
+				}).then((result) => {
+					if (result.isConfirmed) {
+						// Re-trigger Save: skip only service-vs-settlement check; roller chips validation (below) still runs before any save
+						$btn.data('skipServiceCheck', true);
+						$btn.click();
+					}
+					$btn.prop('disabled', false).html('Save');
+				});
+				return;
+			}
 		}
 	}
 
-	// Validation for roller chips return when END GAME
+	// Validation for roller chips return when END GAME (still runs after "Proceed anyway" on service-exceeds)
 	if (status == '1') { // END GAME
 		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
@@ -2733,7 +2741,7 @@ function formatServiceTransactionLabel(id) {
 	const labels = {
 		1: 'Cash',
 		2: 'Deposit',
-		3: 'Commission'
+		3: 'Settle'
 	};
 	return labels[id] || '';
 }
@@ -3662,26 +3670,6 @@ function settlement_history(record_id, acc_id) {
 
     // Initialize flag for settlement processing
     var isSettled = false;
-    var fbEditUnlocked = false;
-
-    function parseCurrency(value) {
-        if (value === undefined || value === null) return 0;
-        return parseFloat(String(value).replace(/,/g, '')) || 0;
-    }
-
-    function evaluateFbEditability() {
-        if (fbEditUnlocked) {
-            return;
-        }
-        const fbValue = parseCurrency($('#fb').val());
-        const settlementValue = parseCurrency($('#rollingSettlement').val());
-
-        if (settlementValue >= 0 && fbValue > settlementValue) {
-            fbEditUnlocked = true;
-            $('#fb').prop('readonly', false);
-            $('#fb').attr('title', 'Services exceeded settlement; you can adjust the value.');
-        }
-    }
 
     // Fetch services total and populate FB
     function loadServicesTotal() {
@@ -3702,7 +3690,6 @@ function settlement_history(record_id, acc_id) {
                 $('#fb').val(total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
                 // trigger recalculation of payment
                 $('#fb').trigger('input');
-                evaluateFbEditability();
             },
             error: function () {
                 // fallback to 0
@@ -3919,7 +3906,6 @@ function settlement_history(record_id, acc_id) {
                     let updatedRollingRate = parseFloat($('#rollingRate').val()) || 0;
                     let updatedRollingSettlement = total_rolling_chips * (updatedRollingRate / 100);
                     $('#rollingSettlement').val(updatedRollingSettlement.toLocaleString());
-                    evaluateFbEditability();
                 }
 
                 // After handlers are ready, load services total into FB

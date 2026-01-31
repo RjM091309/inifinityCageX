@@ -344,9 +344,9 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 		const svc = (service_type || '').toLowerCase();
 		const validTypes = ['fnb', 'hotel', 'delivery'];
 		let transactionId = parseInt(transaction_id, 10);
-		transactionId = [1, 2, 3].includes(transactionId) ? transactionId : 1;
+		transactionId = [2, 3].includes(transactionId) ? transactionId : 3;
 		let agentId = parseInt(agent_id, 10);
-		if (Number.isNaN(agentId)) {
+		if (Number.isNaN(agentId) || agentId === 0) {
 			agentId = null;
 		}
 
@@ -433,7 +433,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 		const svc = (service_type || '').toLowerCase();
 		const validTypes = ['fnb', 'hotel', 'delivery'];
 		let transactionId = parseInt(transaction_id, 10);
-		transactionId = [1, 2, 3].includes(transactionId) ? transactionId : 1;
+		transactionId = [2, 3].includes(transactionId) ? transactionId : 3;
 
 		const [[existingService]] = await pool.execute(
 			`SELECT AMOUNT, TRANSACTION_ID, ENCODED_BY, ENCODED_DT, SERVICE_TYPE, AGENT_ID, REMARKS, GAME_ID FROM game_services WHERE IDNo = ?`,
@@ -628,6 +628,7 @@ router.get('/game_list_data', async (req, res) => {
                 game_list.IDNo AS game_list_id, 
                 game_list.ACTIVE AS game_status, 
                 account.IDNo AS account_no, 
+                agent.IDNo AS AGENT_ID,
                 agent.AGENT_CODE AS agent_code, 
                 agent.NAME AS agent_name,  
                 game_list.ENCODED_DT AS GAME_DATE_START 
@@ -655,6 +656,7 @@ router.get('/game_list_data', async (req, res) => {
             game_list.IDNo AS game_list_id, 
             game_list.ACTIVE AS game_status, 
             account.IDNo AS account_no, 
+            agent.IDNo AS AGENT_ID,
             agent.AGENT_CODE AS agent_code, 
             agent.NAME AS agent_name,  
             game_list.ENCODED_DT AS GAME_DATE_START 
@@ -1062,11 +1064,14 @@ router.post('/add_settlement', async (req, res) => {
 				]);
 			};
 
-			if (txtTransType == 5) {
-				await insertCashEntry('Commission Cash-out', 2, `Game - ${game_id_settle}`);
-			} else if (txtTransType == 1) {
-				await insertCashEntry('Commission Deposit', 1, `Game - ${game_id_settle}`);
-				await insertCashEntry('Commission', 2, `Game - ${game_id_settle}`);
+			// Skip cash_transaction insert when payment amount is 0
+			if (parseFloat(paymentValue) !== 0) {
+				if (txtTransType == 5) {
+					await insertCashEntry('Commission Cash-out', 2, `Game - ${game_id_settle}`);
+				} else if (txtTransType == 1) {
+					await insertCashEntry('Commission Deposit', 1, `Game - ${game_id_settle}`);
+					await insertCashEntry('Commission', 2, `Game - ${game_id_settle}`);
+				}
 			}
 		} else {
 			console.error("No AGENT_CODE or NAME found for Account ID:", txtAccountIDSettle);

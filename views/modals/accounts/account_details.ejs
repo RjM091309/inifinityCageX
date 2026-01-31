@@ -27,12 +27,11 @@
                                                 <!-- Primary account photo -->
                                                 <img id="account_photo" src="../../assets/images/avatars/01.png" alt="Account Photo" class="theme-color-default-img profile-pic rounded avatar-100"> 
                                                 <!-- Iba pang avatar options... -->
-                                                <div class="upload-icone bg-primary">
-                                                    <svg class="upload-button icon-14" width="14" viewBox="0 0 24 24">
+                                                <button type="button" class="upload-icone bg-primary account-photo-upload-label p-0 d-inline-flex align-items-center justify-content-center" id="btn-open-change-photo" title="Change photo">
+                                                    <svg class="upload-button icon-14" width="14" viewBox="0 0 24 24" pointer-events="none">
                                                         <path fill="#ffffff" d="M14.06,9L15,9.94L5.92,19H5V18.08L14.06,9M17.66,3C17.41,3 17.15,3.1 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18.17,3.09 17.92,3 17.66,3M14.06,6.19L3,17.25V21H6.75L17.81,9.94L14.06,6.19Z" />
                                                     </svg>
-                                                    <input class="file-upload" type="file" accept="image/*">
-                                                </div>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -143,12 +142,44 @@
     </div>
 </div>
 
-
-
+<!-- Change Photo Modal (sibling so Bootstrap can show it; Guest Portal will show again when this closes) -->
+<div class="modal fade" id="modal-change-photo" tabindex="-1" aria-labelledby="modalChangePhotoLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="modalChangePhotoLabel">Change Photo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-5 text-center">
+                        <label class="form-label small text-muted mb-1">Current / Previous</label>
+                        <img id="change-photo-previous" src="" alt="Previous" class="change-photo-preview rounded border">
+                    </div>
+                    <div class="col-12 col-md-7">
+                        <label class="form-label small text-muted mb-1">New image (drag & drop or click)</label>
+                        <div id="change-photo-dropzone" class="change-photo-dropzone rounded border border-2 border-dashed text-center p-4">
+                            <input type="file" id="change-photo-file-input" accept="image/*" class="d-none">
+                            <div id="change-photo-placeholder">
+                                <i class="fa fa-cloud-upload fa-2x text-secondary mb-2"></i>
+                                <p class="small text-muted mb-0">Drag image here or click to browse</p>
+                            </div>
+                            <img id="change-photo-new-preview" src="" alt="New preview" class="change-photo-preview rounded d-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="change-photo-save-btn" disabled>Save Photo</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <style>
 
-    /* Zoomed image styles */
+    /* Zoomed image styles – show whole image on hover (no crop) */
 #zoomed-image {
     display: none;
     position: fixed;
@@ -156,22 +187,45 @@
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    max-width: none;
-    max-height: none;
     pointer-events: none;
-    width: 500px;
-    height: 300px;
-    border-radius: 5px;
-    object-fit: cover;
-    opacity: 0; /* Initial opacity for fade effect */
-    transition: opacity 0.3s ease, transform 0.3s ease; /* Smooth transition */
+    max-width: 90vw;
+    max-height: 80vh;
+    width: auto;
+    height: auto;
+    border-radius: 8px;
+    object-fit: contain; /* buong image, walang crop */
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 #zoomed-image.show {
     display: block;
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1.1); /* Zoom effect */
+    transform: translate(-50%, -50%) scale(1.05);
 }
+
+/* Upload icon: ensure clickable (keep hope-ui .upload-icone position: absolute) */
+#modal-account-details .account-photo-upload-label {
+    cursor: pointer;
+    z-index: 10;
+}
+.change-photo-preview {
+    width: 100%;
+    max-width: 180px;
+    height: 180px;
+    object-fit: cover;
+}
+.change-photo-dropzone {
+    min-height: 160px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+.change-photo-dropzone.drag-over {
+    background-color: rgba(var(--bs-primary-rgb), 0.08);
+    border-color: var(--bs-primary) !important;
+}
+.border-dashed { border-style: dashed !important; }
 
 /* Image hover effect */
 #account_photo {
@@ -258,17 +312,132 @@
 
 
 <script>
-   const accountPhoto = document.getElementById('account_photo');
-const zoomedImage = document.getElementById('zoomed-image');
+(function () {
+    const accountPhoto = document.getElementById('account_photo');
+    const zoomedImage = document.getElementById('zoomed-image');
+    const modalChangePhoto = document.getElementById('modal-change-photo');
+    const prevImg = document.getElementById('change-photo-previous');
+    const dropzone = document.getElementById('change-photo-dropzone');
+    const fileInput = document.getElementById('change-photo-file-input');
+    const placeholder = document.getElementById('change-photo-placeholder');
+    const newPreview = document.getElementById('change-photo-new-preview');
+    const saveBtn = document.getElementById('change-photo-save-btn');
 
-accountPhoto.addEventListener('mouseover', () => {
-    zoomedImage.src = accountPhoto.src; // Set zoomed image source
-    zoomedImage.classList.add('show');
-});
+    var changePhotoFile = null;
 
-accountPhoto.addEventListener('mouseout', () => {
-    zoomedImage.classList.remove('show');
-});
+    // Zoom preview on hover
+    accountPhoto.addEventListener('mouseover', function () {
+        zoomedImage.src = accountPhoto.src;
+        zoomedImage.classList.add('show');
+    });
+    accountPhoto.addEventListener('mouseout', function () {
+        zoomedImage.classList.remove('show');
+    });
 
+    // Open change-photo modal when edit icon is clicked (JS so modal shows even when nested/sibling)
+    var btnOpenChangePhoto = document.getElementById('btn-open-change-photo');
+    if (btnOpenChangePhoto && modalChangePhoto) {
+        btnOpenChangePhoto.addEventListener('click', function () {
+            var Modal = typeof bootstrap !== 'undefined' ? bootstrap.Modal : (typeof Bootstrap !== 'undefined' ? Bootstrap.Modal : null);
+            if (Modal) {
+                Modal.getOrCreateInstance(modalChangePhoto).show();
+            } else {
+                $(modalChangePhoto).modal('show');
+            }
+        });
+    }
+
+    // When change-photo modal opens: show previous image, reset new
+    if (modalChangePhoto) {
+        modalChangePhoto.addEventListener('show.bs.modal', function () {
+            prevImg.src = accountPhoto.src || '';
+            prevImg.alt = 'Current';
+            changePhotoFile = null;
+            if (fileInput) fileInput.value = '';
+            placeholder.classList.remove('d-none');
+            newPreview.classList.add('d-none');
+            newPreview.src = '';
+            if (saveBtn) saveBtn.disabled = true;
+        });
+    }
+
+    function setNewFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        changePhotoFile = file;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            newPreview.src = e.target.result;
+            newPreview.classList.remove('d-none');
+            placeholder.classList.add('d-none');
+            if (saveBtn) saveBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Click dropzone = open file picker
+    if (dropzone && fileInput) {
+        dropzone.addEventListener('click', function (e) {
+            if (e.target === fileInput || e.target.closest('input')) return;
+            fileInput.click();
+        });
+        fileInput.addEventListener('change', function () {
+            var f = this.files && this.files[0];
+            setNewFile(f);
+        });
+    }
+
+    // Drag and drop
+    if (dropzone) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function (ev) {
+            dropzone.addEventListener(ev, function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (ev === 'dragenter' || ev === 'dragover') dropzone.classList.add('drag-over');
+                else dropzone.classList.remove('drag-over');
+                if (ev === 'drop') {
+                    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+                    setNewFile(f);
+                }
+            });
+        });
+    }
+
+    // Save button
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function () {
+            if (!changePhotoFile) return;
+            var accountIdEl = document.getElementById('account_id_add');
+            var accountId = accountIdEl && accountIdEl.value && accountIdEl.value.trim();
+            if (!accountId) {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Account not found' });
+                else alert('Account not found');
+                return;
+            }
+            saveBtn.disabled = true;
+            var formData = new FormData();
+            formData.append('photo', changePhotoFile);
+            fetch('/account/' + accountId + '/update_photo', { method: 'POST', body: formData })
+                .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+                .then(function (result) {
+                    if (result.ok && result.data.success) {
+                        accountPhoto.src = newPreview.src;
+                        zoomedImage.src = newPreview.src;
+                        var modal = bootstrap.Modal.getInstance(modalChangePhoto);
+                        if (modal) modal.hide();
+                        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Photo saved', timer: 1500, showConfirmButton: false });
+                    } else {
+                        var msg = (result.data && result.data.error) ? result.data.error : 'Failed to save photo';
+                        if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                        else alert(msg);
+                    }
+                })
+                .catch(function () {
+                    if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to save photo' });
+                    else alert('Failed to save photo');
+                })
+                .finally(function () { saveBtn.disabled = false; });
+        });
+    }
+})();
 </script>
 
