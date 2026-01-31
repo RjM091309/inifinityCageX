@@ -64,6 +64,41 @@ router.get('/telegramAPI/details', checkSession, async (req, res) => {
 	}
 });
 
+// --------------- Chat IDs (groups/channels) — must be before /telegramAPI/:id ---------------
+function parseChatIds(raw) {
+	if (raw == null || typeof raw !== 'string') return [];
+	const trimmed = String(raw).trim();
+	if (!trimmed) return [];
+	return trimmed.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+}
+
+router.get('/telegramAPI/chat-ids', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.execute('SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
+		const chatIds = rows.length && rows[0].CHAT_ID != null ? parseChatIds(rows[0].CHAT_ID) : [];
+		res.json({ chatIds });
+	} catch (err) {
+		console.error('Error fetching chat IDs:', err);
+		res.status(500).json({ error: 'Error fetching chat IDs' });
+	}
+});
+
+router.put('/telegramAPI/chat-ids', checkSession, async (req, res) => {
+	try {
+		let chatIds = req.body.chatIds;
+		if (!Array.isArray(chatIds)) chatIds = [];
+		const value = chatIds.map(s => String(s).trim()).filter(Boolean).join(',');
+		await pool.execute(
+			'UPDATE telegram_api SET CHAT_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE ACTIVE = 1',
+			[value || null, req.session.user_id, new Date()]
+		);
+		res.json({ success: true, chatIds: value ? value.split(',') : [] });
+	} catch (err) {
+		console.error('Error updating chat IDs:', err);
+		res.status(500).json({ error: 'Error updating chat IDs' });
+	}
+});
+
 // EDIT TELEGRAM API
 router.put('/telegramAPI/:id', async (req, res) => {
 	const id = parseInt(req.params.id);
@@ -84,7 +119,5 @@ router.put('/telegramAPI/:id', async (req, res) => {
 		res.status(500).send('Error updating Telegram API');
 	}
 });
-
-
 
 module.exports = router; 

@@ -43,6 +43,30 @@
 										<div class="text-muted"><%= __('telegram_api.loading_bot_details') %></div>
 									</div>
 								</div>
+
+								<hr class="my-4">
+
+								<!-- Chat IDs (Groups / Channels) -->
+								<div class="d-flex align-items-center justify-content-between mb-2">
+									<h6 class="mb-0"><%= __('telegram_api.chat_ids_title') %></h6>
+									<button type="button" class="btn btn-sm btn-success" id="btn-add-chat-id">
+										<i class="fa fa-plus me-1"></i> <%= __('telegram_api.add_chat_id') %>
+									</button>
+								</div>
+								<p class="text-muted small mb-3"><%= __('telegram_api.chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.chat_ids_hint_after') %></p>
+								<div class="table-responsive">
+									<table class="table table-bordered table-vcenter">
+										<thead>
+											<tr>
+												<th style="width: 60px;">#</th>
+												<th><%= __('telegram_api.chat_id') %></th>
+												<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
+											</tr>
+										</thead>
+										<tbody id="chat-ids-tbody"></tbody>
+									</table>
+								</div>
+								<div id="chat-ids-empty" class="text-muted text-center py-3" style="display: none;"><%= __('telegram_api.chat_ids_empty') %></div>
 							</div>
 						</div>
 					</div>
@@ -50,6 +74,28 @@
 			</div>
 	
 
+
+			<!-- Modal: Add / Edit Chat ID -->
+			<div class="modal fade" id="modal-chat-id" tabindex="-1" aria-labelledby="modal-chat-id-label" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title" id="modal-chat-id-label"><%= __('telegram_api.add_chat_id') %></h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<div class="mb-2">
+								<label for="input-chat-id" class="form-label"><%= __('telegram_api.chat_id') %></label>
+								<input type="text" class="form-control" id="input-chat-id">
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('telegram_api.cancel') %></button>
+							<button type="button" class="btn btn-primary" id="btn-save-chat-id"><%= __('telegram_api.save') %></button>
+						</div>
+					</div>
+				</div>
+			</div>
 
 			<%- include ('../partials/footer'); -%>
 
@@ -70,7 +116,17 @@
 					updated_successfully: "<%= __('telegram_api.updated_successfully') %>",
 					ok: "<%= __('telegram_api.ok') %>",
 					error_title: "<%= __('telegram_api.error_title') %>",
-					failed_to_update: "<%= __('telegram_api.failed_to_update') %>"
+					failed_to_update: "<%= __('telegram_api.failed_to_update') %>",
+					add_chat_id: "<%= __('telegram_api.add_chat_id') %>",
+					edit_chat_id: "<%= __('telegram_api.edit_chat_id') %>",
+					edit: "<%= __('telegram_api.edit') %>",
+					delete: "<%= __('telegram_api.delete') %>",
+					cancel: "<%= __('telegram_api.cancel') %>",
+					enter_chat_id: "<%= __('telegram_api.enter_chat_id') %>",
+					saved: "<%= __('telegram_api.saved') %>",
+					delete_chat_id: "<%= __('telegram_api.delete_chat_id') %>",
+					delete_chat_id_confirm: "<%= __('telegram_api.delete_chat_id_confirm') %>",
+					deleted: "<%= __('telegram_api.deleted') %>"
 				};
 			</script>
 

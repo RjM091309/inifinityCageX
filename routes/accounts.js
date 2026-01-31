@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 
 const { checkSession, sessions } = require('./auth');
-const { sendTelegramMessage } = require('../utils/telegram');
+const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
@@ -647,19 +647,8 @@ router.post('/add_account_details', async (req, res) => {
 				if (sendToTelegram) {
 					// Send the message to the guest's Telegram ID
 					await sendTelegramMessage(text, telegramId);
-
-					// Fetch additional CHAT_ID from telegram_api table
-					const chatIdQuery = `SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`;
-					const [chatIdResults] = await pool.query(chatIdQuery);
-
-					if (chatIdResults.length > 0) {
-						const additionalChatId = chatIdResults[0].CHAT_ID;
-
-						// Send the message to the additional CHAT_ID
-						await sendTelegramMessage(text, additionalChatId);
-					} else {
-						console.error("No CHAT_ID found in telegram_api table.");
-					}
+					// Send to all additional chat IDs (groups/channels) — supports comma-separated CHAT_ID
+					await sendTelegramToAdditionalChats(text);
 				}
 
 				res.send('Form submitted and message sent successfully!');
@@ -722,12 +711,8 @@ router.post('/check_balance/:accountId', async (req, res) => {
 		const message = `Infinity Cage\n\nBalance Check\n\nAccount: ${AGENT_CODE} - ${NAME}\nDate: ${date_now}\nTime: ${time_now}\n\nCurrent Balance: ${balanceFormatted}`;
 
 		await sendTelegramMessage(message, TELEGRAM_ID);
-
-		// Also notify admin if any
-		const [adminChat] = await pool.query(`SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`);
-		if (adminChat.length > 0) {
-			await sendTelegramMessage(message, adminChat[0].CHAT_ID);
-		}
+		// Also notify all additional chat IDs (groups/channels)
+		await sendTelegramToAdditionalChats(message);
 
 		res.json({ success: true });
 	} catch (err) {
@@ -824,11 +809,6 @@ router.post('/add_account_details/transfer', async (req, res) => {
         `;
 		const [telegramIdResultsTo] = await pool.query(telegramIdQueryTo, [txtAccount]);
 
-		// Fetch additional CHAT_ID from telegram_api table
-		const chatIdQuery = `SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`;
-		const [chatIdResults] = await pool.query(chatIdQuery);
-		const additionalChatId = chatIdResults.length > 0 ? chatIdResults[0].CHAT_ID : null;
-
 		// Prepare and send messages for the account from which the transfer is made
 		if (telegramIdResultsFrom.length > 0) {
 			for (const resultFrom of telegramIdResultsFrom) {
@@ -846,10 +826,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 				const textFrom = `Infinity Cage\n\nTransfer Details:\n\nTransferred to Account: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAmount Transferred: -${totalAmount.toLocaleString()}\nAccount Balance: ${SenderCurrentBalance.toLocaleString()}`;
 
 				await sendTelegramMessage(textFrom, TELEGRAM_ID_FROM);
-
-				if (additionalChatId) {
-					await sendTelegramMessage(textFrom, additionalChatId);
-				}
+				await sendTelegramToAdditionalChats(textFrom);
 			}
 		}
 
@@ -869,10 +846,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 				const textTo = `Infinity Cage\n\nTransfer Details:\n\nTransferred from Account: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAmount Transferred: ${totalAmount.toLocaleString()}\nAccount Balance: ${ReceiverCurrentBalance.toLocaleString()}`;
 
 				await sendTelegramMessage(textTo, TELEGRAM_ID_TO);
-
-				if (additionalChatId) {
-					await sendTelegramMessage(textTo, additionalChatId);
-				}
+				await sendTelegramToAdditionalChats(textTo);
 			}
 		}
 

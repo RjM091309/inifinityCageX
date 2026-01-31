@@ -23,6 +23,23 @@ async function sendTelegramMessage(text, telegramId) {
   });
 }
 
+// Get additional chat IDs (supports comma- or semicolon-separated in CHAT_ID column)
+async function getAdditionalChatIds() {
+  const [rows] = await pool.execute('SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
+  if (!rows.length || rows[0].CHAT_ID == null) return [];
+  const raw = String(rows[0].CHAT_ID).trim();
+  if (!raw) return [];
+  return raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+}
+
+// Send message to all additional chat IDs (groups/channels)
+async function sendTelegramToAdditionalChats(text) {
+  const chatIds = await getAdditionalChatIds();
+  for (const id of chatIds) {
+    await sendTelegramMessage(text, id);
+  }
+}
+
 // Start bot globally
 async function startTelegramBot() {
   const token = await getTelegramToken();
@@ -98,12 +115,21 @@ async function startTelegramBot() {
     sendBalanceToUser(msg.chat.id);
   });
 
+  // Get chat_id (for group or private) — type /getchatid in the chat
+  bot.onText(/\/getchatid/i, (msg) => {
+    const chatId = msg.chat.id;
+    const chatType = msg.chat.type; // 'private', 'group', 'supergroup', 'channel'
+    const title = msg.chat.title || '(private chat)';
+    const reply = `Chat ID: \`${chatId}\`\nType: ${chatType}\nTitle: ${title}\n\nCopy the number above and save as CHAT_ID in telegram_api. For multiple groups, separate IDs with comma (e.g. -100111,-100222).`;
+    bot.sendMessage(chatId, reply, { parse_mode: 'Markdown' });
+  });
+
   bot.on("message", (msg) => {
     const chatId = msg.chat.id;
     const text = msg.text;
 
-    // Skip if already shown keyboard or if it's a balance check command
-    if (shownKeyboard.has(chatId) || !text || ["/checkbalance", "Check Balance", "💰 Check Balance"].includes(text)) {
+    // Skip if already shown keyboard or if it's a balance check / getchatid command
+    if (shownKeyboard.has(chatId) || !text || ["/checkbalance", "Check Balance", "💰 Check Balance", "/getchatid"].includes(text)) {
       return;
     }
 
@@ -121,5 +147,6 @@ async function startTelegramBot() {
 
 module.exports = {
   sendTelegramMessage,
+  sendTelegramToAdditionalChats,
   startTelegramBot
 };

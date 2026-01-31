@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 
 const { checkSession, sessions } = require('./auth');
-const { sendTelegramMessage } = require('../utils/telegram');
+const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const ExcelJS = require('exceljs');
 
 
@@ -1322,17 +1322,9 @@ router.post('/add_marker_settlement', async (req, res) => {
 				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: IOU RETURN\nAmount: ${parseFloat(markerReturn).toLocaleString()}`;
 			}
 
-			// Fetch additional CHAT_ID from telegram_api table
-			const chatIdQuery = `SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`;
-			const [chatIdResults] = await pool.execute(chatIdQuery);
-			const additionalChatId = chatIdResults.length > 0 ? chatIdResults[0].CHAT_ID : null;
-
 			if (telegramId) {
 				await sendTelegramMessage(text, telegramId);
-
-				if (additionalChatId) {
-					await sendTelegramMessage(text, additionalChatId);
-				}
+				await sendTelegramToAdditionalChats(text);
 			} else {
 				console.error("No TELEGRAM_ID found for Account ID:", txtAccountMarker);
 			}

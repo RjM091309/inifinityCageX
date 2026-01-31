@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 
 const { checkSession, sessions } = require('./auth');
-const { sendTelegramMessage } = require('../utils/telegram');
+const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 const dashboardQueries = require('../utils/dashboardQueries');
 
 // ======================= GAME LIST ==================
@@ -254,7 +254,7 @@ router.post('/add_game_list', async (req, res) => {
 
 		if (transType === 2) {
 			const newTotalBalance = totalBalanceGuest - totalAmount;
-			text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start \nGame #: ${result.insertId} - ${txtGameType} \nBuy-in: -${parseFloat(totalAmount).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}`;
+			text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start - Deposit \nGame #: ${result.insertId} - ${txtGameType} \nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}`;
 		} else if (transType === 1) {
 			text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start - Cash\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()}`;
 		} else if (transType === 3) {
@@ -263,14 +263,8 @@ router.post('/add_game_list', async (req, res) => {
 
 		if (text && telegramIdResults.length > 0 && agentId) {
 			const telegramId = telegramIdResults[0].TELEGRAM_ID;
-
-			const [chatIdResults] = await pool.execute(`SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`);
-			const additionalChatId = chatIdResults.length > 0 ? chatIdResults[0].CHAT_ID : null;
-
 			await sendTelegramMessage(text, telegramId);
-			if (additionalChatId) {
-				await sendTelegramMessage(text, additionalChatId);
-			}
+			await sendTelegramToAdditionalChats(text);
 		}
 
 		// 6. Insert cash_transaction entry for cash buy-in
@@ -951,11 +945,7 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 					} else {
 						console.warn("No TELEGRAM_ID found for Account:", txtAccountCode);
 					}
-
-					const [chatIdResults] = await pool.execute(`SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`);
-					if (chatIdResults.length > 0) {
-						await sendTelegramMessage(text, chatIdResults[0].CHAT_ID);
-					}
+					await sendTelegramToAdditionalChats(text);
 				} else {
 					console.warn("No agent info found for Account:", txtAccountCode);
 				}
@@ -1021,11 +1011,6 @@ router.post('/add_settlement', async (req, res) => {
 		if (agentResults.length > 0) {
 			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentResults[0];
 
-			// Fetch additional CHAT_ID from telegram_api table
-			const chatIdQuery = `SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`;
-			const [chatIdResults] = await pool.query(chatIdQuery);
-			const additionalChatId = chatIdResults.length > 0 ? chatIdResults[0].CHAT_ID : null;
-
 			// Prepare the Telegram message
 			let text;
 			if (txtTransType == 1) {
@@ -1038,10 +1023,7 @@ router.post('/add_settlement', async (req, res) => {
 			// Send the Telegram message
 			if (telegramId) {
 				await sendTelegramMessage(text, telegramId);
-
-				if (additionalChatId) {
-					await sendTelegramMessage(text, additionalChatId);
-				}
+				await sendTelegramToAdditionalChats(text);
 			} else {
 				console.error("No TELEGRAM_ID found for Account ID:", txtAccountIDSettle);
 			}
@@ -1185,11 +1167,6 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			`;
 			const [telegramIdResults] = await pool.execute(telegramIdQuery, [txtAccountCode]);
 
-			// Fetch additional CHAT_ID from telegram_api table
-			const chatIdQuery = `SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`;
-			const [chatIdResults] = await pool.execute(chatIdQuery);
-			const additionalChatId = chatIdResults.length > 0 ? chatIdResults[0].CHAT_ID : null;
-
 			let time_now = new Date();
 			let updated_time = time_now.toLocaleTimeString();
 			let date_nowTG = new Date().toLocaleDateString();
@@ -1201,7 +1178,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			// Prepare Telegram message text
 			let text = '';
 			if (txtTransType == 2) {
-				text = `Infinity Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in - Deposit\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}`;
 			} else if (txtTransType == 1) {
 				text = `Infinity Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in - Cash\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}`;
 			} else if (txtTransType == 3) {
@@ -1212,10 +1189,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 		if (text !== '' && telegramIdResults.length > 0) {
 				const telegramId = telegramIdResults[0].TELEGRAM_ID;
 				await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
-
-				if (additionalChatId) {
-					await sendTelegramMessage(text, additionalChatId); // Send to additional CHAT_ID
-				}
+				await sendTelegramToAdditionalChats(text);
 			} else {
 				console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 			}
@@ -1324,11 +1298,6 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			`;
 			const [telegramIdResults] = await pool.execute(telegramIdQuery, [txtAccountCode]);
 
-			// Fetch additional CHAT_ID from telegram_api table
-			const chatIdQuery = `SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1`;
-			const [chatIdResults] = await pool.execute(chatIdQuery);
-			const additionalChatId = chatIdResults.length > 0 ? chatIdResults[0].CHAT_ID : null;
-
 			let time_now = new Date();
 			let updated_time = time_now.toLocaleTimeString();
 			let date_nowTG = new Date().toLocaleDateString();
@@ -1336,21 +1305,18 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			// Prepare Telegram message
 			let text = '';
 			if (txtTransType == 2) {
-				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nChips Return\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}\nAccount Balance: ${currentBalanceCashout.toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nCash-out\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}\nAccount Balance: ${currentBalanceCashout.toLocaleString()}`;
 			} else if (txtTransType == 1) {
-				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nChips Return - Cash\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nCash-out - Cash\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}`;
 			} else if (txtTransType == 4) {
-				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nChips Return - IOU\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}`;
+				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nCash-out - IOU\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}`;
 			}
 
 			// Send Telegram message if TELEGRAM_ID is found
 			if (text !== '' && telegramIdResults.length > 0) {
 				const telegramId = telegramIdResults[0].TELEGRAM_ID;
 				await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
-
-				if (additionalChatId) {
-					await sendTelegramMessage(text, additionalChatId); // Send to additional CHAT_ID
-				}
+				await sendTelegramToAdditionalChats(text);
 			} else {
 				console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 			}
