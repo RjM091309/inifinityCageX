@@ -386,10 +386,11 @@ let sqlServiceDepositJunket = `
 	WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND SOURCE_TYPE = 'JUNKET'
 	
 `;
-let sqlServiceCommission = `
-	SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL
+let sqlServiceSettle = `
+	SELECT  SUM(game_services.AMOUNT) AS TOTAL
 	FROM game_services
-	WHERE ACTIVE = 1 AND TRANSACTION_ID = 3
+	JOIN game_list ON game_list.IDNo = game_services.GAME_ID
+	WHERE game_services.ACTIVE = 1 AND game_services.TRANSACTION_ID = 3 AND game_list.SETTLED = 1
 	
 `;
 
@@ -514,7 +515,7 @@ let sqlServiceCommission = `
 		const [serviceDepositGuestResults] = await pool.execute(sqlServiceDepositGuest);
 		const [serviceCashJunketResults] = await pool.execute(sqlServiceCashJunket);
 		const [serviceDepositJunketResults] = await pool.execute(sqlServiceDepositJunket);
-		const [serviceCommissionResults] = await pool.execute(sqlServiceCommission);
+		const [serviceSettleResults] = await pool.execute(sqlServiceSettle);
 		const [totalCommisionRolling] = await pool.execute(sqlCommisionRolling);
 
 		const [totalCommisionCashout] = await pool.execute(sqlCommisionCashout);
@@ -695,7 +696,7 @@ let sqlServiceCommission = `
 			sqlServiceDepositGuest: serviceDepositGuestResults,
 			sqlServiceCashJunket: serviceCashJunketResults,
 			sqlServiceDepositJunket: serviceDepositJunketResults,
-			sqlServiceCommission: serviceCommissionResults
+			sqlServiceSettle: serviceSettleResults
 
 		});
 
@@ -1020,7 +1021,10 @@ router.get('/cash_transaction_data', async (req, res) => {
 			FROM cash_transaction ct
 			LEFT JOIN user_info u ON ct.ENCODED_BY = u.IDNo
 			LEFT JOIN agent ON ct.AGENT_ID = agent.IDNo
+			LEFT JOIN game_services gs ON gs.IDNo = ct.TRANSACTION_ID AND ct.CATEGORY IN ('fnb', 'hotel', 'delivery')
+			LEFT JOIN game_list gl ON gl.IDNo = gs.GAME_ID
 			WHERE ${conditions.join(' AND ')}
+				AND (gs.IDNo IS NULL OR gs.TRANSACTION_ID != 3 OR (gs.TRANSACTION_ID = 3 AND gl.SETTLED = 1))
 			ORDER BY ct.ENCODED_DT DESC
 		`;
 		const [results] = await pool.execute(query, params);
