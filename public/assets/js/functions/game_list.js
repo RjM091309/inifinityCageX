@@ -342,14 +342,14 @@ $(document).ready(function () {
 							var WinLoss = total_amount - total_cash_out_chips;
 							
 							
-							 // Calculate net and format as an integer
+							 // Calculate net and format as an integer (multiply first, then divide to avoid float precision e.g. 4317000*1.45% -> 62597 not 62596)
 							 var net = 0;
 							 if (row.COMMISSION_TYPE == 1 || row.COMMISSION_TYPE == 3) {
 								 // If COMMISSION_TYPE is 1 or 3, compute net using total rolling chips
-								 net = Math.round(total_rolling_chips * (row.COMMISSION_PERCENTAGE / 100));
+								 net = Math.round((total_rolling_chips * row.COMMISSION_PERCENTAGE) / 100);
 							 } else if (row.COMMISSION_TYPE == 2) {
 								 // If COMMISSION_TYPE is 2, compute net using winloss
-								 net = Math.round(WinLoss * (row.COMMISSION_PERCENTAGE / 100));
+								 net = Math.round((WinLoss * row.COMMISSION_PERCENTAGE) / 100);
 							 }
 	
 							// Add to grand totals
@@ -3863,10 +3863,10 @@ function settlement_history(record_id, acc_id) {
                             
 							if (CommissionType == 1 || CommissionType == 3) {
 								// Kung ang COMMISSION_TYPE ay 1, ang net ay computed gamit ang total rolling chips
-								net = Math.round(total_rolling_chips * (RollingRate / 100));
+								net = Math.round((total_rolling_chips * RollingRate) / 100);
 							} else if (CommissionType == 2) {
 								// Kung ang COMMISSION_TYPE ay 2, ang net ay computed gamit ang winloss
-								net = Math.round(WinLoss * (RollingRate / 100));
+								net = Math.round((WinLoss * RollingRate) / 100);
 							}
 							
 							// Format net value as an integer
