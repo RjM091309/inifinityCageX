@@ -29,8 +29,7 @@
              <thead>
                <tr>
                  <th>NAME</th>
-                 <th>ACCOUNT #</th>
-             
+                 <th>ACCOUNT #</th>            
                  <th>TELEGRAM CHAT ID</th>
                  <th>CONTACT #</th>
                  <th>REMARKS</th>
@@ -69,6 +68,8 @@
     width: 100%;
     font-size: 13px;
     border-collapse: collapse;
+    table-layout: fixed;
+    word-wrap: break-word;
 }
 
 /* Header styles */
@@ -86,22 +87,38 @@
     border-bottom: 1px solid #eee;
 }
 
-/* Cell styles */
-    #modal-account-tbl td {
+/* Cell styles - default allow wrapping */
+#modal-account-tbl td {
     padding: 12px 15px;
     color: #666;
+    white-space: normal;
+    overflow: visible;
+}
+
+/* REMARKS column (5th column) - allow text wrapping with max width */
+#modal-account-tbl th:nth-child(5),
+#modal-account-tbl td:nth-child(5) {
+    max-width: 200px;
+    word-wrap: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+/* TOTAL BALANCE column (6th column) - right align */
+#modal-account-tbl th:nth-child(6),
+#modal-account-tbl td:nth-child(6) {
+    text-align: right;
+    color: #333;
+}
+
+/* ACTION column (last column) - keep on one line */
+#modal-account-tbl th:last-child,
+#modal-account-tbl td:last-child {
+    white-space: nowrap;
 }
 
 #modal-account-tbl tbody tr:hover {
   background-color: #f5f5f5 !important;
-}
-
-
-
-/* Balance column */
-#modal-account-tbl td:last-child {
-    text-align: right;
-    color: #333;
 }
 
 
@@ -128,14 +145,6 @@
                     padding: 5px;
                 }
             }
-
-     table {
-   table-layout: fixed;
-   word-wrap: break-word;
-   white-space: nowrap;
-   overflow: hidden;
-   text-overflow: ellipsis;
- }
      
      /* Itago ang text na "Show" at "entries" sa DataTables */
      .dataTables_length label {
