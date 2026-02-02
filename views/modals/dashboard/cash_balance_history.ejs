@@ -100,6 +100,19 @@ $(document).ready(function() {
     return parseFloat(value || 0).toLocaleString();
   }
 
+  function getServiceCategories() {
+    const categories = [];
+    const $serviceOptions = $('#services-type option');
+    if ($serviceOptions.length) {
+      $serviceOptions.each(function () {
+        const val = ($(this).val() || '').toString().trim();
+        if (val) categories.push(val.toLowerCase());
+      });
+    }
+    if (categories.length) return categories;
+    return ['fnb', 'hotel', 'delivery'];
+  }
+
   function loadCashBalanceHistory(type) {
     const range = $('#cash-balance-daterange').val();
     if (!range) return;
@@ -118,6 +131,7 @@ $(document).ready(function() {
           if (!Array.isArray(json)) return [];
           return json.map(row => ({
             typeText: row.CATEGORY || (row.TYPE == 1 ? 'Cash-in' : 'Cash-out'),
+            rawCategory: row.CATEGORY || '',
             amount: formatAmount(row.AMOUNT),
             remarks: row.REMARKS || '',
             encodedBy: row.ENCODED_BY_NAME || 'N/A',
@@ -134,6 +148,11 @@ $(document).ready(function() {
         { data: 'date', className: 'text-center' }
       ],
       createdRow(row, data) {
+        const category = (data.rawCategory || data.typeText || '').toLowerCase().trim();
+        if (getServiceCategories().includes(category)) {
+          $('td:eq(0), td:eq(1)', row).addClass('text-primary');
+          return;
+        }
         if (data.typeValue === 1) {
           $('td:eq(0), td:eq(1)', row).addClass('text-success');
         } else if (data.typeValue === 2) {
