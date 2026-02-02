@@ -104,15 +104,21 @@ $(document).ready(function () {
 				});
 			},
 			error: function (xhr, status, error) {
-				var errorMessage = xhr.responseJSON.error;
+				var errorMessage = xhr.responseJSON && xhr.responseJSON.error;
 				if (errorMessage == 'password') {
 					Swal.fire({
 						icon: "error",
 						title: "Oops...",
 						text: "Password not match!",
 					});
+				} else if (errorMessage == 'username_exists') {
+					Swal.fire({
+						icon: "error",
+						title: "Username taken",
+						text: "This username already exists. Please choose another.",
+					});
 				} else {
-					console.error('Error updating user role:', error);
+					console.error('Error adding user:', error);
 				}
 			}
 		});

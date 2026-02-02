@@ -39,7 +39,9 @@ const checkSession = async (req, res, next) => {
         const currentToken = rows[0].SESSION_TOKEN;
 
         // If there's a token in DB and it doesn't match this session -> kicked out by another login
-        if (currentToken && sessionToken && currentToken !== sessionToken) {
+        // Exception: admin (permission = 1) allows multi-login — do not disconnect existing sessions
+        const isAdmin = req.session.permissions === 1;
+        if (currentToken && sessionToken && currentToken !== sessionToken && !isAdmin) {
             req.session.destroy(() => {
                 res.redirect('/login?kicked=1');
             });
@@ -305,6 +307,15 @@ router.post('/add_user', async (req, res) => {
       if (txtPassword !== txtPassword2) {
         return res.status(400).json({ error: 'Passwords do not match' });
       }
+
+      // Check if username already exists (active or inactive)
+      const [existing] = await pool.execute(
+        'SELECT IDNo FROM user_info WHERE USERNAME = ?',
+        [txtUserName ? txtUserName.trim() : '']
+      );
+      if (existing && existing.length > 0) {
+        return res.status(400).json({ error: 'username_exists' });
+      }
   
       const hashedPassword = await argon2.hash(txtPassword); // ✅ Secure password
       const salt = crypto.randomBytes(16).toString('hex');
@@ -427,6 +438,15 @@ router.post('/add_user', async (req, res) => {
 
 		if (txtPassword !== txtPassword2) {
 			return res.status(500).json({ error: 'password' });
+		}
+
+		// Check if username already exists (active or inactive)
+		const [existing] = await pool.execute(
+			'SELECT IDNo FROM user_info WHERE USERNAME = ?',
+			[txtUserName ? txtUserName.trim() : '']
+		);
+		if (existing && existing.length > 0) {
+			return res.status(400).json({ error: 'username_exists' });
 		}
 
 		const generated_pw = await argon2.hash(txtPassword);
