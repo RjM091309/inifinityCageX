@@ -186,15 +186,15 @@ $(document).ready(function() {
 							
 								if (row.COMMISSION_TYPE == 1 || row.COMMISSION_TYPE == 3) {
 									// Kung ang COMMISSION_TYPE ay 1, ang net ay computed gamit ang total rolling chips
-									net = (total_rolling_chips * (RollingRate / 100));
+									net = Math.round((total_rolling_chips * RollingRate) / 100);
 								} else if (row.COMMISSION_TYPE == 2) {
 									// Kung ang COMMISSION_TYPE ay 2, ang net ay computed gamit ang winloss
-									net = (winlossValue * (RollingRate / 100));
+									net = Math.round((winlossValue * RollingRate) / 100);
 								}
 
                                     // Payment calculation based on RollingSettlement and fb
-                                    var RollingSettlement = total_rolling_chips * (RollingRate / 100);
-                                    var paymentValue = net - fb;
+                                    var RollingSettlement = (total_rolling_chips * RollingRate) / 100;
+                                    var paymentValue = Math.round(net - fb);
 
 
                                     // Add to grand totals
