@@ -1580,6 +1580,13 @@ $('#edit_status').submit(function (event) {
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
 		var requiredReturnTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
 		
+		// Skip all validation if required return total is 0 or less
+		if (requiredReturnTotal <= 0) {
+			// Clear input fields if no return is required
+			$('#txtReturnRollerNN').val('');
+			$('#txtReturnRollerCC').val('');
+		}
+		
 		// Only validate if there is a required return total
 		if (requiredReturnTotal > 0) {
 			var returnNN = $('#txtReturnRollerNN').val().trim().replace(/,/g, '');
@@ -1696,8 +1703,10 @@ $('#edit_status').submit(function (event) {
 	if (status == '1') {
 		var requiredReturnNN = parseFloat($('#modal-change_status').data('requiredReturnNN')) || 0;
 		var requiredReturnCC = parseFloat($('#modal-change_status').data('requiredReturnCC')) || 0;
+		var requiredReturnTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
 
-		if (requiredReturnNN > 0 || requiredReturnCC > 0) {
+		// Only show roller chips return info if required return total is greater than 0
+		if (requiredReturnTotal > 0) {
 			var returnNN = $('#txtReturnRollerNN').val().trim().replace(/,/g, '');
 			var returnCC = $('#txtReturnRollerCC').val().trim().replace(/,/g, '');
 			var returnNNAmount = parseFloat(returnNN) || 0;
@@ -2579,9 +2588,10 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	$('.txtTotalRolling').val(total_rolling_chips);
 	$('.txtWinloss').val(WinLoss);
 
-	// Reset roller chips return fields
+	// Reset roller chips return fields and hide section immediately
 	$('.txtReturnRollerNN').val('');
 	$('.txtReturnRollerCC').val('');
+	$('#roller-chips-return-section').hide();
 
 	game_id = id;
 	
@@ -2592,7 +2602,6 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 		// Reset status select to placeholder for other statuses
 		$('#status option:first').prop('selected', true);
 		$('#status').trigger('change');
-		$('#roller-chips-return-section').hide();
 	}
 	
 	// Fetch game records to calculate required roller chips return
@@ -2640,21 +2649,32 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 			$('#required-total-display').text(parseFloat(requiredReturnTotal).toLocaleString());
 			
 			// Show/hide roller chips return section based on whether there are required returns
+			// Always remove previous event handlers first
+			$('#status').off('change.rollerchips');
+			
+			// Create a unified event handler that checks requiredReturnTotal before showing
+			$('#status').on('change.rollerchips', function() {
+				var currentRequiredTotal = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
+				if ($(this).val() == '1' && currentRequiredTotal > 0) { // END GAME and has required return
+					$('#roller-chips-return-section').show();
+				} else {
+					// Clear input fields when changing to ON GAME or other status, or if no required return
+					$('#txtReturnRollerNN').val('');
+					$('#txtReturnRollerCC').val('');
+					$('#roller-chips-return-section').hide();
+				}
+			});
+			
+			// Show section only if requiredReturnTotal > 0
 			if (requiredReturnTotal > 0) {
-				// If current status is PENDING (3), show the section immediately since END GAME is already selected
-				if (currentStatus == 3) {
+				// If current status is PENDING (3) or status is already END GAME (1), show the section
+				if (currentStatus == 3 || $('#status').val() == '1') {
 					$('#roller-chips-return-section').show();
 				}
-				
-				// Show section when status changes to END GAME
-				$('#status').off('change.rollerchips').on('change.rollerchips', function() {
-					if ($(this).val() == '1') { // END GAME
-						$('#roller-chips-return-section').show();
-					} else {
-						$('#roller-chips-return-section').hide();
-					}
-				});
 			} else {
+				// No required return - clear fields and hide section (always hide if 0)
+				$('#txtReturnRollerNN').val('');
+				$('#txtReturnRollerCC').val('');
 				$('#roller-chips-return-section').hide();
 			}
 		},
