@@ -853,6 +853,28 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     );
                                     const netJunketMoney = houseBalance - guestBalance;
                                     const netJunketCash = cashBalance - guestBalance;
+
+                                    // Detailed breakdown for tracing Cash Balance
+                                    const cashBalanceDebug = [
+                                       { label: 'CASH_DEPOSIT',                sign: '+', value: (+sqlCashDeposit[0].CASH_DEPOSIT || 0) },
+                                       { label: 'CC_CHIPS_BUYIN (ALL)',        sign: '-', value: (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) },
+                                       { label: 'CASH_WITHDRAW',               sign: '-', value: (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) },
+                                       { label: 'JUNKET_EXPENSE',              sign: '-', value: (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) },
+                                       { label: 'NN_CHIPS_BUYIN (ALL)',        sign: '-', value: (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) },
+                                       { label: 'ACCOUNT_DEPOSIT',             sign: '+', value: (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) },
+                                       { label: 'SETTLEMENT_DEPOSIT',          sign: '+', value: (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) },
+                                       { label: 'ACCOUNT_WITHDRAW',            sign: '-', value: (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) },
+                                       { label: 'TOTAL_CHIPS_CASHOUT',         sign: '+', value: (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) },
+                                       { label: 'NN_CHIPS_ACCOUNT_CASH',       sign: '+', value: (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) },
+                                       { label: 'CC_CHIPS_BUYIN_CASH_ONLY',    sign: '+', value: (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) },
+                                       { label: 'TOTAL_CASHOUT',               sign: '-', value: (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) },
+                                       { label: 'ACCOUNT_SETTLEMENT',          sign: '-', value: (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) },
+                                       { label: 'ACCOUNT_DEDUCT_SERVICES',     sign: '-', value: (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) },
+                                       { label: 'SERVICE_CASH_GUEST',          sign: '+', value: (+sqlServiceCashGuest[0].TOTAL || 0) },
+                                       { label: 'SERVICE_DEPOSIT_GUEST',       sign: '+', value: (+sqlServiceDepositGuest[0].TOTAL || 0) },
+                                       { label: 'SERVICE_CASH_JUNKET',         sign: '-', value: (+sqlServiceCashJunket[0].TOTAL || 0) },
+                                       { label: 'SERVICE_DEPOSIT_JUNKET',      sign: '-', value: (+sqlServiceDepositJunket[0].TOTAL || 0) }
+                                    ];
                                  %>
                                  <div class="row">
                                     <div class="col-6">
@@ -942,6 +964,15 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                        </div>
                                     </div>
                                    
+                                    <!-- Cash Balance Breakdown Button - Admin Only (IDNo = 20) -->
+                                    <% if (user_id === 20) { %>
+                                    <div class="mt-3">
+                                       <button class="btn btn-primary btn-sm w-100" type="button"
+                                          data-bs-toggle="modal" data-bs-target="#modal-cash-balance-breakdown">
+                                          <i class="fas fa-calculator me-2"></i> Cash Balance Breakdown
+                                       </button>
+                                    </div>
+                                    <% } %>
 
                                  </div>
                               </div>
@@ -1282,6 +1313,70 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                              <%- include('modals/accounts/account_details_alt') %>
                                              <%- include('modals/dashboard/cash_balance_history') %>
                                              <%- include ('modals/junket/new_service_record') %>
+
+                                             <!-- Cash Balance Breakdown Modal - Admin Only -->
+                                             <% if (user_id === 20) { %>
+                                             <div class="modal fade" id="modal-cash-balance-breakdown" tabindex="-1" aria-labelledby="modal-cash-balance-breakdown-label" aria-hidden="true">
+                                                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                                                   <div class="modal-content">
+                                                      <div class="modal-header">
+                                                         <h5 class="modal-title" id="modal-cash-balance-breakdown-label">
+                                                            <i class="fas fa-calculator me-2"></i> Cash Balance Breakdown
+                                                         </h5>
+                                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                      </div>
+                                                      <div class="modal-body">
+                                                         <div class="table-responsive">
+                                                            <table class="table table-bordered table-hover mb-0" style="font-size: 15px;">
+                                                               <thead>
+                                                                  <tr>
+                                                                     <th width="8%" class="text-center" style="background: #f4f6fa; color: #495057; font-weight: 700; padding: 16px; font-size: 18px; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6;">Sign</th>
+                                                                     <th width="52%" style="background: #f4f6fa; color: #495057; font-weight: 700; padding: 16px; font-size: 18px; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6;">Source</th>
+                                                                     <th class="text-end" width="40%" style="background: #f4f6fa; color: #495057; font-weight: 700; padding: 16px; font-size: 18px; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6;">Amount (₱)</th>
+                                                                  </tr>
+                                                               </thead>
+                                                               <tbody style="font-size: 15px;">
+                                                                  <% 
+                                                                     let debugSubtotal = 0; 
+                                                                     cashBalanceDebug.forEach(row => { 
+                                                                        const signed = (row.sign === '+' ? 1 : -1) * row.value;
+                                                                        debugSubtotal += signed;
+                                                                        const rowClass = Math.abs(row.value - 500000) < 100000 ? 'table-warning' : '';
+                                                                        const signColor = row.sign === '+' ? 'text-success' : 'text-danger';
+                                                                  %>
+                                                                     <tr class="<%= rowClass %>">
+                                                                        <td class="text-center" style="padding: 12px; font-size: 18px; font-weight: bold;">
+                                                                           <span class="<%= signColor %>"><%= row.sign %></span>
+                                                                        </td>
+                                                                        <td style="padding: 12px; font-weight: 500;"><%= row.label %></td>
+                                                                        <td class="text-end" style="padding: 12px; font-weight: 600; font-size: 15px;">₱ <%= row.value.toLocaleString() %></td>
+                                                                     </tr>
+                                                                  <% }); %>
+                                                               </tbody>
+                                                               <tfoot style="font-size: 16px; font-weight: bold;">
+                                                                  <tr class="table-primary">
+                                                                     <th colspan="2" style="padding: 14px;">Computed Cash Balance (debug)</th>
+                                                                     <th class="text-end" style="padding: 14px;">₱ <%= debugSubtotal.toLocaleString() %></th>
+                                                                  </tr>
+                                                                  <tr class="table-success">
+                                                                     <th colspan="2" style="padding: 14px;">Displayed Cash Balance</th>
+                                                                     <th class="text-end" style="padding: 14px;">₱ <%= cashBalance.toLocaleString() %></th>
+                                                                  </tr>
+                                                                  <tr class="table-danger">
+                                                                     <th colspan="2" style="padding: 14px;">Difference</th>
+                                                                     <th class="text-end" style="padding: 14px;">₱ <%= Math.abs(debugSubtotal - cashBalance).toLocaleString() %></th>
+                                                                  </tr>
+                                                               </tfoot>
+                                                            </table>
+                                                         </div>
+                                                      </div>
+                                                      <div class="modal-footer">
+                                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                      </div>
+                                                   </div>
+                                                </div>
+                                             </div>
+                                             <% } %>
 
 
 
