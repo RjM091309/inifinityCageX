@@ -32,8 +32,19 @@
         font-size: 0.875rem;
     }
 
-    #modal-settlement .img-fluid {
-        max-width: 200px;
+    #modal-settlement .header-logo {
+        max-width: 340px;
+    }
+
+    #modal-settlement .block-content.header-with-logo {
+        position: relative;
+        justify-content: flex-start;
+    }
+
+    #modal-settlement .settlement-title {
+        position: absolute;
+        right: 2rem;
+        margin: 0 !important;
     }
 
     #modal-settlement .block-content {
@@ -53,7 +64,7 @@
         width: 300px; /* Ensure the size is set */
         position: absolute; /* Maintain position if necessary */
         left: 7%;
-        top: 55%;
+        top: 60%;
         opacity: 0.9;
         transform: translateY(-50%);
     }
@@ -66,6 +77,21 @@
     }
 
     @media print {
+    @page {
+        size: A4;
+        margin: 0;
+    }
+
+    /* Limit document to one page only - prevents blank 2nd page */
+    html, body {
+        height: 297mm !important;
+        max-height: 297mm !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
     /* General print settings for the modal */
     body * {
         visibility: hidden;
@@ -76,40 +102,60 @@
     }
 
     #modal-settlement {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 250mm; /* A3 width in landscape */
-        height: 420mm; /* A3 height in landscape */
-        margin: 0;
-        padding: 0;
-        overflow: hidden; /* Remove scroll bar */
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 210mm !important;
+        max-width: 210mm !important;
+        height: 277mm !important;
+        max-height: 277mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        page-break-after: avoid !important;
+        page-break-inside: avoid !important;
     }
 
     #modal-settlement .modal-dialog {
         width: 100% !important;
         max-width: none !important;
+        margin: 0 !important;
+        height: 100% !important;
     }
 
     #modal-settlement .modal-content {
-        width: 100%;
-        height: auto;
-        padding: 2rem;
+        width: 100% !important;
+        height: 100% !important;
+        max-height: 277mm !important;
+        padding: 1rem 2rem !important;
+        page-break-inside: avoid !important;
+        box-shadow: none !important;
+        border: none !important;
+        overflow: hidden !important;
     }
 
     /* Print-specific settings for the settled image */
     #modal-settlement .settled-image {
         display: block;
-        width: 300px;
+        width: 280px;
         position: absolute;
         left: 7%;
-        top: 55%;
+        top: 40%;
         opacity: 0.9;
         transform: translateY(-50%);
     }
 
-    #modal-settlement .btn, #modal-settlement .block-options, #modal-settlement footer, #modal-settlement header {
-        display: none;
+    #modal-settlement .btn, #modal-settlement .block-options, #modal-settlement .modal-header, #modal-settlement .modal-footer, #modal-settlement .text-end {
+        display: none !important;
+    }
+
+    #modal-settlement .block-content {
+        padding: 1rem !important;
+    }
+
+    /* Push Deposit/Cash Out down in print so they don't overlap SETTLED stamp */
+    #modal-settlement .deposit-cashout-row {
+        margin-top: 6rem !important;
     }
 
 }
@@ -136,20 +182,12 @@
             <div class="block block-rounded block-themed block-transparent mb-0">
                 <div class="modal-header bg-primary">
                     <h3 class="block-title text-white"><%= __('modal_settlement.settlement') %></h3>
-                    
-                    
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                   
-                </div>
-              
-                <div class="text-end">
-                    <button type="button" id="print-settlement-btn" class="btn btn-sm btn-alt-secondary"><%= __('modal_settlement.print') %></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
 
-                <div class="block-content text-center d-flex align-items-center justify-content-center">
-                   
-                    <img src="/login/images/demo.png" alt="demo System Logo" class="img-fluid me-3" style="margin-left: 2rem;">
-                    <h2 class="text-muted mb-0" style="margin-left: 8rem;"><%= __('modal_settlement.settlement_spacing') %></h2>
+                <div class="block-content text-center d-flex align-items-center header-with-logo">
+                    <img src="/assets/images/infinityLOGO.png" alt="Infinity CAGE-X Logo" class="img-fluid header-logo me-3" style="margin-left: 2rem;">
+                    <h2 class="text-muted mb-0 settlement-title"><%= __('modal_settlement.settlement_spacing') %></h2>
                 </div>
               
                 <img src="/login/images/settled-image.png" class="settled-image" id="settledImage-modal" alt="Settled Stamp">
@@ -251,7 +289,7 @@
         </div>
 
         <!-- Radio Buttons -->
-        <div class="row mb-2 ">
+        <div class="row mb-2 deposit-cashout-row">
             <div class="col-sm-4 ">
                 <div class="form-check">
                     <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="deposit" name="txtTransType">
@@ -275,9 +313,8 @@
         </div>
     </div>
     <div class="modal-footer">
-        
-        
         <button type="button" id="submit-settlement-btn" class="btn btn-sm btn-primary"><%= __('modal_settlement.save') %></button>
+        <button type="button" id="print-settlement-btn" class="btn btn-sm btn-alt-secondary"><%= __('modal_settlement.print') %></button>
         <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
             <%= __('modal_settlement.close') %>
         </button>
@@ -293,9 +330,12 @@
 
     <script>
         $(document).ready(function() {
-    // Handle print button click
+    // Handle print button click - hide browser header/footer (date, title, URL, page number)
     $('#print-settlement-btn').on('click', function() {
+        var originalTitle = document.title;
+        document.title = '';
         window.print();
+        document.title = originalTitle;
     });
 });
 
