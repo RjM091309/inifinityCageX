@@ -937,7 +937,12 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 					const updated_time = new Date().toLocaleTimeString();
 					const date_nowTG = new Date().toLocaleDateString();
 
-					const text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame #: ${txtGameId}\nCapital: ${parseFloat(txtCapital).toLocaleString()}\nFinal Chips: ${parseFloat(txtFinalChips).toLocaleString()}\nWin/Loss: ${parseFloat(adjustedWinloss).toLocaleString()}\nTotal Rolling: ${parseFloat(txtTotalRolling).toLocaleString()}`;
+					// Calculate Total Rolling: txtTotalRolling + txtReturnRollerCC (if txtReturnRollerCC exists)
+					const totalRollingBase = parseFloat(txtTotalRolling) || 0;
+					const returnCCAmount = parseFloat((txtReturnRollerCC || '0').replace(/,/g, '')) || 0;
+					const totalRolling = totalRollingBase + returnCCAmount;
+
+					const text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame #: ${txtGameId}\nCapital: ${parseFloat(txtCapital).toLocaleString()}\nFinal Chips: ${parseFloat(txtFinalChips).toLocaleString()}\nWin/Loss: ${parseFloat(adjustedWinloss).toLocaleString()}\nTotal Rolling: ${totalRolling.toLocaleString()}`;
 
 					if (telegramIdResults.length > 0) {
 						const telegramId = telegramIdResults[0].TELEGRAM_ID;
@@ -1557,7 +1562,7 @@ router.put('/game_record/remove/:id', async (req, res) => {
 		await pool.execute(query, [0, req.session.user_id, date_now, id]);
 
 		// Now, fetch the details of the record for further query
-		const recordQuery = `SELECT NN_CHIPS, ENCODED_DT FROM game_record WHERE IDNo = ?`;
+		const recordQuery = `SELECT GAME_ID, CAGE_TYPE, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, TRANSACTION, ENCODED_DT FROM game_record WHERE IDNo = ?`;
 		const [recordResult] = await pool.execute(recordQuery, [id]);
 
 		// Ensure the result exists
@@ -1565,26 +1570,204 @@ router.put('/game_record/remove/:id', async (req, res) => {
 			return res.status(404).send('Record not found for additional deletion');
 		}
 
-		const nnChips = recordResult[0].NN_CHIPS;
-		const encodedDt = recordResult[0].ENCODED_DT;
+		const record = recordResult[0];
+		const nnChips = record.NN_CHIPS;
+		const encodedDt = record.ENCODED_DT;
+		const cageType = record.CAGE_TYPE;
+		const gameId = record.GAME_ID;
+		const transaction = record.TRANSACTION;
+		const ccChips = record.CC_CHIPS || 0;
 
-		// Update records with the same NN_CHIPS and ENCODED_DT for CAGE_TYPE 1 and 3
-		const deleteQuery = `
-			UPDATE game_record 
-			SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? 
-			WHERE NN_CHIPS = ? AND ENCODED_DT = ? AND CAGE_TYPE IN (1, 3)
-		`;
+		// If CAGE_TYPE = 2 (Cash Out), delete corresponding account_ledger and cash_transaction entries
+		if (cageType === 2) {
+			// Get ACCOUNT_ID from game_list
+			const gameListQuery = `SELECT ACCOUNT_ID FROM game_list WHERE IDNo = ? LIMIT 1`;
+			const [gameListResult] = await pool.execute(gameListQuery, [gameId]);
+			
+			if (gameListResult.length > 0) {
+				const accountId = gameListResult[0].ACCOUNT_ID;
+				const totalAmount = parseFloat(nnChips) + parseFloat(ccChips);
+				
+				// Delete the corresponding account_ledger entry
+				// Matching: ACCOUNT_ID, TRANSACTION_ID=1, TRANSACTION_TYPE, TRANSACTION_DESC='Chips Returned', AMOUNT, ENCODED_DT
+				const ledgerDeleteQuery = `
+					DELETE FROM account_ledger
+					WHERE ACCOUNT_ID = ? 
+					AND TRANSACTION_ID = 1 
+					AND TRANSACTION_TYPE = ? 
+					AND TRANSACTION_DESC = 'Chips Returned' 
+					AND AMOUNT = ?
+					AND ENCODED_DT = ?
+					ORDER BY IDNo DESC
+					LIMIT 1
+				`;
+				
+				await pool.execute(ledgerDeleteQuery, [accountId, transaction, totalAmount, encodedDt]);
+			}
 
-		const [deleteResult] = await pool.execute(deleteQuery, [0, req.session.user_id, date_now, nnChips, encodedDt]);
+			// Delete from cash_transaction table
+			// TRANSACTION_ID in cash_transaction refers to the game_record IDNo
+			await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ?', [id]);
+		}
 
-		// Note: GAME_RECORD_ID column doesn't exist in account_ledger table
-		// If ledger entries need to be deleted, use another method to identify them
+		// If CAGE_TYPE = 1 or 3 (Buy-in), delete corresponding account_ledger and cash_transaction entries
+		if (cageType === 1 || cageType === 3) {
+			// Get ACCOUNT_ID from game_list
+			const gameListQuery = `SELECT ACCOUNT_ID FROM game_list WHERE IDNo = ? LIMIT 1`;
+			const [gameListResult] = await pool.execute(gameListQuery, [gameId]);
+			
+			if (gameListResult.length > 0) {
+				const accountId = gameListResult[0].ACCOUNT_ID;
+				const totalAmount = parseFloat(nnChips) + parseFloat(ccChips);
+				
+				// If TRANSACTION = 1 (Cash), delete from cash_transaction
+				// Check for both "Game buy-in" (initial) and "Additional buy-in"
+				// TRANSACTION_ID in cash_transaction = game_id (not game_record IDNo for buy-in)
+				if (transaction == 1) {
+					// Try to delete "Game buy-in" first (initial buy-in)
+					const deleteInitial = await pool.execute(
+						`DELETE FROM cash_transaction 
+						WHERE TRANSACTION_ID = ? 
+						AND CATEGORY = 'Game buy-in' 
+						AND TYPE = 1 
+						AND AMOUNT = ?`,
+						[gameId, totalAmount]
+					);
+					
+					// If no initial buy-in found, try "Additional buy-in"
+					if (deleteInitial[0].affectedRows === 0) {
+						await pool.execute(
+							`DELETE FROM cash_transaction 
+							WHERE TRANSACTION_ID = ? 
+							AND CATEGORY = 'Additional buy-in' 
+							AND TYPE = 1 
+							AND AMOUNT = ?`,
+							[gameId, totalAmount]
+						);
+					}
+				}
+				
+				// If TRANSACTION = 2 (Deposit), delete from account_ledger
+				// Check for both "INITIAL BUY-IN" and "ADDITIONAL BUY-IN"
+				if (transaction == 2) {
+					// Try to delete "INITIAL BUY-IN" first
+					const deleteInitial = await pool.execute(
+						`DELETE FROM account_ledger
+						WHERE ACCOUNT_ID = ? 
+						AND TRANSACTION_ID = 2 
+						AND TRANSACTION_TYPE = 2 
+						AND TRANSACTION_DESC = 'INITIAL BUY-IN' 
+						AND AMOUNT = ?
+						AND ENCODED_DT = ?
+						ORDER BY IDNo DESC
+						LIMIT 1`,
+						[accountId, totalAmount, encodedDt]
+					);
+					
+					// If no initial buy-in found, try "ADDITIONAL BUY-IN"
+					if (deleteInitial[0].affectedRows === 0) {
+						await pool.execute(
+							`DELETE FROM account_ledger
+							WHERE ACCOUNT_ID = ? 
+							AND TRANSACTION_ID = 2 
+							AND TRANSACTION_TYPE = 2 
+							AND TRANSACTION_DESC = 'ADDITIONAL BUY-IN' 
+							AND AMOUNT = ?
+							AND ENCODED_DT = ?
+							ORDER BY IDNo DESC
+							LIMIT 1`,
+							[accountId, totalAmount, encodedDt]
+						);
+					}
+				}
+				
+				// If TRANSACTION = 3 (IOU), delete from account_ledger
+				// For IOU, both initial and additional use same TRANSACTION_ID=10 and TRANSACTION_TYPE=3
+				// But initial has no TRANSACTION_DESC, additional might have one
+				if (transaction == 3) {
+					// Try to delete with no TRANSACTION_DESC first (initial buy-in)
+					const deleteInitial = await pool.execute(
+						`DELETE FROM account_ledger
+						WHERE ACCOUNT_ID = ? 
+						AND TRANSACTION_ID = 10 
+						AND TRANSACTION_TYPE = 3 
+						AND (TRANSACTION_DESC IS NULL OR TRANSACTION_DESC = '')
+						AND AMOUNT = ?
+						AND ENCODED_DT = ?
+						ORDER BY IDNo DESC
+						LIMIT 1`,
+						[accountId, totalAmount, encodedDt]
+					);
+					
+					// If no initial found, try with any TRANSACTION_DESC (shouldn't happen for IOU, but just in case)
+					if (deleteInitial[0].affectedRows === 0) {
+						await pool.execute(
+							`DELETE FROM account_ledger
+							WHERE ACCOUNT_ID = ? 
+							AND TRANSACTION_ID = 10 
+							AND TRANSACTION_TYPE = 3 
+							AND AMOUNT = ?
+							AND ENCODED_DT = ?
+							ORDER BY IDNo DESC
+							LIMIT 1`,
+							[accountId, totalAmount, encodedDt]
+						);
+					}
+				}
+			}
+		}
 
-		// Check if any rows were updated
-		if (deleteResult.affectedRows > 0) {
-			res.send('GAME LIST updated successfully for IDNo and matching CAGE_TYPE 1 and 3');
+		// If CAGE_TYPE = 5 (Roller Chips), delete matching roller chips record only
+		// Roller chips are separate records, so we don't touch buy-in records (CAGE_TYPE 1 and 3)
+		if (cageType === 5) {
+			const rollerNN = record.ROLLER_NN_CHIPS || 0;
+			const rollerCC = record.ROLLER_CC_CHIPS || 0;
+			const rollerTransaction = record.ROLLER_TRANSACTION;
+			
+			// Delete matching roller chips record (same GAME_ID, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_DT)
+			// This handles both ADD (ROLLER_TRANSACTION = 1) and RETURN (ROLLER_TRANSACTION = 2)
+			const rollerDeleteQuery = `
+				UPDATE game_record 
+				SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? 
+				WHERE GAME_ID = ? 
+				AND CAGE_TYPE = 5 
+				AND ROLLER_NN_CHIPS = ? 
+				AND ROLLER_CC_CHIPS = ? 
+				AND ROLLER_TRANSACTION = ? 
+				AND ENCODED_DT = ?
+			`;
+			await pool.execute(rollerDeleteQuery, [0, req.session.user_id, date_now, gameId, rollerNN, rollerCC, rollerTransaction, encodedDt]);
+			res.send('Roller chips record deleted successfully');
 		} else {
-			res.send('No matching records found for deletion with CAGE_TYPE 1 and 3');
+			// For CAGE_TYPE 1 or 3 (Buy-in), delete matching buy-in pair
+			// Update records with the same GAME_ID, NN_CHIPS, CC_CHIPS and ENCODED_DT for CAGE_TYPE 1 and 3
+			// This ensures we only delete the matching pair (CAGE_TYPE 1 and 3) for the same buy-in
+			const deleteQuery = `
+				UPDATE game_record 
+				SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? 
+				WHERE GAME_ID = ? AND NN_CHIPS = ? AND CC_CHIPS = ? AND ENCODED_DT = ? AND CAGE_TYPE IN (1, 3)
+			`;
+
+			const [deleteResult] = await pool.execute(deleteQuery, [0, req.session.user_id, date_now, gameId, nnChips, ccChips, encodedDt]);
+
+			// Also delete roller chips (CAGE_TYPE 5) if they were added together with the buy-in
+			// Roller chips from new game have same GAME_ID and ENCODED_DT, and ROLLER_TRANSACTION = 1 (ADD)
+			const rollerDeleteQuery = `
+				UPDATE game_record 
+				SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? 
+				WHERE GAME_ID = ? 
+				AND CAGE_TYPE = 5 
+				AND ROLLER_TRANSACTION = 1 
+				AND ENCODED_DT = ?
+			`;
+			await pool.execute(rollerDeleteQuery, [0, req.session.user_id, date_now, gameId, encodedDt]);
+
+			// Check if any rows were updated
+			if (deleteResult.affectedRows > 0) {
+				res.send('GAME LIST updated successfully for IDNo and matching CAGE_TYPE 1 and 3, including roller chips if added together');
+			} else {
+				res.send('No matching records found for deletion with CAGE_TYPE 1 and 3');
+			}
 		}
 	} catch (err) {
 		console.error('Error updating GAME LIST:', err);
