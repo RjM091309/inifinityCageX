@@ -136,7 +136,10 @@ $(document).ready(function() {
             remarks: row.REMARKS || '',
             encodedBy: row.ENCODED_BY_NAME || 'N/A',
             date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
-            typeValue: parseInt(row.TYPE, 10)
+            typeValue: parseInt(row.TYPE, 10),
+            serviceTransactionId: row.SERVICE_TRANSACTION_ID != null
+              ? parseInt(row.SERVICE_TRANSACTION_ID, 10)
+              : null
           }));
         }
       },
@@ -149,8 +152,14 @@ $(document).ready(function() {
       ],
       createdRow(row, data) {
         const category = (data.rawCategory || data.typeText || '').toLowerCase().trim();
+        const hasServiceTxnId = Number.isFinite(data.serviceTransactionId);
+        if (hasServiceTxnId) {
+          if (data.serviceTransactionId === 3) {
+            $('td:eq(0), td:eq(1)', row).addClass('text-primary');
+          }
+          return;
+        }
         if (getServiceCategories().includes(category)) {
-          $('td:eq(0), td:eq(1)', row).addClass('text-primary');
           return;
         }
         if (data.typeValue === 1) {

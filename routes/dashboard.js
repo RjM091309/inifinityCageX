@@ -1010,6 +1010,7 @@ router.get('/cash_transaction_data', async (req, res) => {
 		const query = `
 			SELECT
 				ct.IDNo,
+				ct.TRANSACTION_ID,
 				ct.AMOUNT,
 				ct.CATEGORY,
 				ct.TYPE,
@@ -1017,7 +1018,9 @@ router.get('/cash_transaction_data', async (req, res) => {
 				ct.ENCODED_BY,
 				ct.ENCODED_DT,
 				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME,
-				COALESCE(agent.NAME, '-') AS AGENT_NAME
+				COALESCE(agent.NAME, '-') AS AGENT_NAME,
+				gs.TRANSACTION_ID AS SERVICE_TRANSACTION_ID,
+				gs.SOURCE_TYPE AS SERVICE_SOURCE_TYPE
 			FROM cash_transaction ct
 			LEFT JOIN user_info u ON ct.ENCODED_BY = u.IDNo
 			LEFT JOIN agent ON ct.AGENT_ID = agent.IDNo

@@ -494,6 +494,9 @@ function loadCashInData() {
                         const remarks = row.REMARKS || '';
                         const encodedBy = row.ENCODED_BY_NAME || 'N/A';
                         const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
+                        const serviceTransactionId = row.SERVICE_TRANSACTION_ID != null
+                            ? parseInt(row.SERVICE_TRANSACTION_ID, 10)
+                            : null;
 
                         return [
                             typeText,
@@ -501,7 +504,8 @@ function loadCashInData() {
                     amount,
                             remarks,
                             encodedBy,
-                            formattedDate
+                            formattedDate,
+                            serviceTransactionId
                 ];
             });
         }
@@ -514,6 +518,12 @@ function loadCashInData() {
             { "className": "text-center" },
             { "className": "text-center" }
         ],
+        "createdRow": function (row, data) {
+            const serviceTransactionId = data && data.length > 6 ? parseInt(data[6], 10) : null;
+            if (serviceTransactionId === 3) {
+                $('td:eq(0), td:eq(2)', row).addClass('text-primary');
+            }
+        },
         "responsive": true,
         "language": {
             "emptyTable": "No cash-in transactions found",
