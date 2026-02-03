@@ -781,10 +781,9 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 id="comms" class="counter">₱ <%- Math.round( (+sqlCommissionReset || 0)
-                                                   + (+sqlSharedReset || 0) ).toLocaleString() %></h6>
+                                             <h6 id="comms" class="counter">₱ <%- Math.round(+sqlCommissionPayment || 0).toLocaleString() %></h6>
                                              <input type="hidden" name="COMMISSION_HISTORY"
-                                                value="<%- Math.round((+sqlCommissionReset || 0) + (+sqlSharedReset || 0)) %>">
+                                                value="<%- Math.round(+sqlCommissionPayment || 0) %>">
                                           </div>
                                        </div>
                                     </div>

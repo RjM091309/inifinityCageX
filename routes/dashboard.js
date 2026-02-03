@@ -607,6 +607,116 @@ let sqlServiceSettle = `
 		const [RollerCCAddResult] = await pool.execute(sqlRollerCCAdd);
 		const [AgentCountResult] = await pool.execute(sqlAgentCount);
 
+		// Compute Commission Payment Total (same logic as Commission module)
+		let totalCommissionPayment = 0;
+		try {
+			const now = new Date();
+			const start = new Date(now.getFullYear(), now.getMonth(), 1);
+			const startStr = start.toISOString().slice(0, 10);
+			const endStr = now.toISOString().slice(0, 10);
+
+			const commissionQuery = `
+				SELECT *, 
+					game_list.IDNo AS game_list_id, 
+					game_list.COMMISSION_PERCENTAGE,
+					game_list.COMMISSION_TYPE,
+					game_list.FNB AS fnb
+				FROM game_list 
+				WHERE game_list.ACTIVE != 0 
+					AND game_list.SETTLED = 1
+					AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
+				ORDER BY game_list.IDNo ASC`;
+
+			const [games] = await pool.execute(commissionQuery, [startStr, endStr]);
+
+			if (games && games.length > 0) {
+				for (const row of games) {
+					const gameId = row.game_list_id;
+					const RollingRate = Number(row.COMMISSION_PERCENTAGE) || 0;
+					const fb = Number(row.fnb || 0);
+					const commissionType = Number(row.COMMISSION_TYPE);
+
+					if (!gameId || !RollingRate) continue;
+
+					const recordQuery = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ROLLER_TRANSACTION, ROLLER_CC_CHIPS FROM game_record WHERE ACTIVE != 0 AND GAME_ID = ? ORDER BY IDNo ASC`;
+					const [records] = await pool.execute(recordQuery, [gameId]);
+
+					if (!records || records.length === 0) continue;
+
+					let total_nn_init = 0;
+					let total_cc_init = 0;
+					let total_nn = 0;
+					let total_cc = 0;
+					let total_cash_out_nn = 0;
+					let total_cash_out_cc = 0;
+					let total_rolling_nn = 0;
+					let total_rolling_cc = 0;
+					let total_rolling_real = 0;
+					let total_rolling_nn_real = 0;
+					let total_rolling_cc_real = 0;
+					let total_roller_return_cc = 0;
+
+					for (const res of records) {
+						const cageType = Number(res.CAGE_TYPE);
+
+						if (cageType === 1 && (total_nn_init !== 0 || total_cc_init !== 0)) {
+							total_nn += Number(res.NN_CHIPS) || 0;
+							total_cc += Number(res.CC_CHIPS) || 0;
+						}
+
+						if (cageType === 1 && total_nn_init === 0 && total_cc_init === 0) {
+							total_nn_init += Number(res.NN_CHIPS) || 0;
+							total_cc_init += Number(res.CC_CHIPS) || 0;
+						}
+
+						if (cageType === 2) {
+							total_cash_out_nn += Number(res.NN_CHIPS) || 0;
+							total_cash_out_cc += Number(res.CC_CHIPS) || 0;
+						}
+
+						if (cageType === 3) {
+							total_rolling_nn += Number(res.NN_CHIPS) || 0;
+							total_rolling_cc += Number(res.CC_CHIPS) || 0;
+						}
+
+						if (cageType === 4) {
+							total_rolling_real += Number(res.AMOUNT) || 0;
+							total_rolling_nn_real += Number(res.NN_CHIPS) || 0;
+							total_rolling_cc_real += Number(res.CC_CHIPS) || 0;
+						}
+
+						if (cageType === 5) {
+							const rollerTransaction = parseInt(res.ROLLER_TRANSACTION, 10) || 1;
+							if (rollerTransaction === 2) {
+								total_roller_return_cc += Number(res.ROLLER_CC_CHIPS) || 0;
+							}
+						}
+					}
+
+					const total_initial = total_nn_init + total_cc_init;
+					const total_buy_in_chips = total_nn + total_cc;
+					const total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
+					const total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc - total_cash_out_nn;
+
+					const total_amount = total_buy_in_chips + total_initial;
+					const winlossValue = total_amount - total_cash_out_chips;
+
+					let net = 0;
+					if (commissionType === 1 || commissionType === 3) {
+						net = Math.round((total_rolling_chips * RollingRate) / 100);
+					} else if (commissionType === 2) {
+						net = Math.round((winlossValue * RollingRate) / 100);
+					}
+
+					const paymentValue = Math.round(net - fb);
+					totalCommissionPayment += paymentValue;
+				}
+			}
+		} catch (err) {
+			console.error('Error computing commission payment:', err);
+			totalCommissionPayment = 0;
+		}
+
 		res.render('dashboard', {
 
 			username: req.session.username,
@@ -696,7 +806,8 @@ let sqlServiceSettle = `
 			sqlServiceDepositGuest: serviceDepositGuestResults,
 			sqlServiceCashJunket: serviceCashJunketResults,
 			sqlServiceDepositJunket: serviceDepositJunketResults,
-			sqlServiceSettle: serviceSettleResults
+			sqlServiceSettle: serviceSettleResults,
+			sqlCommissionPayment: totalCommissionPayment || 0
 
 		});
 
