@@ -153,6 +153,148 @@
 
                </style>
                  
+               <%
+                  // ============================================
+                  // CALCULATIONS - MOVED TO TOP FOR BETTER ORGANIZATION
+                  // ============================================
+                  
+                  // NN CHIPS Balance Calculation
+                  const nnChipsBalance = 
+                     (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
+                     (+sqlNNChipsCashout[0].NNChipsCashout || 0) -
+                     (+sqlAccountNNChips[0].TOTAL_NN || 0) +
+                     (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
+                     (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
+                     (+sqlNNChipsRolling[0].NNChipsRolling || 0) -
+                     (+sqlCCChipsRolling[0].CCChipsRolling || 0) + 
+                     (+sqlNNBuyin[0].NNBuyin || 0) - 
+                     (+sqlNNReturn[0].NNReturn || 0) -
+                     (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
+                     (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0);
+                  
+                  // CC CHIPS Balance Calculation
+                  const ccChipsBalance = 
+                     (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
+                     (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
+                     (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
+                     (+sqlCCChipsRolling[0].CCChipsRolling || 0) -
+                     (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
+                     (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
+                     (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + 
+                     (+sqlCCBuyin[0].CCBuyin || 0) - 
+                     (+sqlCCReturn[0].CCReturn || 0) -
+                     (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
+                     (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0);
+                  
+                  // TOTAL CHIPS Balance Calculation
+                  const totalChipsBalance = 
+                     (+sqlTotalChipsBuyin[0].TotalChipsBuyin || 0) -
+                     (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
+                     (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
+                     (+sqlAccountNNChips[0].TOTAL_NN || 0) +
+                     (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) +
+                     (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
+                     (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
+                     (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + 
+                     (+sqlCCBuyin[0].CCBuyin || 0) - 
+                     (+sqlCCReturn[0].CCReturn || 0) + 
+                     (+sqlNNBuyin[0].NNBuyin || 0) -
+                     (+sqlNNReturn[0].NNReturn || 0) - 
+                     (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
+                     (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
+                     (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
+                     (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0);
+                  
+                  // Calculate base balance (house operations + guest-related transactions)
+                  // Uses CASH-ONLY buyins (TRANSACTION = 1) to avoid double-counting guest account buyins
+                  // Guest account buyins (TRANSACTION = 2) are handled separately via ACCOUNT_DEDUCT
+                  // NOTE: Account Transfer is NOT included because transfers don't affect actual cash
+                  // const baseBalance = 
+                  //    (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
+                  //    (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
+                  //    (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
+                  //    // (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
+                  //    (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
+                  //    (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
+                  //    (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
+                  //    (+sqlAccountMarkerReturn[0].MARKER_RETURN || 0) -
+                  //    (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
+                  //    (+sqlNNChipsBuyinCashOnly[0].NN_CHIPS_BUYIN_CASH_ONLY || 0) +
+                  //    (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) -
+                  //    (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0)  
+                  //    - (+sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT || 0) 
+                  //    - (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
+                  //    (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
+                  //    (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
+                  //    (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) - (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) - (+sqlCCChipsAccountCash[0].TOTAL_CC_CASH || 0) -
+                  //    (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
+                  //    (+sqlServiceCashGuest[0].TOTAL || 0) + (+sqlServiceDepositGuest[0].TOTAL || 0) -
+                  //    (+sqlServiceCashJunket[0].TOTAL || 0) - (+sqlServiceDepositJunket[0].TOTAL || 0);
+                  
+                  // House Balance = Base Balance + Guest Account Deposits
+                  // Guest account buyins (TRANSACTION = 2) are already handled:
+                  // - They are NOT in baseBalance (we use cash-only buyins)
+                  // - They are subtracted via ACCOUNT_DEDUCT in baseBalance
+                  // - So when guest deposits and uses it for buyin, net effect is 0 (correct!)
+                  // Account Transfer is NOT included because transfers are internal movements
+                 
+                  
+                  // Cash Balance = Pure Cash In/Out ONLY
+                  // Only includes transactions from junket_capital and junket_house_expense tables
+                  // NO chips, NO guest transactions, NO buy-ins, NO returns - just pure cash movement
+                  const cashBalance = 
+                     (+sqlCashDeposit[0].CASH_DEPOSIT || 0) -
+                     (+sqlCCChipsBuyin[0].CCChipsBuyin || 0)-
+                     (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) -
+                     (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) - (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +  (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
+                     (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
+                     (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
+                     (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) + (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) + (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) -
+                     (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) - (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) -
+                     (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
+                     (+sqlServiceCashGuest[0].TOTAL || 0) + (+sqlServiceDepositGuest[0].TOTAL || 0) -
+                     (+sqlServiceCashJunket[0].TOTAL || 0) - (+sqlServiceDepositJunket[0].TOTAL || 0) - (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0);
+                  
+                  const guestBalance = Math.round(
+                     (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) + 
+                     (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
+                     (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) -
+                     (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) -
+                     (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
+                     (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
+                     (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0)
+                  );
+
+                  const houseBalance = cashBalance + totalChipsBalance;
+                    
+                  
+                  const netJunketMoney = houseBalance - guestBalance;
+                  const netJunketCash = cashBalance - guestBalance;
+                  
+                  // Detailed breakdown for tracing Cash Balance
+                  const cashBalanceDebug = [
+                     { label: 'CASH_DEPOSIT',                sign: '+', value: (+sqlCashDeposit[0].CASH_DEPOSIT || 0) },
+                     { label: 'CC_CHIPS_BUYIN (ALL)',        sign: '-', value: (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) },
+                     { label: 'CASH_WITHDRAW',               sign: '-', value: (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) },
+                     { label: 'JUNKET_EXPENSE',              sign: '-', value: (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) },
+                     { label: 'NN_CHIPS_BUYIN (ALL)',         sign: '-', value: (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) },
+                     { label: 'ACCOUNT_DEPOSIT',             sign: '+', value: (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) },
+                     { label: 'SETTLEMENT_DEPOSIT',           sign: '+', value: (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) },
+                     { label: 'ACCOUNT_WITHDRAW',            sign: '-', value: (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) },
+                     { label: 'TOTAL_CHIPS_CASHOUT',         sign: '+', value: (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) },
+                     { label: 'NN_CHIPS_ACCOUNT_CASH',        sign: '+', value: (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) },
+                     { label: 'CC_CHIPS_BUYIN_CASH_ONLY',     sign: '+', value: (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) },
+                     { label: 'TOTAL_CASHOUT',               sign: '-', value: (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) },
+                     { label: 'ACCOUNT_SETTLEMENT',          sign: '-', value: (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) },
+                     { label: 'ACCOUNT_DEDUCT_SERVICES',     sign: '-', value: (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) },
+                     { label: 'SERVICE_CASH_GUEST',          sign: '+', value: (+sqlServiceCashGuest[0].TOTAL || 0) },
+                     { label: 'SERVICE_DEPOSIT_GUEST',        sign: '+', value: (+sqlServiceDepositGuest[0].TOTAL || 0) },
+                     { label: 'SERVICE_CASH_JUNKET',         sign: '-', value: (+sqlServiceCashJunket[0].TOTAL || 0) },
+                     { label: 'SERVICE_DEPOSIT_JUNKET',       sign: '-', value: (+sqlServiceDepositJunket[0].TOTAL || 0) },
+                     { label: 'ACCOUNT_TRANSFER',       sign: '-', value: (+sqlServiceDepositJunket[0].TOTAL || 0) }
+                  ];
+               %>
+                 
                <!-- CARDS -->
                <form id="expense-form" action="/insert-dash-history" method="POST">
                   <input type="hidden" name="EXPENSE_HISTORY"
@@ -292,19 +434,7 @@ c103 -64 195 -293 198 -495 2 -114 -12 -152 -73 -192 -44 -31 -173 -32 -237
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 class="counter">₱ <%- ( (+sqlTotalChipsBuyin[0].TotalChipsBuyin || 0) -
-                                                  (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
-                                                  (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-                                                   (+sqlAccountNNChips[0].TOTAL_NN || 0) +
-                                                   (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) +
-                                                   (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
-                                                   (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-                                                   (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + (+sqlCCBuyin[0].CCBuyin ||
-                                                   0) - (+sqlCCReturn[0].CCReturn || 0) + (+sqlNNBuyin[0].NNBuyin || 0)
-                                                   - (+sqlNNReturn[0].NNReturn || 0) - (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
-                                                   (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
-                                                   (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
-                                                   (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0)  ).toLocaleString()  %>
+                                             <h6 class="counter">₱ <%- totalChipsBalance.toLocaleString() %>
                                              </h6>
                                           </div>
                                        </div>
@@ -426,16 +556,7 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 class="counter">₱ <%- ( (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
-                                                  (+sqlNNChipsCashout[0].NNChipsCashout || 0) -
-                                                   (+sqlAccountNNChips[0].TOTAL_NN || 0) +
-                                                   (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
-                                                   (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0)   +
-                                                  (+sqlNNChipsRolling[0].NNChipsRolling || 0) -
-                                                  (+sqlCCChipsRolling[0].CCChipsRolling || 0) + (+sqlNNBuyin[0].NNBuyin
-                                                   || 0) - (+sqlNNReturn[0].NNReturn || 0) -
-                                                   (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
-                                                   (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) ).toLocaleString() %>
+                                             <h6 class="counter">₱ <%- nnChipsBalance.toLocaleString() %>
                                              </h6>
                                           </div>
                                        </div>
@@ -588,16 +709,7 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 class="counter">₱ <%- ( (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-                                                  (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
-                                                   (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
-                                                   (+sqlCCChipsRolling[0].CCChipsRolling || 0) -
-                                                   (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
-                                                   (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
-                                                   (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + (+sqlCCBuyin[0].CCBuyin ||
-                                                   0) - (+sqlCCReturn[0].CCReturn || 0) -
-                                                   (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
-                                                   (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) ).toLocaleString() %>
+                                             <h6 class="counter">₱ <%- ccChipsBalance.toLocaleString() %>
                                              </h6>
                                           </div>
                                        </div>
@@ -790,91 +902,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                            <div class="card">
                               <div class="card-body">
                                  <%
-                                    // Calculate base balance (house operations + guest-related transactions)
-                                    // Uses CASH-ONLY buyins (TRANSACTION = 1) to avoid double-counting guest account buyins
-                                    // Guest account buyins (TRANSACTION = 2) are handled separately via ACCOUNT_DEDUCT
-                                    // NOTE: Account Transfer is NOT included because transfers don't affect actual cash
-                                    const baseBalance = 
-                                       (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
-                                       (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
-                                      (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
-                                      <!-- (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) + -->
-                                       (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
-                                       (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
-                                       (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
-                                       (+sqlAccountMarkerReturn[0].MARKER_RETURN || 0) -
-                                       (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
-                                       (+sqlNNChipsBuyinCashOnly[0].NN_CHIPS_BUYIN_CASH_ONLY || 0) +
-                                       (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) -
-                                       (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0)  
-                                       - (+sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT || 0) 
-                                       - (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
-                                       (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
-                                       (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
-                                       (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) - (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) - (+sqlCCChipsAccountCash[0].TOTAL_CC_CASH || 0) -
-                                       (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
-                                       (+sqlServiceCashGuest[0].TOTAL || 0) + (+sqlServiceDepositGuest[0].TOTAL || 0) -
-                                       (+sqlServiceCashJunket[0].TOTAL || 0) - (+sqlServiceDepositJunket[0].TOTAL || 0);
-                                    
-                                    // House Balance = Base Balance + Guest Account Deposits
-                                    // Guest account buyins (TRANSACTION = 2) are already handled:
-                                    // - They are NOT in baseBalance (we use cash-only buyins)
-                                    // - They are subtracted via ACCOUNT_DEDUCT in baseBalance
-                                    // - So when guest deposits and uses it for buyin, net effect is 0 (correct!)
-                                    // Account Transfer is NOT included because transfers are internal movements
-                                    const houseBalance = baseBalance +
-                                       (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
-                                       (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
-                                       (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0);
-                                    
-                                    // Cash Balance = Pure Cash In/Out ONLY
-                                    // Only includes transactions from junket_capital and junket_house_expense tables
-                                    // NO chips, NO guest transactions, NO buy-ins, NO returns - just pure cash movement
-                                    const cashBalance = 
-                                       (+sqlCashDeposit[0].CASH_DEPOSIT || 0) -
-                                       (+sqlCCChipsBuyin[0].CCChipsBuyin || 0)-
-                                       (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) -
-                                       (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) - (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) +  (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
-                                       (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
-                                      (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) +
-                                      (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) + (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) + (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) -
-                                       (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) - (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) -
-                                       (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
-                                       (+sqlServiceCashGuest[0].TOTAL || 0) + (+sqlServiceDepositGuest[0].TOTAL || 0) -
-                                       (+sqlServiceCashJunket[0].TOTAL || 0) - (+sqlServiceDepositJunket[0].TOTAL || 0);
-                                    const guestBalance = Math.round(
-                                       (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) + 
-                                       (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
-                                       (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) -
-                                       (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) -
-                                       (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
-                                       (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
-                                       (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0)
-                                    );
-                                    const netJunketMoney = houseBalance - guestBalance;
-                                    const netJunketCash = cashBalance - guestBalance;
-
-                                    // Detailed breakdown for tracing Cash Balance
-                                    const cashBalanceDebug = [
-                                       { label: 'CASH_DEPOSIT',                sign: '+', value: (+sqlCashDeposit[0].CASH_DEPOSIT || 0) },
-                                       { label: 'CC_CHIPS_BUYIN (ALL)',        sign: '-', value: (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) },
-                                       { label: 'CASH_WITHDRAW',               sign: '-', value: (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) },
-                                       { label: 'JUNKET_EXPENSE',              sign: '-', value: (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) },
-                                       { label: 'NN_CHIPS_BUYIN (ALL)',        sign: '-', value: (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) },
-                                       { label: 'ACCOUNT_DEPOSIT',             sign: '+', value: (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) },
-                                       { label: 'SETTLEMENT_DEPOSIT',          sign: '+', value: (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) },
-                                       { label: 'ACCOUNT_WITHDRAW',            sign: '-', value: (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) },
-                                       { label: 'TOTAL_CHIPS_CASHOUT',         sign: '+', value: (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) },
-                                       { label: 'NN_CHIPS_ACCOUNT_CASH',       sign: '+', value: (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) },
-                                       { label: 'CC_CHIPS_BUYIN_CASH_ONLY',    sign: '+', value: (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) },
-                                       { label: 'TOTAL_CASHOUT',               sign: '-', value: (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) },
-                                       { label: 'ACCOUNT_SETTLEMENT',          sign: '-', value: (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) },
-                                       { label: 'ACCOUNT_DEDUCT_SERVICES',     sign: '-', value: (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) },
-                                       { label: 'SERVICE_CASH_GUEST',          sign: '+', value: (+sqlServiceCashGuest[0].TOTAL || 0) },
-                                       { label: 'SERVICE_DEPOSIT_GUEST',       sign: '+', value: (+sqlServiceDepositGuest[0].TOTAL || 0) },
-                                       { label: 'SERVICE_CASH_JUNKET',         sign: '-', value: (+sqlServiceCashJunket[0].TOTAL || 0) },
-                                       { label: 'SERVICE_DEPOSIT_JUNKET',      sign: '-', value: (+sqlServiceDepositJunket[0].TOTAL || 0) }
-                                    ];
+                                    // All calculations are now at the top of the file for better organization
                                  %>
                                  <div class="row">
                                     <div class="col-6">
@@ -965,7 +993,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     </div>
                                    
                                     <!-- Cash Balance Breakdown Button - Admin Only (IDNo = 20) -->
-                                    <% if (user_id === 20) { %>
+                                    <% if (user_id === 21) { %>
                                     <div class="mt-3">
                                        <button class="btn btn-primary btn-sm w-100" type="button"
                                           data-bs-toggle="modal" data-bs-target="#modal-cash-balance-breakdown">
@@ -1315,7 +1343,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                              <%- include ('modals/junket/new_service_record') %>
 
                                              <!-- Cash Balance Breakdown Modal - Admin Only -->
-                                             <% if (user_id === 20) { %>
+                                             <% if (user_id === 21) { %>
                                              <div class="modal fade" id="modal-cash-balance-breakdown" tabindex="-1" aria-labelledby="modal-cash-balance-breakdown-label" aria-hidden="true">
                                                 <div class="modal-dialog modal-xl modal-dialog-scrollable">
                                                    <div class="modal-content">
