@@ -62,6 +62,7 @@
 												<th>Remarks</th>
 												<th>Encoded By</th>
 												<th>Date</th>
+												<th>Action</th>
 											</tr>
 									</thead>
 									<tbody>
@@ -76,8 +77,12 @@
 												const isJunketSource = service.SOURCE_TYPE === 'JUNKET';
 												const isSettle = parseInt(service.TRANSACTION_ID, 10) === 3;
 												const displayAmt = `${isJunketSource ? '-' : ''}${formattedAmt}`;
+												const hasGameId = service.GAME_ID && service.GAME_ID !== null;
+												const isGameSettled = hasGameId && service.game_settled === 1;
+												const canEdit = !hasGameId; // Can only edit if no game_id
+												const canDelete = !hasGameId; // Can only delete if no game_id
 												%>
-												<tr data-service-type="<%= service.SERVICE_TYPE %>">
+												<tr data-service-type="<%= service.SERVICE_TYPE %>" data-service-id="<%= service.IDNo %>" data-has-game-id="<%= hasGameId ? '1' : '0' %>" data-game-settled="<%= isGameSettled ? '1' : '0' %>">
 													<td class="<%= isSettle ? 'text-primary' : '' %>"><%= service.SOURCE_TYPE || '-' %></td>
 													<td><%= service.SOURCE_TYPE === 'JUNKET' ? '-' : (service.agent_name || 'Unknown') %></td>
 													<td><%= service.GAME_ID ? service.GAME_ID : '-' %></td>
@@ -87,11 +92,37 @@
 													<td><%= service.REMARKS || '-' %></td>
 													<td><%= service.encoded_by_name || '-' %></td>
 													<td><%= formatDate(service.ENCODED_DT) %></td>
+													<td>
+														<% if (canEdit && canDelete) { %>
+															<button type="button" class="btn btn-sm btn-primary me-1 edit-service-btn" 
+																data-id="<%= service.IDNo %>"
+																data-source="<%= service.SOURCE_TYPE %>"
+																data-agent="<%= service.AGENT_ID || '' %>"
+																data-service="<%= service.SERVICE_TYPE %>"
+																data-amount="<%= service.AMOUNT %>"
+																data-remarks="<%= (service.REMARKS || '').replace(/"/g, '&quot;') %>"
+																data-transaction="<%= service.TRANSACTION_ID %>"
+																title="Edit">
+																<i class="fa fa-edit"></i>
+															</button>
+															<button type="button" class="btn btn-sm btn-danger delete-service-btn" data-id="<%= service.IDNo %>" title="Delete">
+																<i class="fa fa-trash"></i>
+															</button>
+														<% } else if (hasGameId && isGameSettled) { %>
+															<button type="button" class="btn btn-sm btn-secondary" disabled title="Game is settled - cannot edit">
+																<i class="fa fa-lock"></i> Settled
+															</button>
+														<% } else if (hasGameId && !isGameSettled) { %>
+															<button type="button" class="btn btn-sm btn-info gamebook-notice-btn" title="Edit from gamebook">
+																<i class="fa fa-info-circle"></i> Edit in Gamebook
+															</button>
+														<% } %>
+													</td>
 												</tr>
 											<% }) %>
 										<% } %>
 										<tr class="no-data-row text-center text-muted <%= (gameServices && gameServices.length) ? '' : 'show-empty' %>">
-											<td colspan="9">No data available.</td>
+											<td colspan="10">No data available.</td>
 										</tr>
 									</tbody>
 								</table>
@@ -193,8 +224,87 @@
 		});
 
 		updateFilter('all');
+
+		// Edit service button handlers
+		$(document).on('click', '.edit-service-btn', function() {
+			const $btn = $(this);
+			const id = $btn.data('id');
+			const sourceType = $btn.data('source');
+			const agentId = $btn.data('agent');
+			const serviceType = $btn.data('service');
+			const amount = parseFloat($btn.data('amount')) || 0;
+			const remarks = $btn.data('remarks') || '';
+			const transactionId = $btn.data('transaction');
+
+			$('#edit-services-id').val(id);
+			$('#edit-transaction-type').val(sourceType).trigger('change');
+			$('#edit-services-type').val(serviceType);
+			$('#edit-services-amount').val(amount.toLocaleString('en-US'));
+			$('#edit-services-remarks').val(remarks);
+			if (transactionId) {
+				$(`input[name="edit-services-transaction"][value="${transactionId}"]`).prop('checked', true);
+			}
+			
+			// Store agentId for later use after accounts are loaded
+			if (sourceType === 'GUEST' && agentId) {
+				$('#modal-services-edit-record').data('pendingAgentId', agentId);
+			}
+			
+			$('#modal-services-edit-record').modal('show');
+		});
+
+		// Delete service button handlers
+		$(document).on('click', '.delete-service-btn', function() {
+			const id = $(this).data('id');
+			Swal.fire({
+				title: 'Delete Service Record?',
+				text: 'This action cannot be undone.',
+				icon: 'warning',
+				showCancelButton: true,
+				confirmButtonText: 'Yes, delete',
+				cancelButtonText: 'Cancel',
+				confirmButtonColor: '#d33'
+			}).then((result) => {
+				if (result.isConfirmed) {
+					$.ajax({
+						url: `/fnb-hotel/service/${id}`,
+						method: 'DELETE',
+						success: function() {
+							Swal.fire({
+								icon: 'success',
+								title: 'Deleted',
+								text: 'Service record has been deleted.',
+								timer: 1500,
+								showConfirmButton: false
+							}).then(() => {
+								window.location.reload();
+							});
+						},
+						error: function(xhr) {
+							const errorMsg = xhr.responseJSON?.error || 'Failed to delete service record.';
+							Swal.fire({
+								icon: 'error',
+								title: 'Error',
+								text: errorMsg
+							});
+						}
+					});
+				}
+			});
+		});
+
+		// Gamebook notice button handler
+		$(document).on('click', '.gamebook-notice-btn', function() {
+			Swal.fire({
+				icon: 'info',
+				title: 'Edit from Gamebook',
+				html: 'This service is linked to a game. Please proceed to <strong>Gamebook</strong> to edit this record.',
+				confirmButtonText: 'OK'
+			});
+		});
 	});
 </script>
 <%- include('../partials/footer') %>
 <%- include('../modals/junket/new_service_record') %>
+<%- include('../modals/junket/edit_service_record') %>
 
