@@ -575,39 +575,7 @@ let sqlServiceSettle = `
 				(totalSharedRollingReset[j].percentage / 100);
 		}
 
-		// Kunin ang resulta ng win-loss queries:
-		const [winLossLiveResults] = await pool.execute(sqlWinLossLive);
-		let totalWinLossLiveCalc = 0;
-		winLossLiveResults.forEach(row => {
-			const cashinLive = row.CASHIN_LIVE || 0;
-			const cashoutLive = row.CASHOUT_LIVE || 0;
-			const houseShare = row.houseshare || 0;
-			totalWinLossLiveCalc += (cashinLive - cashoutLive) * (houseShare / 100);
-		});
-
-		const [winLossTelebetResults] = await pool.execute(sqlWinLossTelebet);
-		let totalWinLossTelebetCalc = 0;
-		winLossTelebetResults.forEach(row => {
-			const cashinLive = row.CASHIN_TELEBET || 0;
-			const cashoutLive = row.CASHOUT_TELEBET || 0;
-			const houseShare = row.houseshare || 0;
-			totalWinLossTelebetCalc += (cashinLive - cashoutLive) * (houseShare / 100);
-		});
-
-		// Kunin ang iba pang mga query results:
-		const [NNChipsBuyinCashDepositResult] = await pool.execute(sqlNNChipsBuyinCashDeposit);
-		const [CCChipsBuyinCashDepositResult] = await pool.execute(sqlCCChipsBuyinCashDeposit);
-		const [NNChipsBuyinCashOnlyResult] = await pool.execute(sqlNNChipsBuyinCashOnly);
-		const [CCChipsBuyinCashOnlyResult] = await pool.execute(sqlCCChipsBuyinCashOnly);
-		const [NNChipsBuyinGuestAccountResult] = await pool.execute(sqlNNChipsBuyinGuestAccount);
-		const [CCChipsBuyinGuestAccountResult] = await pool.execute(sqlCCChipsBuyinGuestAccount);
-		const [RollerNNSubtractResult] = await pool.execute(sqlRollerNNSubtract);
-		const [RollerNNAddResult] = await pool.execute(sqlRollerNNAdd);
-		const [RollerCCSubtractResult] = await pool.execute(sqlRollerCCSubtract);
-		const [RollerCCAddResult] = await pool.execute(sqlRollerCCAdd);
-		const [AgentCountResult] = await pool.execute(sqlAgentCount);
-
-		// Compute Commission Payment Total (same logic as Commission module)
+		// Compute Commission Payment Total (same logic as Commission module - per-game calculation)
 		let totalCommissionPayment = 0;
 		try {
 			const now = new Date();
@@ -716,6 +684,38 @@ let sqlServiceSettle = `
 			console.error('Error computing commission payment:', err);
 			totalCommissionPayment = 0;
 		}
+
+		// Kunin ang resulta ng win-loss queries:
+		const [winLossLiveResults] = await pool.execute(sqlWinLossLive);
+		let totalWinLossLiveCalc = 0;
+		winLossLiveResults.forEach(row => {
+			const cashinLive = row.CASHIN_LIVE || 0;
+			const cashoutLive = row.CASHOUT_LIVE || 0;
+			const houseShare = row.houseshare || 0;
+			totalWinLossLiveCalc += (cashinLive - cashoutLive) * (houseShare / 100);
+		});
+
+		const [winLossTelebetResults] = await pool.execute(sqlWinLossTelebet);
+		let totalWinLossTelebetCalc = 0;
+		winLossTelebetResults.forEach(row => {
+			const cashinLive = row.CASHIN_TELEBET || 0;
+			const cashoutLive = row.CASHOUT_TELEBET || 0;
+			const houseShare = row.houseshare || 0;
+			totalWinLossTelebetCalc += (cashinLive - cashoutLive) * (houseShare / 100);
+		});
+
+		// Kunin ang iba pang mga query results:
+		const [NNChipsBuyinCashDepositResult] = await pool.execute(sqlNNChipsBuyinCashDeposit);
+		const [CCChipsBuyinCashDepositResult] = await pool.execute(sqlCCChipsBuyinCashDeposit);
+		const [NNChipsBuyinCashOnlyResult] = await pool.execute(sqlNNChipsBuyinCashOnly);
+		const [CCChipsBuyinCashOnlyResult] = await pool.execute(sqlCCChipsBuyinCashOnly);
+		const [NNChipsBuyinGuestAccountResult] = await pool.execute(sqlNNChipsBuyinGuestAccount);
+		const [CCChipsBuyinGuestAccountResult] = await pool.execute(sqlCCChipsBuyinGuestAccount);
+		const [RollerNNSubtractResult] = await pool.execute(sqlRollerNNSubtract);
+		const [RollerNNAddResult] = await pool.execute(sqlRollerNNAdd);
+		const [RollerCCSubtractResult] = await pool.execute(sqlRollerCCSubtract);
+		const [RollerCCAddResult] = await pool.execute(sqlRollerCCAdd);
+		const [AgentCountResult] = await pool.execute(sqlAgentCount);
 
 		res.render('dashboard', {
 
