@@ -50,10 +50,8 @@
               
 
                     <div class="modal-footer">
-                        <button id="btn-save-edit-expense" type="submit" class="btn btn-sm btn-primary">
+                        <button id="btn-save-new-expense" type="submit" class="btn btn-sm btn-primary" data-original-text="<%= __('modal_edit_house_expense.save') %>">
                             <%= __('modal_edit_house_expense.save') %>
-                          </button>
-                          
                         </button>
                         <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
                             <%= __('modal_new_house_expense.close') %>
@@ -66,6 +64,9 @@
     </div>
 
     <script>
+        // Flag para maiwasan ang double submission
+        var isSubmitting = false;
+
         function loadExpenseCategories() {
     $.ajax({
         url: '/expense_category_data',
@@ -87,10 +88,29 @@
 // Auto-load when modal is shown
 $('#modal-new-house-expense').on('shown.bs.modal', function () {
     loadExpenseCategories();
+    // Reset form at submission flag kapag nag-open ang modal
+    isSubmitting = false;
+    var $btn = $('#btn-save-new-expense');
+    var originalText = $btn.data('original-text') || $btn.html();
+    $btn.prop('disabled', false).html(originalText);
+    $('#add_junket_house_expense')[0].reset();
+});
+
+// Reset flag kapag nag-close ang modal
+$('#modal-new-house-expense').on('hidden.bs.modal', function () {
+    isSubmitting = false;
+    var $btn = $('#btn-save-new-expense');
+    var originalText = $btn.data('original-text') || $btn.html();
+    $btn.prop('disabled', false).html(originalText);
 });
 
 $('#add_junket_house_expense').submit(function(event) {
       event.preventDefault(); 
+  
+      // Prevent double submission
+      if (isSubmitting) {
+          return false;
+      }
   
       // Check if required fields are filled
       var isValid = true;
@@ -111,6 +131,12 @@ $('#add_junket_house_expense').submit(function(event) {
           });
           return; // Stop the submission if validation fails
       }
+  
+      // Set flag at disable button
+      isSubmitting = true;
+      var $submitBtn = $('#btn-save-new-expense');
+      var originalText = $submitBtn.html();
+      $submitBtn.prop('disabled', true).html('Saving...');
   
       // Gumamit ng FormData para isama ang file data
       var formData = new FormData(this);
@@ -134,7 +160,16 @@ $('#add_junket_house_expense').submit(function(event) {
               });
           },
           error: function(xhr, status, error) {
-              var errorMessage = xhr.responseJSON.error;
+              // Re-enable button kapag may error
+              isSubmitting = false;
+              $submitBtn.prop('disabled', false).html(originalText);
+              
+              var errorMessage = xhr.responseJSON ? xhr.responseJSON.error : 'An error occurred';
+              Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: errorMessage || 'Failed to save expense. Please try again.',
+              });
               console.error('Error updating user role:', error);
           }
       });

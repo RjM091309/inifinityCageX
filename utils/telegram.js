@@ -346,7 +346,7 @@ async function startTelegramBot() {
 
 INFINITY 를 이용해 주셔서 감사합니다.
 
-고객님의 어카운트 번호는 INF${agentCode} 입니다.
+고객님의 어카운트 번호는 ${agentCode} 입니다.
 
 ✅아래는 어카운트 이용 시 유의사항입니다.
 
