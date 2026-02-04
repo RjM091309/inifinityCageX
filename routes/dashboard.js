@@ -575,8 +575,9 @@ let sqlServiceSettle = `
 				(totalSharedRollingReset[j].percentage / 100);
 		}
 
-		// Compute Commission Payment Total (same logic as Commission module - per-game calculation)
-		let totalCommissionPayment = 0;
+		// Compute Commission Settlement Total (same logic as Commission module - per-game calculation)
+		// Settlement = NET commission (hindi binawas ang F&B)
+		let totalCommissionSettlement = 0;
 		try {
 			const now = new Date();
 			const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -676,13 +677,14 @@ let sqlServiceSettle = `
 						net = Math.round((winlossValue * RollingRate) / 100);
 					}
 
-					const paymentValue = Math.round(net - fb);
-					totalCommissionPayment += paymentValue;
+					// Settlement: net commission bago bawas F&B
+					const settlementValue = net;
+					totalCommissionSettlement += settlementValue;
 				}
 			}
 		} catch (err) {
-			console.error('Error computing commission payment:', err);
-			totalCommissionPayment = 0;
+			console.error('Error computing commission settlement:', err);
+			totalCommissionSettlement = 0;
 		}
 
 		// Kunin ang resulta ng win-loss queries:
@@ -807,7 +809,8 @@ let sqlServiceSettle = `
 			sqlServiceCashJunket: serviceCashJunketResults,
 			sqlServiceDepositJunket: serviceDepositJunketResults,
 			sqlServiceSettle: serviceSettleResults,
-			sqlCommissionPayment: totalCommissionPayment || 0
+			// Dashboard Commission card should show Settlement (NET commission)
+			sqlCommissionSettlement: totalCommissionSettlement || 0
 
 		});
 
