@@ -100,7 +100,12 @@ $(document).ready(function () {
 		info: true,
 		autoWidth: false,
 		order: [[2, 'desc']],  // GAME # column: latest game ID first
-		pageLength: 10,
+		// Default and minimum page length set to 100 (no 10/25/etc. options)
+		pageLength: 100,
+		lengthMenu: [
+			[100, 200, 500, -1],
+			[100, 200, 500, 'All']
+		],
 	
 		columnDefs: [
 			{ targets: 2, type: 'num', className: 'text-center' },       // GAME # (IDNo): numeric sort, latest first
