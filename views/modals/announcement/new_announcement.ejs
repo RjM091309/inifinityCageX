@@ -1,0 +1,58 @@
+<!-- Modal for New Announcement -->
+<div class="modal fade" id="modal-new-announcement" role="dialog" aria-labelledby="modal-new-announcement-label" aria-hidden="true"
+	data-keyboard="false" data-bs-backdrop="static">
+	<div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="block-title text-white" id="modal-new-announcement-label">New Announcement</h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			
+			<div class="modal-body">
+				<form id="form-new-announcement" enctype="multipart/form-data">
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label">Message</label>
+							<textarea 
+								class="form-control" 
+								id="announcement-message" 
+								name="message" 
+								rows="5" 
+								placeholder="Enter your announcement message here (optional)..."></textarea>
+							<small class="form-text text-muted">Leave empty if you only want to send a picture</small>
+						</div>
+					</div>
+					
+					<div class="row mb-3">
+						<div class="col-sm-12">
+							<label class="form-label">Picture</label>
+							<div class="mb-2">
+							<input 
+								type="file" 
+								class="form-control" 
+								id="announcement-picture" 
+								name="picture" 
+								accept="image/*">
+							<small class="form-text text-muted">Supported formats: JPG, PNG, GIF</small>
+							</div>
+							<div id="picture-preview-container" class="d-none mt-2">
+								<img id="picture-preview" src="" alt="Preview" class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
+								<button type="button" class="btn btn-sm btn-danger ms-2" id="remove-picture-btn">
+									<i class="fa fa-times"></i> Remove
+								</button>
+							</div>
+						</div>
+					</div>
+					
+					<div class="modal-footer">
+						<button type="submit" class="btn btn-sm btn-primary" id="submit-announcement-btn">
+							<i class="fa fa-paper-plane"></i> Send Announcement
+						</button>
+						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+

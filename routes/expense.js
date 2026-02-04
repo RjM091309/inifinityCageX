@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const multer = require('multer');
+const { sendTelegramToEmployees } = require('../utils/telegram');
 // I-setup ang multer para sa multiple file uploads (para sa receipts)
 const receiptStorage = multer.diskStorage({
 	destination: 'ReceiptUpload/',
@@ -170,6 +171,41 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			encodedBy,
 			date_now
 		]);
+
+		// Get encoded by user name
+		const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [encodedBy]);
+		const encodedByName = userRows.length > 0 
+			? (userRows[0].FIRSTNAME || 'Unknown')
+			: 'Unknown';
+
+		// Format date and time
+		const dateFormatted = date_now.toLocaleDateString('en-US', { 
+			year: 'numeric', 
+			month: '2-digit', 
+			day: '2-digit' 
+		});
+		const timeFormatted = date_now.toLocaleTimeString('en-US', { 
+			hour: '2-digit', 
+			minute: '2-digit' 
+		});
+
+		// Create Telegram message
+		const telegramMessage = `🏢 Junket Expense\n\n` +
+			`Category: ${expenseCategoryName}\n` +
+			`Receipt No: ${receiptNo || 'N/A'}\n` +
+			`Description: ${description || 'N/A'}\n` +
+			`Amount: ₱${amount.toLocaleString()}\n` +
+			`Encoded By: ${encodedByName}\n` +
+			`Date: ${dateFormatted}\n` +
+			`Time: ${timeFormatted}`;
+
+		// Send Telegram notification to EMPLOYEE_CHATID
+		try {
+			await sendTelegramToEmployees(telegramMessage);
+		} catch (telegramError) {
+			console.error('Error sending Telegram notification:', telegramError);
+			// Don't fail the request if Telegram fails
+		}
 
 		res.redirect('/house_expense');
 	} catch (err) {

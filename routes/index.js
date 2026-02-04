@@ -10,6 +10,7 @@ module.exports = [
     require('./changeGame'),
     require('./dashboard'),
     require('./telegramData'),
-    require('./fnb_hotel')
+    require('./fnb_hotel'),
+    require('./announcement') // Keep for POST /announcement/create route
 ];
   

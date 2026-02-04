@@ -1,6 +1,8 @@
 var telegramAPI_id;
 var chatIdsList = [];
 var chatIdEditIndex = null; // null = add, number = edit at index
+var employeeChatIdsList = [];
+var employeeChatIdEditIndex = null; // null = add, number = edit at index
 
 $(document).ready(function () {
     const $botDetails = $('#bot-details');
@@ -100,6 +102,39 @@ $(document).ready(function () {
         return window.telegramAPITranslations || {};
     }
 
+    function loadEmployeeChatIds() {
+        $.ajax({
+            url: '/telegramAPI/employee-chat-ids',
+            method: 'GET',
+            success: function (data) {
+                employeeChatIdsList = Array.isArray(data.chatIds) ? data.chatIds : [];
+                renderEmployeeChatIdsTable();
+            },
+            error: function () {
+                employeeChatIdsList = [];
+                renderEmployeeChatIdsTable();
+            }
+        });
+    }
+
+    function renderEmployeeChatIdsTable() {
+        const tbody = $('#employee-chat-ids-tbody');
+        const emptyEl = $('#employee-chat-ids-empty');
+        const tr = translations();
+        if (!employeeChatIdsList.length) {
+            tbody.html('');
+            emptyEl.show();
+            return;
+        }
+        emptyEl.hide();
+        tbody.html(employeeChatIdsList.map(function (id, i) {
+            return '<tr><td>' + (i + 1) + '</td><td><code>' + escapeHtml(String(id)) + '</code></td><td class="text-center">' +
+                '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-edit-employee-chat-id" data-index="' + i + '" title="' + (tr.edit || 'Edit') + '"><i class="fa fa-pencil-alt"></i></button>' +
+                '<button type="button" class="btn btn-sm btn-alt-danger btn-delete-employee-chat-id" data-index="' + i + '" title="' + (tr.delete || 'Delete') + '"><i class="fa fa-trash"></i></button>' +
+                '</td></tr>';
+        }).join(''));
+    }
+
     function reloadData() {
         $.ajax({
             url: '/telegramAPI_data',
@@ -111,6 +146,7 @@ $(document).ready(function () {
                 }
                 loadBotDetails();
                 loadChatIds();
+                loadEmployeeChatIds();
             },
             error: function (xhr, status, error) {
                 console.error('Error fetching data:', error);
@@ -245,8 +281,99 @@ $(document).ready(function () {
         });
     });
 
+    // Employee Chat IDs: Add
+    $('#btn-add-employee-chat-id').on('click', function () {
+        employeeChatIdEditIndex = null;
+        $('#modal-employee-chat-id-label').text(translations().add_employee_chat_id || 'Add Employee Chat ID');
+        $('#input-employee-chat-id').val('');
+        var modalEl = document.getElementById('modal-employee-chat-id');
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            new bootstrap.Modal(modalEl).show();
+        } else {
+            $(modalEl).modal('show');
+        }
+    });
+
+    $('#btn-save-employee-chat-id').on('click', function () {
+        var val = ($('#input-employee-chat-id').val() || '').trim();
+        if (!val) {
+            Swal.fire({ title: translations().error_title || 'Error', text: translations().enter_employee_chat_id || 'Enter an Employee Chat ID.', icon: 'warning' });
+            return;
+        }
+        if (employeeChatIdEditIndex === null) {
+            employeeChatIdsList.push(val);
+        } else {
+            employeeChatIdsList[employeeChatIdEditIndex] = val;
+        }
+        $.ajax({
+            url: '/telegramAPI/employee-chat-ids',
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ chatIds: employeeChatIdsList }),
+            success: function () {
+                var modalEl = document.getElementById('modal-employee-chat-id');
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getInstance(modalEl).hide();
+                } else {
+                    $(modalEl).modal('hide');
+                }
+                Swal.fire({ title: translations().success || 'Success', text: translations().saved || 'Saved.', icon: 'success' });
+                loadEmployeeChatIds();
+            },
+            error: function () {
+                Swal.fire({ title: translations().error_title || 'Error', text: translations().failed_to_update || 'Failed to save.', icon: 'error' });
+            }
+        });
+    });
+
+    // Employee Chat IDs: Edit / Delete (delegate)
+    $(document).on('click', '.btn-edit-employee-chat-id', function () {
+        var i = parseInt($(this).data('index'), 10);
+        if (isNaN(i) || i < 0 || i >= employeeChatIdsList.length) return;
+        employeeChatIdEditIndex = i;
+        $('#modal-employee-chat-id-label').text(translations().edit_employee_chat_id || 'Edit Employee Chat ID');
+        $('#input-employee-chat-id').val(employeeChatIdsList[i]);
+        var modalEl = document.getElementById('modal-employee-chat-id');
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            new bootstrap.Modal(modalEl).show();
+        } else {
+            $(modalEl).modal('show');
+        }
+    });
+
+    $(document).on('click', '.btn-delete-employee-chat-id', function () {
+        var i = parseInt($(this).data('index'), 10);
+        if (isNaN(i) || i < 0 || i >= employeeChatIdsList.length) return;
+        var tr = translations();
+        Swal.fire({
+            title: tr.delete_employee_chat_id || 'Delete Employee Chat ID?',
+            text: tr.delete_employee_chat_id_confirm || 'This employee chat will no longer receive notifications.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: tr.delete || 'Delete',
+            cancelButtonText: tr.cancel || 'Cancel'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            employeeChatIdsList.splice(i, 1);
+            $.ajax({
+                url: '/telegramAPI/employee-chat-ids',
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ chatIds: employeeChatIdsList }),
+                success: function () {
+                    Swal.fire({ title: tr.success || 'Success', text: tr.deleted || 'Deleted.', icon: 'success' });
+                    loadEmployeeChatIds();
+                },
+                error: function () {
+                    Swal.fire({ title: tr.error_title || 'Error', text: tr.failed_to_update || 'Failed to delete.', icon: 'error' });
+                }
+            });
+        });
+    });
+
     // Load data on page load
     reloadData();
     loadBotDetails();
     loadChatIds();
+    loadEmployeeChatIds();
 });

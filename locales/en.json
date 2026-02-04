@@ -541,7 +541,7 @@
 		"ok": "OK",
 		"error_title": "Error!",
 		"failed_to_update": "Failed to update Telegram API. Please try again.",
-		"chat_ids_title": "Chat IDs (Groups / Channels)",
+		"chat_ids_title": "Chat IDs",
 		"add_chat_id": "Add Chat ID",
 		"edit_chat_id": "Edit Chat ID",
 		"chat_ids_hint": "Notifications are sent to these chats. Use /getchatid in Telegram (in the group or with the bot) to get the Chat ID.",
@@ -557,7 +557,17 @@
 		"saved": "Saved.",
 		"delete_chat_id": "Delete Chat ID?",
 		"delete_chat_id_confirm": "This chat will no longer receive notifications.",
-		"deleted": "Deleted."
+		"deleted": "Deleted.",
+		"employee_chat_ids_title": "Employee Chat IDs",
+		"add_employee_chat_id": "Add Employee Chat ID",
+		"edit_employee_chat_id": "Edit Employee Chat ID",
+		"employee_chat_id": "Employee Chat ID",
+		"employee_chat_ids_hint_before": "Junket expense notifications are sent to these employee chats. Use ",
+		"employee_chat_ids_hint_after": " in Telegram (in the group or with the bot) to get the Chat ID.",
+		"employee_chat_ids_empty": "No employee chat IDs. Click \"Add Employee Chat ID\" to add an employee group or channel.",
+		"enter_employee_chat_id": "Enter an Employee Chat ID.",
+		"delete_employee_chat_id": "Delete Employee Chat ID?",
+		"delete_employee_chat_id_confirm": "This employee chat will no longer receive junket expense notifications."
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN Chips",

@@ -558,7 +558,17 @@
 		"saved": "telegram_api.saved",
 		"delete_chat_id": "telegram_api.delete_chat_id",
 		"delete_chat_id_confirm": "telegram_api.delete_chat_id_confirm",
-		"deleted": "telegram_api.deleted"
+		"deleted": "telegram_api.deleted",
+		"employee_chat_ids_title": "员工聊天ID",
+		"add_employee_chat_id": "添加员工聊天ID",
+		"edit_employee_chat_id": "编辑员工聊天ID",
+		"employee_chat_id": "员工聊天ID",
+		"employee_chat_ids_hint_before": "Junket费用通知将发送到这些员工聊天。使用 ",
+		"employee_chat_ids_hint_after": " 在Telegram中（在群组中或与机器人一起）获取聊天ID。",
+		"employee_chat_ids_empty": "没有员工聊天ID。点击\"添加员工聊天ID\"以添加员工群组或频道。",
+		"enter_employee_chat_id": "输入员工聊天ID。",
+		"delete_employee_chat_id": "删除员工聊天ID？",
+		"delete_employee_chat_id_confirm": "此员工聊天将不再接收Junket费用通知。"
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN 筹码",

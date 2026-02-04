@@ -558,7 +558,17 @@
 		"saved": "telegram_api.saved",
 		"delete_chat_id": "telegram_api.delete_chat_id",
 		"delete_chat_id_confirm": "telegram_api.delete_chat_id_confirm",
-		"deleted": "telegram_api.deleted"
+		"deleted": "telegram_api.deleted",
+		"employee_chat_ids_title": "직원 채팅 ID",
+		"add_employee_chat_id": "직원 채팅 ID 추가",
+		"edit_employee_chat_id": "직원 채팅 ID 편집",
+		"employee_chat_id": "직원 채팅 ID",
+		"employee_chat_ids_hint_before": "정캣 지출 알림이 이러한 직원 채팅으로 전송됩니다. 사용 ",
+		"employee_chat_ids_hint_after": " 텔레그램에서 (그룹 또는 봇과 함께) 채팅 ID를 가져옵니다.",
+		"employee_chat_ids_empty": "직원 채팅 ID가 없습니다. \"직원 채팅 ID 추가\"를 클릭하여 직원 그룹 또는 채널을 추가하세요.",
+		"enter_employee_chat_id": "직원 채팅 ID를 입력하세요.",
+		"delete_employee_chat_id": "직원 채팅 ID를 삭제하시겠습니까?",
+		"delete_employee_chat_id_confirm": "이 직원 채팅은 더 이상 정캣 지출 알림을 받지 않습니다."
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN 칩",

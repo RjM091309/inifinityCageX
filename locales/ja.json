@@ -558,7 +558,17 @@
 		"saved": "telegram_api.saved",
 		"delete_chat_id": "telegram_api.delete_chat_id",
 		"delete_chat_id_confirm": "telegram_api.delete_chat_id_confirm",
-		"deleted": "telegram_api.deleted"
+		"deleted": "telegram_api.deleted",
+		"employee_chat_ids_title": "従業員チャットID",
+		"add_employee_chat_id": "従業員チャットIDを追加",
+		"edit_employee_chat_id": "従業員チャットIDを編集",
+		"employee_chat_id": "従業員チャットID",
+		"employee_chat_ids_hint_before": "Junket経費通知はこれらの従業員チャットに送信されます。使用 ",
+		"employee_chat_ids_hint_after": " Telegramで（グループ内またはボットと一緒に）チャットIDを取得します。",
+		"employee_chat_ids_empty": "従業員チャットIDがありません。\"従業員チャットIDを追加\"をクリックして従業員グループまたはチャンネルを追加します。",
+		"enter_employee_chat_id": "従業員チャットIDを入力してください。",
+		"delete_employee_chat_id": "従業員チャットIDを削除しますか？",
+		"delete_employee_chat_id_confirm": "この従業員チャットは、Junket経費通知を受信しなくなります。"
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NNチップ",

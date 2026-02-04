@@ -99,6 +99,34 @@ router.put('/telegramAPI/chat-ids', checkSession, async (req, res) => {
 	}
 });
 
+// --------------- Employee Chat IDs ---------------
+router.get('/telegramAPI/employee-chat-ids', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.execute('SELECT EMPLOYEE_CHATID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
+		const chatIds = rows.length && rows[0].EMPLOYEE_CHATID != null ? parseChatIds(rows[0].EMPLOYEE_CHATID) : [];
+		res.json({ chatIds });
+	} catch (err) {
+		console.error('Error fetching employee chat IDs:', err);
+		res.status(500).json({ error: 'Error fetching employee chat IDs' });
+	}
+});
+
+router.put('/telegramAPI/employee-chat-ids', checkSession, async (req, res) => {
+	try {
+		let chatIds = req.body.chatIds;
+		if (!Array.isArray(chatIds)) chatIds = [];
+		const value = chatIds.map(s => String(s).trim()).filter(Boolean).join(',');
+		await pool.execute(
+			'UPDATE telegram_api SET EMPLOYEE_CHATID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE ACTIVE = 1',
+			[value || null, req.session.user_id, new Date()]
+		);
+		res.json({ success: true, chatIds: value ? value.split(',') : [] });
+	} catch (err) {
+		console.error('Error updating employee chat IDs:', err);
+		res.status(500).json({ error: 'Error updating employee chat IDs' });
+	}
+});
+
 // EDIT TELEGRAM API
 router.put('/telegramAPI/:id', async (req, res) => {
 	const id = parseInt(req.params.id);
