@@ -196,6 +196,7 @@ if (permissions === 2) {
 
    
     let markerData = [];
+    let isSubmittingMarker = false;
     
     const table = $('#marker-tbl').DataTable({
         "order": [[3, 'desc']], // Set the first column (index 0) to be sorted in descending order
@@ -352,9 +353,26 @@ $('#txtMarkerReturn').on('focusout', function() {
     $(this).val(formatWithCommas(rawValue)); // Set formatted value on focus out
 });
 
+    // Reload page after modal closes (bind once)
+    $('#modal-new-marker').off('hidden.bs.modal.marker').on('hidden.bs.modal.marker', function () {
+        window.location.reload();
+    });
+
     // Handle the form submission for marker settlement
-    $('#add_marker_settlement').on('submit', function(event) {
+    $('#add_marker_settlement').off('submit.marker').on('submit.marker', function(event) {
         event.preventDefault();
+        if (isSubmittingMarker) {
+            return;
+        }
+        isSubmittingMarker = true;
+        const $submitBtn = $('#submit_marker_settlement');
+        if (!$submitBtn.data('original-html')) {
+            $submitBtn.data('original-html', $submitBtn.html());
+        }
+        $submitBtn.prop('disabled', true).html(`
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Loading...
+        `);
 
         const formData = $(this).serialize();
 
@@ -370,17 +388,11 @@ $('#txtMarkerReturn').on('focusout', function() {
                         text: 'Marker Return Successfully!'
                     }).then(() => {
                         // Reset the form
-                    $('#add_marker_settlement')[0].reset(); // Reset the form
-                    $('#modal-new-marker').modal('hide'); // Hide the modal
-                    table.ajax.reload(); // Reload the DataTable
-
-                   // Add an event listener to reload the page when the modal is closed
-				   $('#modal-new-marker').on('hidden.bs.modal', function () {
-                        window.location.reload();
+                        $('#add_marker_settlement')[0].reset(); // Reset the form
+                        $('#modal-new-marker').modal('hide'); // Hide the modal
+                        table.ajax.reload(); // Reload the DataTable
+                        reloadData();  // Call reloadData function if needed
                     });
-
-                    reloadData();  // Call reloadData function if needed
-                });
                 } else if (response.error === 'Insufficient balance for this deposit transaction.') {
                     Swal.fire({
                         icon: 'error',
@@ -401,6 +413,14 @@ $('#txtMarkerReturn').on('focusout', function() {
                     title: 'Insufficient Balance',
                     text: 'Insufficient balance for this deposit transaction.'
                 });
+            },
+            complete: function() {
+                isSubmittingMarker = false;
+                const originalHtml = $submitBtn.data('original-html');
+                $submitBtn.prop('disabled', false);
+                if (originalHtml) {
+                    $submitBtn.html(originalHtml);
+                }
             }
         });
     });
