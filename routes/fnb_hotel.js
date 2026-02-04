@@ -47,6 +47,39 @@ const validSourceTypes = ['JUNKET', 'GUEST'];
 		}
 	});
 
+	// JSON endpoint for reloading F&B / Hotel table data (used by DataTables)
+	router.get('/fnb-hotel/data', checkSession, async (req, res) => {
+		try {
+			const [rows] = await pool.query(`
+				SELECT 
+					gs.IDNo,
+					agent.NAME AS agent_name,
+					gs.GAME_ID,
+					gs.SERVICE_TYPE,
+					gs.SOURCE_TYPE,
+					gs.AMOUNT,
+					gs.REMARKS,
+					gs.ENCODED_BY,
+					gs.TRANSACTION_ID,
+					gs.AGENT_ID,
+					user_info.FIRSTNAME AS encoded_by_name,
+					gs.ENCODED_DT,
+					game_list.SETTLED AS game_settled
+				FROM game_services gs
+				LEFT JOIN agent ON agent.IDNo = gs.AGENT_ID
+				LEFT JOIN user_info ON user_info.IDNo = gs.ENCODED_BY
+				LEFT JOIN game_list ON game_list.IDNo = gs.GAME_ID
+				WHERE gs.ACTIVE = 1
+				ORDER BY gs.ENCODED_DT DESC
+			`);
+
+			res.json(rows);
+		} catch (err) {
+			console.error('Error loading F&B / Hotel data (JSON):', err);
+			res.status(500).json({ error: 'Failed to load F&B / Hotel data.' });
+		}
+	});
+
 	router.get('/fnb-hotel/accounts', checkSession, async (req, res) => {
 	try {
 		const [rows] = await pool.query(`

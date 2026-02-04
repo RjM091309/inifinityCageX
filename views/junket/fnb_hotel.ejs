@@ -92,38 +92,43 @@
 													<td><%= service.REMARKS || '-' %></td>
 													<td><%= service.encoded_by_name || '-' %></td>
 													<td><%= formatDate(service.ENCODED_DT) %></td>
-													<td>
+													<td class="text-center">
 														<% if (canEdit && canDelete) { %>
-															<button type="button" class="btn btn-sm btn-primary me-1 edit-service-btn" 
-																data-id="<%= service.IDNo %>"
-																data-source="<%= service.SOURCE_TYPE %>"
-																data-agent="<%= service.AGENT_ID || '' %>"
-																data-service="<%= service.SERVICE_TYPE %>"
-																data-amount="<%= service.AMOUNT %>"
-																data-remarks="<%= (service.REMARKS || '').replace(/"/g, '&quot;') %>"
-																data-transaction="<%= service.TRANSACTION_ID %>"
-																title="Edit">
-																<i class="fa fa-edit"></i>
-															</button>
-															<button type="button" class="btn btn-sm btn-danger delete-service-btn" data-id="<%= service.IDNo %>" title="Delete">
-																<i class="fa fa-trash"></i>
-															</button>
+															<div class="btn-group">
+																<button type="button"
+																	class="btn btn-sm bg-info-subtle edit-service-btn"
+																	data-id="<%= service.IDNo %>"
+																	data-source="<%= service.SOURCE_TYPE %>"
+																	data-agent="<%= service.AGENT_ID || '' %>"
+																	data-service="<%= service.SERVICE_TYPE %>"
+																	data-amount="<%= service.AMOUNT %>"
+																	data-remarks="<%= (service.REMARKS || '').replace(/"/g, '&quot;') %>"
+																	data-transaction="<%= service.TRANSACTION_ID %>"
+																	title="Edit">
+																	<i class="fa fa-pencil-alt"></i>
+																</button>
+																<button type="button"
+																	class="btn btn-sm bg-danger-subtle delete-service-btn"
+																	data-id="<%= service.IDNo %>"
+																	title="Delete">
+																	<i class="fa fa-trash"></i>
+																</button>
+															</div>
 														<% } else if (hasGameId && isGameSettled) { %>
-															<button type="button" class="btn btn-sm btn-secondary" disabled title="Game is settled - cannot edit">
-																<i class="fa fa-lock"></i> Settled
-															</button>
+															<span class="badge bg-success-subtle text-success fw-semibold px-3 py-2">
+																Settled
+															</span>
 														<% } else if (hasGameId && !isGameSettled) { %>
-															<button type="button" class="btn btn-sm btn-info gamebook-notice-btn" title="Edit from gamebook">
-																<i class="fa fa-info-circle"></i> Edit in Gamebook
+															<button type="button"
+																class="btn btn-sm bg-warning-subtle text-warning gamebook-notice-btn"
+																title="Edit in Gamebook">
+																<i class="fa fa-info-circle"></i>
 															</button>
 														<% } %>
 													</td>
 												</tr>
 											<% }) %>
 										<% } %>
-										<tr class="no-data-row text-center text-muted <%= (gameServices && gameServices.length) ? '' : 'show-empty' %>">
-											<td colspan="10">No data available.</td>
-										</tr>
 									</tbody>
 								</table>
 							</div>
@@ -190,121 +195,8 @@
     border-top: 2px solid #dee2e6;
 }
 </style>
-<script>
-	document.addEventListener('DOMContentLoaded', () => {
-		const filterLinks = document.querySelectorAll('#fnb-hotel-filter .filter-link');
-		const tableBodyRows = document.querySelectorAll('#fnb-hotel-table tbody tr[data-service-type]');
-		const noDataRow = document.querySelector('#fnb-hotel-table .no-data-row');
-
-		const updateFilter = (filter) => {
-			let hasVisibleRows = false;
-			tableBodyRows.forEach((row) => {
-				const rowType = row.dataset.serviceType?.toLowerCase() || '';
-				const shouldShow = filter === 'all' || rowType === filter;
-				row.style.display = shouldShow ? '' : 'none';
-				if (shouldShow) {
-					hasVisibleRows = true;
-				}
-			});
-
-			if (noDataRow) {
-				noDataRow.classList.toggle('show-empty', !hasVisibleRows);
-			}
-		};
-
-		filterLinks.forEach((link) => {
-			link.addEventListener('click', (event) => {
-				event.preventDefault();
-				const selectedFilter = link.dataset.filter;
-				if (!selectedFilter) return;
-				filterLinks.forEach((otherLink) => otherLink.classList.remove('active'));
-				link.classList.add('active');
-				updateFilter(selectedFilter);
-			});
-		});
-
-		updateFilter('all');
-
-		// Edit service button handlers
-		$(document).on('click', '.edit-service-btn', function() {
-			const $btn = $(this);
-			const id = $btn.data('id');
-			const sourceType = $btn.data('source');
-			const agentId = $btn.data('agent');
-			const serviceType = $btn.data('service');
-			const amount = parseFloat($btn.data('amount')) || 0;
-			const remarks = $btn.data('remarks') || '';
-			const transactionId = $btn.data('transaction');
-
-			$('#edit-services-id').val(id);
-			$('#edit-transaction-type').val(sourceType).trigger('change');
-			$('#edit-services-type').val(serviceType);
-			$('#edit-services-amount').val(amount.toLocaleString('en-US'));
-			$('#edit-services-remarks').val(remarks);
-			if (transactionId) {
-				$(`input[name="edit-services-transaction"][value="${transactionId}"]`).prop('checked', true);
-			}
-			
-			// Store agentId for later use after accounts are loaded
-			if (sourceType === 'GUEST' && agentId) {
-				$('#modal-services-edit-record').data('pendingAgentId', agentId);
-			}
-			
-			$('#modal-services-edit-record').modal('show');
-		});
-
-		// Delete service button handlers
-		$(document).on('click', '.delete-service-btn', function() {
-			const id = $(this).data('id');
-			Swal.fire({
-				title: 'Delete Service Record?',
-				text: 'This action cannot be undone.',
-				icon: 'warning',
-				showCancelButton: true,
-				confirmButtonText: 'Yes, delete',
-				cancelButtonText: 'Cancel',
-				confirmButtonColor: '#d33'
-			}).then((result) => {
-				if (result.isConfirmed) {
-					$.ajax({
-						url: `/fnb-hotel/service/${id}`,
-						method: 'DELETE',
-						success: function() {
-							Swal.fire({
-								icon: 'success',
-								title: 'Deleted',
-								text: 'Service record has been deleted.',
-								timer: 1500,
-								showConfirmButton: false
-							}).then(() => {
-								window.location.reload();
-							});
-						},
-						error: function(xhr) {
-							const errorMsg = xhr.responseJSON?.error || 'Failed to delete service record.';
-							Swal.fire({
-								icon: 'error',
-								title: 'Error',
-								text: errorMsg
-							});
-						}
-					});
-				}
-			});
-		});
-
-		// Gamebook notice button handler
-		$(document).on('click', '.gamebook-notice-btn', function() {
-			Swal.fire({
-				icon: 'info',
-				title: 'Edit from Gamebook',
-				html: 'This service is linked to a game. Please proceed to <strong>Gamebook</strong> to edit this record.',
-				confirmButtonText: 'OK'
-			});
-		});
-	});
-</script>
 <%- include('../partials/footer') %>
+<script src="/assets/js/functions/fnb_hotel.js"></script>
 <%- include('../modals/junket/new_service_record') %>
 <%- include('../modals/junket/edit_service_record') %>
 

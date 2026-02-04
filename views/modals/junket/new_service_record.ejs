@@ -278,7 +278,10 @@
 					showConfirmButton: false
 				});
 
-				window.location.reload();
+				if (window.reloadFnbHotelData) {
+					window.reloadFnbHotelData();
+				}
+				$modal.modal('hide');
 			} catch (err) {
 				Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Failed to save record.' });
 			} finally {
