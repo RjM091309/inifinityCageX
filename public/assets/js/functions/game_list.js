@@ -453,6 +453,11 @@ $(document).ready(function () {
                                     actionButtons
                                 ]).draw().node();
 								
+								// Add pending styling if game was created before settlement run but still ON GAME
+								if (row.is_pending === 1) {
+									$(rowNode).addClass('pending-game');
+								}
+								
 
 								// if (rowClass !== '') {
 								// 	console.log('✅ Highlighting row:', gameListIdText);
@@ -537,6 +542,16 @@ $(document).ready(function () {
 									actionButtons
 								]).draw().node();
 								
+								// Add pending styling if game was created before settlement run but still ON GAME
+								if (row.is_pending === 1) {
+									$(rowNode).addClass('pending-game');
+								}
+								
+								// Add pending styling if game was created before settlement run but still ON GAME
+								if (row.is_pending === 1) {
+									$(rowNode).addClass('pending-game');
+								}
+								
 							} else {
 								// END GAME STATUS (status = 1)
 								if (userPermissions === 11 || userPermissions === 1) { // If manager
@@ -590,7 +605,12 @@ $(document).ready(function () {
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
 						   var actionButtons = btn_services + btn_settle;
-						   dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`, formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw();
+						   let rowNode = dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`, formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw().node();
+						   
+						   // Add pending styling if game was created before settlement run but still ON GAME
+						   if (row.is_pending === 1) {
+							   $(rowNode).addClass('pending-game');
+						   }
 							}
 	
 						},
@@ -643,18 +663,41 @@ $(document).ready(function () {
         if ($(this).prop('disabled')) return;
         var settlementDate = window.selectedSettlementDate || new Date().toISOString().slice(0, 10);
         var formattedDate = settlementDate ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : settlementDate;
-        var msg = (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_date) || ('Settle all games for ' + formattedDate + '?');
         var $btn = $(this);
-        Swal.fire({
-            title: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_title) || 'Confirm Settlement',
-            text: msg,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_yes) || 'Yes, Settle',
-            cancelButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_cancel) || 'Cancel',
-            confirmButtonColor: '#0d6efd',
-            cancelButtonColor: '#6c757d'
-        }).then(function (result) {
+        
+        // Fetch current game list to count ON GAME games
+        $.ajax({
+            url: '/game_list_data',
+            method: 'GET',
+            data: { date: 'current' },
+            success: function (data) {
+                // Count ON GAME games (ACTIVE = 2)
+                var onGameCount = 0;
+                if (data && Array.isArray(data)) {
+                    onGameCount = data.filter(function(game) {
+                        return game.ACTIVE == 2 || game.game_status == 2;
+                    }).length;
+                }
+                
+                // Build confirmation message
+                var msg = 'Settle all End Games for ' + formattedDate + '?';
+                var warningMsg = '';
+                
+                if (onGameCount > 0) {
+                    warningMsg = '<br><br><div style="color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 5px; border-left: 4px solid #ffc107; margin-top: 10px;">' +
+                        '<strong>⚠️ Warning:</strong> There are <strong>' + onGameCount + '</strong> ON GAME game(s) that will be settled after game ends.</div>';
+                }
+                
+                Swal.fire({
+                    title: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_title) || 'Confirm Settlement',
+                    html: msg + warningMsg,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_yes) || 'Yes, Settle',
+                    cancelButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_cancel) || 'Cancel',
+                    confirmButtonColor: '#0d6efd',
+                    cancelButtonColor: '#6c757d'
+                }).then(function (result) {
             if (!result.isConfirmed) return;
             $btn.prop('disabled', true);
             $.ajax({
@@ -696,6 +739,64 @@ $(document).ready(function () {
                     if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
                 }
             });
+                });
+            },
+            error: function () {
+                // If error fetching game list, show confirmation without warning
+                var msg = 'Settle all End Games for ' + formattedDate + '?';
+                Swal.fire({
+                    title: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_title) || 'Confirm Settlement',
+                    text: msg,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_yes) || 'Yes, Settle',
+                    cancelButtonText: (window.gamelistTranslations && window.gamelistTranslations.settle_confirm_cancel) || 'Cancel',
+                    confirmButtonColor: '#0d6efd',
+                    cancelButtonColor: '#6c757d'
+                }).then(function (result) {
+                    if (!result.isConfirmed) return;
+                    $btn.prop('disabled', true);
+                    $.ajax({
+                        url: '/game_list/daily_settlement/run',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ settlement_date: settlementDate }),
+                        success: function (res) {
+                            var settledDate = (res && res.settlement_date) ? res.settlement_date : $('.day-selector-wrapper').attr('data-today');
+                            window.selectedSettlementDate = settledDate || '';
+                            var pickerEl = document.getElementById('settlement-date-picker');
+                            if (pickerEl && pickerEl._flatpickr) pickerEl._flatpickr.setDate(settledDate || '', false);
+                            var settledFormatted = (settledDate || settlementDate) ? new Date((settledDate || settlementDate) + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : (settledDate || settlementDate);
+                            var successText = (window.gamelistTranslations && window.gamelistTranslations.settle_success_text);
+                            if (successText && successText.indexOf('{{date}}') !== -1) successText = successText.replace('{{date}}', settledFormatted);
+                            else if (!successText) successText = 'Settlement for ' + settledFormatted + ' completed.';
+                            Swal.fire({
+                                title: (window.gamelistTranslations && window.gamelistTranslations.settle_success_title) || 'Settled',
+                                text: successText,
+                                icon: 'success',
+                                confirmButtonText: 'OK',
+                                confirmButtonColor: '#0d6efd'
+                            }).then(function () {
+                                window.location.reload();
+                            });
+                        },
+                        error: function (xhr) {
+                            var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to run settlement';
+                            console.error('[Daily Settlement] Settle error:', err, xhr);
+                            Swal.fire({
+                                title: 'Error',
+                                text: err,
+                                icon: 'error',
+                                confirmButtonText: 'OK',
+                                confirmButtonColor: '#0d6efd'
+                            });
+                        },
+                        complete: function () {
+                            if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
+                        }
+                    });
+                });
+            }
         });
     });
 

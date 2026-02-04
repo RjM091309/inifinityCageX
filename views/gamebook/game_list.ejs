@@ -294,6 +294,21 @@ th.col-winloss {
     background-color: #f8f9fa !important;
 }
 
+/* Pending games styling - Yellow/Orange background for games created before settlement but still ON GAME */
+#game_list-tbl tbody tr.pending-game {
+    background-color: #fff3cd !important; /* Light yellow/orange */
+    border-left: 4px solid #ffc107; /* Yellow border on left */
+}
+
+#game_list-tbl tbody tr.pending-game:hover {
+    background-color: #ffe69c !important; /* Darker yellow on hover */
+}
+
+#game_list-tbl tbody tr.pending-game td {
+    background-color: transparent !important;
+    font-weight: 500;
+}
+
 /* Cell styles */
 #game_list-tbl td {
     padding: 12px 15px;

@@ -637,6 +637,27 @@ router.get('/game_list_data', async (req, res) => {
 
         try {
             const [rows] = await pool.execute(queryById, [gameId]);
+            
+            // Add pending flag
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+            const [latestSettlement] = await pool.execute(
+                `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
+                [firstOfMonth, todayStr]
+            );
+            
+            if (latestSettlement.length > 0) {
+                const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date 
+                    ? latestSettlement[0].RUN_AT 
+                    : new Date(latestSettlement[0].RUN_AT);
+                rows.forEach(row => {
+                    const gameCreatedAt = row.ENCODED_DT instanceof Date ? row.ENCODED_DT : new Date(row.ENCODED_DT);
+                    row.is_pending = (gameCreatedAt < settlementRunTime && row.ACTIVE != 1) ? 1 : 0;
+                });
+            } else {
+                rows.forEach(row => { row.is_pending = 0; });
+            }
+            
             return res.json(rows);
         } catch (error) {
             console.error('Error fetching data by ID:', error);
@@ -670,6 +691,27 @@ router.get('/game_list_data', async (req, res) => {
                     ORDER BY game_list.IDNo ASC
                 `;
                 const [rows] = await pool.execute(query);
+                
+                // Add pending flag
+                const todayStr = new Date().toISOString().slice(0, 10);
+                const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+                const [latestSettlement] = await pool.execute(
+                    `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
+                    [firstOfMonth, todayStr]
+                );
+                
+                if (latestSettlement.length > 0) {
+                    const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date 
+                        ? latestSettlement[0].RUN_AT 
+                        : new Date(latestSettlement[0].RUN_AT);
+                    rows.forEach(row => {
+                        const gameCreatedAt = row.ENCODED_DT instanceof Date ? row.ENCODED_DT : new Date(row.ENCODED_DT);
+                        row.is_pending = (gameCreatedAt < settlementRunTime && row.ACTIVE != 1) ? 1 : 0;
+                    });
+                } else {
+                    rows.forEach(row => { row.is_pending = 0; });
+                }
+                
                 return res.json(rows);
             }
             const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
@@ -688,6 +730,10 @@ router.get('/game_list_data', async (req, res) => {
                         ORDER BY game_list.IDNo ASC
                     `;
                     const [rows] = await pool.execute(query, [date]);
+                    
+                    // Settled games don't need pending flag (they're already settled)
+                    rows.forEach(row => { row.is_pending = 0; });
+                    
                     return res.json(rows);
                 }
                 if (date >= todayServer) {
@@ -697,6 +743,26 @@ router.get('/game_list_data', async (req, res) => {
                         ORDER BY game_list.IDNo ASC
                     `;
                     const [rows] = await pool.execute(query);
+                    
+                    // Add pending flag
+                    const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+                    const [latestSettlement] = await pool.execute(
+                        `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
+                        [firstOfMonth, todayServer]
+                    );
+                    
+                    if (latestSettlement.length > 0) {
+                        const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date 
+                            ? latestSettlement[0].RUN_AT 
+                            : new Date(latestSettlement[0].RUN_AT);
+                        rows.forEach(row => {
+                            const gameCreatedAt = row.ENCODED_DT instanceof Date ? row.ENCODED_DT : new Date(row.ENCODED_DT);
+                            row.is_pending = (gameCreatedAt < settlementRunTime && row.ACTIVE != 1) ? 1 : 0;
+                        });
+                    } else {
+                        rows.forEach(row => { row.is_pending = 0; });
+                    }
+                    
                     return res.json(rows);
                 }
                 // Past date, no settlement yet: show unsettled games that fall on that day (e.g. 31 na ngayon, di pa na-settle ang 30 → records naka-30 pa rin)
@@ -707,6 +773,26 @@ router.get('/game_list_data', async (req, res) => {
                     ORDER BY game_list.IDNo ASC
                 `;
                 const [rowsPast] = await pool.execute(queryPastUnsettled, [date]);
+                
+                // Add pending flag
+                const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+                const [latestSettlementPast] = await pool.execute(
+                    `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
+                    [firstOfMonth, todayServer]
+                );
+                
+                if (latestSettlementPast.length > 0) {
+                    const settlementRunTime = latestSettlementPast[0].RUN_AT instanceof Date 
+                        ? latestSettlementPast[0].RUN_AT 
+                        : new Date(latestSettlementPast[0].RUN_AT);
+                    rowsPast.forEach(row => {
+                        const gameCreatedAt = row.ENCODED_DT instanceof Date ? row.ENCODED_DT : new Date(row.ENCODED_DT);
+                        row.is_pending = (gameCreatedAt < settlementRunTime && row.ACTIVE != 1) ? 1 : 0;
+                    });
+                } else {
+                    rowsPast.forEach(row => { row.is_pending = 0; });
+                }
+                
                 return res.json(rowsPast);
             }
         } catch (err) {
@@ -736,6 +822,37 @@ router.get('/game_list_data', async (req, res) => {
 
     try {
         const [rows] = await pool.execute(query, [start, end]);
+        
+        // Add pending flag for games that were created before latest settlement run but are still ON GAME
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+        
+        const [latestSettlement] = await pool.execute(
+            `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
+            [firstOfMonth, todayStr]
+        );
+        
+        if (latestSettlement.length > 0) {
+            const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date 
+                ? latestSettlement[0].RUN_AT 
+                : new Date(latestSettlement[0].RUN_AT);
+            
+            // Add is_pending flag to each row
+            rows.forEach(row => {
+                // Pending: Created before settlement run AND still ON GAME (ACTIVE != 1)
+                const gameCreatedAt = row.ENCODED_DT instanceof Date 
+                    ? row.ENCODED_DT 
+                    : new Date(row.ENCODED_DT);
+                
+                row.is_pending = (gameCreatedAt < settlementRunTime && row.ACTIVE != 1) ? 1 : 0;
+            });
+        } else {
+            // No settlement yet, no pending games
+            rows.forEach(row => {
+                row.is_pending = 0;
+            });
+        }
+        
         res.json(rows);
     } catch (error) {
         console.error('Error fetching data:', error);
@@ -782,18 +899,18 @@ router.post('/game_list/daily_settlement/run', async (req, res) => {
         const settlementId = insertSettlement.insertId;
 
         const [openGames] = await connection.execute(
-            `SELECT IDNo FROM game_list WHERE ACTIVE != 0 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
+            `SELECT IDNo FROM game_list WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
         );
 
         for (const row of openGames) {
             await connection.execute(
-                'INSERT INTO daily_settlement_games (DAILY_SETTLEMENT_ID, GAME_ID) VALUES (?, ?)',
+                'INSERT INTO daily_settlement_games (DAILY_SETTLEMENT_ID, GAME_ID, ADDED_AT) VALUES (?, ?, NOW())',
                 [settlementId, row.IDNo]
             );
         }
 
         await connection.execute(
-            `UPDATE game_list SET DAILY_SETTLEMENT = 2 WHERE ACTIVE != 0 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
+            `UPDATE game_list SET DAILY_SETTLEMENT = 2 WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
         );
 
         await connection.commit();
@@ -886,6 +1003,74 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			`UPDATE game_list SET ACTIVE = ?, GAME_ENDED = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
 			[txtStatus, date_now, editedBy, date_now, id]
 		);
+
+		// ✅ If game is being closed to END GAME (status = 1), add to daily settlement
+		if (txtStatus === "1") {
+			// Get the game's creation date and time
+			const [gameInfo] = await pool.execute(
+				`SELECT ENCODED_DT FROM game_list WHERE IDNo = ?`,
+				[id]
+			);
+			const gameEncodedDt = gameInfo.length > 0 ? gameInfo[0].ENCODED_DT : null;
+			
+			if (gameEncodedDt) {
+				// Get latest settlement to compare DATE AND TIME
+				const todayStr = new Date().toISOString().slice(0, 10);
+				const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+				
+				const [latestSettlement] = await pool.execute(
+					`SELECT IDNo, SETTLEMENT_DATE, RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
+					[firstOfMonth, todayStr]
+				);
+				
+				if (latestSettlement.length > 0) {
+					const settlementRunAt = latestSettlement[0].RUN_AT;
+					
+					// Convert to Date objects for comparison
+					const gameCreatedAt = gameEncodedDt instanceof Date ? gameEncodedDt : new Date(gameEncodedDt);
+					const settlementRunTime = settlementRunAt instanceof Date ? settlementRunAt : new Date(settlementRunAt);
+					
+					// Compare DATE AND TIME directly
+					// PENDING GAME: ENCODED_DT < RUN_AT (mas mababa sa RUN_AT) → add to previous settlement
+					if (gameCreatedAt < settlementRunTime) {
+						const settlementId = latestSettlement[0].IDNo;
+						
+						// Check if game is already in this settlement
+						const [alreadyInSettlement] = await pool.execute(
+							`SELECT COUNT(*) AS count FROM daily_settlement_games WHERE DAILY_SETTLEMENT_ID = ? AND GAME_ID = ?`,
+							[settlementId, id]
+						);
+						
+						const isAlreadyInSettlement = alreadyInSettlement.length > 0 && alreadyInSettlement[0].count > 0;
+						
+						if (!isAlreadyInSettlement) {
+							// Add to previous settlement (pending game)
+							await pool.execute(
+								`INSERT INTO daily_settlement_games (DAILY_SETTLEMENT_ID, GAME_ID, ADDED_AT) VALUES (?, ?, NOW())`,
+								[settlementId, id]
+							);
+							// Mark game as settled
+							await pool.execute(
+								`UPDATE game_list SET DAILY_SETTLEMENT = 2 WHERE IDNo = ?`,
+								[id]
+							);
+						}
+					} else {
+						// BAGONG GAME: ENCODED_DT >= RUN_AT (mas mataas sa RUN_AT) → mark as unsettled (next settlement)
+						await pool.execute(
+							`UPDATE game_list SET DAILY_SETTLEMENT = 1 WHERE IDNo = ?`,
+							[id]
+						);
+					}
+				} else {
+					// No settlement at all, mark as unsettled (will be included in next settlement run)
+					await pool.execute(
+						`UPDATE game_list SET DAILY_SETTLEMENT = 1 WHERE IDNo = ?`,
+						[id]
+					);
+				}
+			}
+		}
 
 		// ✅ If game is being closed (status = 1 or 3), insert roller chips return
 		// Status 1 = END GAME (fully settled), Status 3 = PENDING (discrepancy, needs review)
