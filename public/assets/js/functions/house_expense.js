@@ -1,5 +1,6 @@
 // ============== FRONTEND (house_expense.js) =======================
 var expense_id;
+var return_money_id;
 
 $(document).ready(function () {
 
@@ -93,8 +94,12 @@ $(document).ready(function () {
                 data: { fromDate: start, toDate: end },
                 success: function (data) {
                     console.log("Returned data:", data);
+                    console.log(`Total records received: ${data.length}`);
+                    console.log(`Expense records: ${data.filter(r => r.record_type === 'expense').length}`);
+                    console.log(`Return money records: ${data.filter(r => r.record_type === 'return_money').length}`);
                     dataTable.clear();
                     var total_expense = 0;
+                    var total_return_money = 0;
 
                     if (data.length === 0) {
                         // Put "No data found" in the first column to avoid "Invalid Date"
@@ -102,13 +107,21 @@ $(document).ready(function () {
                         dataTable.row.add([
                             noDataText, '', '', '', '', '', '', ''
                         ]).draw();
-                        $('#GRAND_TOTAL_AMOUNT').text(`₱0.00`);
+                        $('#TOTAL_EXPENSE_AMOUNT').text(`₱0.00`);
+                        $('#TOTAL_RETURN_MONEY_AMOUNT').text(`₱0.00`);
                         return;
                     }
 
                     data.forEach(function (row) {
+                        console.log(`Processing row:`, row.record_type, row.expense_category, row.AMOUNT);
                         const amount = parseFloat(row.AMOUNT) || 0; // 🛡️ Ensure valid number
-                        total_expense += amount;
+                        
+                        // Calculate totals separately
+                        if (row.record_type === 'return_money') {
+                            total_return_money += amount;
+                        } else {
+                            total_expense += amount;
+                        }
                     
                         const permissions = parseInt($('#user-role').data('permissions'));
                         let btn = '';
@@ -117,21 +130,23 @@ $(document).ready(function () {
                                 <div class="btn-group">
                                     <button type="button" class="btn btn-sm btn-alt-secondary"
                                             onclick="viewReceipt('${row.photoUrl}')"
+                                            ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                         <i class="fa fa-eye"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-alt-secondary"
-                                            onclick="edit_expense(${row.expense_id}, '${row.expense_category_id}', '${row.RECEIPT_NO}', '${row.DATE_TIME || row.ENCODED_DT}', '${row.DESCRIPTION}', '${amount}', '${row.OIC}')"
+                                            onclick="${row.record_type === 'return_money' ? `edit_return_money(${row.expense_id}, '${(row.DESCRIPTION || '').replace(/'/g, "\\'")}', '${amount}')` : `edit_expense(${row.expense_id}, '${row.expense_category_id || ''}', '${(row.RECEIPT_NO || '').replace(/'/g, "\\'")}', '${row.DATE_TIME || row.ENCODED_DT || ''}', '${(row.DESCRIPTION || '').replace(/'/g, "\\'")}', '${amount}', '${row.OIC || ''}')`}"
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
                                         <i class="fa fa-pencil-alt"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-alt-secondary"
                                             onclick="downloadReceipt('${row.photoUrl}')"
+                                            ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                         <i class="fa fa-download"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-alt-danger"
-                                            onclick="archive_expense(${row.expense_id})"
+                                            onclick="${row.record_type === 'return_money' ? `archive_return_money(${row.expense_id})` : `archive_expense(${row.expense_id})`}"
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
                                         <i class="fa fa-trash-alt"></i>
                                     </button>
@@ -141,6 +156,7 @@ $(document).ready(function () {
                                 <div class="btn-group">
                                     <button type="button" class="btn btn-sm btn-primary"
                                             onclick="viewReceipt('${row.photoUrl}')"
+                                            ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                         <i class="fa fa-eye"></i>
                                     </button>
@@ -150,6 +166,7 @@ $(document).ready(function () {
                                     </button>
                                     <button type="button" class="btn btn-sm btn-secondary"
                                             onclick="downloadReceipt('${row.photoUrl}')"
+                                            ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                         <i class="fa fa-download"></i>
                                     </button>
@@ -161,23 +178,37 @@ $(document).ready(function () {
                         }
                     
                     const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
-                    const typeValue = parseInt(row.expense_type, 10);
-                    const expenseTypeLabel = (typeValue === 2)
-                        ? nonGoodsTypeLabel
-                        : goodsTypeLabel;
-                        dataTable.row.add([
-                            row.expense_category,
+                    
+                    // For return money records, show "-" for Type, otherwise use expense_type
+                    let expenseTypeLabel = '-';
+                    if (row.record_type !== 'return_money') {
+                        const typeValue = parseInt(row.expense_type, 10);
+                        expenseTypeLabel = (typeValue === 2)
+                            ? nonGoodsTypeLabel
+                            : goodsTypeLabel;
+                    }
+                    
+                    // Format amount - green color for return money records
+                    const formattedAmount = amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                    const amountDisplay = row.record_type === 'return_money' 
+                        ? `<span style="color: green;">${formattedAmount}</span>`
+                        : formattedAmount;
+                    
+                    dataTable.row.add([
+                        row.expense_category || 'N/A',
                         expenseTypeLabel,
-                            row.RECEIPT_NO,
-                            row.DESCRIPTION,
-                            amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
-                            row.FIRSTNAME,
-                            formattedDate,
-                            btn
-                        ]).draw();
+                        row.RECEIPT_NO || '-',
+                        row.DESCRIPTION || '-',
+                        amountDisplay,
+                        row.FIRSTNAME || 'N/A',
+                        formattedDate,
+                        btn
+                    ]).draw();
                     });
                     
-                    $('#GRAND_TOTAL_AMOUNT').text(`₱${total_expense.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
+                    // Update separate totals
+                    $('#TOTAL_EXPENSE_AMOUNT').text(`₱${total_expense.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
+                    $('#TOTAL_RETURN_MONEY_AMOUNT').text(`₱${total_return_money.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
                     
 
                 },
@@ -291,6 +322,9 @@ function addHouseExpense() {
     get_agent();
 }
 
+function returnMoney() {
+    $('#modal-new-return-money').modal('show');
+}
 
 function edit_expense(id, category_id, receipt_no, datetimeval, description, amount, oic) {
     $('#modal-edit-house-expense').modal('show');
@@ -346,6 +380,104 @@ function archive_expense(id) {
         }
     })
 }
+
+function edit_return_money(id, description, amount) {
+    $('#modal-edit-return-money').modal('show');
+    $('#txtReturnMoneyDescription').val(description);
+    
+    // Format amount with commas
+    const amountNum = parseFloat(amount) || 0;
+    const formattedAmount = amountNum.toLocaleString('en-US', { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 0 
+    });
+    $('#txtReturnMoneyAmount').val(formattedAmount);
+    
+    return_money_id = id;
+}
+
+function archive_return_money(id) {
+    Swal.fire({
+        title: window.houseExpenseTranslations?.delete_confirmation || 'Are you sure you want to delete this?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: window.houseExpenseTranslations?.yes || 'Yes'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: '/remove_return_money/' + id,
+                type: 'PUT',
+                success: function (response) {
+                    window.location.reload();
+                },
+                error: function (error) {
+                    console.error('Error deleting return money:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to delete return money. Please try again.'
+                    });
+                }
+            });
+        }
+    })
+}
+
+// Form submission handler for edit return money
+$(document).ready(function() {
+    $('#edit_return_money').submit(function (event) {
+        event.preventDefault();
+
+        const $btn = $('#btn-save-edit-return-money');
+        const originalHtml = $btn.html();
+
+        // Show loading spinner on button
+        $btn.prop('disabled', true).html(`
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            ${window.houseExpenseTranslations?.saving || 'Saving'}...
+        `);
+
+        const formData = {
+            txtDescription: $('#txtReturnMoneyDescription').val(),
+            txtAmount: $('#txtReturnMoneyAmount').val()
+        };
+
+        $.ajax({
+            url: '/edit_return_money/' + return_money_id,
+            type: 'PUT',
+            data: formData,
+            success: function (response) {
+                Swal.fire({
+                    icon: 'success',
+                    title: window.houseExpenseTranslations?.updated_successfully || 'Updated successfully!',
+                    text: 'Return money has been updated.',
+                    confirmButtonText: window.houseExpenseTranslations?.ok || 'OK',
+                    allowOutsideClick: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $('#modal-edit-return-money').modal('hide');
+                        window.location.reload();
+                    }
+                });
+            },
+            error: function (error) {
+                console.error('Error updating return money:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: window.houseExpenseTranslations?.error || 'Error!',
+                    text: 'There was an error updating the return money.',
+                    confirmButtonText: window.houseExpenseTranslations?.ok || 'OK'
+                });
+            },
+            complete: function () {
+                // Reset button after request finishes
+                $btn.prop('disabled', false).html(originalHtml);
+            }
+        });
+    });
+});
 
 function expense_category() {
     $.ajax({

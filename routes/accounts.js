@@ -642,7 +642,10 @@ router.post('/add_account_details', async (req, res) => {
 				// Reformat the amount with commas
 				const formattedAmount = amountNumber.toLocaleString();
 
-				const text = `Infinity Cage\n\nAccount #: ${guestAccountNum}\nGuest: ${guestName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: ${transaction}\nCurrency: PHP\nRemarks: ${txtRemarks}\n\nAmount: ${parseFloat(displayWithdraw).toLocaleString()}\nAccount Balance: ${parseFloat(totalBalance).toLocaleString()}`;
+				// Build remarks line if remarks exist
+				const remarksLine = txtRemarks ? `Remarks: ${txtRemarks}\n` : '';
+
+				const text = `Infinity Cage\n\n* ${transaction} *\n\nAccount: ${guestAccountNum} - ${guestName}\nAmount: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString()}\nAccount Balance: ${parseFloat(totalBalance).toLocaleString()}\n${remarksLine}\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 				if (sendToTelegram) {
 					// Send the message to the guest's Telegram ID
@@ -708,7 +711,7 @@ router.post('/check_balance/:accountId', async (req, res) => {
 		let date_now = new Date().toLocaleDateString();
 		let time_now = new Date().toLocaleTimeString();
 
-		const message = `Infinity Cage\n\nBalance Check\n\nAccount: ${AGENT_CODE} - ${NAME}\nDate: ${date_now}\nTime: ${time_now}\n\nCurrent Balance: ${balanceFormatted}`;
+		const message = `Infinity Cage\n\n* Balance Check *\n\nAccount: ${AGENT_CODE} - ${NAME}\nCurrent Balance: ${balanceFormatted}\n\nDate: ${date_now}\nTime: ${time_now}`;
 
 		await sendTelegramMessage(message, TELEGRAM_ID);
 		// Also notify all additional chat IDs (groups/channels)
@@ -823,7 +826,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 				let date_nowTG = new Date().toLocaleDateString();
 
 				// Prepare message with "From" account details and "To" account details
-				const textFrom = `Infinity Cage\n\nTransfer Details:\n\nTransferred to Account: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAmount Transferred: -${totalAmount.toLocaleString()}\nAccount Balance: ${SenderCurrentBalance.toLocaleString()}`;
+				const textFrom = `Infinity Cage\n\n* Transfer *\n\nAccount: ${AGENT_CODE_FROM} - ${NAME_FROM}\nTransferred to Account: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\nAmount Transferred: -${totalAmount.toLocaleString()}\nAccount Balance: ${SenderCurrentBalance.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 				await sendTelegramMessage(textFrom, TELEGRAM_ID_FROM);
 				await sendTelegramToAdditionalChats(textFrom);
@@ -843,7 +846,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 				let date_nowTG = new Date().toLocaleDateString();
 
 				// Prepare message with "From" account details and "To" account details
-				const textTo = `Infinity Cage\n\nTransfer Details:\n\nTransferred from Account: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAmount Transferred: ${totalAmount.toLocaleString()}\nAccount Balance: ${ReceiverCurrentBalance.toLocaleString()}`;
+				const textTo = `Infinity Cage\n\n* Transfer *\n\nAccount: ${AGENT_CODE_TO} - ${NAME_TO}\nTransferred from Account: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\nAmount Transferred: ${totalAmount.toLocaleString()}\nAccount Balance: ${ReceiverCurrentBalance.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 				await sendTelegramMessage(textTo, TELEGRAM_ID_TO);
 				await sendTelegramToAdditionalChats(textTo);

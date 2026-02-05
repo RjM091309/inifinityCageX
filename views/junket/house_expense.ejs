@@ -22,9 +22,14 @@
                                 <a href="#" ><%= __('house_expense.junket') %></a>
                                 <a href="/house_expense"class="active"><%= __('house_expense.junket_expenses') %></a>
                             </div></h3>
-                            <button type="button" class="btn btn-primary" onclick="addHouseExpense()">
-                                <i class="fa fa-plus" aria-hidden="true"></i> <%= __('house_expense.new_record') %>
-                            </button>
+                            <div class="d-flex">
+                                <button type="button" class="btn btn-primary me-2" onclick="addHouseExpense()">
+                                    <i class="fa fa-plus" aria-hidden="true"></i> <%= __('house_expense.new_expense') %>
+                                </button>
+                                <button type="button" class="btn btn-success" onclick="returnMoney()">
+                                    <i class="fa fa-undo" aria-hidden="true"></i> <%= __('house_expense.return_money') %>
+                                </button>
+                            </div>
                             
                         </div>
        
@@ -55,8 +60,14 @@
                                 </tbody>
                                 <tfoot>
                                     <tr>
-                                <th colspan="4"><%= __('house_expense.grand_total') %></th>
-                                <th colspan="4" id="GRAND_TOTAL_AMOUNT">₱0.00</th>
+                                        <th colspan="1"><%= __('house_expense.total_expenses') || 'TOTAL EXPENSES' %></th>
+                                        <th id="TOTAL_EXPENSE_AMOUNT">₱0.00</th>
+                                        <th colspan="6"></th>
+                                    </tr>
+                                    <tr>
+                                        <th colspan="1"><%= __('house_expense.total_return_money') || 'TOTAL RETURN MONEY' %></th>
+                                        <th id="TOTAL_RETURN_MONEY_AMOUNT">₱0.00</th>
+                                        <th colspan="6"></th>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -71,8 +82,11 @@
             
         
         <%- include ('../partials/footer'); -%>
+        <%- include ('../modals/junket/edit_return_money') %>
+        <%- include ('../modals/junket/new_return_money') %>
         <%- include ('../modals/junket/edit_house_expense') %>
         <%- include ('../modals/junket/new_house_expense') %>
+       
         
        
        

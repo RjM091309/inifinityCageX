@@ -377,8 +377,11 @@ async function startTelegramBot() {
 
       const balance = deposit + iouCash - withdraw - iouReturn;
 
-      const msg = `Infinity Cage\n\nAccount #: ${AGENT_CODE}\nGuest: ${NAME}\nBalance: ${balance.toLocaleString()}`;
-      bot.sendMessage(telegramId, msg, { parse_mode: 'Markdown' });
+      const date_now = new Date().toLocaleDateString();
+      const time_now = new Date().toLocaleTimeString();
+
+      const msg = `Infinity Cage\n\n* Balance Check *\n\nAccount: ${AGENT_CODE} - ${NAME}\nCurrent Balance: ${balance.toLocaleString()}\n\nDate: ${date_now}\nTime: ${time_now}`;
+      bot.sendMessage(telegramId, msg);
 
     } catch (err) {
       console.error('❌ Error:', err);

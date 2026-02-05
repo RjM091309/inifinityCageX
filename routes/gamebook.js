@@ -254,11 +254,11 @@ router.post('/add_game_list', async (req, res) => {
 
 		if (transType === 2) {
 			const newTotalBalance = totalBalanceGuest - totalAmount;
-			text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start - Deposit \nGame #: ${result.insertId} - ${txtGameType} \nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}`;
+			text = `Infinity Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${result.insertId} - ${txtGameType}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()} - Deposit\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 		} else if (transType === 1) {
-			text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start - Cash\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()}`;
+			text = `Infinity Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()} - Cash\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 		} else if (transType === 3) {
-			text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame Start - IOU\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()}`;
+			text = `Infinity Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()} - Credit\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 		}
 
 		if (text && telegramIdResults.length > 0 && agentId) {
@@ -980,8 +980,6 @@ router.put('/game_list/remove/:id', async (req, res) => {
     }
 });
 
-
-// STATUS GAME LIST
 // STATUS GAME LIST (Updated with mysql2/promise)
 router.put('/game_list/change_status/:id', async (req, res) => {
 	try {
@@ -1115,60 +1113,61 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			}
 			
 			// ✅ Only send Telegram notification for status = 1 (END GAME), not for status = 3 (PENDING)
-			if (txtStatus === "1") {
-				const [agentResults] = await pool.execute(`
-					SELECT agent.AGENT_CODE, agent.NAME
-					FROM agent
-					JOIN account ON account.AGENT_ID = agent.IDNo
-					WHERE account.ACTIVE = 1 AND account.IDNo = ?
-				`, [txtAccountCode]);
+			// COMMENTED OUT: Telegram message sending temporarily disabled
+			// if (txtStatus === "1") {
+			// 	const [agentResults] = await pool.execute(`
+			// 		SELECT agent.AGENT_CODE, agent.NAME
+			// 		FROM agent
+			// 		JOIN account ON account.AGENT_ID = agent.IDNo
+			// 		WHERE account.ACTIVE = 1 AND account.IDNo = ?
+			// 	`, [txtAccountCode]);
 
-				if (agentResults.length > 0) {
-					const agentCode = agentResults[0].AGENT_CODE;
-					const agentName = agentResults[0].NAME;
+			// 	if (agentResults.length > 0) {
+			// 		const agentCode = agentResults[0].AGENT_CODE;
+			// 		const agentName = agentResults[0].NAME;
 
-					const [telegramIdResults] = await pool.execute(`
-						SELECT agent.TELEGRAM_ID 
-						FROM agent
-						JOIN account ON account.AGENT_ID = agent.IDNo
-						WHERE account.ACTIVE = 1 AND account.IDNo = ?
-					`, [txtAccountCode]);
+			// 		const [telegramIdResults] = await pool.execute(`
+			// 			SELECT agent.TELEGRAM_ID 
+			// 			FROM agent
+			// 			JOIN account ON account.AGENT_ID = agent.IDNo
+			// 			WHERE account.ACTIVE = 1 AND account.IDNo = ?
+			// 		`, [txtAccountCode]);
 
-					const updated_time = new Date().toLocaleTimeString();
-					const date_nowTG = new Date().toLocaleDateString();
+			// 		const updated_time = new Date().toLocaleTimeString();
+			// 		const date_nowTG = new Date().toLocaleDateString();
 
-					// Calculate Total Rolling: txtTotalRolling + txtReturnRollerCC (if txtReturnRollerCC exists)
-					const totalRollingBase = parseFloat(txtTotalRolling) || 0;
-					const returnCCAmount = parseFloat((txtReturnRollerCC || '0').replace(/,/g, '')) || 0;
-					const totalRolling = totalRollingBase + returnCCAmount;
+			// 		// Calculate Total Rolling: txtTotalRolling + txtReturnRollerCC (if txtReturnRollerCC exists)
+			// 		const totalRollingBase = parseFloat(txtTotalRolling) || 0;
+			// 		const returnCCAmount = parseFloat((txtReturnRollerCC || '0').replace(/,/g, '')) || 0;
+			// 		const totalRolling = totalRollingBase + returnCCAmount;
 
-					const text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame #: ${txtGameId}\nCapital: ${parseFloat(txtCapital).toLocaleString()}\nFinal Chips: ${parseFloat(txtFinalChips).toLocaleString()}\nWin/Loss: ${parseFloat(adjustedWinloss).toLocaleString()}\nTotal Rolling: ${totalRolling.toLocaleString()}`;
+			// 		const text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame #: ${txtGameId}\nCapital: ${parseFloat(txtCapital).toLocaleString()}\nFinal Chips: ${parseFloat(txtFinalChips).toLocaleString()}\nWin/Loss: ${parseFloat(adjustedWinloss).toLocaleString()}\nTotal Rolling: ${totalRolling.toLocaleString()}`;
 
-					if (telegramIdResults.length > 0) {
-						const telegramId = telegramIdResults[0].TELEGRAM_ID;
-						// Only send Telegram message if TELEGRAM_ID is valid (not null/empty)
-						if (telegramId) {
-							try {
-								await sendTelegramMessage(text, telegramId);
-							} catch (telegramError) {
-								console.error('Failed to send Telegram message to agent:', telegramError.message);
-								// Continue execution even if Telegram fails
-							}
-						}
-					} else {
-						console.warn("No TELEGRAM_ID found for Account:", txtAccountCode);
-					}
-					// Send to additional chats (groups/channels) - also with error handling
-					try {
-						await sendTelegramToAdditionalChats(text);
-					} catch (telegramError) {
-						console.error('Failed to send Telegram message to additional chats:', telegramError.message);
-						// Continue execution even if Telegram fails
-					}
-				} else {
-					console.warn("No agent info found for Account:", txtAccountCode);
-				}
-			}
+			// 		if (telegramIdResults.length > 0) {
+			// 			const telegramId = telegramIdResults[0].TELEGRAM_ID;
+			// 			// Only send Telegram message if TELEGRAM_ID is valid (not null/empty)
+			// 			if (telegramId) {
+			// 				try {
+			// 					await sendTelegramMessage(text, telegramId);
+			// 				} catch (telegramError) {
+			// 					console.error('Failed to send Telegram message to agent:', telegramError.message);
+			// 					// Continue execution even if Telegram fails
+			// 				}
+			// 			}
+			// 		} else {
+			// 			console.warn("No TELEGRAM_ID found for Account:", txtAccountCode);
+			// 		}
+			// 		// Send to additional chats (groups/channels) - also with error handling
+			// 		try {
+			// 			await sendTelegramToAdditionalChats(text);
+			// 		} catch (telegramError) {
+			// 			console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+			// 			// Continue execution even if Telegram fails
+			// 		}
+			// 	} else {
+			// 		console.warn("No agent info found for Account:", txtAccountCode);
+			// 	}
+			// }
 		}
 
 		res.send('Game status updated successfully');
@@ -1234,9 +1233,9 @@ router.post('/add_settlement', async (req, res) => {
 			let text;
 			if (txtTransType == 1) {
 				const currentBalance = parseFloat(txtSettlementBalance.replace(/,/g, '')) + parseFloat(paymentValue);
-				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: ${game_id_settle} - Commission\nAmount: ${parseFloat(paymentValue).toLocaleString()}\nAccount Balance: ${parseFloat(currentBalance).toLocaleString()}`;
+				text = `Infinity Cage\n\n* Settlement *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id_settle}\nAmount: ${parseFloat(paymentValue).toLocaleString()} - Deposit\nAccount Balance: ${parseFloat(currentBalance).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else {
-				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: ${game_id_settle} - Commission\nAmount: ${parseFloat(paymentValue).toLocaleString()}`;
+				text = `Infinity Cage\n\n* Settlement *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id_settle}\nAmount: ${parseFloat(paymentValue).toLocaleString()} - Cash\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			}
 
 			// Send the Telegram message
@@ -1409,11 +1408,11 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			// Prepare Telegram message text
 			let text = '';
 			if (txtTransType == 2) {
-				text = `Infinity Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in - Deposit\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}`;
+				text = `Infinity Cage\n\n* Additional Buy-in *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()} - Deposit\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else if (txtTransType == 1) {
-				text = `Infinity Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in - Cash\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}`;
+				text = `Infinity Cage\n\n* Additional Buy-in *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()} - Cash\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else if (txtTransType == 3) {
-				text = `Infinity Cage\n\nAccount: ${agentCode} (${agentName})\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nAdditional Buy-in - IOU\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()}\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}`;
+				text = `Infinity Cage\n\n* Additional Buy-in *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()} - Credit\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			}
 
 			// Send Telegram messages
@@ -1551,11 +1550,11 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			// Prepare Telegram message
 			let text = '';
 			if (txtTransType == 2) {
-				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nCash-out\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}\nAccount Balance: ${currentBalanceCashout.toLocaleString()}`;
+				text = `Infinity Cage\n\n* Cash-out *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\Cash-out: ${chipsReturn.toLocaleString()} - Deposit\nAccount Balance: ${currentBalanceCashout.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else if (txtTransType == 1) {
-				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nCash-out - Cash\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}`;
+				text = `Infinity Cage\n\n* Cash-out *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nCash-out: ${chipsReturn.toLocaleString()} - Cash\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else if (txtTransType == 4) {
-				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nCash-out - IOU\nGame #: ${game_id}\nChips Return: ${chipsReturn.toLocaleString()}`;
+				text = `Infinity Cage\n\n* Cash-out *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nCash-out: ${chipsReturn.toLocaleString()} - Credit\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			}
 
 			// Send Telegram message if TELEGRAM_ID is found

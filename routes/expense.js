@@ -190,11 +190,11 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 		});
 
 		// Create Telegram message
-		const telegramMessage = `🏢 Junket Expense\n\n` +
+		const telegramMessage = `Infinity Cage\n\n* Junket Expense *\n\n` +
 			`Category: ${expenseCategoryName}\n` +
 			`Receipt No: ${receiptNo || 'N/A'}\n` +
 			`Description: ${description || 'N/A'}\n` +
-			`Amount: ₱${amount.toLocaleString()}\n` +
+			`Amount: ₱${amount.toLocaleString()}\n\n` +
 			`Encoded By: ${encodedByName}\n` +
 			`Date: ${dateFormatted}\n` +
 			`Time: ${timeFormatted}`;
@@ -234,21 +234,62 @@ router.get('/junket_house_expense_data', async (req, res) => {
 
 		const query = `
 			SELECT 
-				junket_house_expense.*, 
-				junket_house_expense.IDNo AS expense_id, 
-				expense_category.IDNo AS expense_category_id, 
-				expense_category.CATEGORY AS expense_category,
-				expense_category.TYPE AS expense_type,
-				user_info.FIRSTNAME AS FIRSTNAME
-			FROM junket_house_expense
-			JOIN expense_category ON expense_category.IDNo = junket_house_expense.CATEGORY_ID
-			JOIN user_info ON user_info.IDNo = junket_house_expense.ENCODED_BY
-			WHERE junket_house_expense.ACTIVE = 1
-				AND DATE(junket_house_expense.ENCODED_DT) BETWEEN ? AND ?
-			ORDER BY junket_house_expense.IDNo DESC
+				e.IDNo,
+				e.CATEGORY_ID,
+				e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+				e.DATE_TIME,
+				e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+				e.AMOUNT,
+				e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
+				e.ENCODED_BY,
+				e.ENCODED_DT,
+				e.EDITED_BY,
+				e.EDITED_DT,
+				e.ACTIVE,
+				e.RESET,
+				e.IDNo AS expense_id,
+				ec.IDNo AS expense_category_id,
+				ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
+				ec.TYPE AS expense_type,
+				u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+				'expense' COLLATE utf8mb4_unicode_ci AS record_type
+			FROM junket_house_expense e
+			JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+			JOIN user_info u ON u.IDNo = e.ENCODED_BY
+			WHERE e.ACTIVE = 1
+				AND DATE(e.ENCODED_DT) BETWEEN ? AND ?
+			
+			UNION ALL
+			
+			SELECT 
+				rm.IDNo,
+				NULL AS CATEGORY_ID,
+				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+				NULL AS DATE_TIME,
+				rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+				rm.AMOUNT,
+				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
+				rm.ENCODED_BY,
+				rm.ENCODED_DT,
+				rm.EDITED_BY,
+				rm.EDITED_DT,
+				rm.ACTIVE,
+				NULL AS RESET,
+				rm.IDNo AS expense_id,
+				NULL AS expense_category_id,
+				'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
+				0 AS expense_type,
+				COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+				'return_money' COLLATE utf8mb4_unicode_ci AS record_type
+			FROM junket_return_money rm
+			LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
+			WHERE rm.ACTIVE = 1
+				AND DATE(rm.ENCODED_DT) BETWEEN ? AND ?
+			
+			ORDER BY ENCODED_DT DESC
 		`;
 
-		const [result] = await pool.execute(query, [fromDate, toDate]);
+		const [result] = await pool.execute(query, [fromDate, toDate, fromDate, toDate]);
 
 		const updatedResult = result.map(expense => ({
 			...expense,
@@ -258,7 +299,9 @@ router.get('/junket_house_expense_data', async (req, res) => {
 		res.json(updatedResult);
 	} catch (err) {
 		console.error('Error executing query:', err);
-		res.status(500).send('Internal Server Error');
+		console.error('Query:', query);
+		console.error('Parameters:', [fromDate, toDate, fromDate, toDate]);
+		res.status(500).json({ error: 'Internal Server Error', details: err.message });
 	}
 });
 
@@ -332,7 +375,94 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 	}
 });
 
+// ADD RETURN MONEY
+router.post('/add_return_money', async (req, res) => {
+	try {
+		const {
+			txtDescription,
+			txtAmount
+		} = req.body;
 
+		const date_now = new Date();
+		const description = txtDescription || null;
+		// Remove commas and parse to float
+		const amountStr = txtAmount ? String(txtAmount).replace(/,/g, '').trim() : '0';
+		const amount = parseFloat(amountStr) || 0;
+		const encodedBy = req.session?.user_id || null;
+
+		const query = `
+			INSERT INTO junket_return_money
+			(DESCRIPTION, AMOUNT, ENCODED_BY, ENCODED_DT)
+			VALUES (?, ?, ?, ?)
+		`;
+
+		const [insertResult] = await pool.execute(query, [
+			description,
+			amount,
+			encodedBy,
+			date_now
+		]);
+
+		res.json({ success: true, message: 'Return money added successfully' });
+	} catch (err) {
+		console.error('Error inserting return money:', err);
+		res.status(500).json({ error: 'Error inserting return money' });
+	}
+});
+
+// EDIT RETURN MONEY
+router.put('/edit_return_money/:id', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id);
+		const {
+			txtDescription,
+			txtAmount
+		} = req.body;
+
+		const date_now = new Date();
+		const description = txtDescription || null;
+		const amount = txtAmount ? parseFloat(txtAmount.replace(/,/g, '')) : 0;
+
+		const query = `
+			UPDATE junket_return_money 
+			SET DESCRIPTION = ?, AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ?
+			WHERE IDNo = ?
+		`;
+
+		await pool.execute(query, [
+			description,
+			amount,
+			req.session.user_id,
+			date_now,
+			id
+		]);
+
+		res.json({ success: true, message: 'Return money updated successfully' });
+	} catch (err) {
+		console.error('Error updating return money:', err);
+		res.status(500).json({ error: 'Error updating return money' });
+	}
+});
+
+// DELETE RETURN MONEY
+router.put('/remove_return_money/:id', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id);
+		const date_now = new Date();
+
+		const query = `
+			UPDATE junket_return_money 
+			SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? 
+			WHERE IDNo = ?
+		`;
+
+		await pool.execute(query, [0, req.session.user_id, date_now, id]);
+		res.json({ success: true, message: 'Return money deleted successfully' });
+	} catch (err) {
+		console.error('Error deleting return money:', err);
+		res.status(500).json({ error: 'Error deleting return money' });
+	}
+});
 
 // Export the router
 module.exports = router; 

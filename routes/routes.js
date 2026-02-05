@@ -3147,27 +3147,72 @@ pageRouter.get('/junket_house_expense_data', (req, res) => {
 
 	const query = `
         SELECT 
-            junket_house_expense.*, 
-            junket_house_expense.IDNo AS expense_id, 
-            expense_category.IDNo AS expense_category_id, 
-            expense_category.CATEGORY AS expense_category, 
-            user_info.FIRSTNAME AS FIRSTNAME
-        FROM junket_house_expense
-        JOIN expense_category ON expense_category.IDNo = junket_house_expense.CATEGORY_ID
-        JOIN user_info ON user_info.IDNo = junket_house_expense.ENCODED_BY
-        WHERE junket_house_expense.ACTIVE = 1
-          AND DATE(junket_house_expense.ENCODED_DT) BETWEEN ? AND ?
-        ORDER BY junket_house_expense.IDNo DESC
+            e.IDNo,
+            e.CATEGORY_ID,
+            e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+            e.DATE_TIME,
+            e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+            e.AMOUNT,
+            e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
+            e.ENCODED_BY,
+            e.ENCODED_DT,
+            e.EDITED_BY,
+            e.EDITED_DT,
+            e.ACTIVE,
+            e.RESET,
+            e.IDNo AS expense_id,
+            ec.IDNo AS expense_category_id,
+            ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
+            ec.TYPE AS expense_type,
+            u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+            'expense' COLLATE utf8mb4_unicode_ci AS record_type
+        FROM junket_house_expense e
+        JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+        JOIN user_info u ON u.IDNo = e.ENCODED_BY
+        WHERE e.ACTIVE = 1
+          AND DATE(e.ENCODED_DT) BETWEEN ? AND ?
+        
+        UNION ALL
+        
+        SELECT 
+            rm.IDNo,
+            NULL AS CATEGORY_ID,
+            CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+            NULL AS DATE_TIME,
+            rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+            rm.AMOUNT,
+            CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
+            rm.ENCODED_BY,
+            rm.ENCODED_DT,
+            rm.EDITED_BY,
+            rm.EDITED_DT,
+            rm.ACTIVE,
+            NULL AS RESET,
+            rm.IDNo AS expense_id,
+            NULL AS expense_category_id,
+            'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
+            0 AS expense_type,
+            COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+            'return_money' COLLATE utf8mb4_unicode_ci AS record_type
+        FROM junket_return_money rm
+        LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
+        WHERE rm.ACTIVE = 1
+          AND DATE(rm.ENCODED_DT) BETWEEN ? AND ?
+        
+        ORDER BY ENCODED_DT DESC
     `;
 
 
 
-	connection.query(query, [fromDate, toDate], (error, result) => {
+	connection.query(query, [fromDate, toDate, fromDate, toDate], (error, result) => {
 		if (error) {
 			console.error('Error executing query:', error);
-			return res.status(500).send('Internal Server Error');
+			console.error('Query:', query);
+			console.error('Parameters:', [fromDate, toDate, fromDate, toDate]);
+			return res.status(500).json({ error: 'Internal Server Error', details: error.message });
 		}
 
+		console.log(`[junket_house_expense_data] Found ${result.length} total records (expenses + return money)`);
 
 		const updatedResult = result.map(expense => ({
 			...expense,

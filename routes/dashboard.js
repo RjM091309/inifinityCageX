@@ -174,6 +174,13 @@ ON
 		WHERE jhe.ACTIVE = 1
 			AND ec.TYPE = 2
 	`;
+	let sqlReturnMoney = `
+		SELECT SUM(rm.AMOUNT) AS RETURN_MONEY
+		FROM junket_return_money rm
+		WHERE rm.ACTIVE = 1
+	`;
+
+	
 	let sqlNNChipsReturnDeposit = 'SELECT SUM(NN_CHIPS) AS NN_DEPOSIT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION = 2';
 	let sqlCageRolling = 'SELECT SUM(ROLLING_AMOUNT) AS ROLLING_AMOUNT FROM cage_rolling WHERE ACTIVE =1';
 	let sqlNNChipsAccountMarker = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_MARKER FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION = 3';
@@ -462,6 +469,7 @@ let sqlServiceSettle = `
 		const [JunketExpenseResult] = await pool.execute(sqlJunketExpense);
 		const [JunketExpenseGoodsResult] = await pool.execute(sqlJunketExpenseGoods);
 		const [JunketExpenseNonGoodsResult] = await pool.execute(sqlJunketExpenseNonGoods);
+		const [ReturnMoneyResult] = await pool.execute(sqlReturnMoney);
 		const [ResetExpenseResult] = await pool.execute(sqlJunketExpenseReset);
 		const [CCResetBuyinCashoutResult] = await pool.execute(sqlCCChipsCashoutReset);
 		const [TotalRollingResetResult] = await pool.execute(sqlTotalRollingReset);
@@ -736,6 +744,7 @@ let sqlServiceSettle = `
 			sqlJunketExpense: JunketExpenseResult,
 			sqlJunketExpenseGoods: JunketExpenseGoodsResult,
 			sqlJunketExpenseNonGoods: JunketExpenseNonGoodsResult,
+			sqlReturnMoney: ReturnMoneyResult,
 			sqlJunketExpenseReset: ResetExpenseResult,
 
 			sqlAccountTransfer: AccountTransferResult,
@@ -1435,9 +1444,9 @@ router.post('/add_marker_settlement', async (req, res) => {
 			const currentBalance = parseFloat(AgentBalance.replace(/,/g, '')) - markerReturn;
 
 			if (optTransType === '12') {
-				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: IOU RETURN\nAmount: ${parseFloat(markerReturn).toLocaleString()}\nAccount Balance: ${parseFloat(currentBalance).toLocaleString()}`;
+				text = `Infinity Cage\n\n* Credit RETURN *\n\nAccount: ${agentCode} - ${agentName}\nAmount: ${parseFloat(markerReturn).toLocaleString()} - Deposit\nAccount Balance: ${parseFloat(currentBalance).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else {
-				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: IOU RETURN\nAmount: ${parseFloat(markerReturn).toLocaleString()}`;
+				text = `Infinity Cage\n\n* Credit RETURN *\n\nAccount: ${agentCode} - ${agentName}\nAmount: ${parseFloat(markerReturn).toLocaleString()} - Cash\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			}
 
 			if (telegramId) {

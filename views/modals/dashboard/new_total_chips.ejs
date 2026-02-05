@@ -184,6 +184,13 @@
           </thead>
           <tbody>
           </tbody>
+          <tfoot>
+            <tr>
+              <th colspan="1" style="text-align: right; font-weight: 600;">Total:</th>
+              <th id="total-chips-amount-sum" style="text-align: right; font-weight: 600;">0</th>
+              <th colspan="4"></th>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>
@@ -236,11 +243,17 @@
 
   /* Footer total row */
   #total-chips-history-tbl tfoot th {
-    padding: 10px;
+    padding: 12px 15px;
     font-weight: 600;
     color: #333;
     background-color: #f4f6fa;
     border-top: 2px solid #dee2e6;
+    font-size: 14px;
+  }
+  
+  #total-chips-amount-sum {
+    color: var(--bs-primary);
+    font-size: 14px;
   }
 </style>
 
@@ -458,6 +471,7 @@ $(document).ready(function() {
         return {
           encodedBy: row.ENCODED_BY_NAME || 'N/A',
           amount: amount,
+          amountRaw: nnChips, // Store raw numeric value for total calculation
           type: type,
           remarks: row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
           date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
@@ -480,6 +494,7 @@ $(document).ready(function() {
         return {
           encodedBy: row.ENCODED_BY_NAME || 'N/A',
           amount: amount,
+          amountRaw: ccChips, // Store raw numeric value for total calculation
           type: type,
           remarks: '',
           date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
@@ -491,20 +506,25 @@ $(document).ready(function() {
       // Combine and sort by date descending
       const combinedData = [...nnFiltered, ...ccFiltered].sort((a, b) => b.sortDate - a.sortDate);
 
-      // Convert to DataTable format
-      const tableData = combinedData.map(row => [
-        row.encodedBy,
-        row.amount,
-        row.type,
-        row.remarks,
-        row.date,
-        row.action
-      ]);
+      // Convert to DataTable format with raw amount stored for total calculation
+      const tableData = combinedData.map((row, index) => {
+        const rowArray = [
+          row.encodedBy,
+          row.amount,
+          row.type,
+          row.remarks,
+          row.date,
+          row.action
+        ];
+        // Store raw amount as a property on the row array for easy access
+        rowArray._rawAmount = row.amountRaw;
+        return rowArray;
+      });
 
       console.log('Combined Total Chips History Data:', tableData);
 
       // Initialize DataTable
-      $('#total-chips-history-tbl').DataTable({
+      const table = $('#total-chips-history-tbl').DataTable({
         processing: false,
         serverSide: false,
         data: tableData,
@@ -524,6 +544,23 @@ $(document).ready(function() {
         },
         drawCallback: function(settings) {
           $('[data-bs-toggle="tooltip"]').tooltip();
+        },
+        footerCallback: function(row, data, start, end, display) {
+          // Calculate total of all filtered data
+          let total = 0;
+          const api = this.api();
+          
+          // Get all filtered rows (respects search/filter)
+          api.rows({ search: 'applied' }).every(function() {
+            const rowData = this.data();
+            // Access the raw amount stored on the row array
+            if (rowData._rawAmount !== undefined) {
+              total += parseFloat(rowData._rawAmount) || 0;
+            }
+          });
+          
+          // Update total in footer
+          $('#total-chips-amount-sum').text(total.toLocaleString());
         }
       });
     }).catch(function(error) {

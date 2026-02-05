@@ -76,6 +76,7 @@ function translateGameSource(source) {
 	if (sourceUpper === 'CASH') return translations.cash || 'CASH';
 	if (sourceUpper === 'DEPOSIT') return translations.deposit || 'DEPOSIT';
 	if (sourceUpper === 'MARKER') return translations.marker || 'MARKER';
+	if (sourceUpper === 'IOU') return translations.credit || 'Credit';
 	return source;
 }
 
@@ -578,7 +579,13 @@ $(document).ready(function () {
 								buyin_td = parseFloat(total_amount).toLocaleString();
 								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
-								roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
+								// Roller chips: clickable button if END GAME and NOT settled (RETURN only), otherwise just text
+								if (isSettled) {
+									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
+								} else {
+									// END GAME but not settled: only allow RETURN transactions
+									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true)">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
+								}
 	
 								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
 								var settleClass = row.SETTLED === 1 ? 'btn-success-subtle' : 'btn-danger-subtle';
@@ -1460,7 +1467,7 @@ $('#add_buyin').submit(function (event) {
 				var totalReturnValue = `NN: ${parseFloat(totalReturnNN).toLocaleString()}<br>CC: ${parseFloat(totalReturnCC).toLocaleString()}`;
 				validationRows += buildValidationRow('Total ADD:', totalAddValue);
 				validationRows += buildValidationRow('Total RETURN:', totalReturnValue);
-				validationRows += buildValidationRow('Total Required RETURN (NN+CC):', parseFloat(requiredReturnTotal).toLocaleString());
+				validationRows += buildValidationRow('<span style="color:red;">Total Required RETURN (NN+CC):</span>', `<span style="color:red;font-weight:bold;">${parseFloat(requiredReturnTotal).toLocaleString()}</span>`);
 
 				var validationMessage = `
 					<div style="max-width:420px;margin:0 auto;text-align:left;">
@@ -2117,12 +2124,21 @@ $('#modal-add-rolling').on('hidden.bs.modal', function () {
 	$('#submit-rolling-btn').prop('disabled', false).text('Save');
 });
 
-function addRollerChips(id) {
+function addRollerChips(id, returnOnly) {
 	$('#modal-add-roller-chips').modal('show');
 
 	$('#modal-add-roller-chips .txtRollerNN').val('');
 	$('#modal-add-roller-chips .txtRollerCC').val('');
 	$('#modal-add-roller-chips input[name="txtTransType"]').prop('checked', false); // No default selection
+
+	// If RETURN only mode (END GAME but not settled), disable ADD option and auto-select RETURN
+	if (returnOnly) {
+		$('#rollerAdd').prop('disabled', true).closest('.form-check').css('opacity', '0.5');
+		$('#rollerReturn').prop('checked', true);
+	} else {
+		// Enable ADD option for ON GAME status
+		$('#rollerAdd').prop('disabled', false).closest('.form-check').css('opacity', '1');
+	}
 
 	$('#modal-add-roller-chips .game_list_id').val(id);
 	
@@ -2205,6 +2221,12 @@ function addRollerChips(id) {
 		}
 	});
 }
+
+// Reset ADD option when modal closes
+$('#modal-add-roller-chips').on('hidden.bs.modal', function () {
+	$('#rollerAdd').prop('disabled', false).closest('.form-check').css('opacity', '1');
+	$('#rollerReturn').prop('checked', false);
+});
 
 function addCashout(id, account, total_rolling_chips) {
 	$('#modal-add-cashout').modal('show');
