@@ -13,9 +13,30 @@ function generateMD5(input) {
     return crypto.createHash('md5').update(input).digest('hex');
 }
 
+function getClientIp(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+        return forwarded.split(',')[0].trim();
+    }
+    const rawIp = req.ip || req.connection?.remoteAddress || '';
+    if (rawIp === '::1') {
+        return '127.0.0.1';
+    }
+    if (rawIp.startsWith('::ffff:')) {
+        return rawIp.replace('::ffff:', '');
+    }
+    return rawIp;
+}
+
 // Middleware to check session, enforce single-login, and update activity
 const checkSession = async (req, res, next) => {
     if (!req.session || !req.session.username || !req.session.user_id) {
+        console.warn('Session missing on request', {
+            path: req.originalUrl,
+            sessionId: req.sessionID,
+            hasCookie: Boolean(req.headers?.cookie),
+            cookies: req.cookies
+        });
         return res.redirect('/login');
     }
 
@@ -42,6 +63,11 @@ const checkSession = async (req, res, next) => {
         // Exception: admin (permission = 1) allows multi-login — do not disconnect existing sessions
         const isAdmin = req.session.permissions === 1;
         if (currentToken && sessionToken && currentToken !== sessionToken && !isAdmin) {
+            console.warn('Session token mismatch', {
+                userId,
+                path: req.originalUrl,
+                sessionId: req.sessionID
+            });
             req.session.destroy(() => {
                 res.redirect('/login?kicked=1');
             });
@@ -75,6 +101,9 @@ function sessions(req, page) {
 
 
 router.get(["/", "/login"], (req, res) => {
+    if (req.session && req.session.user_id && req.session.username) {
+        return res.redirect('/dashboard');
+    }
     res.render("login", { showKickedMessage: req.query.kicked === '1' });
 });
 
@@ -124,9 +153,10 @@ router.post('/login', async (req, res) => {
 
           // Mark user as online, update timestamps, and store session token
           try {
+            const loginIp = getClientIp(req);
             await pool.execute(
-              'UPDATE user_info SET USER_STATUS = 1, LAST_LOGIN = NOW(), LAST_ACTIVITY = NOW(), SESSION_TOKEN = ? WHERE IDNo = ?',
-              [newSessionToken, user.IDNo]
+              'UPDATE user_info SET USER_STATUS = 1, LAST_LOGIN = NOW(), LAST_ACTIVITY = NOW(), SESSION_TOKEN = ?, LAST_IP = ? WHERE IDNo = ?',
+              [newSessionToken, loginIp, user.IDNo]
             );
           } catch (err) {
             console.error('Error updating user status on login:', err);
@@ -190,9 +220,10 @@ router.post('/login/force', async (req, res) => {
 
     // Mark this user as online, update timestamps, and store new session token
     try {
+      const loginIp = getClientIp(req);
       await pool.execute(
-        'UPDATE user_info SET USER_STATUS = 1, LAST_LOGIN = NOW(), LAST_ACTIVITY = NOW(), SESSION_TOKEN = ? WHERE IDNo = ?',
-        [newSessionToken, user.IDNo]
+        'UPDATE user_info SET USER_STATUS = 1, LAST_LOGIN = NOW(), LAST_ACTIVITY = NOW(), SESSION_TOKEN = ?, LAST_IP = ? WHERE IDNo = ?',
+        [newSessionToken, loginIp, user.IDNo]
       );
     } catch (err) {
       console.error('Error updating user status on force login:', err);
