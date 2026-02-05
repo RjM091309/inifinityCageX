@@ -3,6 +3,8 @@ var chatIdsList = [];
 var chatIdEditIndex = null; // null = add, number = edit at index
 var employeeChatIdsList = [];
 var employeeChatIdEditIndex = null; // null = add, number = edit at index
+var managementChatIdsList = [];
+var managementChatIdEditIndex = null; // null = add, number = edit at index
 
 $(document).ready(function () {
     const $botDetails = $('#bot-details');
@@ -135,6 +137,39 @@ $(document).ready(function () {
         }).join(''));
     }
 
+    function loadManagementChatIds() {
+        $.ajax({
+            url: '/telegramAPI/management-chat-ids',
+            method: 'GET',
+            success: function (data) {
+                managementChatIdsList = Array.isArray(data.chatIds) ? data.chatIds : [];
+                renderManagementChatIdsTable();
+            },
+            error: function () {
+                managementChatIdsList = [];
+                renderManagementChatIdsTable();
+            }
+        });
+    }
+
+    function renderManagementChatIdsTable() {
+        const tbody = $('#management-chat-ids-tbody');
+        const emptyEl = $('#management-chat-ids-empty');
+        const tr = translations();
+        if (!managementChatIdsList.length) {
+            tbody.html('');
+            emptyEl.show();
+            return;
+        }
+        emptyEl.hide();
+        tbody.html(managementChatIdsList.map(function (id, i) {
+            return '<tr><td>' + (i + 1) + '</td><td><code>' + escapeHtml(String(id)) + '</code></td><td class="text-center">' +
+                '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-edit-management-chat-id" data-index="' + i + '" title="' + (tr.edit || 'Edit') + '"><i class="fa fa-pencil-alt"></i></button>' +
+                '<button type="button" class="btn btn-sm btn-alt-danger btn-delete-management-chat-id" data-index="' + i + '" title="' + (tr.delete || 'Delete') + '"><i class="fa fa-trash"></i></button>' +
+                '</td></tr>';
+        }).join(''));
+    }
+
     function reloadData() {
         $.ajax({
             url: '/telegramAPI_data',
@@ -147,6 +182,7 @@ $(document).ready(function () {
                 loadBotDetails();
                 loadChatIds();
                 loadEmployeeChatIds();
+                loadManagementChatIds();
             },
             error: function (xhr, status, error) {
                 console.error('Error fetching data:', error);
@@ -371,9 +407,100 @@ $(document).ready(function () {
         });
     });
 
+    // Management Chat IDs: Add
+    $('#btn-add-management-chat-id').on('click', function () {
+        managementChatIdEditIndex = null;
+        $('#modal-management-chat-id-label').text(translations().add_management_chat_id || 'Add Management Chat ID');
+        $('#input-management-chat-id').val('');
+        var modalEl = document.getElementById('modal-management-chat-id');
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            new bootstrap.Modal(modalEl).show();
+        } else {
+            $(modalEl).modal('show');
+        }
+    });
+
+    $('#btn-save-management-chat-id').on('click', function () {
+        var val = ($('#input-management-chat-id').val() || '').trim();
+        if (!val) {
+            Swal.fire({ title: translations().error_title || 'Error', text: translations().enter_management_chat_id || 'Enter a Management Chat ID.', icon: 'warning' });
+            return;
+        }
+        if (managementChatIdEditIndex === null) {
+            managementChatIdsList.push(val);
+        } else {
+            managementChatIdsList[managementChatIdEditIndex] = val;
+        }
+        $.ajax({
+            url: '/telegramAPI/management-chat-ids',
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ chatIds: managementChatIdsList }),
+            success: function () {
+                var modalEl = document.getElementById('modal-management-chat-id');
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getInstance(modalEl).hide();
+                } else {
+                    $(modalEl).modal('hide');
+                }
+                Swal.fire({ title: translations().success || 'Success', text: translations().saved || 'Saved.', icon: 'success' });
+                loadManagementChatIds();
+            },
+            error: function () {
+                Swal.fire({ title: translations().error_title || 'Error', text: translations().failed_to_update || 'Failed to save.', icon: 'error' });
+            }
+        });
+    });
+
+    // Management Chat IDs: Edit / Delete (delegate)
+    $(document).on('click', '.btn-edit-management-chat-id', function () {
+        var i = parseInt($(this).data('index'), 10);
+        if (isNaN(i) || i < 0 || i >= managementChatIdsList.length) return;
+        managementChatIdEditIndex = i;
+        $('#modal-management-chat-id-label').text(translations().edit_management_chat_id || 'Edit Management Chat ID');
+        $('#input-management-chat-id').val(managementChatIdsList[i]);
+        var modalEl = document.getElementById('modal-management-chat-id');
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            new bootstrap.Modal(modalEl).show();
+        } else {
+            $(modalEl).modal('show');
+        }
+    });
+
+    $(document).on('click', '.btn-delete-management-chat-id', function () {
+        var i = parseInt($(this).data('index'), 10);
+        if (isNaN(i) || i < 0 || i >= managementChatIdsList.length) return;
+        var tr = translations();
+        Swal.fire({
+            title: tr.delete_management_chat_id || 'Delete Management Chat ID?',
+            text: tr.delete_management_chat_id_confirm || 'This management chat will no longer receive notifications.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: tr.delete || 'Delete',
+            cancelButtonText: tr.cancel || 'Cancel'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            managementChatIdsList.splice(i, 1);
+            $.ajax({
+                url: '/telegramAPI/management-chat-ids',
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ chatIds: managementChatIdsList }),
+                success: function () {
+                    Swal.fire({ title: tr.success || 'Success', text: tr.deleted || 'Deleted.', icon: 'success' });
+                    loadManagementChatIds();
+                },
+                error: function () {
+                    Swal.fire({ title: tr.error_title || 'Error', text: tr.failed_to_update || 'Failed to delete.', icon: 'error' });
+                }
+            });
+        });
+    });
+
     // Load data on page load
     reloadData();
     loadBotDetails();
     loadChatIds();
     loadEmployeeChatIds();
+    loadManagementChatIds();
 });

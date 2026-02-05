@@ -263,8 +263,23 @@ router.post('/add_game_list', async (req, res) => {
 
 		if (text && telegramIdResults.length > 0 && agentId) {
 			const telegramId = telegramIdResults[0].TELEGRAM_ID;
-			await sendTelegramMessage(text, telegramId);
-			await sendTelegramToAdditionalChats(text);
+			// Only send Telegram message if TELEGRAM_ID is valid (not null/empty)
+			if (telegramId) {
+				try {
+					await sendTelegramMessage(text, telegramId);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to agent:', telegramError.message);
+					// Continue execution even if Telegram fails
+				}
+			}
+			
+			// Send to additional chats (groups/channels) - also with error handling
+			try {
+				await sendTelegramToAdditionalChats(text);
+			} catch (telegramError) {
+				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+				// Continue execution even if Telegram fails
+			}
 		}
 
 		// 6. Insert cash_transaction entry for cash buy-in
@@ -1131,11 +1146,25 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 
 					if (telegramIdResults.length > 0) {
 						const telegramId = telegramIdResults[0].TELEGRAM_ID;
-						await sendTelegramMessage(text, telegramId);
+						// Only send Telegram message if TELEGRAM_ID is valid (not null/empty)
+						if (telegramId) {
+							try {
+								await sendTelegramMessage(text, telegramId);
+							} catch (telegramError) {
+								console.error('Failed to send Telegram message to agent:', telegramError.message);
+								// Continue execution even if Telegram fails
+							}
+						}
 					} else {
 						console.warn("No TELEGRAM_ID found for Account:", txtAccountCode);
 					}
-					await sendTelegramToAdditionalChats(text);
+					// Send to additional chats (groups/channels) - also with error handling
+					try {
+						await sendTelegramToAdditionalChats(text);
+					} catch (telegramError) {
+						console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+						// Continue execution even if Telegram fails
+					}
 				} else {
 					console.warn("No agent info found for Account:", txtAccountCode);
 				}
@@ -1212,8 +1241,20 @@ router.post('/add_settlement', async (req, res) => {
 
 			// Send the Telegram message
 			if (telegramId) {
-				await sendTelegramMessage(text, telegramId);
-				await sendTelegramToAdditionalChats(text);
+				try {
+					await sendTelegramMessage(text, telegramId);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to agent:', telegramError.message);
+					// Continue execution even if Telegram fails
+				}
+				
+				// Send to additional chats (groups/channels) - also with error handling
+				try {
+					await sendTelegramToAdditionalChats(text);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+					// Continue execution even if Telegram fails
+				}
 			} else {
 				console.error("No TELEGRAM_ID found for Account ID:", txtAccountIDSettle);
 			}
@@ -1378,8 +1419,23 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			// Send Telegram messages
 		if (text !== '' && telegramIdResults.length > 0) {
 				const telegramId = telegramIdResults[0].TELEGRAM_ID;
-				await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
-				await sendTelegramToAdditionalChats(text);
+				// Only send Telegram message if TELEGRAM_ID is valid (not null/empty)
+				if (telegramId) {
+					try {
+						await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
+					} catch (telegramError) {
+						console.error('Failed to send Telegram message to agent:', telegramError.message);
+						// Continue execution even if Telegram fails
+					}
+				}
+				
+				// Send to additional chats (groups/channels) - also with error handling
+				try {
+					await sendTelegramToAdditionalChats(text);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+					// Continue execution even if Telegram fails
+				}
 			} else {
 				console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 			}
@@ -1505,8 +1561,23 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			// Send Telegram message if TELEGRAM_ID is found
 			if (text !== '' && telegramIdResults.length > 0) {
 				const telegramId = telegramIdResults[0].TELEGRAM_ID;
-				await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
-				await sendTelegramToAdditionalChats(text);
+				// Only send Telegram message if TELEGRAM_ID is valid (not null/empty)
+				if (telegramId) {
+					try {
+						await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
+					} catch (telegramError) {
+						console.error('Failed to send Telegram message to agent:', telegramError.message);
+						// Continue execution even if Telegram fails
+					}
+				}
+				
+				// Send to additional chats (groups/channels) - also with error handling
+				try {
+					await sendTelegramToAdditionalChats(text);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+					// Continue execution even if Telegram fails
+				}
 			} else {
 				console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 			}

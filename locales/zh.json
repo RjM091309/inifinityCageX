@@ -568,7 +568,17 @@
 		"employee_chat_ids_empty": "没有员工聊天ID。点击\"添加员工聊天ID\"以添加员工群组或频道。",
 		"enter_employee_chat_id": "输入员工聊天ID。",
 		"delete_employee_chat_id": "删除员工聊天ID？",
-		"delete_employee_chat_id_confirm": "此员工聊天将不再接收Junket费用通知。"
+		"delete_employee_chat_id_confirm": "此员工聊天将不再接收Junket费用通知。",
+		"management_chat_ids_title": "管理聊天ID",
+		"add_management_chat_id": "添加管理聊天ID",
+		"edit_management_chat_id": "编辑管理聊天ID",
+		"management_chat_id": "管理聊天ID",
+		"management_chat_ids_hint_before": "管理通知将发送到这些管理聊天。使用 ",
+		"management_chat_ids_hint_after": " 在Telegram中（在群组中或与机器人一起）获取聊天ID。",
+		"management_chat_ids_empty": "没有管理聊天ID。点击\"添加管理聊天ID\"以添加管理群组或频道。",
+		"enter_management_chat_id": "输入管理聊天ID。",
+		"delete_management_chat_id": "删除管理聊天ID？",
+		"delete_management_chat_id_confirm": "此管理聊天将不再接收管理通知。"
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN 筹码",

@@ -127,6 +127,34 @@ router.put('/telegramAPI/employee-chat-ids', checkSession, async (req, res) => {
 	}
 });
 
+// --------------- Management Chat IDs ---------------
+router.get('/telegramAPI/management-chat-ids', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.execute('SELECT MANAGEMENT_CHATID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
+		const chatIds = rows.length && rows[0].MANAGEMENT_CHATID != null ? parseChatIds(rows[0].MANAGEMENT_CHATID) : [];
+		res.json({ chatIds });
+	} catch (err) {
+		console.error('Error fetching management chat IDs:', err);
+		res.status(500).json({ error: 'Error fetching management chat IDs' });
+	}
+});
+
+router.put('/telegramAPI/management-chat-ids', checkSession, async (req, res) => {
+	try {
+		let chatIds = req.body.chatIds;
+		if (!Array.isArray(chatIds)) chatIds = [];
+		const value = chatIds.map(s => String(s).trim()).filter(Boolean).join(',');
+		await pool.execute(
+			'UPDATE telegram_api SET MANAGEMENT_CHATID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE ACTIVE = 1',
+			[value || null, req.session.user_id, new Date()]
+		);
+		res.json({ success: true, chatIds: value ? value.split(',') : [] });
+	} catch (err) {
+		console.error('Error updating management chat IDs:', err);
+		res.status(500).json({ error: 'Error updating management chat IDs' });
+	}
+});
+
 // EDIT TELEGRAM API
 router.put('/telegramAPI/:id', async (req, res) => {
 	const id = parseInt(req.params.id);

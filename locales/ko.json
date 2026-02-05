@@ -568,7 +568,17 @@
 		"employee_chat_ids_empty": "직원 채팅 ID가 없습니다. \"직원 채팅 ID 추가\"를 클릭하여 직원 그룹 또는 채널을 추가하세요.",
 		"enter_employee_chat_id": "직원 채팅 ID를 입력하세요.",
 		"delete_employee_chat_id": "직원 채팅 ID를 삭제하시겠습니까?",
-		"delete_employee_chat_id_confirm": "이 직원 채팅은 더 이상 정캣 지출 알림을 받지 않습니다."
+		"delete_employee_chat_id_confirm": "이 직원 채팅은 더 이상 정캣 지출 알림을 받지 않습니다.",
+		"management_chat_ids_title": "관리 채팅 ID",
+		"add_management_chat_id": "관리 채팅 ID 추가",
+		"edit_management_chat_id": "관리 채팅 ID 편집",
+		"management_chat_id": "관리 채팅 ID",
+		"management_chat_ids_hint_before": "관리 알림이 이러한 관리 채팅으로 전송됩니다. 사용 ",
+		"management_chat_ids_hint_after": " 텔레그램에서 (그룹 또는 봇과 함께) 채팅 ID를 가져옵니다.",
+		"management_chat_ids_empty": "관리 채팅 ID가 없습니다. \"관리 채팅 ID 추가\"를 클릭하여 관리 그룹 또는 채널을 추가하세요.",
+		"enter_management_chat_id": "관리 채팅 ID를 입력하세요.",
+		"delete_management_chat_id": "관리 채팅 ID를 삭제하시겠습니까?",
+		"delete_management_chat_id_confirm": "이 관리 채팅은 더 이상 관리 알림을 받지 않습니다."
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN 칩",

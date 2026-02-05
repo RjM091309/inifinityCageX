@@ -11,7 +11,7 @@
 
 								<h3 class="card-title"><div class="breadcrumb1 flat">
 									<a href="/dashboard" ><span class="fa fa-home"></span></a>
-									<a href="/telegramAPI" class="active"><%= __('telegram_api.telegram_api') %>111</a>
+									<a href="/telegramAPI" class="active"><%= __('telegram_api.telegram_api') %></a>
 								</div></h3>
 
 							</div>
@@ -91,6 +91,30 @@
 									</table>
 								</div>
 								<div id="employee-chat-ids-empty" class="text-muted text-center py-3" style="display: none;"><%= __('telegram_api.employee_chat_ids_empty') %></div>
+
+								<hr class="my-4">
+
+								<!-- Management Chat IDs -->
+								<div class="d-flex align-items-center justify-content-between mb-2">
+									<h6 class="mb-0"><%= __('telegram_api.management_chat_ids_title') %></h6>
+									<button type="button" class="btn btn-sm btn-success" id="btn-add-management-chat-id">
+										<i class="fa fa-plus me-1"></i> <%= __('telegram_api.add_management_chat_id') %>
+									</button>
+								</div>
+								<p class="text-muted small mb-3"><%= __('telegram_api.management_chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.management_chat_ids_hint_after') %></p>
+								<div class="table-responsive">
+									<table class="table table-bordered table-vcenter">
+										<thead>
+											<tr>
+												<th style="width: 60px;">#</th>
+												<th><%= __('telegram_api.management_chat_id') %></th>
+												<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
+											</tr>
+										</thead>
+										<tbody id="management-chat-ids-tbody"></tbody>
+									</table>
+								</div>
+								<div id="management-chat-ids-empty" class="text-muted text-center py-3" style="display: none;"><%= __('telegram_api.management_chat_ids_empty') %></div>
 							</div>
 						</div>
 					</div>
@@ -145,6 +169,29 @@
 				</div>
 			</div>
 
+			<!-- Modal: Add / Edit Management Chat ID -->
+			<div class="modal fade" id="modal-management-chat-id" tabindex="-1" aria-labelledby="modal-management-chat-id-label" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title" id="modal-management-chat-id-label"><%= __('telegram_api.add_management_chat_id') %></h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<div class="mb-2">
+								<label for="input-management-chat-id" class="form-label"><%= __('telegram_api.management_chat_id') %></label>
+								<input type="text" class="form-control" id="input-management-chat-id">
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-primary" id="btn-save-management-chat-id"><%= __('telegram_api.save') %></button>
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('telegram_api.cancel') %></button>
+							
+						</div>
+					</div>
+				</div>
+			</div>
+
 			<%- include ('../partials/footer'); -%>
 
 			<script>
@@ -184,7 +231,17 @@
 					employee_chat_ids_empty: "<%= __('telegram_api.employee_chat_ids_empty') %>",
 					enter_employee_chat_id: "<%= __('telegram_api.enter_employee_chat_id') %>",
 					delete_employee_chat_id: "<%= __('telegram_api.delete_employee_chat_id') %>",
-					delete_employee_chat_id_confirm: "<%= __('telegram_api.delete_employee_chat_id_confirm') %>"
+					delete_employee_chat_id_confirm: "<%= __('telegram_api.delete_employee_chat_id_confirm') %>",
+					management_chat_ids_title: "<%= __('telegram_api.management_chat_ids_title') %>",
+					add_management_chat_id: "<%= __('telegram_api.add_management_chat_id') %>",
+					edit_management_chat_id: "<%= __('telegram_api.edit_management_chat_id') %>",
+					management_chat_id: "<%= __('telegram_api.management_chat_id') %>",
+					management_chat_ids_hint_before: "<%= __('telegram_api.management_chat_ids_hint_before') %>",
+					management_chat_ids_hint_after: "<%= __('telegram_api.management_chat_ids_hint_after') %>",
+					management_chat_ids_empty: "<%= __('telegram_api.management_chat_ids_empty') %>",
+					enter_management_chat_id: "<%= __('telegram_api.enter_management_chat_id') %>",
+					delete_management_chat_id: "<%= __('telegram_api.delete_management_chat_id') %>",
+					delete_management_chat_id_confirm: "<%= __('telegram_api.delete_management_chat_id_confirm') %>"
 				};
 			</script>
 

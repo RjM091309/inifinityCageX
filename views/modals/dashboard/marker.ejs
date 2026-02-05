@@ -10,7 +10,7 @@
              <div id="core-container">
                 <div class="row mb-3 d-flex justify-content-center">
                     <span class="section-header text-center"><%= __('dashboard_marker.total_credits_issue') %></span>
-                     <input  type="hidden"  id="AgentBalance" name="AgentBalance">
+                     <input  type="text"  id="AgentBalance" name="AgentBalance">
                     <div class="col-sm-12 mb-3">
                         <input type="text" class="form-control text-center" name="txtTotalMarkerIssue" id="txtTotalMarkerIssue" 
                         value="  <%- ( (+sqlMarkerIssueGame[0].TOTAL_ISSUE_GAME || 0) +
@@ -331,11 +331,6 @@ $('#txtMarkerReturn').on('input', function() {
     const markerReturn = parseFloat(markerReturnRaw) || 0;
 
     if (markerReturn > markerIssue) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Invalid Return',
-            text: 'Marker Return cannot be greater than Marker Issue!'
-        });
         $(this).val(formatWithCommas(markerIssue)); // Set value to marker issue with formatting
         $('#txtMarkerBalance').val(formatWithCommas(0)); // Reset balance
     } else {
@@ -364,64 +359,151 @@ $('#txtMarkerReturn').on('focusout', function() {
         if (isSubmittingMarker) {
             return;
         }
-        isSubmittingMarker = true;
-        const $submitBtn = $('#submit_marker_settlement');
-        if (!$submitBtn.data('original-html')) {
-            $submitBtn.data('original-html', $submitBtn.html());
+
+        // Validate required fields
+        const selectedAccount = $('#txtAccountMarker').val();
+        const selectedTransType = $('input[name="optTransType"]:checked').val();
+        const markerIssue = parseFloat($('#txtMarkerIssue').val().replace(/,/g, '')) || 0;
+        const markerReturnRaw = $('#txtMarkerReturn').val().replace(/,/g, '');
+        const markerReturn = parseFloat(markerReturnRaw) || 0;
+
+        // Check if account is selected
+        if (!selectedAccount) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Missing Information',
+                text: 'Please select an account.'
+            });
+            return; // Stop form submission
         }
-        $submitBtn.prop('disabled', true).html(`
-            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            Loading...
-        `);
 
-        const formData = $(this).serialize();
+        // Check if transaction type is selected
+        if (!selectedTransType) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Missing Information',
+                text: 'Please select a transaction type (Cash or Deposit).'
+            });
+            return; // Stop form submission
+        }
 
-        $.ajax({
-            url: '/add_marker_settlement',
-            method: 'POST',
-            data: formData,
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: 'Marker Return Successfully!'
-                    }).then(() => {
-                        // Reset the form
-                        $('#add_marker_settlement')[0].reset(); // Reset the form
-                        $('#modal-new-marker').modal('hide'); // Hide the modal
-                        table.ajax.reload(); // Reload the DataTable
-                        reloadData();  // Call reloadData function if needed
-                    });
-                } else if (response.error === 'Insufficient balance for this deposit transaction.') {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Insufficient Balance',
-                        text: response.error
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: response.message || 'Error processing your request.'
-                    });
+        // Check if marker return is provided and greater than 0
+        if (!markerReturnRaw || markerReturn <= 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Amount',
+                text: 'Marker Return must be greater than zero.'
+            });
+            return; // Stop form submission
+        }
+
+        // Check if marker return is greater than marker issue
+        if (markerReturn > markerIssue) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Return',
+                text: 'Marker Return cannot be greater than Marker Issue!'
+            });
+            return; // Stop form submission
+        }
+
+        // Get form values for confirmation message
+        const accountMarker = $('#txtAccountMarker option:selected').text();
+        const markerReturnFormatted = $('#txtMarkerReturn').val();
+        const transType = $('input[name="optTransType"]:checked').next('label').text();
+
+        // Show confirmation dialog
+        Swal.fire({
+            icon: 'question',
+            title: 'Confirm Marker Return',
+            html: `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <table style="margin: 0 auto; border-collapse: collapse; width: auto;">
+                        <tr>
+                            <td style="padding: 8px 4px 8px 0; text-align: left; font-weight: bold;">Account:</td>
+                            <td style="padding: 8px 0 8px 4px; text-align: left;">${accountMarker || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 4px 8px 0; text-align: left; font-weight: bold;">Amount:</td>
+                            <td style="padding: 8px 0 8px 4px; text-align: left;">${markerReturnFormatted || '0'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 4px 8px 0; text-align: left; font-weight: bold;">Transaction:</td>
+                            <td style="padding: 8px 0 8px 4px; text-align: left;">${transType || 'N/A'}</td>
+                        </tr>
+                    </table>
+                </div>
+                <p style="margin-top: 15px; text-align: center;">Are you sure you want to proceed with this marker return?</p>
+            `,
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, Save',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // User confirmed, proceed with submission
+                isSubmittingMarker = true;
+                const $submitBtn = $('#submit_marker_settlement');
+                if (!$submitBtn.data('original-html')) {
+                    $submitBtn.data('original-html', $submitBtn.html());
                 }
-            },
-            error: function(xhr, status, error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Insufficient Balance',
-                    text: 'Insufficient balance for this deposit transaction.'
+                $submitBtn.prop('disabled', true).html(`
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Loading...
+                `);
+
+                const formData = $('#add_marker_settlement').serialize();
+
+                $.ajax({
+                    url: '/add_marker_settlement',
+                    method: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success',
+                                text: 'Marker Return Successfully!'
+                            }).then(() => {
+                                // Reset the form
+                                $('#add_marker_settlement')[0].reset(); // Reset the form
+                                $('#modal-new-marker').modal('hide'); // Hide the modal
+                                table.ajax.reload(); // Reload the DataTable
+                                reloadData();  // Call reloadData function if needed
+                            });
+                        } else if (response.error === 'Insufficient balance for this deposit transaction.') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Insufficient Balance',
+                                text: response.error
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.message || 'Error processing your request.'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Insufficient Balance',
+                            text: 'Insufficient balance for this deposit transaction.'
+                        });
+                    },
+                    complete: function() {
+                        isSubmittingMarker = false;
+                        const originalHtml = $submitBtn.data('original-html');
+                        $submitBtn.prop('disabled', false);
+                        if (originalHtml) {
+                            $submitBtn.html(originalHtml);
+                        }
+                    }
                 });
-            },
-            complete: function() {
-                isSubmittingMarker = false;
-                const originalHtml = $submitBtn.data('original-html');
-                $submitBtn.prop('disabled', false);
-                if (originalHtml) {
-                    $submitBtn.html(originalHtml);
-                }
             }
+            // If user cancels, do nothing (form submission is already prevented)
         });
     });
     

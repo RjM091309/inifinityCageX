@@ -103,8 +103,8 @@ $(document).ready(function () {
 		// Default and minimum page length set to 100 (no 10/25/etc. options)
 		pageLength: 100,
 		lengthMenu: [
-			[100, 200, 500, -1],
-			[100, 200, 500, 'All']
+			[100, 50, 25, 10, -1],
+			[100, 50, 25, 10, 'All']
 		],
 	
 		columnDefs: [

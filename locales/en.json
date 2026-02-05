@@ -567,7 +567,17 @@
 		"employee_chat_ids_empty": "No employee chat IDs. Click \"Add Employee Chat ID\" to add an employee group or channel.",
 		"enter_employee_chat_id": "Enter an Employee Chat ID.",
 		"delete_employee_chat_id": "Delete Employee Chat ID?",
-		"delete_employee_chat_id_confirm": "This employee chat will no longer receive junket expense notifications."
+		"delete_employee_chat_id_confirm": "This employee chat will no longer receive junket expense notifications.",
+		"management_chat_ids_title": "Management Chat IDs",
+		"add_management_chat_id": "Add Management Chat ID",
+		"edit_management_chat_id": "Edit Management Chat ID",
+		"management_chat_id": "Management Chat ID",
+		"management_chat_ids_hint_before": "Management notifications are sent to these management chats. Use ",
+		"management_chat_ids_hint_after": " in Telegram (in the group or with the bot) to get the Chat ID.",
+		"management_chat_ids_empty": "No management chat IDs. Click \"Add Management Chat ID\" to add a management group or channel.",
+		"enter_management_chat_id": "Enter a Management Chat ID.",
+		"delete_management_chat_id": "Delete Management Chat ID?",
+		"delete_management_chat_id_confirm": "This management chat will no longer receive management notifications."
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN Chips",
