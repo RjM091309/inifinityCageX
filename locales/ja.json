@@ -568,7 +568,17 @@
 		"employee_chat_ids_empty": "従業員チャットIDがありません。\"従業員チャットIDを追加\"をクリックして従業員グループまたはチャンネルを追加します。",
 		"enter_employee_chat_id": "従業員チャットIDを入力してください。",
 		"delete_employee_chat_id": "従業員チャットIDを削除しますか？",
-		"delete_employee_chat_id_confirm": "この従業員チャットは、Junket経費通知を受信しなくなります。"
+		"delete_employee_chat_id_confirm": "この従業員チャットは、Junket経費通知を受信しなくなります。",
+		"management_chat_ids_title": "管理チャットID",
+		"add_management_chat_id": "管理チャットIDを追加",
+		"edit_management_chat_id": "管理チャットIDを編集",
+		"management_chat_id": "管理チャットID",
+		"management_chat_ids_hint_before": "管理通知はこれらの管理チャットに送信されます。使用 ",
+		"management_chat_ids_hint_after": " Telegramで（グループ内またはボットと一緒に）チャットIDを取得します。",
+		"management_chat_ids_empty": "管理チャットIDがありません。\"管理チャットIDを追加\"をクリックして管理グループまたはチャンネルを追加します。",
+		"enter_management_chat_id": "管理チャットIDを入力してください。",
+		"delete_management_chat_id": "管理チャットIDを削除しますか？",
+		"delete_management_chat_id_confirm": "この管理チャットは、管理通知を受信しなくなります。"
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NNチップ",

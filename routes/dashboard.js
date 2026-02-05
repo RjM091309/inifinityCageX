@@ -1396,6 +1396,7 @@ router.post('/add_marker_settlement', async (req, res) => {
                     CASE 
                         WHEN TRANSACTION_ID = 1 THEN AMOUNT   
                         WHEN TRANSACTION_ID = 3 THEN AMOUNT        
+                        WHEN TRANSACTION_ID = 10 THEN -AMOUNT        
                         WHEN TRANSACTION_ID = 2 THEN -AMOUNT         
                         WHEN TRANSACTION_ID = 12 THEN -AMOUNT        
                         ELSE 0 
@@ -1440,8 +1441,20 @@ router.post('/add_marker_settlement', async (req, res) => {
 			}
 
 			if (telegramId) {
-				await sendTelegramMessage(text, telegramId);
-				await sendTelegramToAdditionalChats(text);
+				try {
+					await sendTelegramMessage(text, telegramId);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to agent:', telegramError.message);
+					// Continue execution even if Telegram fails
+				}
+				
+				// Send to additional chats (groups/channels) - also with error handling
+				try {
+					await sendTelegramToAdditionalChats(text);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+					// Continue execution even if Telegram fails
+				}
 			} else {
 				console.error("No TELEGRAM_ID found for Account ID:", txtAccountMarker);
 			}

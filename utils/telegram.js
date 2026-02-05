@@ -9,18 +9,54 @@ async function getTelegramToken() {
   return rows.length > 0 ? rows[0].TELEGRAM_API : null;
 }
 
-// Send a message
-async function sendTelegramMessage(text, telegramId) {
+// Send a message with retry logic for network issues
+async function sendTelegramMessage(text, telegramId, retries = 2) {
   const { default: fetch } = await import('node-fetch');
   const token = await getTelegramToken();
   if (!token) return;
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
-  await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: telegramId, text })
-  });
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: telegramId, text }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Telegram API error: ${errorData.description || response.statusText}`);
+      }
+      
+      return; // Success, exit function
+    } catch (error) {
+      // If it's a network error and we have retries left, try again
+      if (attempt < retries && (
+        error.name === 'AbortError' || 
+        error.message.includes('ETIMEDOUT') || 
+        error.message.includes('ECONNRESET') ||
+        error.message.includes('network') ||
+        error.code === 'ETIMEDOUT' ||
+        error.code === 'ECONNRESET'
+      )) {
+        console.warn(`⚠️ Network error sending message (attempt ${attempt + 1}/${retries + 1}), retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
+        continue;
+      }
+      
+      // If no retries left or not a network error, throw
+      console.error(`❌ Error sending Telegram message after ${attempt + 1} attempts:`, error.message);
+      throw error;
+    }
+  }
 }
 
 // Get additional chat IDs (supports comma- or semicolon-separated in CHAT_ID column)
@@ -62,6 +98,33 @@ async function sendTelegramToEmployees(text) {
       await sendTelegramMessage(text, id);
     } catch (error) {
       console.error(`Error sending Telegram message to employee chat ID ${id}:`, error);
+      // Continue sending to other chat IDs even if one fails
+    }
+  }
+}
+
+// Get management chat IDs (supports comma- or semicolon-separated in MANAGEMENT_CHATID column)
+async function getManagementChatIds() {
+  const [rows] = await pool.execute('SELECT MANAGEMENT_CHATID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
+  if (!rows.length || rows[0].MANAGEMENT_CHATID == null) return [];
+  const raw = String(rows[0].MANAGEMENT_CHATID).trim();
+  if (!raw) return [];
+  return raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+}
+
+// Send message to all management chat IDs
+async function sendTelegramToManagement(text) {
+  const chatIds = await getManagementChatIds();
+  if (chatIds.length === 0) {
+    console.log('No management chat IDs found in MANAGEMENT_CHATID');
+    return;
+  }
+  
+  for (const id of chatIds) {
+    try {
+      await sendTelegramMessage(text, id);
+    } catch (error) {
+      console.error(`Error sending Telegram message to management chat ID ${id}:`, error);
       // Continue sending to other chat IDs even if one fails
     }
   }
@@ -233,7 +296,13 @@ async function startTelegramBot() {
       interval: 1000,
       autoStart: true,
       params: {
-        timeout: 10
+        timeout: 30 // Increased timeout for slow internet (was 10, now 30 seconds)
+      }
+    },
+    request: {
+      agentOptions: {
+        keepAlive: true,
+        keepAliveMsecs: 30000
       }
     }
   });
@@ -243,11 +312,23 @@ async function startTelegramBot() {
 
   // Handle polling errors (network issues, connection resets, etc.)
   bot.on('polling_error', (error) => {
-    console.error('⚠️ Telegram polling error:', error.message);
+    const errorMsg = error.message || String(error);
     
-    // ECONNRESET, ETIMEDOUT, etc. are usually temporary network issues
-    if (error.code === 'EFATAL' || error.message.includes('ECONNRESET') || error.message.includes('ETIMEDOUT')) {
-      console.log('🔄 Network issue detected. Bot will continue trying to reconnect...');
+    // Check for network-related errors (slow internet, connection issues)
+    const isNetworkError = 
+      error.code === 'EFATAL' || 
+      error.code === 'ETIMEDOUT' ||
+      error.code === 'ECONNRESET' ||
+      errorMsg.includes('ECONNRESET') || 
+      errorMsg.includes('ETIMEDOUT') ||
+      errorMsg.includes('timeout') ||
+      errorMsg.includes('network') ||
+      errorMsg.includes('ECONNREFUSED') ||
+      errorMsg.includes('ENOTFOUND');
+    
+    if (isNetworkError) {
+      console.warn('⚠️ Network issue detected (slow/unstable internet):', errorMsg);
+      console.log('🔄 Bot will automatically retry. If this persists, check your internet connection.');
       // The bot will automatically retry, no need to restart manually
     } else {
       console.error('❌ Fatal polling error:', error);
@@ -317,13 +398,31 @@ async function startTelegramBot() {
     sendBalanceToUser(msg.chat.id);
   });
 
+  // Helper function to escape HTML special characters
+  function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   // Get chat_id (for group or private) — type /getchatid in the chat
   bot.onText(/\/getchatid/i, (msg) => {
     const chatId = msg.chat.id;
-    const chatType = msg.chat.type; // 'private', 'group', 'supergroup', 'channel'
-    const title = msg.chat.title || '(private chat)';
-    const reply = `Chat ID: \`${chatId}\`\nType: ${chatType}\nTitle: ${title}\n\nCopy the number above and save as CHAT_ID in telegram_api. For multiple groups, separate IDs with comma (e.g. -100111,-100222).`;
-    bot.sendMessage(chatId, reply, { parse_mode: 'Markdown' });
+    const user = msg.from || {};
+    const userName = escapeHtml(user.first_name || '');
+    const userLastName = escapeHtml(user.last_name || '');
+    const userFullName = `${userName} ${userLastName}`.trim() || 'N/A';
+    const userUsername = user.username ? `@${user.username}` : 'N/A';
+   
+    
+    const reply =  `👤 <b>User Information</b>\n\n` +
+      `<b>Chat ID:</b> <code>${chatId}</code>\n` +
+      `<b>Name:</b> ${userFullName}\n` +
+      `<b>Username:</b> ${userUsername}\n\n`;
+    
+    bot.sendMessage(chatId, reply, { parse_mode: 'HTML' });
   });
 
   // Handle /start command - show welcome message with keyboard
@@ -340,7 +439,20 @@ async function startTelegramBot() {
         LIMIT 1
       `, [chatId]);
 
-      const agentCode = accountResults.length > 0 ? accountResults[0].AGENT_CODE : 'N/A';
+      // If no agent found, send generic welcome message
+      if (accountResults.length === 0) {
+        bot.sendMessage(chatId, "Welcome to Infinity Cage!", {
+          reply_markup: {
+            keyboard: [[{ text: "💰 Check Balance" }]],
+            resize_keyboard: true,
+            one_time_keyboard: false,
+          }
+        });
+        return;
+      }
+
+      // Agent found, send Korean welcome message with agent code
+      const agentCode = accountResults[0].AGENT_CODE;
 
       const welcomeMessage = `안녕하세요 INFINITY 입니다.
 
@@ -403,6 +515,8 @@ module.exports = {
   sendTelegramToAdditionalChats,
   sendTelegramToEmployees,
   getEmployeeChatIds,
+  sendTelegramToManagement,
+  getManagementChatIds,
   sendTelegramPhoto,
   startTelegramBot
 };
