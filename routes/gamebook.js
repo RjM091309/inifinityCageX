@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 
 const { checkSession, sessions } = require('./auth');
-const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
+const { sendTelegramMessage, sendTelegramToAdditionalChats, sendTelegramToManagement } = require('../utils/telegram');
 const dashboardQueries = require('../utils/dashboardQueries');
 
 // ======================= GAME LIST ==================
@@ -278,6 +278,14 @@ router.post('/add_game_list', async (req, res) => {
 				await sendTelegramToAdditionalChats(text);
 			} catch (telegramError) {
 				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+				// Continue execution even if Telegram fails
+			}
+			
+			// Send to management chat IDs - also with error handling
+			try {
+				await sendTelegramToManagement(text);
+			} catch (telegramError) {
+				console.error('Failed to send Telegram message to management:', telegramError.message);
 				// Continue execution even if Telegram fails
 			}
 		}
@@ -1254,6 +1262,14 @@ router.post('/add_settlement', async (req, res) => {
 					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
 					// Continue execution even if Telegram fails
 				}
+				
+				// Send to management chat IDs - also with error handling
+				try {
+					await sendTelegramToManagement(text);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to management:', telegramError.message);
+					// Continue execution even if Telegram fails
+				}
 			} else {
 				console.error("No TELEGRAM_ID found for Account ID:", txtAccountIDSettle);
 			}
@@ -1435,6 +1451,14 @@ router.post('/game_list/add/buyin', async (req, res) => {
 					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
 					// Continue execution even if Telegram fails
 				}
+				
+				// Send to management chat IDs - also with error handling
+				try {
+					await sendTelegramToManagement(text);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to management:', telegramError.message);
+					// Continue execution even if Telegram fails
+				}
 			} else {
 				console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 			}
@@ -1575,6 +1599,14 @@ router.post('/game_list/add/cashout', async (req, res) => {
 					await sendTelegramToAdditionalChats(text);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+					// Continue execution even if Telegram fails
+				}
+				
+				// Send to management chat IDs - also with error handling
+				try {
+					await sendTelegramToManagement(text);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to management:', telegramError.message);
 					// Continue execution even if Telegram fails
 				}
 			} else {
