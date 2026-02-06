@@ -1178,7 +1178,7 @@ $('#add_buyin').submit(function (event) {
 				Swal.fire({
 					icon: 'warning',
 					title: 'Invalid Input',
-					text: 'Marker Chips Return cannot exceed Marker Balance: ' + formatNumberWithCommas(markerChipsReturn),
+					text: 'Credit Return cannot exceed Credit Balance: ' + formatNumberWithCommas(markerChipsReturn),
 				});
 				$btn.prop('disabled', false).html('Save'); // 🔥 RESET BUTTON
 				return;

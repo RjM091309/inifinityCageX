@@ -1550,7 +1550,7 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			// Prepare Telegram message
 			let text = '';
 			if (txtTransType == 2) {
-				text = `Infinity Cage\n\n* Cash-out *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\Cash-out: ${chipsReturn.toLocaleString()} - Deposit\nAccount Balance: ${currentBalanceCashout.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* Cash-out *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nCash-out: ${chipsReturn.toLocaleString()} - Deposit\nAccount Balance: ${currentBalanceCashout.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else if (txtTransType == 1) {
 				text = `Infinity Cage\n\n* Cash-out *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nCash-out: ${chipsReturn.toLocaleString()} - Cash\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else if (txtTransType == 4) {
