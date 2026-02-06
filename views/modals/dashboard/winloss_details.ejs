@@ -1,0 +1,239 @@
+<div class="modal fade" id="modal-winloss-details" tabindex="-1" aria-labelledby="modal-winloss-details-label" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="block-title text-white" id="modal-winloss-details-label">Win/Loss</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row mb-3">
+          <div class="col-sm-4">
+            <label class="form-label">Date Range</label>
+            <input type="text" id="winloss-daterange" class="form-control" placeholder="Select date range" readonly>
+          </div>
+        </div>
+        <table id="winloss-details-tbl" class="table table-bordered table-responsive" style="font-size: 13px;">
+          <thead>
+            <tr>
+              <th class="text-center">Settlement Date</th>
+              <th class="text-center">Buy-in</th>
+              <th class="text-center">Cash Out</th>
+              <th class="text-center">Win/Loss</th>
+              <th class="text-center">Status</th>
+              <th class="text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="row mt-3">
+          <div class="col-12">
+            <div class="card bg-light">
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-4">
+                    <strong>Total Cash In:</strong>
+                    <span id="total-cashin" class="text-success">0</span>
+                  </div>
+                  <div class="col-md-4">
+                    <strong>Total Cash Out:</strong>
+                    <span id="total-cashout" class="text-danger">0</span>
+                  </div>
+                  <div class="col-md-4">
+                    <strong>Total Win/Loss:</strong>
+                    <span id="total-winloss" class="fw-bold">0</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+#winloss-details-tbl td {
+  padding: 12px 15px;
+}
+#winloss-details-tbl thead th {
+  background: var(--bs-primary-bg-subtle);
+  color: var(--bs-primary);
+  font-weight: 500;
+  border: none;
+}
+#winloss-details-tbl {
+  width: 100%;
+  border-collapse: collapse;
+}
+.winloss-positive {
+  color: #28a745;
+  font-weight: 600;
+}
+.winloss-negative {
+  color: #dc3545;
+  font-weight: 600;
+}
+</style>
+
+<script>
+$(document).ready(function() {
+  let winlossDataTable = null;
+
+  const picker = flatpickr("#winloss-daterange", {
+    altInput: true,
+    altFormat: "M d, Y",
+    dateFormat: "Y-m-d",
+    mode: "range",
+    defaultDate: [
+      moment().startOf('month').format('YYYY-MM-DD'),
+      moment().format('YYYY-MM-DD')
+    ],
+    onChange: function(selectedDates, dateStr) {
+      if (selectedDates.length === 2) {
+        loadWinlossDetails();
+      }
+    }
+  });
+
+  function formatAmount(value) {
+    return parseFloat(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formatCurrency(value) {
+    return formatAmount(value);
+  }
+
+  function loadWinlossDetails() {
+    const range = $('#winloss-daterange').val();
+    if (!range) return;
+    
+    let [start, end] = range.split(" to ");
+    if (!end) end = start;
+    
+    const filterType = 'all'; // Always show all settlements
+
+    if (winlossDataTable) {
+      winlossDataTable.destroy();
+    }
+
+    winlossDataTable = $('#winloss-details-tbl').DataTable({
+      processing: true,
+      serverSide: false,
+      order: [[0, 'desc']],
+      ajax: {
+        url: `/get_winloss_settlement_details?start_date=${start}&end_date=${end}&filter=${filterType}`,
+        dataSrc: function(json) {
+          if (!Array.isArray(json)) return [];
+          
+          let totalCashin = 0;
+          let totalCashout = 0;
+          
+          const formatted = json.map(row => {
+            const cashin = parseFloat(row.cashin || 0);
+            const cashout = parseFloat(row.cashout || 0);
+            const winloss = cashin - cashout;
+            
+            totalCashin += cashin;
+            totalCashout += cashout;
+            
+            // Format settlement date
+            let formattedDate = 'Unsettled';
+            let rawDate = null;
+            if (row.settlement_date && row.settlement_date !== 'Unsettled') {
+              const date = new Date(row.settlement_date);
+              if (!isNaN(date.getTime())) {
+                formattedDate = moment(date).format('MMMM D, YYYY');
+                rawDate = row.settlement_date.split('T')[0]; // Extract date part for URL (YYYY-MM-DD)
+              } else {
+                formattedDate = row.settlement_date;
+                rawDate = row.settlement_date;
+              }
+            }
+            
+            return {
+              settlementDate: formattedDate,
+              cashin: formatCurrency(cashin),
+              cashout: formatCurrency(cashout),
+              winloss: formatCurrency(winloss),
+              winlossValue: winloss,
+              status: row.status || 'Unsettled',
+              settlementId: row.settlement_id || null,
+              rawSettlementDate: rawDate // Keep raw date for link
+            };
+          });
+          
+          // Update totals
+          const totalWinloss = totalCashin - totalCashout;
+          $('#total-cashin').text(formatCurrency(totalCashin));
+          $('#total-cashout').text(formatCurrency(totalCashout));
+          $('#total-winloss').text(formatCurrency(totalWinloss));
+          $('#total-winloss').removeClass('winloss-positive winloss-negative');
+          if (totalWinloss > 0) {
+            $('#total-winloss').addClass('winloss-positive');
+          } else if (totalWinloss < 0) {
+            $('#total-winloss').addClass('winloss-negative');
+          }
+          
+          return formatted;
+        }
+      },
+      columns: [
+        { data: 'settlementDate', className: 'text-center' },
+        { data: 'cashin', className: 'text-end' },
+        { data: 'cashout', className: 'text-end' },
+        { 
+          data: 'winloss', 
+          className: 'text-center',
+          render: function(data, type, row) {
+            const value = row.winlossValue;
+            const className = value > 0 ? 'winloss-positive' : (value < 0 ? 'winloss-negative' : '');
+            return `<span class="${className}">${data}</span>`;
+          }
+        },
+        { 
+          data: 'status',
+          className: 'text-center',
+          render: function(data) {
+            if (data === 'Settled') {
+              return '<span class="badge bg-success">Settled</span>';
+            } else {
+              return '<span class="badge bg-warning">Unsettled</span>';
+            }
+          }
+        },
+        {
+          data: 'settlementId',
+          className: 'text-center',
+          render: function(data, type, row) {
+            if (row.status === 'Settled' && data && row.rawSettlementDate) {
+              return `<a href="/game_list?date=${row.rawSettlementDate}" target="_blank" class="btn btn-sm btn-primary">
+                <i class="fa fa-eye"></i> View Games
+              </a>`;
+            } else if (row.status === 'Unsettled') {
+              return `<a href="/game_list?date=current" target="_blank" class="btn btn-sm btn-warning">
+                <i class="fa fa-eye"></i> View Games
+              </a>`;
+            }
+            return '-';
+          }
+        }
+      ],
+      responsive: true,
+      language: {
+        emptyTable: 'No settlement data found',
+        processing: 'Loading settlement details...'
+      }
+    });
+  }
+
+
+  $('#modal-winloss-details').on('shown.bs.modal', function() {
+    loadWinlossDetails();
+  });
+});
+</script>
+

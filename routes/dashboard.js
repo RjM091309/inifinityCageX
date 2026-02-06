@@ -1971,4 +1971,76 @@ if (range === 'week') {
 });
 
 
+// GET WIN/LOSS SETTLEMENT DETAILS
+router.get('/get_winloss_settlement_details', async (req, res) => {
+	const startDate = req.query.start_date;
+	const endDate = req.query.end_date;
+	const filter = req.query.filter || 'all'; // all, settled, unsettled
+
+	if (!startDate || !endDate) {
+		return res.status(400).json({ error: 'Start date and end date are required' });
+	}
+
+	try {
+		const results = [];
+
+		// Get settled settlements
+		if (filter === 'all' || filter === 'settled') {
+			const settledQuery = `
+				SELECT 
+					ds.SETTLEMENT_DATE AS settlement_date,
+					ds.IDNo AS settlement_id,
+					SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
+					SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout,
+					'Settled' AS status
+				FROM daily_settlement ds
+				JOIN daily_settlement_games dsg ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
+				JOIN game_list ON dsg.GAME_ID = game_list.IDNo
+				JOIN game_record ON game_list.IDNo = game_record.GAME_ID
+				WHERE ds.ACTIVE = 1
+					AND game_record.ACTIVE = 1
+					AND ds.SETTLEMENT_DATE BETWEEN ? AND ?
+				GROUP BY ds.SETTLEMENT_DATE, ds.IDNo
+				ORDER BY ds.SETTLEMENT_DATE DESC
+			`;
+
+			const [settledResults] = await pool.execute(settledQuery, [startDate, endDate]);
+			results.push(...settledResults);
+		}
+
+		// Get unsettled games (current period)
+		if (filter === 'all' || filter === 'unsettled') {
+			const today = new Date().toISOString().slice(0, 10);
+			if (endDate >= today) {
+				const unsettledQuery = `
+					SELECT 
+						'Unsettled' AS settlement_date,
+						NULL AS settlement_id,
+						SUM(CASE WHEN game_record.CAGE_TYPE = 1 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashin,
+						SUM(CASE WHEN game_record.CAGE_TYPE = 2 THEN (game_record.NN_CHIPS + game_record.CC_CHIPS) ELSE 0 END) AS cashout,
+						'Unsettled' AS status
+					FROM game_list
+					JOIN game_record ON game_list.IDNo = game_record.GAME_ID
+					LEFT JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
+					WHERE game_record.ACTIVE = 1
+						AND game_list.ACTIVE != 0
+						AND (game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL)
+						AND dsg.GAME_ID IS NULL
+						AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
+				`;
+
+				const [unsettledResults] = await pool.execute(unsettledQuery, [startDate, endDate]);
+				if (unsettledResults.length > 0 && (unsettledResults[0].cashin > 0 || unsettledResults[0].cashout > 0)) {
+					results.push(unsettledResults[0]);
+				}
+			}
+		}
+
+		res.json(results);
+	} catch (err) {
+		console.error("Error in get_winloss_settlement_details route:", err);
+		res.status(500).json({ error: 'Internal Server Error' });
+	}
+});
+
 module.exports = router;
