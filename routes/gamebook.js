@@ -780,14 +780,14 @@ router.get('/game_list_data', async (req, res) => {
                     
                     return res.json(rows);
                 }
-                // Past date, no settlement yet: show unsettled games that fall on that day (e.g. 31 na ngayon, di pa na-settle ang 30 → records naka-30 pa rin)
+                // Past date, no settlement yet: show ALL unsettled games (not just that day)
+                // Since the date hasn't been settled, all unsettled games are still part of that settlement batch
                 const queryPastUnsettled = baseSelect + `
                     WHERE game_list.ACTIVE != 0 
                       AND (game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL)
-                      AND DATE(game_list.ENCODED_DT) = ?
                     ORDER BY game_list.IDNo ASC
                 `;
-                const [rowsPast] = await pool.execute(queryPastUnsettled, [date]);
+                const [rowsPast] = await pool.execute(queryPastUnsettled);
                 
                 // Add pending flag
                 const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
@@ -914,7 +914,7 @@ router.post('/game_list/daily_settlement/run', async (req, res) => {
         const settlementId = insertSettlement.insertId;
 
         const [openGames] = await connection.execute(
-            `SELECT IDNo FROM game_list WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
+            `SELECT IDNo FROM game_list WHERE (ACTIVE = 1 OR ACTIVE = 3) AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
         );
 
         for (const row of openGames) {
@@ -925,7 +925,7 @@ router.post('/game_list/daily_settlement/run', async (req, res) => {
         }
 
         await connection.execute(
-            `UPDATE game_list SET DAILY_SETTLEMENT = 2 WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
+            `UPDATE game_list SET DAILY_SETTLEMENT = 2 WHERE (ACTIVE = 1 OR ACTIVE = 3) AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
         );
 
         await connection.commit();
