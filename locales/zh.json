@@ -87,7 +87,7 @@
 		"manage_user": "管理用户",
 		"user_role": "用户角色",
 		"expense_category": "费用类别",
-		"telegram_api": "Telegram API",
+		"telegram_api": "Telegram",
 		"modify_game": "修改游戏",
 		"monthly_reset": "每月重置",
 		"history_reset": "历史 | 重置",
@@ -101,7 +101,7 @@
 		"manage_users": "管理用户",
 		"user_roles": "用户角色",
 		"settings": "设置",
-		"telegram_API": "电报 API",
+		"telegram_API": "电报",
 		"Change_Game_No": "修改游戏编号"
 	},
 	"footer": {
@@ -582,7 +582,8 @@
 		"management_chat_ids_empty": "没有管理聊天ID。点击\"添加管理聊天ID\"以添加管理群组或频道。",
 		"enter_management_chat_id": "输入管理聊天ID。",
 		"delete_management_chat_id": "删除管理聊天ID？",
-		"delete_management_chat_id_confirm": "此管理聊天将不再接收管理通知。"
+		"delete_management_chat_id_confirm": "此管理聊天将不再接收管理通知。",
+		"telegram_title": "telegram_api.telegram_title"
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN 筹码",

@@ -582,7 +582,8 @@
 		"management_chat_ids_empty": "관리 채팅 ID가 없습니다. \"관리 채팅 ID 추가\"를 클릭하여 관리 그룹 또는 채널을 추가하세요.",
 		"enter_management_chat_id": "관리 채팅 ID를 입력하세요.",
 		"delete_management_chat_id": "관리 채팅 ID를 삭제하시겠습니까?",
-		"delete_management_chat_id_confirm": "이 관리 채팅은 더 이상 관리 알림을 받지 않습니다."
+		"delete_management_chat_id_confirm": "이 관리 채팅은 더 이상 관리 알림을 받지 않습니다.",
+		"telegram_title": "telegram_api.telegram_title"
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN 칩",

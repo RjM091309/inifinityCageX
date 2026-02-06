@@ -5,6 +5,9 @@ var employeeChatIdsList = [];
 var employeeChatIdEditIndex = null; // null = add, number = edit at index
 var managementChatIdsList = [];
 var managementChatIdEditIndex = null; // null = add, number = edit at index
+var chatDetailsCache = {}; // Cache for chat details: { chatId: { title, username, ... } }
+var employeeChatDetailsCache = {};
+var managementChatDetailsCache = {};
 
 $(document).ready(function () {
     const $botDetails = $('#bot-details');
@@ -67,13 +70,22 @@ $(document).ready(function () {
             method: 'GET',
             success: function (data) {
                 chatIdsList = Array.isArray(data.chatIds) ? data.chatIds : [];
-                renderChatIdsTable();
+                fetchAllChatDetails(chatIdsList, chatDetailsCache).then(function() {
+                    renderChatIdsTable();
+                });
             },
             error: function () {
                 chatIdsList = [];
                 renderChatIdsTable();
             }
         });
+    }
+
+    function fetchAllChatDetails(chatIds, cache) {
+        const promises = chatIds.map(function(chatId) {
+            return fetchChatInfo(chatId, cache);
+        });
+        return Promise.all(promises);
     }
 
     function renderChatIdsTable() {
@@ -87,7 +99,8 @@ $(document).ready(function () {
         }
         emptyEl.hide();
         tbody.html(chatIdsList.map(function (id, i) {
-            return '<tr><td>' + (i + 1) + '</td><td><code>' + escapeHtml(String(id)) + '</code></td><td class="text-center">' +
+            const chatInfo = chatDetailsCache[id] || { title: 'Loading...', username: null };
+            return '<tr><td class="text-center">' + (i + 1) + '</td><td><code>' + escapeHtml(String(id)) + '</code></td><td>' + formatChatDisplay(chatInfo) + '</td><td class="text-center">' +
                 '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-edit-chat-id" data-index="' + i + '" title="' + (tr.edit || 'Edit') + '"><i class="fa fa-pencil-alt"></i></button>' +
                 '<button type="button" class="btn btn-sm btn-alt-danger btn-delete-chat-id" data-index="' + i + '" title="' + (tr.delete || 'Delete') + '"><i class="fa fa-trash"></i></button>' +
                 '</td></tr>';
@@ -104,13 +117,59 @@ $(document).ready(function () {
         return window.telegramAPITranslations || {};
     }
 
+    // Fetch chat information from Telegram API
+    function fetchChatInfo(chatId, cache) {
+        return new Promise(function(resolve) {
+            if (cache[chatId]) {
+                resolve(cache[chatId]);
+                return;
+            }
+            $.ajax({
+                url: '/telegramAPI/chat-info/' + encodeURIComponent(chatId),
+                method: 'GET',
+                success: function(data) {
+                    if (data && data.chat) {
+                        const chat = data.chat;
+                        const chatInfo = {
+                            title: chat.title || chat.first_name || chat.username || '—',
+                            username: chat.username || null,
+                            type: chat.type || 'unknown'
+                        };
+                        cache[chatId] = chatInfo;
+                        resolve(chatInfo);
+                    } else {
+                        cache[chatId] = { title: '—', username: null, type: 'unknown' };
+                        resolve(cache[chatId]);
+                    }
+                },
+                error: function() {
+                    cache[chatId] = { title: '—', username: null, type: 'unknown' };
+                    resolve(cache[chatId]);
+                }
+            });
+        });
+    }
+
+    // Format chat display name
+    function formatChatDisplay(chatInfo) {
+        if (!chatInfo) return '<span class="text-muted">—</span>';
+        let display = escapeHtml(chatInfo.title || '—');
+        if (chatInfo.username) {
+            const link = 'https://t.me/' + chatInfo.username;
+            display += ' <span class="text-muted">(<a href="' + link + '" target="_blank" rel="noopener">@' + escapeHtml(chatInfo.username) + '</a>)</span>';
+        }
+        return display;
+    }
+
     function loadEmployeeChatIds() {
         $.ajax({
             url: '/telegramAPI/employee-chat-ids',
             method: 'GET',
             success: function (data) {
                 employeeChatIdsList = Array.isArray(data.chatIds) ? data.chatIds : [];
-                renderEmployeeChatIdsTable();
+                fetchAllChatDetails(employeeChatIdsList, employeeChatDetailsCache).then(function() {
+                    renderEmployeeChatIdsTable();
+                });
             },
             error: function () {
                 employeeChatIdsList = [];
@@ -130,7 +189,8 @@ $(document).ready(function () {
         }
         emptyEl.hide();
         tbody.html(employeeChatIdsList.map(function (id, i) {
-            return '<tr><td>' + (i + 1) + '</td><td><code>' + escapeHtml(String(id)) + '</code></td><td class="text-center">' +
+            const chatInfo = employeeChatDetailsCache[id] || { title: 'Loading...', username: null };
+            return '<tr><td class="text-center">' + (i + 1) + '</td><td><code>' + escapeHtml(String(id)) + '</code></td><td>' + formatChatDisplay(chatInfo) + '</td><td class="text-center">' +
                 '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-edit-employee-chat-id" data-index="' + i + '" title="' + (tr.edit || 'Edit') + '"><i class="fa fa-pencil-alt"></i></button>' +
                 '<button type="button" class="btn btn-sm btn-alt-danger btn-delete-employee-chat-id" data-index="' + i + '" title="' + (tr.delete || 'Delete') + '"><i class="fa fa-trash"></i></button>' +
                 '</td></tr>';
@@ -143,7 +203,9 @@ $(document).ready(function () {
             method: 'GET',
             success: function (data) {
                 managementChatIdsList = Array.isArray(data.chatIds) ? data.chatIds : [];
-                renderManagementChatIdsTable();
+                fetchAllChatDetails(managementChatIdsList, managementChatDetailsCache).then(function() {
+                    renderManagementChatIdsTable();
+                });
             },
             error: function () {
                 managementChatIdsList = [];
@@ -163,7 +225,8 @@ $(document).ready(function () {
         }
         emptyEl.hide();
         tbody.html(managementChatIdsList.map(function (id, i) {
-            return '<tr><td>' + (i + 1) + '</td><td><code>' + escapeHtml(String(id)) + '</code></td><td class="text-center">' +
+            const chatInfo = managementChatDetailsCache[id] || { title: 'Loading...', username: null };
+            return '<tr><td class="text-center">' + (i + 1) + '</td><td><code>' + escapeHtml(String(id)) + '</code></td><td>' + formatChatDisplay(chatInfo) + '</td><td class="text-center">' +
                 '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-edit-management-chat-id" data-index="' + i + '" title="' + (tr.edit || 'Edit') + '"><i class="fa fa-pencil-alt"></i></button>' +
                 '<button type="button" class="btn btn-sm btn-alt-danger btn-delete-management-chat-id" data-index="' + i + '" title="' + (tr.delete || 'Delete') + '"><i class="fa fa-trash"></i></button>' +
                 '</td></tr>';
@@ -249,7 +312,13 @@ $(document).ready(function () {
         if (chatIdEditIndex === null) {
             chatIdsList.push(val);
         } else {
+            var oldChatId = chatIdsList[chatIdEditIndex];
             chatIdsList[chatIdEditIndex] = val;
+            // Clear cache for old and new chat IDs to refresh details
+            if (oldChatId !== val) {
+                delete chatDetailsCache[oldChatId];
+            }
+            delete chatDetailsCache[val];
         }
         $.ajax({
             url: '/telegramAPI/chat-ids',
@@ -339,7 +408,13 @@ $(document).ready(function () {
         if (employeeChatIdEditIndex === null) {
             employeeChatIdsList.push(val);
         } else {
+            var oldChatId = employeeChatIdsList[employeeChatIdEditIndex];
             employeeChatIdsList[employeeChatIdEditIndex] = val;
+            // Clear cache for old and new chat IDs to refresh details
+            if (oldChatId !== val) {
+                delete employeeChatDetailsCache[oldChatId];
+            }
+            delete employeeChatDetailsCache[val];
         }
         $.ajax({
             url: '/telegramAPI/employee-chat-ids',
@@ -429,7 +504,13 @@ $(document).ready(function () {
         if (managementChatIdEditIndex === null) {
             managementChatIdsList.push(val);
         } else {
+            var oldChatId = managementChatIdsList[managementChatIdEditIndex];
             managementChatIdsList[managementChatIdEditIndex] = val;
+            // Clear cache for old and new chat IDs to refresh details
+            if (oldChatId !== val) {
+                delete managementChatDetailsCache[oldChatId];
+            }
+            delete managementChatDetailsCache[val];
         }
         $.ajax({
             url: '/telegramAPI/management-chat-ids',

@@ -2,6 +2,30 @@
 <%- include('../partials/loader') %>
 	<%- include ('../partials/sidebar'); -%>
 		<%- include ('../partials/topbar'); -%>
+		
+		<style>
+			.table-vcenter td:nth-child(3) {
+				word-wrap: break-word;
+				word-break: break-word;
+				overflow-wrap: break-word;
+			}
+			.table-vcenter tbody td {
+				padding: 0.35rem 0.5rem;
+				vertical-align: middle;
+				line-height: 1.3;
+			}
+			.table-vcenter thead th {
+				padding: 0.5rem 0.5rem;
+			}
+			.table-vcenter .btn-sm {
+				padding: 0.2rem 0.4rem;
+				font-size: 0.75rem;
+				line-height: 1.2;
+			}
+			.table-vcenter .btn-sm i {
+				font-size: 0.7rem;
+			}
+		</style>
 
 			<div class="container-fluid content-inner mt-4">
 				<div class="row">
@@ -18,7 +42,7 @@
 							<div id="user-role" data-permissions="<%= permissions %>"></div>
 							<div class="card-body">
 								<div class="text-center mb-3">
-									<h5 class="mb-0 text-muted"><%= __('telegram_api.telegram_api') %></h5>
+									<h5 class="mb-0 text-muted"><%= __('telegram_api.telegram_title') %></h5>
 								</div>
 								
 								<form id="update_telegramAPI">
@@ -55,11 +79,12 @@
 								</div>
 								<p class="text-muted small mb-3"><%= __('telegram_api.chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.chat_ids_hint_after') %></p>
 								<div class="table-responsive">
-									<table class="table table-bordered table-vcenter">
+									<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
 										<thead>
 											<tr>
-												<th style="width: 60px;">#</th>
-												<th><%= __('telegram_api.chat_id') %></th>
+												<th class="text-center" style="width: 60px;">#</th>
+												<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
+												<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
 												<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
 											</tr>
 										</thead>
@@ -79,11 +104,12 @@
 								</div>
 								<p class="text-muted small mb-3"><%= __('telegram_api.employee_chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.employee_chat_ids_hint_after') %></p>
 								<div class="table-responsive">
-									<table class="table table-bordered table-vcenter">
+									<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
 										<thead>
 											<tr>
-												<th style="width: 60px;">#</th>
-												<th><%= __('telegram_api.employee_chat_id') %></th>
+												<th class="text-center" style="width: 60px;">#</th>
+												<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.employee_chat_id') %></th>
+												<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
 												<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
 											</tr>
 										</thead>
@@ -103,11 +129,12 @@
 								</div>
 								<p class="text-muted small mb-3"><%= __('telegram_api.management_chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.management_chat_ids_hint_after') %></p>
 								<div class="table-responsive">
-									<table class="table table-bordered table-vcenter">
+									<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
 										<thead>
 											<tr>
-												<th style="width: 60px;">#</th>
-												<th><%= __('telegram_api.management_chat_id') %></th>
+												<th class="text-center" style="width: 60px;">#</th>
+												<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.management_chat_id') %></th>
+												<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
 												<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
 											</tr>
 										</thead>

@@ -87,7 +87,7 @@
 		"manage_user": "ユーザー管理",
 		"user_role": "ユーザー役割",
 		"expense_category": "費用カテゴリー",
-		"telegram_api": "テレグラムAPI",
+		"telegram_api": "テレグラム",
 		"modify_game": "ゲームの変更",
 		"monthly_reset": "月次リセット",
 		"history_reset": "履歴 | リセット",
@@ -101,7 +101,7 @@
 		"manage_users": "ユーザー管理",
 		"user_roles": "ユーザー役割",
 		"settings": "設定",
-		"telegram_API": "テレグラムAPI",
+		"telegram_API": "テレグラム",
 		"Change_Game_No": "ゲーム番号の変更"
 	},
 	"footer": {
@@ -528,7 +528,7 @@
 	},
 	"telegram_api": {
 		"telegram_api": "テレグラムAPI",
-		"telegram_api_placeholder": "テレグラムAPI",
+		"telegram_api_placeholder": "テレグラム",
 		"save": "保存",
 		"telegram_bot_details": "テレグラムボットの詳細",
 		"checking": "確認中...",
@@ -582,7 +582,8 @@
 		"management_chat_ids_empty": "管理チャットIDがありません。\"管理チャットIDを追加\"をクリックして管理グループまたはチャンネルを追加します。",
 		"enter_management_chat_id": "管理チャットIDを入力してください。",
 		"delete_management_chat_id": "管理チャットIDを削除しますか？",
-		"delete_management_chat_id_confirm": "この管理チャットは、管理通知を受信しなくなります。"
+		"delete_management_chat_id_confirm": "この管理チャットは、管理通知を受信しなくなります。",
+		"telegram_title": "telegram_api.telegram_title"
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NNチップ",

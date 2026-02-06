@@ -87,7 +87,7 @@
 		"manage_user": "Manage User",
 		"user_role": "User Role",
 		"expense_category": "Expense Category",
-		"telegram_api": "Telegram Api",
+		"telegram_api": "Telegram",
 		"modify_game": "Modify Game",
 		"monthly_reset": "Monthly Reset",
 		"history_reset": "History | Reset",
@@ -101,7 +101,7 @@
 		"manage_users": "Manage User",
 		"user_roles": "User Role",
 		"settings": "Settings",
-		"telegram_API": "Telegram API",
+		"telegram_API": "Telegram",
 		"Change_Game_No": "Modify Game Number",
 		"title": "Junket"
 	},
@@ -526,8 +526,9 @@
 		"no_records_found": "No records found."
 	},
 	"telegram_api": {
-		"telegram_api": "Telegram API",
-		"telegram_api_placeholder": "Telegram API",
+		"telegram_api": "Telegram",
+		"telegram_title": "Telegram Token",
+		"telegram_api_placeholder": "Telegram Token",
 		"save": "Save",
 		"telegram_bot_details": "Telegram Bot Details",
 		"checking": "Checking...",
@@ -576,7 +577,7 @@
 		"add_management_chat_id": "Add Management Chat ID",
 		"edit_management_chat_id": "Edit Management Chat ID",
 		"management_chat_id": "Management Chat ID",
-		"management_chat_ids_hint_before": "Management notifications are sent to these management chats. Use ",
+		"management_chat_ids_hint_before": "Game notifications are sent to these management chats. Use ",
 		"management_chat_ids_hint_after": " in Telegram (in the group or with the bot) to get the Chat ID.",
 		"management_chat_ids_empty": "No management chat IDs. Click \"Add Management Chat ID\" to add a management group or channel.",
 		"enter_management_chat_id": "Enter a Management Chat ID.",

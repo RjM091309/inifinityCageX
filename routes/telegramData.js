@@ -64,6 +64,45 @@ router.get('/telegramAPI/details', checkSession, async (req, res) => {
 	}
 });
 
+// Get chat information from Telegram API
+router.get('/telegramAPI/chat-info/:chatId', checkSession, async (req, res) => {
+	try {
+		const chatId = req.params.chatId;
+		if (!chatId) {
+			return res.status(400).json({ message: 'Chat ID is required' });
+		}
+
+		const [rows] = await pool.execute('SELECT TELEGRAM_API FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
+
+		if (rows.length === 0 || !rows[0].TELEGRAM_API) {
+			return res.status(404).json({ message: 'No active Telegram bot configured' });
+		}
+
+		const token = rows[0].TELEGRAM_API;
+
+		try {
+			const { default: fetch } = await import('node-fetch');
+			const response = await fetch(`https://api.telegram.org/bot${token}/getChat?chat_id=${chatId}`);
+			const payload = await response.json();
+
+			if (!payload.ok) {
+				console.error('Telegram getChat failed:', payload);
+				return res.status(502).json({ message: 'Failed to fetch chat details', details: payload });
+			}
+
+			return res.json({
+				chat: payload.result
+			});
+		} catch (err) {
+			console.error('Error fetching chat details:', err);
+			return res.status(500).json({ message: 'Error fetching chat details' });
+		}
+	} catch (error) {
+		console.error('Error retrieving Telegram bot settings:', error);
+		return res.status(500).json({ message: 'Error retrieving Telegram bot settings' });
+	}
+});
+
 // --------------- Chat IDs (groups/channels) — must be before /telegramAPI/:id ---------------
 function parseChatIds(raw) {
 	if (raw == null || typeof raw !== 'string') return [];
