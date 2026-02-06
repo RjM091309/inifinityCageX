@@ -1119,63 +1119,6 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 					date_now
 				]);
 			}
-			
-			// ✅ Only send Telegram notification for status = 1 (END GAME), not for status = 3 (PENDING)
-			// COMMENTED OUT: Telegram message sending temporarily disabled
-			// if (txtStatus === "1") {
-			// 	const [agentResults] = await pool.execute(`
-			// 		SELECT agent.AGENT_CODE, agent.NAME
-			// 		FROM agent
-			// 		JOIN account ON account.AGENT_ID = agent.IDNo
-			// 		WHERE account.ACTIVE = 1 AND account.IDNo = ?
-			// 	`, [txtAccountCode]);
-
-			// 	if (agentResults.length > 0) {
-			// 		const agentCode = agentResults[0].AGENT_CODE;
-			// 		const agentName = agentResults[0].NAME;
-
-			// 		const [telegramIdResults] = await pool.execute(`
-			// 			SELECT agent.TELEGRAM_ID 
-			// 			FROM agent
-			// 			JOIN account ON account.AGENT_ID = agent.IDNo
-			// 			WHERE account.ACTIVE = 1 AND account.IDNo = ?
-			// 		`, [txtAccountCode]);
-
-			// 		const updated_time = new Date().toLocaleTimeString();
-			// 		const date_nowTG = new Date().toLocaleDateString();
-
-			// 		// Calculate Total Rolling: txtTotalRolling + txtReturnRollerCC (if txtReturnRollerCC exists)
-			// 		const totalRollingBase = parseFloat(txtTotalRolling) || 0;
-			// 		const returnCCAmount = parseFloat((txtReturnRollerCC || '0').replace(/,/g, '')) || 0;
-			// 		const totalRolling = totalRollingBase + returnCCAmount;
-
-			// 		const text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nGame #: ${txtGameId}\nCapital: ${parseFloat(txtCapital).toLocaleString()}\nFinal Chips: ${parseFloat(txtFinalChips).toLocaleString()}\nWin/Loss: ${parseFloat(adjustedWinloss).toLocaleString()}\nTotal Rolling: ${totalRolling.toLocaleString()}`;
-
-			// 		if (telegramIdResults.length > 0) {
-			// 			const telegramId = telegramIdResults[0].TELEGRAM_ID;
-			// 			// Only send Telegram message if TELEGRAM_ID is valid (not null/empty)
-			// 			if (telegramId) {
-			// 				try {
-			// 					await sendTelegramMessage(text, telegramId);
-			// 				} catch (telegramError) {
-			// 					console.error('Failed to send Telegram message to agent:', telegramError.message);
-			// 					// Continue execution even if Telegram fails
-			// 				}
-			// 			}
-			// 		} else {
-			// 			console.warn("No TELEGRAM_ID found for Account:", txtAccountCode);
-			// 		}
-			// 		// Send to additional chats (groups/channels) - also with error handling
-			// 		try {
-			// 			await sendTelegramToAdditionalChats(text);
-			// 		} catch (telegramError) {
-			// 			console.error('Failed to send Telegram message to additional chats:', telegramError.message);
-			// 			// Continue execution even if Telegram fails
-			// 		}
-			// 	} else {
-			// 		console.warn("No agent info found for Account:", txtAccountCode);
-			// 	}
-			// }
 		}
 
 		res.send('Game status updated successfully');
@@ -1237,13 +1180,81 @@ router.post('/add_settlement', async (req, res) => {
 		if (agentResults.length > 0) {
 			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentResults[0];
 
+			// Fetch game records to calculate totals
+			const gameRecordQuery = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE FROM game_record WHERE ACTIVE != 0 AND GAME_ID = ? ORDER BY IDNo ASC`;
+			const [gameRecords] = await pool.execute(gameRecordQuery, [game_id_settle]);
+
+			// Initialize totals
+			let total_nn_init = 0;
+			let total_cc_init = 0;
+			let total_nn = 0;
+			let total_cc = 0;
+			let total_cash_out_nn = 0;
+			let total_cash_out_cc = 0;
+			let total_rolling_nn = 0;
+			let total_rolling_cc = 0;
+			let total_rolling_real = 0;
+			let total_rolling_nn_real = 0;
+			let total_rolling_cc_real = 0;
+			let total_roller_return_cc = 0;
+
+			// Calculate totals from game records
+			for (const record of gameRecords) {
+				const cageType = Number(record.CAGE_TYPE);
+
+				if (cageType === 1 && (total_nn_init !== 0 || total_cc_init !== 0)) {
+					total_nn += Number(record.NN_CHIPS) || 0;
+					total_cc += Number(record.CC_CHIPS) || 0;
+				}
+
+				if (cageType === 1 && total_nn_init === 0 && total_cc_init === 0) {
+					total_nn_init += Number(record.NN_CHIPS) || 0;
+					total_cc_init += Number(record.CC_CHIPS) || 0;
+				}
+
+				if (cageType === 2) {
+					total_cash_out_nn += Number(record.NN_CHIPS) || 0;
+					total_cash_out_cc += Number(record.CC_CHIPS) || 0;
+				}
+
+				if (cageType === 3) {
+					total_rolling_nn += Number(record.NN_CHIPS) || 0;
+					total_rolling_cc += Number(record.CC_CHIPS) || 0;
+				}
+
+				if (cageType === 4) {
+					total_rolling_real += Number(record.AMOUNT) || 0;
+					total_rolling_nn_real += Number(record.NN_CHIPS) || 0;
+					total_rolling_cc_real += Number(record.CC_CHIPS) || 0;
+				}
+
+				if (cageType === 5) {
+					const rollerTransaction = parseInt(record.ROLLER_TRANSACTION, 10) || 1;
+					if (rollerTransaction === 2) {
+						total_roller_return_cc += Number(record.ROLLER_CC_CHIPS) || 0;
+					}
+				}
+			}
+
+			// Calculate final values
+			const total_initial = total_nn_init + total_cc_init;
+			const total_buy_in_chips = total_nn + total_cc;
+			const total_buy_in = total_initial + total_buy_in_chips;
+			const total_cash_out = total_cash_out_nn + total_cash_out_cc;
+			const total_amount = total_buy_in_chips + total_initial;
+			const winlossRaw = total_amount - total_cash_out;
+			// Adjust winloss: if negative (guest won), show as positive; if positive (house won), show as negative
+			const winloss = winlossRaw < 0 ? Math.abs(winlossRaw) : -winlossRaw;
+			const totalRollingCCWithReturns = total_rolling_cc + total_roller_return_cc;
+			const total_rolling = total_rolling_nn + totalRollingCCWithReturns + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+
 			// Prepare the Telegram message
 			let text;
 			if (txtTransType == 1) {
 				const currentBalance = parseFloat(txtSettlementBalance.replace(/,/g, '')) + parseFloat(paymentValue);
-				text = `Infinity Cage\n\n* Settlement *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id_settle}\nAmount: ${parseFloat(paymentValue).toLocaleString()} - Deposit\nAccount Balance: ${parseFloat(currentBalance).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* Settlement *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id_settle}\nAmount: ${parseFloat(paymentValue).toLocaleString()} - Deposit\nAccount Balance: ${parseFloat(currentBalance).toLocaleString()}\n\nTotal Buy-in: ${total_buy_in.toLocaleString()}\nTotal Cashout: ${total_cash_out.toLocaleString()}\nWin/Loss: ${winloss.toLocaleString()}\nTotal Rolling: ${total_rolling.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			} else {
-				text = `Infinity Cage\n\n* Settlement *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id_settle}\nAmount: ${parseFloat(paymentValue).toLocaleString()} - Cash\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* Settlement *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id_settle}\nAmount: ${parseFloat(paymentValue).toLocaleString()} - Cash\n\nTotal Buy-in: ${total_buy_in.toLocaleString()}\nTotal Cashout: ${total_cash_out.toLocaleString()}\nWin/Loss: ${winloss.toLocaleString()}\nTotal Rolling: ${total_rolling.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 			}
 
 			// Send the Telegram message
