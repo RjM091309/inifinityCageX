@@ -1054,7 +1054,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 				const result = await response.json();
 
-				if (result.success) {
+				if (response.ok && result.success) {
 					await Swal.fire({
 						icon: 'success',
 						title: '✅ Balance Sent',
@@ -1065,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', function () {
 					await Swal.fire({
 						icon: 'error',
 						title: '⚠️ Failed',
-						text: 'Unable to send balance to Telegram.',
+						text: result.message || 'Unable to send balance to Telegram.',
 						confirmButtonColor: '#d33'
 					});
 				}
@@ -1074,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', function () {
 				await Swal.fire({
 					icon: 'error',
 					title: '❌ Error',
-					text: 'An error occurred while checking balance.',
+					text: err.message || 'An error occurred while checking balance.',
 					confirmButtonColor: '#d33'
 				});
 			} finally {

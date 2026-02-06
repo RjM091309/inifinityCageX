@@ -648,10 +648,20 @@ router.post('/add_account_details', async (req, res) => {
 				const text = `Infinity Cage\n\n* ${transaction} *\n\nAccount: ${guestAccountNum} - ${guestName}\nAmount: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString()}\nAccount Balance: ${parseFloat(totalBalance).toLocaleString()}\n${remarksLine}\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
 				if (sendToTelegram) {
-					// Send the message to the guest's Telegram ID
-					await sendTelegramMessage(text, telegramId);
-					// Send to all additional chat IDs (groups/channels) — supports comma-separated CHAT_ID
-					await sendTelegramToAdditionalChats(text);
+					// Check if TELEGRAM_ID exists and is valid before sending
+					if (telegramId && telegramId !== null && telegramId !== '') {
+						try {
+							// Send the message to the guest's Telegram ID
+							await sendTelegramMessage(text, telegramId);
+							// Send to all additional chat IDs (groups/channels) — supports comma-separated CHAT_ID
+							await sendTelegramToAdditionalChats(text);
+						} catch (telegramError) {
+							// Log error but don't fail the transaction
+							console.error('Error sending Telegram message (transaction still saved):', telegramError.message);
+						}
+					} else {
+						console.warn('Telegram ID is missing or invalid, skipping Telegram notification');
+					}
 				}
 
 				res.send('Form submitted and message sent successfully!');
@@ -684,6 +694,14 @@ router.post('/check_balance/:accountId', async (req, res) => {
 
 		const { TELEGRAM_ID, AGENT_CODE, NAME } = results[0];
 
+		// Check if TELEGRAM_ID exists and is valid
+		if (!TELEGRAM_ID || TELEGRAM_ID === null || TELEGRAM_ID === '') {
+			return res.status(400).json({ 
+				success: false, 
+				message: 'No Telegram ID found for this account. Please link a Telegram account first.' 
+			});
+		}
+
 		// Calculate balance from ledger entries
 		const [ledgerResults] = await pool.query(`
 			SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
@@ -713,11 +731,22 @@ router.post('/check_balance/:accountId', async (req, res) => {
 
 		const message = `Infinity Cage\n\n* Balance Check *\n\nAccount: ${AGENT_CODE} - ${NAME}\nCurrent Balance: ${balanceFormatted}\n\nDate: ${date_now}\nTime: ${time_now}`;
 
-		await sendTelegramMessage(message, TELEGRAM_ID);
-		// Also notify all additional chat IDs (groups/channels)
-		await sendTelegramToAdditionalChats(message);
-
-		res.json({ success: true });
+		try {
+			await sendTelegramMessage(message, TELEGRAM_ID);
+			// Also notify all additional chat IDs (groups/channels)
+			await sendTelegramToAdditionalChats(message);
+			res.json({ success: true });
+		} catch (telegramError) {
+			// Check if it's a "chat not found" error
+			if (telegramError.message && telegramError.message.includes('chat not found')) {
+				return res.status(400).json({ 
+					success: false, 
+					message: 'Telegram chat not found. The user may not have started a conversation with the bot. Please ask them to send /start to the bot first.' 
+				});
+			}
+			// Re-throw other errors to be caught by outer catch
+			throw telegramError;
+		}
 	} catch (err) {
 		console.error('Balance check error:', err);
 		res.status(500).json({ success: false });
@@ -817,6 +846,12 @@ router.post('/add_account_details/transfer', async (req, res) => {
 			for (const resultFrom of telegramIdResultsFrom) {
 				const { TELEGRAM_ID: TELEGRAM_ID_FROM, AGENT_CODE: AGENT_CODE_FROM, NAME: NAME_FROM } = resultFrom;
 
+				// Check if TELEGRAM_ID exists and is valid before sending
+				if (!TELEGRAM_ID_FROM || TELEGRAM_ID_FROM === null || TELEGRAM_ID_FROM === '') {
+					console.warn(`Telegram ID missing for sender account ${AGENT_CODE_FROM}, skipping Telegram notification`);
+					continue;
+				}
+
 				// Recompute based on server-side balance to avoid relying on client values
 				const SenderCurrentBalance = senderBalanceBefore - totalAmount;
 
@@ -828,8 +863,13 @@ router.post('/add_account_details/transfer', async (req, res) => {
 				// Prepare message with "From" account details and "To" account details
 				const textFrom = `Infinity Cage\n\n* Transfer *\n\nAccount: ${AGENT_CODE_FROM} - ${NAME_FROM}\nTransferred to Account: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\nAmount Transferred: -${totalAmount.toLocaleString()}\nAccount Balance: ${SenderCurrentBalance.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
-				await sendTelegramMessage(textFrom, TELEGRAM_ID_FROM);
-				await sendTelegramToAdditionalChats(textFrom);
+				try {
+					await sendTelegramMessage(textFrom, TELEGRAM_ID_FROM);
+					await sendTelegramToAdditionalChats(textFrom);
+				} catch (telegramError) {
+					// Log error but don't fail the transaction
+					console.error(`Error sending Telegram message to sender (transfer still saved):`, telegramError.message);
+				}
 			}
 		}
 
@@ -837,6 +877,12 @@ router.post('/add_account_details/transfer', async (req, res) => {
 		if (telegramIdResultsTo.length > 0) {
 			for (const resultTo of telegramIdResultsTo) {
 				const { TELEGRAM_ID: TELEGRAM_ID_TO, AGENT_CODE: AGENT_CODE_TO, NAME: NAME_TO } = resultTo;
+
+				// Check if TELEGRAM_ID exists and is valid before sending
+				if (!TELEGRAM_ID_TO || TELEGRAM_ID_TO === null || TELEGRAM_ID_TO === '') {
+					console.warn(`Telegram ID missing for receiver account ${AGENT_CODE_TO}, skipping Telegram notification`);
+					continue;
+				}
 
 				const ReceiverCurrentBalance = receiverBalanceBefore + totalAmount;
 
@@ -848,8 +894,13 @@ router.post('/add_account_details/transfer', async (req, res) => {
 				// Prepare message with "From" account details and "To" account details
 				const textTo = `Infinity Cage\n\n* Transfer *\n\nAccount: ${AGENT_CODE_TO} - ${NAME_TO}\nTransferred from Account: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\nAmount Transferred: ${totalAmount.toLocaleString()}\nAccount Balance: ${ReceiverCurrentBalance.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
-				await sendTelegramMessage(textTo, TELEGRAM_ID_TO);
-				await sendTelegramToAdditionalChats(textTo);
+				try {
+					await sendTelegramMessage(textTo, TELEGRAM_ID_TO);
+					await sendTelegramToAdditionalChats(textTo);
+				} catch (telegramError) {
+					// Log error but don't fail the transaction
+					console.error(`Error sending Telegram message to receiver (transfer still saved):`, telegramError.message);
+				}
 			}
 		}
 
