@@ -212,7 +212,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize commission rate based on selected commission type
     const setCommissionRate = () => {
-        const selectedTransaction = document.querySelector('input[name="txtTransType"]:checked').value;
+        // Check if elements exist
+        if (!commissionType || !commissionRate) {
+            return; // Exit early if elements don't exist
+        }
+
+        // Get selected transaction with null check
+        const selectedTransactionRadio = document.querySelector('input[name="txtTransType"]:checked');
+        const selectedTransaction = selectedTransactionRadio ? selectedTransactionRadio.value : null;
 
         // Handle different commission type logic based on transaction
         if (commissionType.value === "1") { // Rolling Game
@@ -247,31 +254,37 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Set initial step and rate (Rolling Game selected by default)
-    setCommissionRate();
+    // Only call if elements exist
+    if (commissionType && commissionRate) {
+        setCommissionRate();
+    }
 
     // Event listener for keydown (Arrow Up & Arrow Down)
-    commissionRate.addEventListener('keydown', function (event) {
-        if (commissionType.value === "1") { // Rolling Game: increment/decrement by 0.05
-            if (event.key === "ArrowUp") {
-                event.preventDefault();
-                incrementRollingGameRate();
-            } else if (event.key === "ArrowDown") {
-                event.preventDefault();
-                decrementRollingGameRate();
+    if (commissionRate && commissionType) {
+        commissionRate.addEventListener('keydown', function (event) {
+            if (commissionType.value === "1") { // Rolling Game: increment/decrement by 0.05
+                if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    incrementRollingGameRate();
+                } else if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    decrementRollingGameRate();
+                }
+            } else if (commissionType.value === "2") { // Shared Game: increment/decrement by 2.5
+                if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    incrementSharedGameRate();
+                } else if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    decrementSharedGameRate();
+                }
             }
-        } else if (commissionType.value === "2") { // Shared Game: increment/decrement by 2.5
-            if (event.key === "ArrowUp") {
-                event.preventDefault();
-                incrementSharedGameRate();
-            } else if (event.key === "ArrowDown") {
-                event.preventDefault();
-                decrementSharedGameRate();
-            }
-        }
-    });
+        });
+    }
 
     // Function to increment Shared Game commission rate by 2.5%
     const incrementSharedGameRate = () => {
+        if (!commissionRate) return;
         let currentRate = parseFloat(commissionRate.value);
         let newRate = currentRate + 2.5;
         if (newRate <= 100) { // Limit to max 100%
@@ -281,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Function to decrement Shared Game commission rate by 2.5%
     const decrementSharedGameRate = () => {
+        if (!commissionRate) return;
         let currentRate = parseFloat(commissionRate.value);
         let newRate = currentRate - 2.5;
         if (newRate >= 45) { // Limit to min 45%
@@ -290,6 +304,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Function to increment Rolling Game commission rate by 0.05%
     const incrementRollingGameRate = () => {
+        if (!commissionRate) return;
         let currentRate = parseFloat(commissionRate.value) || 0;
         let newRate = currentRate + 0.05;
         if (newRate <= 100) {
@@ -299,6 +314,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Function to decrement Rolling Game commission rate by 0.05%
     const decrementRollingGameRate = () => {
+        if (!commissionRate) return;
         let currentRate = parseFloat(commissionRate.value) || 0;
         let newRate = currentRate - 0.05;
         if (newRate >= 0) {

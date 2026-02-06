@@ -35,9 +35,15 @@
 												const maxSettlementDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr;
 											%>
 											<div class="day-selector-wrapper mb-3" data-today="<%= todayStr %>" data-default-settlement-date="<%= maxSettlementDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
-											
-													<input type="text" id="settlement-date-picker" class="form-control input-group" placeholder="YYYY-MM-DD" value="<%= maxSettlementDate %>" readonly />
-												
+												<div class="input-group">
+													<button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
+														<i class="fa fa-chevron-left"></i>
+													</button>
+													<input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= maxSettlementDate %>" readonly />
+													<button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
+														<i class="fa fa-chevron-right"></i>
+													</button>
+												</div>
 											</div>
 										</div>
 									</div>
@@ -146,11 +152,25 @@
 						}
 						const pickerEl = document.getElementById('settlement-date-picker');
 						if (pickerEl && typeof flatpickr !== 'undefined') {
+							// Calculate earliest settlement date (when settlements started)
+							var earliestSettlementDate = null;
+							if (settledDates.length > 0) {
+								var sortedDates = settledDates.slice().sort();
+								earliestSettlementDate = sortedDates[0];
+							} else {
+								// If no settled dates, use first of current month as fallback
+								var now = new Date();
+								var pad = function(n) { return String(n).padStart(2, '0'); };
+								var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+								earliestSettlementDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+							}
+							
 							flatpickr(pickerEl, {
 								dateFormat: 'Y-m-d',
 								altInput: true,
 								altFormat: 'F d, Y',
 								defaultDate: defaultDate || todayStr,
+								minDate: earliestSettlementDate,
 								maxDate: defaultDate || todayStr,
 								allowInput: false,
 								onDayCreate: function (dayElem) {
@@ -170,6 +190,7 @@
 								},
 								onChange: function (selectedDates, dateStr) {
 									window.selectedSettlementDate = dateStr || '';
+									if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
 									if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
 									if (typeof window.reloadGameListBySettlementDate === 'function') window.reloadGameListBySettlementDate();
 								},
@@ -202,7 +223,81 @@
 	right: 0;    /* positive = kaliwa, negative = kanan */
 	bottom: 0;
 	left: 120px;
-	width: 260px;     /* positive = kanan, negative = kaliwa */
+	width: 320px;     /* Increased width to accommodate buttons */
+}
+
+/* Settlement Date Navigation Buttons */
+.day-selector-wrapper .input-group {
+	display: flex;
+	align-items: stretch;
+	border-radius: 0.375rem;
+	overflow: hidden;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.day-selector-wrapper #btn-settlement-prev,
+.day-selector-wrapper #btn-settlement-next {
+	min-width: 42px;
+	padding: 0.5rem 0.75rem;
+	border: none;
+	background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+	color: #495057;
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	font-weight: 500;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-right: 1px solid #e9ecef;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.day-selector-wrapper #btn-settlement-next {
+	border-right: none;
+	border-left: 1px solid #e9ecef;
+}
+
+.day-selector-wrapper #btn-settlement-prev:hover:not(:disabled),
+.day-selector-wrapper #btn-settlement-next:hover:not(:disabled) {
+	background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+	color: #ffffff;
+	transform: translateY(-1px);
+	box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+}
+
+.day-selector-wrapper #btn-settlement-prev:active:not(:disabled),
+.day-selector-wrapper #btn-settlement-next:active:not(:disabled) {
+	background: linear-gradient(135deg, #0a58ca 0%, #084298 100%);
+	transform: translateY(0);
+	box-shadow: 0 2px 4px rgba(13, 110, 253, 0.4);
+}
+
+.day-selector-wrapper #btn-settlement-prev:focus,
+.day-selector-wrapper #btn-settlement-next:focus {
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+}
+
+.day-selector-wrapper #btn-settlement-prev:disabled,
+.day-selector-wrapper #btn-settlement-next:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+	pointer-events: none;
+	background: #f8f9fa;
+	color: #adb5bd;
+	box-shadow: none;
+}
+
+.day-selector-wrapper #settlement-date-picker {
+	border-left: 0;
+	border-right: 0;
+	border-top: 1px solid #ced4da;
+	border-bottom: 1px solid #ced4da;
+	background-color: #fff;
+}
+
+.day-selector-wrapper #settlement-date-picker:focus {
+	border-color: #0d6efd;
+	box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
 }
 
 .card-body {
@@ -885,9 +980,11 @@ table.dataTable tbody tr.highlight-row {
 											<%- include ('../modals/game_book/show_rollings') %>
 												<%- include ('../modals/game_book/settlement') %>
 													<%- include ('../modals/game_book/game_services') %>
+														<%- include ('../modals/accounts/account_details') %>
 
 
 												<script src="/assets/js/functions/game_list.js"></script>
+												<script src="/assets/js/functions/account.js"></script>
 												<script src="assets/js/plugins/select2/js/select2.full.min.js"></script>
 
 

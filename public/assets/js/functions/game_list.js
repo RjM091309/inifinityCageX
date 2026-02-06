@@ -441,11 +441,12 @@ $(document).ready(function () {
                                 }
                                 actionButtons += btn_settle;
 
+                                var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
                                 let rowNode = dataTable.row.add([
                                     game_start,
                                     `${row.GAME_TYPE}`,
                                     `${row.game_list_id}`,
-                                    `${row.agent_code} (${row.agent_name})`,
+                                    acct_no_link,
                                     buyin_td,
                                     cashout_td,
                                     rolling_td,
@@ -529,12 +530,13 @@ $(document).ready(function () {
 								}
 								
 								var actionButtons = btn_services + btn_settle;
+								var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
 
 								let rowNode = dataTable.row.add([
 									game_start,
 									`${row.GAME_TYPE}`,
 									`${row.game_list_id}`,
-									`${row.agent_code} (${row.agent_name})`,
+									acct_no_link,
 									buyin_td,
 									cashout_td,
 									rolling_td,
@@ -617,7 +619,8 @@ $(document).ready(function () {
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
 						   var actionButtons = btn_services + btn_settle;
-						   let rowNode = dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`, formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw().node();
+						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+						   let rowNode = dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`, formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw().node();
 						   
 						   // Add pending styling if game was created before settlement run but still ON GAME
 						   if (row.is_pending === 1) {
@@ -668,8 +671,153 @@ $(document).ready(function () {
         }
     };
 
+    // Previous/Next Date Navigation Functions
+    function getEarliestSettlementDate() {
+        // Get the earliest settlement date from settledDatesForMonth array
+        var settledDates = window.settledDatesForMonth || [];
+        if (settledDates.length === 0) {
+            // If no settled dates, use first of current month as fallback
+            var now = new Date();
+            var pad = function(n) { return String(n).padStart(2, '0'); };
+            var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            return firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+        }
+        
+        // Sort dates and get the earliest one
+        var sortedDates = settledDates.slice().sort();
+        return sortedDates[0];
+    }
+    
+    function getPreviousDate(currentDate) {
+        if (!currentDate) return null;
+        
+        var current = new Date(currentDate + 'T12:00:00');
+        var previous = new Date(current);
+        previous.setDate(previous.getDate() - 1);
+        
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        var previousDateStr = previous.getFullYear() + '-' + pad(previous.getMonth() + 1) + '-' + pad(previous.getDate());
+        
+        // Get the earliest settlement date (when settlements started)
+        var earliestSettlementDate = getEarliestSettlementDate();
+        
+        // Don't go before the earliest settlement date
+        if (previousDateStr < earliestSettlementDate) {
+            return null;
+        }
+        
+        return previousDateStr;
+    }
+    
+    function getNextDate(currentDate) {
+        if (!currentDate) return null;
+        
+        var current = new Date(currentDate + 'T12:00:00');
+        var next = new Date(current);
+        next.setDate(next.getDate() + 1);
+        
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        var nextDateStr = next.getFullYear() + '-' + pad(next.getMonth() + 1) + '-' + pad(next.getDate());
+        
+        // Don't go beyond today
+        var todayStr = $('.day-selector-wrapper').attr('data-today') || new Date().toISOString().slice(0, 10);
+        if (nextDateStr > todayStr) {
+            return null;
+        }
+        
+        return nextDateStr;
+    }
+    
+    // Expose updateNavigationButtons globally so it can be called from flatpickr onChange
+    window.updateNavigationButtons = function() {
+        var currentDate = window.selectedSettlementDate || $('.day-selector-wrapper').attr('data-default-settlement-date');
+        var previousDate = getPreviousDate(currentDate);
+        var nextDate = getNextDate(currentDate);
+        
+        // Update previous button state
+        if (previousDate) {
+            $('#btn-settlement-prev').prop('disabled', false);
+        } else {
+            $('#btn-settlement-prev').prop('disabled', true);
+        }
+        
+        // Update next button state
+        if (nextDate) {
+            $('#btn-settlement-next').prop('disabled', false);
+        } else {
+            $('#btn-settlement-next').prop('disabled', true);
+        }
+    };
+    
+    function navigateToDate(targetDate) {
+        if (!targetDate) return;
+        
+        // Update global selected date
+        window.selectedSettlementDate = targetDate;
+        
+        // Update flatpickr date picker
+        var pickerEl = document.getElementById('settlement-date-picker');
+        if (pickerEl && pickerEl._flatpickr) {
+            pickerEl._flatpickr.setDate(targetDate, false);
+        }
+        
+        // Update navigation button states
+        updateNavigationButtons();
+        
+        // Update settle button state
+        if (typeof window.updateSettleButtonState === 'function') {
+            window.updateSettleButtonState();
+        }
+        
+        // Reload data
+        if (typeof window.reloadGameListBySettlementDate === 'function') {
+            window.reloadGameListBySettlementDate();
+        }
+    }
+    
+    // Previous button click handler
+    $('#btn-settlement-prev').on('click', function() {
+        var currentDate = window.selectedSettlementDate || $('.day-selector-wrapper').attr('data-default-settlement-date');
+        var previousDate = getPreviousDate(currentDate);
+        
+        if (previousDate) {
+            navigateToDate(previousDate);
+        } else {
+            var earliestDate = getEarliestSettlementDate();
+            var formattedEarliest = earliestDate ? new Date(earliestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'earliest settlement date';
+            Swal.fire({
+                icon: 'info',
+                title: 'No Previous Date',
+                text: 'You are already at the earliest settlement date (' + formattedEarliest + ').',
+                confirmButtonText: 'OK',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    });
+    
+    // Next button click handler
+    $('#btn-settlement-next').on('click', function() {
+        var currentDate = window.selectedSettlementDate || $('.day-selector-wrapper').attr('data-default-settlement-date');
+        var nextDate = getNextDate(currentDate);
+        
+        if (nextDate) {
+            navigateToDate(nextDate);
+        } else {
+            Swal.fire({
+                icon: 'info',
+                title: 'No Next Date',
+                text: 'You are already at the latest available date.',
+                confirmButtonText: 'OK',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    });
+
     reloadData(); // Load data initially (uses selectedSettlementDate = 'current' from EJS)
     if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
+    if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
 
     $('#btn-daily-settle').on('click', function () {
         if ($(this).prop('disabled')) return;
@@ -3607,7 +3755,8 @@ $(document).ready(function () {
 								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
                                 var actionButtons = btn_services + btn_his;
-                                dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
+                                var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+                                dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else if (row.game_status == 3) {
 								// PENDING STATUS (discrepancy in roller chips return)
 								const pendingText = "PENDING";
@@ -3617,7 +3766,8 @@ $(document).ready(function () {
 								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
 								cashout_td = parseFloat(total_cash_out_chips).toLocaleString();
                                 var actionButtons = btn_services + btn_his;
-                                dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
+                                var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+                                dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 							} else {
 								
 								//END GAME STATUS EDITABLE(ON GAME & END GAME)
@@ -3646,7 +3796,8 @@ $(document).ready(function () {
 								</button>
 						   </div>`;
 						   var actionButtons = btn_services + btn_settle;
-						   dataTable.row.add([`GAME-${row.game_list_id}`, `${row.agent_code} (${row.agent_name})`, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
+						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
+						   dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
 
 							}
 
