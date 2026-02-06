@@ -26,18 +26,22 @@ router.get('/telegramAPI_data', async (req, res) => {
 	}
 });
 
-// Get Telegram bot details (bot profile + admin chat ID)
-router.get('/telegramAPI/details', checkSession, async (req, res) => {
+// Get Telegram bot details (bot profile + admin chat ID) by USER type
+router.get('/telegramAPI/details/:userType', checkSession, async (req, res) => {
 	try {
-		const [rows] = await pool.execute('SELECT TELEGRAM_API, CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
+		const userType = req.params.userType || 'GUEST';
+		const [rows] = await pool.execute(
+			'SELECT TELEGRAM_API, CHAT_ID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
+			[userType]
+		);
 
 		if (rows.length === 0) {
-			return res.status(404).json({ message: 'No active Telegram bot configured' });
+			return res.status(404).json({ message: `No active Telegram bot configured for ${userType}` });
 		}
 
 		const { TELEGRAM_API: token, CHAT_ID: chatId } = rows[0];
 		if (!token) {
-			return res.status(400).json({ message: 'Telegram bot token is missing' });
+			return res.status(400).json({ message: `Telegram bot token is missing for ${userType}` });
 		}
 
 		try {
@@ -64,18 +68,22 @@ router.get('/telegramAPI/details', checkSession, async (req, res) => {
 	}
 });
 
-// Get chat information from Telegram API
-router.get('/telegramAPI/chat-info/:chatId', checkSession, async (req, res) => {
+// Get chat information from Telegram API by USER type
+router.get('/telegramAPI/chat-info/:userType/:chatId', checkSession, async (req, res) => {
 	try {
 		const chatId = req.params.chatId;
+		const userType = req.params.userType || 'GUEST';
 		if (!chatId) {
 			return res.status(400).json({ message: 'Chat ID is required' });
 		}
 
-		const [rows] = await pool.execute('SELECT TELEGRAM_API FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
+		const [rows] = await pool.execute(
+			'SELECT TELEGRAM_API FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
+			[userType]
+		);
 
 		if (rows.length === 0 || !rows[0].TELEGRAM_API) {
-			return res.status(404).json({ message: 'No active Telegram bot configured' });
+			return res.status(404).json({ message: `No active Telegram bot configured for ${userType}` });
 		}
 
 		const token = rows[0].TELEGRAM_API;
@@ -111,9 +119,14 @@ function parseChatIds(raw) {
 	return trimmed.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
 }
 
-router.get('/telegramAPI/chat-ids', checkSession, async (req, res) => {
+// Get chat IDs by USER type (all use CHAT_ID column)
+router.get('/telegramAPI/chat-ids/:userType', checkSession, async (req, res) => {
 	try {
-		const [rows] = await pool.execute('SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
+		const userType = req.params.userType || 'GUEST';
+		const [rows] = await pool.execute(
+			'SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
+			[userType]
+		);
 		const chatIds = rows.length && rows[0].CHAT_ID != null ? parseChatIds(rows[0].CHAT_ID) : [];
 		res.json({ chatIds });
 	} catch (err) {
@@ -122,14 +135,16 @@ router.get('/telegramAPI/chat-ids', checkSession, async (req, res) => {
 	}
 });
 
-router.put('/telegramAPI/chat-ids', checkSession, async (req, res) => {
+// Update chat IDs by USER type (all use CHAT_ID column)
+router.put('/telegramAPI/chat-ids/:userType', checkSession, async (req, res) => {
 	try {
+		const userType = req.params.userType || 'GUEST';
 		let chatIds = req.body.chatIds;
 		if (!Array.isArray(chatIds)) chatIds = [];
 		const value = chatIds.map(s => String(s).trim()).filter(Boolean).join(',');
 		await pool.execute(
-			'UPDATE telegram_api SET CHAT_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE ACTIVE = 1',
-			[value || null, req.session.user_id, new Date()]
+			'UPDATE telegram_api SET CHAT_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE ACTIVE = 1 AND USER = ?',
+			[value || null, req.session.user_id, new Date(), userType]
 		);
 		res.json({ success: true, chatIds: value ? value.split(',') : [] });
 	} catch (err) {
@@ -138,76 +153,20 @@ router.put('/telegramAPI/chat-ids', checkSession, async (req, res) => {
 	}
 });
 
-// --------------- Employee Chat IDs ---------------
-router.get('/telegramAPI/employee-chat-ids', checkSession, async (req, res) => {
-	try {
-		const [rows] = await pool.execute('SELECT EMPLOYEE_CHATID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
-		const chatIds = rows.length && rows[0].EMPLOYEE_CHATID != null ? parseChatIds(rows[0].EMPLOYEE_CHATID) : [];
-		res.json({ chatIds });
-	} catch (err) {
-		console.error('Error fetching employee chat IDs:', err);
-		res.status(500).json({ error: 'Error fetching employee chat IDs' });
-	}
-});
-
-router.put('/telegramAPI/employee-chat-ids', checkSession, async (req, res) => {
-	try {
-		let chatIds = req.body.chatIds;
-		if (!Array.isArray(chatIds)) chatIds = [];
-		const value = chatIds.map(s => String(s).trim()).filter(Boolean).join(',');
-		await pool.execute(
-			'UPDATE telegram_api SET EMPLOYEE_CHATID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE ACTIVE = 1',
-			[value || null, req.session.user_id, new Date()]
-		);
-		res.json({ success: true, chatIds: value ? value.split(',') : [] });
-	} catch (err) {
-		console.error('Error updating employee chat IDs:', err);
-		res.status(500).json({ error: 'Error updating employee chat IDs' });
-	}
-});
-
-// --------------- Management Chat IDs ---------------
-router.get('/telegramAPI/management-chat-ids', checkSession, async (req, res) => {
-	try {
-		const [rows] = await pool.execute('SELECT MANAGEMENT_CHATID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
-		const chatIds = rows.length && rows[0].MANAGEMENT_CHATID != null ? parseChatIds(rows[0].MANAGEMENT_CHATID) : [];
-		res.json({ chatIds });
-	} catch (err) {
-		console.error('Error fetching management chat IDs:', err);
-		res.status(500).json({ error: 'Error fetching management chat IDs' });
-	}
-});
-
-router.put('/telegramAPI/management-chat-ids', checkSession, async (req, res) => {
-	try {
-		let chatIds = req.body.chatIds;
-		if (!Array.isArray(chatIds)) chatIds = [];
-		const value = chatIds.map(s => String(s).trim()).filter(Boolean).join(',');
-		await pool.execute(
-			'UPDATE telegram_api SET MANAGEMENT_CHATID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE ACTIVE = 1',
-			[value || null, req.session.user_id, new Date()]
-		);
-		res.json({ success: true, chatIds: value ? value.split(',') : [] });
-	} catch (err) {
-		console.error('Error updating management chat IDs:', err);
-		res.status(500).json({ error: 'Error updating management chat IDs' });
-	}
-});
-
-// EDIT TELEGRAM API
-router.put('/telegramAPI/:id', async (req, res) => {
-	const id = parseInt(req.params.id);
+// EDIT TELEGRAM API by USER type
+router.put('/telegramAPI/:userType', checkSession, async (req, res) => {
+	const userType = req.params.userType || 'GUEST';
 	const { txtTelegramAPI } = req.body;
 	const date_now = new Date();
 
 	const query = `
 		UPDATE telegram_api 
 		SET TELEGRAM_API = ?, EDITED_BY = ?, EDITED_DT = ? 
-		WHERE IDNo = ?
+		WHERE USER = ? AND ACTIVE = 1
 	`;
 
 	try {
-		await pool.execute(query, [txtTelegramAPI, req.session.user_id, date_now, id]);
+		await pool.execute(query, [txtTelegramAPI, req.session.user_id, date_now, userType]);
 		res.send('Telegram API updated successfully');
 	} catch (err) {
 		console.error('Error updating Telegram API:', err);

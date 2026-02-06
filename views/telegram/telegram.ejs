@@ -25,6 +25,19 @@
 			.table-vcenter .btn-sm i {
 				font-size: 0.7rem;
 			}
+			.bot-section {
+				border: 1px solid #dee2e6;
+				border-radius: 0.375rem;
+				padding: 1.5rem;
+				margin-bottom: 2rem;
+				background-color: #f8f9fa;
+			}
+			.bot-section h4 {
+				color: #495057;
+				margin-bottom: 1rem;
+				padding-bottom: 0.5rem;
+				border-bottom: 2px solid #dee2e6;
+			}
 		</style>
 
 			<div class="container-fluid content-inner mt-4">
@@ -32,123 +45,191 @@
 					<div class="col-sm-12">
 						<div class="card">
 							<div class="card-header d-flex justify-content-between align-items-center">
-
 								<h3 class="card-title"><div class="breadcrumb1 flat">
 									<a href="/dashboard" ><span class="fa fa-home"></span></a>
 									<a href="/telegramAPI" class="active"><%= __('telegram_api.telegram_api') %></a>
 								</div></h3>
-
 							</div>
 							<div id="user-role" data-permissions="<%= permissions %>"></div>
 							<div class="card-body">
-								<div class="text-center mb-3">
+								<div class="text-center mb-4">
 									<h5 class="mb-0 text-muted"><%= __('telegram_api.telegram_title') %></h5>
 								</div>
-								
-								<form id="update_telegramAPI">
-									<div class="d-flex gap-2 mb-4">
-										<input type="text" class="form-control"
-											name="txtTelegramAPI" id="telegramAPI"
-											placeholder="<%= __('telegram_api.telegram_api_placeholder') %>">
-										<button type="submit" class="btn btn-success">
-											<%= __('telegram_api.save') %>
+
+								<!-- GUEST BOT SECTION -->
+								<div class="bot-section">
+									<h4><i class="fa fa-user me-2"></i>GUEST</h4>
+									
+									<form class="update-telegram-api-form" data-user-type="GUEST">
+										<div class="d-flex gap-2 mb-4">
+											<input type="text" class="form-control"
+												name="txtTelegramAPI" 
+												id="telegramAPI-guest"
+												placeholder="<%= __('telegram_api.telegram_api_placeholder') %>">
+											<input type="hidden" name="userType" value="GUEST">
+											<input type="hidden" name="botId" id="botId-guest">
+											<button type="submit" class="btn btn-success">
+												<%= __('telegram_api.save') %>
+											</button>
+										</div>
+									</form>
+
+									<hr class="my-3">
+
+									<div>
+										<div class="d-flex align-items-center mb-2">
+											<h6 class="mb-0 me-2"><%= __('telegram_api.telegram_bot_details') %></h6>
+											<span class="bot-status badge bg-secondary" data-user-type="GUEST"><%= __('telegram_api.checking') %></span>
+										</div>
+										<div class="bot-details alert alert-secondary small mb-0" data-user-type="GUEST">
+											<div class="text-muted"><%= __('telegram_api.loading_bot_details') %></div>
+										</div>
+									</div>
+
+									<hr class="my-4">
+
+									<!-- Chat IDs -->
+									<div class="d-flex align-items-center justify-content-between mb-2">
+										<h6 class="mb-0"><%= __('telegram_api.chat_ids_title') %></h6>
+										<button type="button" class="btn btn-sm btn-success btn-add-chat-id" data-user-type="GUEST">
+											<i class="fa fa-plus me-1"></i> <%= __('telegram_api.add_chat_id') %>
 										</button>
 									</div>
-								</form>
-
-								<hr class="my-3">
-
-								<div>
-									<div class="d-flex align-items-center mb-2">
-										<h6 class="mb-0 me-2"><%= __('telegram_api.telegram_bot_details') %></h6>
-										<span id="bot-status" class="badge bg-secondary"><%= __('telegram_api.checking') %></span>
+									<p class="text-muted small mb-3"><%= __('telegram_api.chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.chat_ids_hint_after') %></p>
+									<div class="table-responsive">
+										<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
+											<thead>
+												<tr>
+													<th class="text-center" style="width: 60px;">#</th>
+													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
+													<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
+													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
+												</tr>
+											</thead>
+											<tbody class="chat-ids-tbody" data-user-type="GUEST"></tbody>
+										</table>
 									</div>
-									<div id="bot-details" class="alert alert-secondary small mb-0">
-										<div class="text-muted"><%= __('telegram_api.loading_bot_details') %></div>
+									<div class="chat-ids-empty text-muted text-center py-3" data-user-type="GUEST" style="display: none;"><%= __('telegram_api.chat_ids_empty') %></div>
+								</div>
+								
+								<!-- MANAGEMENT BOT SECTION -->
+								<div class="bot-section">
+									<h4><i class="fa fa-user-tie me-2"></i>MANAGEMENT</h4>
+									
+									<form class="update-telegram-api-form" data-user-type="MANAGEMENT">
+										<div class="d-flex gap-2 mb-4">
+											<input type="text" class="form-control"
+												name="txtTelegramAPI" 
+												id="telegramAPI-management"
+												placeholder="<%= __('telegram_api.telegram_api_placeholder') %>">
+											<input type="hidden" name="userType" value="MANAGEMENT">
+											<input type="hidden" name="botId" id="botId-management">
+											<button type="submit" class="btn btn-success">
+												<%= __('telegram_api.save') %>
+											</button>
+										</div>
+									</form>
+
+									<hr class="my-3">
+
+									<div>
+										<div class="d-flex align-items-center mb-2">
+											<h6 class="mb-0 me-2"><%= __('telegram_api.telegram_bot_details') %></h6>
+											<span class="bot-status badge bg-secondary" data-user-type="MANAGEMENT"><%= __('telegram_api.checking') %></span>
+										</div>
+										<div class="bot-details alert alert-secondary small mb-0" data-user-type="MANAGEMENT">
+											<div class="text-muted"><%= __('telegram_api.loading_bot_details') %></div>
+										</div>
 									</div>
+
+									<hr class="my-4">
+
+									<!-- Chat IDs -->
+									<div class="d-flex align-items-center justify-content-between mb-2">
+										<h6 class="mb-0"><%= __('telegram_api.chat_ids_title') %></h6>
+										<button type="button" class="btn btn-sm btn-success btn-add-chat-id" data-user-type="MANAGEMENT">
+											<i class="fa fa-plus me-1"></i> <%= __('telegram_api.add_chat_id') %>
+										</button>
+									</div>
+									<p class="text-muted small mb-3"><%= __('telegram_api.chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.chat_ids_hint_after') %></p>
+									<div class="table-responsive">
+										<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
+											<thead>
+												<tr>
+													<th class="text-center" style="width: 60px;">#</th>
+													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
+													<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
+													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
+												</tr>
+											</thead>
+											<tbody class="chat-ids-tbody" data-user-type="MANAGEMENT"></tbody>
+										</table>
+									</div>
+									<div class="chat-ids-empty text-muted text-center py-3" data-user-type="MANAGEMENT" style="display: none;"><%= __('telegram_api.chat_ids_empty') %></div>
 								</div>
 
-								<hr class="my-4">
+								<!-- EMPLOYEE BOT SECTION -->
+								<div class="bot-section">
+									<h4><i class="fa fa-users me-2"></i>EMPLOYEE</h4>
+									
+									<form class="update-telegram-api-form" data-user-type="EMPLOYEE">
+										<div class="d-flex gap-2 mb-4">
+											<input type="text" class="form-control"
+												name="txtTelegramAPI" 
+												id="telegramAPI-employee"
+												placeholder="<%= __('telegram_api.telegram_api_placeholder') %>">
+											<input type="hidden" name="userType" value="EMPLOYEE">
+											<input type="hidden" name="botId" id="botId-employee">
+											<button type="submit" class="btn btn-success">
+												<%= __('telegram_api.save') %>
+											</button>
+										</div>
+									</form>
 
-								<!-- Chat IDs -->
-								<div class="d-flex align-items-center justify-content-between mb-2">
-									<h6 class="mb-0"><%= __('telegram_api.chat_ids_title') %></h6>
-									<button type="button" class="btn btn-sm btn-success" id="btn-add-chat-id">
-										<i class="fa fa-plus me-1"></i> <%= __('telegram_api.add_chat_id') %>
-									</button>
-								</div>
-								<p class="text-muted small mb-3"><%= __('telegram_api.chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.chat_ids_hint_after') %></p>
-								<div class="table-responsive">
-									<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
-										<thead>
-											<tr>
-												<th class="text-center" style="width: 60px;">#</th>
-												<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
-												<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
-												<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
-											</tr>
-										</thead>
-										<tbody id="chat-ids-tbody"></tbody>
-									</table>
-								</div>
-								<div id="chat-ids-empty" class="text-muted text-center py-3" style="display: none;"><%= __('telegram_api.chat_ids_empty') %></div>
+									<hr class="my-3">
 
-								<hr class="my-4">
+									<div>
+										<div class="d-flex align-items-center mb-2">
+											<h6 class="mb-0 me-2"><%= __('telegram_api.telegram_bot_details') %></h6>
+											<span class="bot-status badge bg-secondary" data-user-type="EMPLOYEE"><%= __('telegram_api.checking') %></span>
+										</div>
+										<div class="bot-details alert alert-secondary small mb-0" data-user-type="EMPLOYEE">
+											<div class="text-muted"><%= __('telegram_api.loading_bot_details') %></div>
+										</div>
+									</div>
 
-								<!-- Employee Chat IDs -->
-								<div class="d-flex align-items-center justify-content-between mb-2">
-									<h6 class="mb-0"><%= __('telegram_api.employee_chat_ids_title') %></h6>
-									<button type="button" class="btn btn-sm btn-success" id="btn-add-employee-chat-id">
-										<i class="fa fa-plus me-1"></i> <%= __('telegram_api.add_employee_chat_id') %>
-									</button>
-								</div>
-								<p class="text-muted small mb-3"><%= __('telegram_api.employee_chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.employee_chat_ids_hint_after') %></p>
-								<div class="table-responsive">
-									<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
-										<thead>
-											<tr>
-												<th class="text-center" style="width: 60px;">#</th>
-												<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.employee_chat_id') %></th>
-												<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
-												<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
-											</tr>
-										</thead>
-										<tbody id="employee-chat-ids-tbody"></tbody>
-									</table>
-								</div>
-								<div id="employee-chat-ids-empty" class="text-muted text-center py-3" style="display: none;"><%= __('telegram_api.employee_chat_ids_empty') %></div>
+									<hr class="my-4">
 
-								<hr class="my-4">
+									<!-- Chat IDs -->
+									<div class="d-flex align-items-center justify-content-between mb-2">
+										<h6 class="mb-0"><%= __('telegram_api.chat_ids_title') %></h6>
+										<button type="button" class="btn btn-sm btn-success btn-add-chat-id" data-user-type="EMPLOYEE">
+											<i class="fa fa-plus me-1"></i> <%= __('telegram_api.add_chat_id') %>
+										</button>
+									</div>
+									<p class="text-muted small mb-3"><%= __('telegram_api.chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.chat_ids_hint_after') %></p>
+									<div class="table-responsive">
+										<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
+											<thead>
+												<tr>
+													<th class="text-center" style="width: 60px;">#</th>
+													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
+													<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
+													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
+												</tr>
+											</thead>
+											<tbody class="chat-ids-tbody" data-user-type="EMPLOYEE"></tbody>
+										</table>
+									</div>
+									<div class="chat-ids-empty text-muted text-center py-3" data-user-type="EMPLOYEE" style="display: none;"><%= __('telegram_api.chat_ids_empty') %></div>
+								</div>
 
-								<!-- Management Chat IDs -->
-								<div class="d-flex align-items-center justify-content-between mb-2">
-									<h6 class="mb-0"><%= __('telegram_api.management_chat_ids_title') %></h6>
-									<button type="button" class="btn btn-sm btn-success" id="btn-add-management-chat-id">
-										<i class="fa fa-plus me-1"></i> <%= __('telegram_api.add_management_chat_id') %>
-									</button>
-								</div>
-								<p class="text-muted small mb-3"><%= __('telegram_api.management_chat_ids_hint_before') %><code class="bg-light px-1 rounded text-dark border">/getchatid</code><%= __('telegram_api.management_chat_ids_hint_after') %></p>
-								<div class="table-responsive">
-									<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
-										<thead>
-											<tr>
-												<th class="text-center" style="width: 60px;">#</th>
-												<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.management_chat_id') %></th>
-												<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
-												<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
-											</tr>
-										</thead>
-										<tbody id="management-chat-ids-tbody"></tbody>
-									</table>
-								</div>
-								<div id="management-chat-ids-empty" class="text-muted text-center py-3" style="display: none;"><%= __('telegram_api.management_chat_ids_empty') %></div>
 							</div>
 						</div>
 					</div>
 				</div>
 			</div>
 	
-
 
 			<!-- Modal: Add / Edit Chat ID -->
 			<div class="modal fade" id="modal-chat-id" tabindex="-1" aria-labelledby="modal-chat-id-label" aria-hidden="true">
@@ -159,6 +240,7 @@
 							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 						</div>
 						<div class="modal-body">
+							<input type="hidden" id="modal-chat-id-user-type">
 							<div class="mb-2">
 								<label for="input-chat-id" class="form-label"><%= __('telegram_api.chat_id') %></label>
 								<input type="text" class="form-control" id="input-chat-id">
@@ -167,53 +249,6 @@
 						<div class="modal-footer">
 							<button type="button" class="btn btn-primary" id="btn-save-chat-id"><%= __('telegram_api.save') %></button>
 							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('telegram_api.cancel') %></button>
-						
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- Modal: Add / Edit Employee Chat ID -->
-			<div class="modal fade" id="modal-employee-chat-id" tabindex="-1" aria-labelledby="modal-employee-chat-id-label" aria-hidden="true">
-				<div class="modal-dialog modal-dialog-centered">
-					<div class="modal-content">
-						<div class="modal-header">
-							<h5 class="modal-title" id="modal-employee-chat-id-label"><%= __('telegram_api.add_employee_chat_id') %></h5>
-							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-						</div>
-						<div class="modal-body">
-							<div class="mb-2">
-								<label for="input-employee-chat-id" class="form-label"><%= __('telegram_api.employee_chat_id') %></label>
-								<input type="text" class="form-control" id="input-employee-chat-id">
-							</div>
-						</div>
-						<div class="modal-footer">
-							<button type="button" class="btn btn-primary" id="btn-save-employee-chat-id"><%= __('telegram_api.save') %></button>
-							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('telegram_api.cancel') %></button>
-							
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- Modal: Add / Edit Management Chat ID -->
-			<div class="modal fade" id="modal-management-chat-id" tabindex="-1" aria-labelledby="modal-management-chat-id-label" aria-hidden="true">
-				<div class="modal-dialog modal-dialog-centered">
-					<div class="modal-content">
-						<div class="modal-header">
-							<h5 class="modal-title" id="modal-management-chat-id-label"><%= __('telegram_api.add_management_chat_id') %></h5>
-							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-						</div>
-						<div class="modal-body">
-							<div class="mb-2">
-								<label for="input-management-chat-id" class="form-label"><%= __('telegram_api.management_chat_id') %></label>
-								<input type="text" class="form-control" id="input-management-chat-id">
-							</div>
-						</div>
-						<div class="modal-footer">
-							<button type="button" class="btn btn-primary" id="btn-save-management-chat-id"><%= __('telegram_api.save') %></button>
-							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('telegram_api.cancel') %></button>
-							
 						</div>
 					</div>
 				</div>
@@ -249,27 +284,11 @@
 					delete_chat_id: "<%= __('telegram_api.delete_chat_id') %>",
 					delete_chat_id_confirm: "<%= __('telegram_api.delete_chat_id_confirm') %>",
 					deleted: "<%= __('telegram_api.deleted') %>",
-					employee_chat_ids_title: "<%= __('telegram_api.employee_chat_ids_title') %>",
-					add_employee_chat_id: "<%= __('telegram_api.add_employee_chat_id') %>",
-					edit_employee_chat_id: "<%= __('telegram_api.edit_employee_chat_id') %>",
-					employee_chat_id: "<%= __('telegram_api.employee_chat_id') %>",
-					employee_chat_ids_hint_before: "<%= __('telegram_api.employee_chat_ids_hint_before') %>",
-					employee_chat_ids_hint_after: "<%= __('telegram_api.employee_chat_ids_hint_after') %>",
-					employee_chat_ids_empty: "<%= __('telegram_api.employee_chat_ids_empty') %>",
-					enter_employee_chat_id: "<%= __('telegram_api.enter_employee_chat_id') %>",
-					delete_employee_chat_id: "<%= __('telegram_api.delete_employee_chat_id') %>",
-					delete_employee_chat_id_confirm: "<%= __('telegram_api.delete_employee_chat_id_confirm') %>",
-					management_chat_ids_title: "<%= __('telegram_api.management_chat_ids_title') %>",
-					add_management_chat_id: "<%= __('telegram_api.add_management_chat_id') %>",
-					edit_management_chat_id: "<%= __('telegram_api.edit_management_chat_id') %>",
-					management_chat_id: "<%= __('telegram_api.management_chat_id') %>",
-					management_chat_ids_hint_before: "<%= __('telegram_api.management_chat_ids_hint_before') %>",
-					management_chat_ids_hint_after: "<%= __('telegram_api.management_chat_ids_hint_after') %>",
-					management_chat_ids_empty: "<%= __('telegram_api.management_chat_ids_empty') %>",
-					enter_management_chat_id: "<%= __('telegram_api.enter_management_chat_id') %>",
-					delete_management_chat_id: "<%= __('telegram_api.delete_management_chat_id') %>",
-					delete_management_chat_id_confirm: "<%= __('telegram_api.delete_management_chat_id_confirm') %>"
+					chat_ids_title: "<%= __('telegram_api.chat_ids_title') %>",
+					chat_ids_hint_before: "<%= __('telegram_api.chat_ids_hint_before') %>",
+					chat_ids_hint_after: "<%= __('telegram_api.chat_ids_hint_after') %>",
+					chat_ids_empty: "<%= __('telegram_api.chat_ids_empty') %>"
 				};
 			</script>
 
-				<script src="/assets/js/functions/telegramAPI.js"></script>
+			<script src="/assets/js/functions/telegramAPI.js"></script>

@@ -199,7 +199,7 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			`Date: ${dateFormatted}\n` +
 			`Time: ${timeFormatted}`;
 
-		// Send Telegram notification to EMPLOYEE_CHATID
+		// Send Telegram notification to EMPLOYEE bot (CHAT_ID for USER = 'EMPLOYEE')
 		try {
 			await sendTelegramToEmployees(telegramMessage);
 		} catch (telegramError) {

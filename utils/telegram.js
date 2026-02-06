@@ -1,19 +1,27 @@
 const TelegramBot = require('node-telegram-bot-api');
 const pool = require('../config/db');
 
-let botInstance; // to avoid multiple instances
+let guestBotInstance; // GUEST bot instance
+let employeeBotInstance; // EMPLOYEE bot instance
+let managementBotInstance; // MANAGEMENT bot instance
 
-// Get active token from DB
-async function getTelegramToken() {
-  const [rows] = await pool.execute('SELECT TELEGRAM_API FROM telegram_api WHERE ACTIVE = 1');
+// Get active token from DB based on user type (GUEST, EMPLOYEE, MANAGEMENT)
+async function getTelegramToken(userType = 'GUEST') {
+  const [rows] = await pool.execute(
+    'SELECT TELEGRAM_API FROM telegram_api WHERE ACTIVE = 1 AND USER = ?',
+    [userType]
+  );
   return rows.length > 0 ? rows[0].TELEGRAM_API : null;
 }
 
-// Send a message with retry logic for network issues
+// Send a message with retry logic for network issues (GUEST bot only)
 async function sendTelegramMessage(text, telegramId, retries = 2) {
   const { default: fetch } = await import('node-fetch');
-  const token = await getTelegramToken();
-  if (!token) return;
+  const token = await getTelegramToken('GUEST');
+  if (!token) {
+    console.warn('No Telegram token found for GUEST bot');
+    return;
+  }
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   
@@ -59,43 +67,71 @@ async function sendTelegramMessage(text, telegramId, retries = 2) {
   }
 }
 
-// Get additional chat IDs (supports comma- or semicolon-separated in CHAT_ID column)
+// Get additional chat IDs for GUEST (supports comma- or semicolon-separated in CHAT_ID column)
 async function getAdditionalChatIds() {
-  const [rows] = await pool.execute('SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
+  const [rows] = await pool.execute(
+    'SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
+    ['GUEST']
+  );
   if (!rows.length || rows[0].CHAT_ID == null) return [];
   const raw = String(rows[0].CHAT_ID).trim();
   if (!raw) return [];
   return raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
 }
 
-// Send message to all additional chat IDs (groups/channels)
+// Send message to all additional chat IDs (groups/channels) using GUEST bot
 async function sendTelegramToAdditionalChats(text) {
   const chatIds = await getAdditionalChatIds();
   for (const id of chatIds) {
-    await sendTelegramMessage(text, id);
+    try {
+      await sendTelegramMessage(text, id);
+    } catch (error) {
+      console.error(`Error sending Telegram message to guest chat ID ${id}:`, error);
+      // Continue sending to other chat IDs even if one fails
+    }
   }
 }
 
-// Get employee chat IDs (supports comma- or semicolon-separated in EMPLOYEE_CHATID column)
+// Get employee chat IDs (supports comma- or semicolon-separated in CHAT_ID column for EMPLOYEE)
 async function getEmployeeChatIds() {
-  const [rows] = await pool.execute('SELECT EMPLOYEE_CHATID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
-  if (!rows.length || rows[0].EMPLOYEE_CHATID == null) return [];
-  const raw = String(rows[0].EMPLOYEE_CHATID).trim();
+  const [rows] = await pool.execute(
+    'SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
+    ['EMPLOYEE']
+  );
+  if (!rows.length || rows[0].CHAT_ID == null) return [];
+  const raw = String(rows[0].CHAT_ID).trim();
   if (!raw) return [];
   return raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
 }
 
-// Send message to all employee chat IDs
+// Send message to all employee chat IDs using EMPLOYEE bot
 async function sendTelegramToEmployees(text) {
+  const { default: fetch } = await import('node-fetch');
+  const token = await getTelegramToken('EMPLOYEE');
+  if (!token) {
+    console.warn('No Telegram token found for EMPLOYEE bot');
+    return;
+  }
+
   const chatIds = await getEmployeeChatIds();
   if (chatIds.length === 0) {
-    console.log('No employee chat IDs found in EMPLOYEE_CHATID');
+    console.log('No employee chat IDs found in CHAT_ID for EMPLOYEE');
     return;
   }
   
   for (const id of chatIds) {
     try {
-      await sendTelegramMessage(text, id);
+      const url = `https://api.telegram.org/bot${token}/sendMessage`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: id, text })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Telegram API error: ${errorData.description || response.statusText}`);
+      }
     } catch (error) {
       console.error(`Error sending Telegram message to employee chat ID ${id}:`, error);
       // Continue sending to other chat IDs even if one fails
@@ -103,26 +139,46 @@ async function sendTelegramToEmployees(text) {
   }
 }
 
-// Get management chat IDs (supports comma- or semicolon-separated in MANAGEMENT_CHATID column)
+// Get management chat IDs (supports comma- or semicolon-separated in CHAT_ID column for MANAGEMENT)
 async function getManagementChatIds() {
-  const [rows] = await pool.execute('SELECT MANAGEMENT_CHATID FROM telegram_api WHERE ACTIVE = 1 LIMIT 1');
-  if (!rows.length || rows[0].MANAGEMENT_CHATID == null) return [];
-  const raw = String(rows[0].MANAGEMENT_CHATID).trim();
+  const [rows] = await pool.execute(
+    'SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
+    ['MANAGEMENT']
+  );
+  if (!rows.length || rows[0].CHAT_ID == null) return [];
+  const raw = String(rows[0].CHAT_ID).trim();
   if (!raw) return [];
   return raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
 }
 
-// Send message to all management chat IDs
+// Send message to all management chat IDs using MANAGEMENT bot
 async function sendTelegramToManagement(text) {
+  const { default: fetch } = await import('node-fetch');
+  const token = await getTelegramToken('MANAGEMENT');
+  if (!token) {
+    console.warn('No Telegram token found for MANAGEMENT bot');
+    return;
+  }
+
   const chatIds = await getManagementChatIds();
   if (chatIds.length === 0) {
-    console.log('No management chat IDs found in MANAGEMENT_CHATID');
+    console.log('No management chat IDs found in CHAT_ID for MANAGEMENT');
     return;
   }
   
   for (const id of chatIds) {
     try {
-      await sendTelegramMessage(text, id);
+      const url = `https://api.telegram.org/bot${token}/sendMessage`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: id, text })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Telegram API error: ${errorData.description || response.statusText}`);
+      }
     } catch (error) {
       console.error(`Error sending Telegram message to management chat ID ${id}:`, error);
       // Continue sending to other chat IDs even if one fails
@@ -214,14 +270,14 @@ async function compressImage(buffer, targetSize = 9 * 1024 * 1024) {
   }
 }
 
-// Send photo with caption (accepts buffer or file path)
+// Send photo with caption (accepts buffer or file path) - GUEST bot only
 // Automatically compresses images > 10MB to fit Telegram's photo limit
 async function sendTelegramPhoto(photoBufferOrPath, filename, caption, telegramId) {
   const { default: fetch } = await import('node-fetch');
   const FormData = (await import('form-data')).default;
-  const token = await getTelegramToken();
+  const token = await getTelegramToken('GUEST');
   if (!token) {
-    console.error('Telegram token not found');
+    console.error('Telegram token not found for GUEST bot');
     return;
   }
 
@@ -281,35 +337,8 @@ async function sendTelegramPhoto(photoBufferOrPath, filename, caption, telegramI
   }
 }
 
-// Start bot globally
-async function startTelegramBot() {
-  const token = await getTelegramToken();
-  if (!token) {
-    console.error('❌ Telegram bot token not found.');
-    return;
-  }
-
-  if (botInstance) return; // Don't start twice
-
-  const bot = new TelegramBot(token, { 
-    polling: {
-      interval: 1000,
-      autoStart: true,
-      params: {
-        timeout: 30 // Increased timeout for slow internet (was 10, now 30 seconds)
-      }
-    },
-    request: {
-      agentOptions: {
-        keepAlive: true,
-        keepAliveMsecs: 30000
-      }
-    }
-  });
-  botInstance = bot;
-
-  console.log('✅ Telegram bot is running...');
-
+// Helper function to setup bot error handlers
+function setupBotErrorHandlers(bot, botType) {
   // Handle polling errors (network issues, connection resets, etc.)
   bot.on('polling_error', (error) => {
     const errorMsg = error.message || String(error);
@@ -327,19 +356,54 @@ async function startTelegramBot() {
       errorMsg.includes('ENOTFOUND');
     
     if (isNetworkError) {
-      console.warn('⚠️ Network issue detected (slow/unstable internet):', errorMsg);
+      console.warn(`⚠️ Network issue detected for ${botType} bot (slow/unstable internet):`, errorMsg);
       console.log('🔄 Bot will automatically retry. If this persists, check your internet connection.');
       // The bot will automatically retry, no need to restart manually
     } else {
-      console.error('❌ Fatal polling error:', error);
+      console.error(`❌ Fatal polling error for ${botType} bot:`, error);
     }
   });
 
   // Handle general errors
   bot.on('error', (error) => {
-    console.error('❌ Telegram bot error:', error.message);
+    console.error(`❌ Telegram ${botType} bot error:`, error.message);
   });
+}
 
+// Start GUEST bot
+async function startGuestBot() {
+  const token = await getTelegramToken('GUEST');
+  if (!token) {
+    console.error('❌ Telegram bot token not found for GUEST.');
+    return;
+  }
+
+  if (guestBotInstance) {
+    console.log('⚠️ GUEST bot already running.');
+    return;
+  }
+
+  const bot = new TelegramBot(token, { 
+    polling: {
+      interval: 1000,
+      autoStart: true,
+      params: {
+        timeout: 30 // Increased timeout for slow internet (was 10, now 30 seconds)
+      }
+    },
+    request: {
+      agentOptions: {
+        keepAlive: true,
+        keepAliveMsecs: 30000
+      }
+    }
+  });
+  guestBotInstance = bot;
+
+  console.log('✅ Telegram GUEST bot is running...');
+  setupBotErrorHandlers(bot, 'GUEST');
+
+  // Check balance functionality - uses GUEST bot only
   async function sendBalanceToUser(telegramId) {
     const connection = await pool.getConnection();
     try {
@@ -391,12 +455,12 @@ async function startTelegramBot() {
     }
   }
 
-  // Handle /checkbalance command
+  // Handle /checkbalance command (GUEST bot only)
   bot.onText(/\/checkbalance/i, (msg) => {
     sendBalanceToUser(msg.chat.id);
   });
 
-  // Handle "Check Balance" button click (with or without emoji)
+  // Handle "Check Balance" button click (with or without emoji) - GUEST bot only
   bot.onText(/(💰\s*)?Check Balance/i, (msg) => {
     sendBalanceToUser(msg.chat.id);
   });
@@ -513,6 +577,133 @@ INFINITY 컨시어지
   });
 }
 
+// Start EMPLOYEE bot
+async function startEmployeeBot() {
+  const token = await getTelegramToken('EMPLOYEE');
+  if (!token) {
+    console.error('❌ Telegram bot token not found for EMPLOYEE.');
+    return;
+  }
+
+  if (employeeBotInstance) {
+    console.log('⚠️ EMPLOYEE bot already running.');
+    return;
+  }
+
+  const bot = new TelegramBot(token, { 
+    polling: {
+      interval: 1000,
+      autoStart: true,
+      params: {
+        timeout: 30
+      }
+    },
+    request: {
+      agentOptions: {
+        keepAlive: true,
+        keepAliveMsecs: 30000
+      }
+    }
+  });
+  employeeBotInstance = bot;
+
+  console.log('✅ Telegram EMPLOYEE bot is running...');
+  setupBotErrorHandlers(bot, 'EMPLOYEE');
+
+  // Helper function to escape HTML special characters
+  function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // Get chat_id (for group or private) — type /getchatid in the chat
+  bot.onText(/\/getchatid/i, (msg) => {
+    const chatId = msg.chat.id;
+    const user = msg.from || {};
+    const userName = escapeHtml(user.first_name || '');
+    const userLastName = escapeHtml(user.last_name || '');
+    const userFullName = `${userName} ${userLastName}`.trim() || 'N/A';
+    const userUsername = user.username ? `@${user.username}` : 'N/A';
+   
+    const reply = `👤 <b>User Information (EMPLOYEE Bot)</b>\n\n` +
+      `<b>Chat ID:</b> <code>${chatId}</code>\n` +
+      `<b>Name:</b> ${userFullName}\n` +
+      `<b>Username:</b> ${userUsername}\n\n`;
+    
+    bot.sendMessage(chatId, reply, { parse_mode: 'HTML' });
+  });
+}
+
+// Start MANAGEMENT bot
+async function startManagementBot() {
+  const token = await getTelegramToken('MANAGEMENT');
+  if (!token) {
+    console.error('❌ Telegram bot token not found for MANAGEMENT.');
+    return;
+  }
+
+  if (managementBotInstance) {
+    console.log('⚠️ MANAGEMENT bot already running.');
+    return;
+  }
+
+  const bot = new TelegramBot(token, { 
+    polling: {
+      interval: 1000,
+      autoStart: true,
+      params: {
+        timeout: 30
+      }
+    },
+    request: {
+      agentOptions: {
+        keepAlive: true,
+        keepAliveMsecs: 30000
+      }
+    }
+  });
+  managementBotInstance = bot;
+
+  console.log('✅ Telegram MANAGEMENT bot is running...');
+  setupBotErrorHandlers(bot, 'MANAGEMENT');
+
+  // Helper function to escape HTML special characters
+  function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // Get chat_id (for group or private) — type /getchatid in the chat
+  bot.onText(/\/getchatid/i, (msg) => {
+    const chatId = msg.chat.id;
+    const user = msg.from || {};
+    const userName = escapeHtml(user.first_name || '');
+    const userLastName = escapeHtml(user.last_name || '');
+    const userFullName = `${userName} ${userLastName}`.trim() || 'N/A';
+    const userUsername = user.username ? `@${user.username}` : 'N/A';
+   
+    const reply = `👤 <b>User Information (MANAGEMENT Bot)</b>\n\n` +
+      `<b>Chat ID:</b> <code>${chatId}</code>\n` +
+      `<b>Name:</b> ${userFullName}\n` +
+      `<b>Username:</b> ${userUsername}\n\n`;
+    
+    bot.sendMessage(chatId, reply, { parse_mode: 'HTML' });
+  });
+}
+
+// Start all Telegram bots (GUEST, EMPLOYEE, MANAGEMENT)
+async function startTelegramBot() {
+  await startGuestBot();
+  await startEmployeeBot();
+  await startManagementBot();
+}
+
 module.exports = {
   sendTelegramMessage,
   sendTelegramToAdditionalChats,
@@ -521,5 +712,8 @@ module.exports = {
   sendTelegramToManagement,
   getManagementChatIds,
   sendTelegramPhoto,
-  startTelegramBot
+  startTelegramBot,
+  startGuestBot,
+  startEmployeeBot,
+  startManagementBot
 };
