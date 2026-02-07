@@ -323,9 +323,9 @@ router.delete('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 			return res.status(400).json({ error: 'Invalid service ID' });
 		}
 
-		// Check if service exists and has no game_id
+		// Check if service exists and has no game_id (get fields needed for account_ledger cleanup)
 		const [[existingService]] = await pool.execute(
-			`SELECT GAME_ID FROM game_services WHERE IDNo = ? AND ACTIVE = 1`,
+			`SELECT GAME_ID, TRANSACTION_ID, AMOUNT, AGENT_ID, SOURCE_TYPE FROM game_services WHERE IDNo = ? AND ACTIVE = 1`,
 			[serviceId]
 		);
 
@@ -345,6 +345,30 @@ router.delete('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 			`UPDATE game_services SET ACTIVE = 0, UPDATED_BY = ?, UPDATED_DT = ? WHERE IDNo = ?`,
 			[updatedBy, now, serviceId]
 		);
+
+		// Remove matching account_ledger entry when this was GUEST + deposit (transaction_id 2)
+		const transId = parseInt(existingService.TRANSACTION_ID, 10);
+		if (transId === 2 && (existingService.SOURCE_TYPE || '').toUpperCase() === 'GUEST' && existingService.AGENT_ID) {
+			const [accountRows] = await pool.execute(
+				`SELECT IDNo FROM account WHERE AGENT_ID = ? AND ACTIVE = 1 LIMIT 1`,
+				[existingService.AGENT_ID]
+			);
+			const accountId = (Array.isArray(accountRows) && accountRows.length > 0) ? accountRows[0].IDNo : null;
+			if (accountId) {
+				await pool.execute(
+					`DELETE FROM account_ledger
+					 WHERE ACCOUNT_ID = ? AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ?
+					 ORDER BY IDNo DESC
+					 LIMIT 1`,
+					[accountId, existingService.AMOUNT]
+				);
+			}
+		}
+
+		// Remove cash_transaction rows linked to this service (transaction_id 1 or 2 create them)
+		if (transId === 1 || transId === 2) {
+			await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ?', [serviceId]);
+		}
 
 		return res.json({ success: true });
 	} catch (err) {
