@@ -12,7 +12,7 @@
                     <span class="section-header text-center"><%= __('dashboard_marker.total_credits_issue') %></span>
                      <input  type="hidden"  id="AgentBalance" name="AgentBalance">
                     <div class="col-sm-12 mb-3">
-                        <input type="text" class="form-control text-center" name="txtTotalMarkerIssue" id="txtTotalMarkerIssue" 
+                        <input type="hidden" class="form-control text-center" name="txtTotalMarkerIssue" id="txtTotalMarkerIssue" 
                         value="  <%- ( (+sqlMarkerIssueGame[0].TOTAL_ISSUE_GAME || 0) +
                         (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
                         (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
