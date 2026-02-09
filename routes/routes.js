@@ -5519,18 +5519,21 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 
 	try {
 		if (optTransType === '12') {
+			// Use the same balance calculation logic as frontend
+			// Filter by TRANSACTION_TYPE IN (2, 5, 3) to match account_details_data_deposit endpoint
 			const checkBalanceQuery = `
-                SELECT SUM(
-                    CASE 
-                        WHEN TRANSACTION_ID = 1 THEN AMOUNT   
-                        WHEN TRANSACTION_ID = 3 THEN AMOUNT        
-                        WHEN TRANSACTION_ID = 2 THEN -AMOUNT         
-                        WHEN TRANSACTION_ID = 12 THEN -AMOUNT        
-                        ELSE 0 
-                    END
-                ) AS balance 
+                SELECT 
+                    SUM(CASE WHEN transaction_type.TRANSACTION = 'DEPOSIT' THEN account_ledger.AMOUNT ELSE 0 END) +
+                    SUM(CASE WHEN transaction_type.TRANSACTION = 'IOU CASH' THEN account_ledger.AMOUNT ELSE 0 END) +
+                    SUM(CASE WHEN transaction_type.TRANSACTION = 'MARKER REDEEM' THEN account_ledger.AMOUNT ELSE 0 END) -
+                    SUM(CASE WHEN transaction_type.TRANSACTION = 'WITHDRAW' THEN account_ledger.AMOUNT ELSE 0 END) -
+                    SUM(CASE WHEN transaction_type.TRANSACTION = 'IOU RETURN DEPOSIT' THEN account_ledger.AMOUNT ELSE 0 END)
+                AS balance 
                 FROM account_ledger 
-                WHERE ACCOUNT_ID = ?
+                JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+                WHERE account_ledger.ACCOUNT_ID = ? 
+                AND account_ledger.TRANSACTION_TYPE IN (2, 5, 3)
+                AND account_ledger.ACTIVE = 1
             `;
 
 			const [balanceResults] = await pool.query(checkBalanceQuery, [txtAccountMarker]);
