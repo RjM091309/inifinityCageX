@@ -1,5 +1,15 @@
 var agent_id;
 
+// Escape string for safe use inside JavaScript single-quoted string (prevents syntax error when name/remarks have apostrophes, newlines, etc.)
+function escapeJsString(str) {
+	if (str == null || str === undefined) return '';
+	return String(str)
+		.replace(/\\/g, '\\\\')
+		.replace(/'/g, "\\'")
+		.replace(/\r/g, '\\r')
+		.replace(/\n/g, '\\n');
+}
+
 // Cache for Telegram usernames
 var telegramUsernameCache = {};
 
@@ -81,7 +91,7 @@ $(document).ready(function () {
 					}
 					return `
 						<a href="#"
-							onclick="account_details(${row.account_id}, '${row.agent_code}', '${row.agent_name}')">
+							onclick="account_details(${row.account_id}, '${escapeJsString(row.agent_code)}', '${escapeJsString(row.agent_name)}')">
 							${row.agent_name}
 						</a>
 					`;
@@ -152,7 +162,7 @@ $(document).ready(function () {
 					return `
 						<div class="btn-group">
 							<button type="button" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled"
-								onclick="edit_agent(${row.agent_id}, '${row.agent_code}', '${row.agent_name}', '${row.agent_contact}', '${row.agent_telegram}', '${row.agent_remarks}')">
+								onclick="edit_agent(${row.agent_id}, '${escapeJsString(row.agent_code)}', '${escapeJsString(row.agent_name)}', '${escapeJsString(row.agent_contact)}', '${escapeJsString(row.agent_telegram)}', '${escapeJsString(row.agent_remarks)}')">
 								<i class="fa fa-pencil-alt"></i>
 							</button>
 							<button type="button" 
