@@ -181,25 +181,59 @@ $(document).ready(function () {
             type: 'POST',
             data: formData,
             success: function (response) {
-                Swal.fire({
-                    title: 'Success!',
-                    text: 'Transfer was successful.',
-                    icon: 'success',
-                    confirmButtonText: 'OK'
-                }).then(() => {
-                    $('#modal-transfer_account').modal('hide');
-                    window.location.reload();
-                });
+                // Check if response is JSON (new format) or redirect (old format)
+                if (typeof response === 'object' && response.success) {
+                    // Check if there are Telegram errors
+                    if (response.errors && response.errors.length > 0) {
+                        // Show warning with Telegram errors
+                        var errorList = response.errors.map(function(err) {
+                            return '• ' + err;
+                        }).join('<br>');
+                        
+                        Swal.fire({
+                            title: 'Transfer Saved!',
+                            html: '<strong>Transfer was successful, but Telegram notifications failed:</strong><br><br>' + errorList,
+                            icon: 'warning',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#3085d6'
+                        }).then(() => {
+                            $('#modal-transfer_account').modal('hide');
+                            window.location.reload();
+                        });
+                    } else {
+                        // Success without errors
+                        Swal.fire({
+                            title: 'Success!',
+                            text: response.message || 'Transfer was successful.',
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        }).then(() => {
+                            $('#modal-transfer_account').modal('hide');
+                            window.location.reload();
+                        });
+                    }
+                } else {
+                    // Old format - redirect response
+                    Swal.fire({
+                        title: 'Success!',
+                        text: 'Transfer was successful.',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        $('#modal-transfer_account').modal('hide');
+                        window.location.reload();
+                    });
+                }
             },
             error: function (xhr, status, error) {
-                var errorMessage = xhr.responseJSON ? xhr.responseJSON.error : 'Something went wrong!';
+                var errorMessage = xhr.responseJSON ? (xhr.responseJSON.error || xhr.responseJSON.message) : 'Something went wrong!';
                 Swal.fire({
                     title: 'Error!',
                     text: errorMessage,
                     icon: 'error',
                     confirmButtonText: 'OK'
                 });
-                console.error('Error updating user role:', error);
+                console.error('Error processing transfer:', error);
             },
             complete: function () {
                 // Re-enable submit button after request completes
@@ -723,30 +757,58 @@ function bindAccountDetailsForm({ formSelector, amountSelector, remarksSelector,
 			url: '/add_account_details',
 			type: 'POST',
 			data: formData,
-			success: function () {
-				Swal.fire({
-					title: 'Success!!!',
-					icon: 'success',
-					confirmButtonText: 'OK'
-				}).then(() => {
-					reloadDataDetails();
-					if (modalElement.length) {
-						modalElement.modal('show');
-					}
+			success: function (response) {
+				// Check if response is JSON (with Telegram error) or plain text (success)
+				if (typeof response === 'object' && response.success && response.error) {
+					// Transaction saved but Telegram failed
+					Swal.fire({
+						title: 'Transaction Saved!',
+						html: '<strong>' + response.message + '</strong><br><br>' + response.error,
+						icon: 'warning',
+						confirmButtonText: 'OK',
+						confirmButtonColor: '#3085d6'
+					}).then(() => {
+						reloadDataDetails();
+						if (modalElement.length) {
+							modalElement.modal('show');
+						}
 
-					$form.find(amountSelector).val('');
-					$form.find(remarksSelector).val('');
-					$form.find('input[name="txtTrans"]').prop('checked', false);
+						$form.find(amountSelector).val('');
+						$form.find(remarksSelector).val('');
+						$form.find('input[name="txtTrans"]').prop('checked', false);
 
-					if (modalElement.length) {
-						modalElement.off('hidden.bs.modal').on('hidden.bs.modal', function () {
-							window.location.reload();
-						});
-					}
-				});
+						if (modalElement.length) {
+							modalElement.off('hidden.bs.modal').on('hidden.bs.modal', function () {
+								window.location.reload();
+							});
+						}
+					});
+				} else {
+					// Success without errors
+					Swal.fire({
+						title: 'Success!!!',
+						icon: 'success',
+						confirmButtonText: 'OK'
+					}).then(() => {
+						reloadDataDetails();
+						if (modalElement.length) {
+							modalElement.modal('show');
+						}
+
+						$form.find(amountSelector).val('');
+						$form.find(remarksSelector).val('');
+						$form.find('input[name="txtTrans"]').prop('checked', false);
+
+						if (modalElement.length) {
+							modalElement.off('hidden.bs.modal').on('hidden.bs.modal', function () {
+								window.location.reload();
+							});
+						}
+					});
+				}
 			},
 			error: function (xhr, status, error) {
-				var errorMessage = xhr.responseJSON?.error || 'An error occurred.';
+				var errorMessage = xhr.responseJSON?.error || xhr.responseJSON?.message || 'An error occurred.';
 				console.error('Error updating user role:', errorMessage);
 				Swal.fire({
 					icon: 'error',

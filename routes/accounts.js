@@ -647,6 +647,8 @@ router.post('/add_account_details', async (req, res) => {
 
 				const text = `Infinity Cage\n\n* ${transaction} *\n\nAccount: ${guestAccountNum} - ${guestName}\nAmount: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString()}\nAccount Balance: ${parseFloat(totalBalance).toLocaleString()}\n${remarksLine}\nDate: ${date_nowTG}\nTime: ${updated_time}`;
 
+				let telegramError = null;
+
 				if (sendToTelegram) {
 					// Check if TELEGRAM_ID exists and is valid before sending
 					if (telegramId && telegramId !== null && telegramId !== '') {
@@ -655,13 +657,43 @@ router.post('/add_account_details', async (req, res) => {
 							await sendTelegramMessage(text, telegramId);
 							// Send to all additional chat IDs (groups/channels) — supports comma-separated CHAT_ID
 							await sendTelegramToAdditionalChats(text);
-						} catch (telegramError) {
-							// Log error but don't fail the transaction
-							console.error('Error sending Telegram message (transaction still saved):', telegramError.message);
+						} catch (telegramErr) {
+							// Check for specific Telegram error types
+							const errorMsg = telegramErr.message || '';
+							let specificError = '';
+							
+							if (errorMsg.includes('chat not found')) {
+								specificError = `Wrong or Invalid Telegram Chat ID for account: ${guestAccountNum} - ${guestName}. The user may not have started a conversation with the bot. Please ask them to send /start to the bot first.`;
+							} else if (errorMsg.includes('Bad Request')) {
+								specificError = `Wrong Telegram Chat ID format for account: ${guestAccountNum} - ${guestName}. The Chat ID may be incorrect or invalid.`;
+							} else if (errorMsg.includes('Forbidden')) {
+								specificError = `Telegram message blocked for account: ${guestAccountNum} - ${guestName}. The user may have blocked the bot.`;
+							} else if (errorMsg.includes('Unauthorized')) {
+								specificError = `Telegram bot authorization failed for account: ${guestAccountNum} - ${guestName}. Please check bot configuration.`;
+							} else if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
+								specificError = `Telegram connection timeout for account: ${guestAccountNum} - ${guestName}. Please try again later.`;
+							} else if (errorMsg.includes('network') || errorMsg.includes('ECONN')) {
+								specificError = `Telegram network error for account: ${guestAccountNum} - ${guestName}. Please check internet connection.`;
+							} else {
+								specificError = `Failed to send Telegram message to account: ${guestAccountNum} - ${guestName}. Error: ${errorMsg}`;
+							}
+							
+							telegramError = specificError;
+							console.error('Error sending Telegram message (transaction still saved):', telegramErr.message);
 						}
 					} else {
+						telegramError = `Missing or Invalid Telegram ID for account: ${guestAccountNum} - ${guestName}. Please add a valid Telegram Chat ID in the account settings.`;
 						console.warn('Telegram ID is missing or invalid, skipping Telegram notification');
 					}
+				}
+
+				// Return error if Telegram failed, otherwise success
+				if (telegramError) {
+					return res.status(200).json({ 
+						success: true, 
+						message: 'Transaction completed successfully, but Telegram notification failed.',
+						error: telegramError
+					});
 				}
 
 				res.send('Form submitted and message sent successfully!');
@@ -737,15 +769,30 @@ router.post('/check_balance/:accountId', async (req, res) => {
 			await sendTelegramToAdditionalChats(message);
 			res.json({ success: true });
 		} catch (telegramError) {
-			// Check if it's a "chat not found" error
-			if (telegramError.message && telegramError.message.includes('chat not found')) {
-				return res.status(400).json({ 
-					success: false, 
-					message: 'Telegram chat not found. The user may not have started a conversation with the bot. Please ask them to send /start to the bot first.' 
-				});
+			// Check for specific Telegram error types
+			const errorMsg = telegramError.message || '';
+			let specificError = '';
+			
+			if (errorMsg.includes('chat not found')) {
+				specificError = `Wrong or Invalid Telegram Chat ID for account: ${AGENT_CODE} - ${NAME}. The user may not have started a conversation with the bot. Please ask them to send /start to the bot first.`;
+			} else if (errorMsg.includes('Bad Request')) {
+				specificError = `Wrong Telegram Chat ID format for account: ${AGENT_CODE} - ${NAME}. The Chat ID may be incorrect or invalid.`;
+			} else if (errorMsg.includes('Forbidden')) {
+				specificError = `Telegram message blocked for account: ${AGENT_CODE} - ${NAME}. The user may have blocked the bot.`;
+			} else if (errorMsg.includes('Unauthorized')) {
+				specificError = `Telegram bot authorization failed for account: ${AGENT_CODE} - ${NAME}. Please check bot configuration.`;
+			} else if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
+				specificError = `Telegram connection timeout for account: ${AGENT_CODE} - ${NAME}. Please try again later.`;
+			} else if (errorMsg.includes('network') || errorMsg.includes('ECONN')) {
+				specificError = `Telegram network error for account: ${AGENT_CODE} - ${NAME}. Please check internet connection.`;
+			} else {
+				specificError = `Failed to send Telegram message to account: ${AGENT_CODE} - ${NAME}. Error: ${errorMsg}`;
 			}
-			// Re-throw other errors to be caught by outer catch
-			throw telegramError;
+			
+			return res.status(400).json({ 
+				success: false, 
+				message: specificError
+			});
 		}
 	} catch (err) {
 		console.error('Balance check error:', err);
@@ -841,6 +888,9 @@ router.post('/add_account_details/transfer', async (req, res) => {
         `;
 		const [telegramIdResultsTo] = await pool.query(telegramIdQueryTo, [txtAccount]);
 
+		// Collect Telegram errors
+		const telegramErrors = [];
+
 		// Prepare and send messages for the account from which the transfer is made
 		if (telegramIdResultsFrom.length > 0) {
 			for (const resultFrom of telegramIdResultsFrom) {
@@ -848,6 +898,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 
 				// Check if TELEGRAM_ID exists and is valid before sending
 				if (!TELEGRAM_ID_FROM || TELEGRAM_ID_FROM === null || TELEGRAM_ID_FROM === '') {
+					telegramErrors.push(`Missing or Invalid Telegram ID for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. Please add a valid Telegram Chat ID in the account settings.`);
 					console.warn(`Telegram ID missing for sender account ${AGENT_CODE_FROM}, skipping Telegram notification`);
 					continue;
 				}
@@ -867,7 +918,27 @@ router.post('/add_account_details/transfer', async (req, res) => {
 					await sendTelegramMessage(textFrom, TELEGRAM_ID_FROM);
 					await sendTelegramToAdditionalChats(textFrom);
 				} catch (telegramError) {
-					// Log error but don't fail the transaction
+					// Check for specific Telegram error types
+					const errorMsg = telegramError.message || '';
+					let specificError = '';
+					
+					if (errorMsg.includes('chat not found')) {
+						specificError = `Wrong or Invalid Telegram Chat ID for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. The user may not have started a conversation with the bot. Please ask them to send /start to the bot first.`;
+					} else if (errorMsg.includes('Bad Request')) {
+						specificError = `Wrong Telegram Chat ID format for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. The Chat ID may be incorrect or invalid.`;
+					} else if (errorMsg.includes('Forbidden')) {
+						specificError = `Telegram message blocked for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. The user may have blocked the bot.`;
+					} else if (errorMsg.includes('Unauthorized')) {
+						specificError = `Telegram bot authorization failed for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. Please check bot configuration.`;
+					} else if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
+						specificError = `Telegram connection timeout for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. Please try again later.`;
+					} else if (errorMsg.includes('network') || errorMsg.includes('ECONN')) {
+						specificError = `Telegram network error for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. Please check internet connection.`;
+					} else {
+						specificError = `Failed to send Telegram message to sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. Error: ${errorMsg}`;
+					}
+					
+					telegramErrors.push(specificError);
 					console.error(`Error sending Telegram message to sender (transfer still saved):`, telegramError.message);
 				}
 			}
@@ -880,6 +951,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 
 				// Check if TELEGRAM_ID exists and is valid before sending
 				if (!TELEGRAM_ID_TO || TELEGRAM_ID_TO === null || TELEGRAM_ID_TO === '') {
+					telegramErrors.push(`Missing or Invalid Telegram ID for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. Please add a valid Telegram Chat ID in the account settings.`);
 					console.warn(`Telegram ID missing for receiver account ${AGENT_CODE_TO}, skipping Telegram notification`);
 					continue;
 				}
@@ -898,13 +970,48 @@ router.post('/add_account_details/transfer', async (req, res) => {
 					await sendTelegramMessage(textTo, TELEGRAM_ID_TO);
 					await sendTelegramToAdditionalChats(textTo);
 				} catch (telegramError) {
-					// Log error but don't fail the transaction
+					// Check for specific Telegram error types
+					const errorMsg = telegramError.message || '';
+					let specificError = '';
+					
+					if (errorMsg.includes('chat not found')) {
+						specificError = `Wrong or Invalid Telegram Chat ID for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. The user may not have started a conversation with the bot. Please ask them to send /start to the bot first.`;
+					} else if (errorMsg.includes('Bad Request')) {
+						specificError = `Wrong Telegram Chat ID format for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. The Chat ID may be incorrect or invalid.`;
+					} else if (errorMsg.includes('Forbidden')) {
+						specificError = `Telegram message blocked for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. The user may have blocked the bot.`;
+					} else if (errorMsg.includes('Unauthorized')) {
+						specificError = `Telegram bot authorization failed for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. Please check bot configuration.`;
+					} else if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
+						specificError = `Telegram connection timeout for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. Please try again later.`;
+					} else if (errorMsg.includes('network') || errorMsg.includes('ECONN')) {
+						specificError = `Telegram network error for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. Please check internet connection.`;
+					} else {
+						specificError = `Failed to send Telegram message to receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. Error: ${errorMsg}`;
+					}
+					
+					telegramErrors.push(specificError);
 					console.error(`Error sending Telegram message to receiver (transfer still saved):`, telegramError.message);
 				}
 			}
 		}
 
-		res.redirect('/account_ledger');
+		// Return JSON response (frontend will handle redirect)
+		if (telegramErrors.length > 0) {
+			return res.status(200).json({ 
+				success: true, 
+				message: 'Transfer completed successfully, but there were Telegram notification errors.',
+				errors: telegramErrors,
+				redirect: '/account_ledger'
+			});
+		}
+
+		// Return success JSON (frontend will handle redirect)
+		return res.status(200).json({ 
+			success: true, 
+			message: 'Transfer completed successfully.',
+			redirect: '/account_ledger'
+		});
 	} catch (error) {
 		console.error('Error inserting details or sending message:', error);
 		res.status(500).send('Error processing request.');
