@@ -1,5 +1,40 @@
 var agent_id;
 
+// Cache for Telegram usernames
+var telegramUsernameCache = {};
+
+// Function to fetch Telegram username from chat ID
+function fetchTelegramUsername(chatId, userType) {
+	if (!chatId || chatId === '' || chatId === null) {
+		return Promise.resolve(null);
+	}
+
+	// Return cached value if available
+	if (telegramUsernameCache[chatId]) {
+		return Promise.resolve(telegramUsernameCache[chatId]);
+	}
+
+	return new Promise(function(resolve) {
+		$.ajax({
+			url: '/telegramAPI/chat-info/' + (userType || 'GUEST') + '/' + encodeURIComponent(chatId),
+			method: 'GET',
+			success: function(data) {
+				if (data && data.chat && data.chat.username) {
+					telegramUsernameCache[chatId] = data.chat.username;
+					resolve(data.chat.username);
+				} else {
+					telegramUsernameCache[chatId] = null;
+					resolve(null);
+				}
+			},
+			error: function() {
+				telegramUsernameCache[chatId] = null;
+				resolve(null);
+			}
+		});
+	});
+}
+
 $(document).ready(function () {
 	if ($.fn.DataTable.isDataTable('#agent-tbl')) {
 		$('#agent-tbl').DataTable().destroy();
@@ -55,7 +90,24 @@ $(document).ready(function () {
 			{ data: 'agent_code' },
 			{ data: 'agency_name' },
 			{ data: 'agent_contact' },
-			{ data: 'agent_telegram' },
+			{
+				data: 'agent_telegram',
+				render: function (data, type, row) {
+					if (type !== 'display') {
+						return data || '';
+					}
+					
+					if (!data || data === '' || data === null) {
+						return '';
+					}
+
+					// Create a unique ID for this cell
+					const cellId = 'telegram-' + row.agent_id + '-' + row.account_id;
+					
+					// Return cell with ID for later username update
+					return '<span id="' + cellId + '">' + data + '</span>';
+				}
+			},
 			{ data: 'agent_remarks' },
 			{
 				data: 'LATEST_GAME_DATE',
@@ -114,7 +166,29 @@ $(document).ready(function () {
 			}
 		],
 		drawCallback: function () {
-			// Hook available if totals need to be recalculated on draw/search
+			// Fetch Telegram usernames for all visible rows after table draw
+			const api = this.api();
+			const rows = api.rows({ page: 'current' }).nodes();
+			
+			$(rows).each(function() {
+				const row = api.row(this).data();
+				if (row && row.agent_telegram) {
+					const cellId = 'telegram-' + row.agent_id + '-' + row.account_id;
+					const $cell = $('#' + cellId);
+					
+					if ($cell.length && !$cell.data('username-fetched')) {
+						$cell.data('username-fetched', true);
+						fetchTelegramUsername(row.agent_telegram, 'GUEST').then(function(username) {
+							if (username) {
+								const currentText = $cell.text().trim();
+								if (currentText && !currentText.includes('@')) {
+									$cell.html(currentText + ' <span class="text-muted">(@' + username + ')</span>');
+								}
+							}
+						});
+					}
+				}
+			});
 		}
 	});
 

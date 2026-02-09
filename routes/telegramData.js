@@ -94,6 +94,12 @@ router.get('/telegramAPI/chat-info/:userType/:chatId', checkSession, async (req,
 			const payload = await response.json();
 
 			if (!payload.ok) {
+				// Don't log as error for "chat not found" - this is expected for invalid/missing chat IDs
+				if (payload.error_code === 400 && payload.description && payload.description.includes('chat not found')) {
+					// Silently return empty result - username will just not be displayed
+					return res.json({ chat: null });
+				}
+				// Only log actual errors (not "chat not found")
 				console.error('Telegram getChat failed:', payload);
 				return res.status(502).json({ message: 'Failed to fetch chat details', details: payload });
 			}

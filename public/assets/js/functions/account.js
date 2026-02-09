@@ -7,6 +7,79 @@ var currentAccountBalance = 0;
 var accountDetailsDataTable = null;
 var currentAccountDetailsId = null;
 
+// Cache for Telegram usernames
+var telegramUsernameCache = {};
+
+// Function to fetch Telegram username from chat ID
+function fetchTelegramUsername(chatId, userType) {
+	if (!chatId || chatId === '' || chatId === null) {
+		return Promise.resolve(null);
+	}
+
+	// Return cached value if available
+	if (telegramUsernameCache[chatId]) {
+		return Promise.resolve(telegramUsernameCache[chatId]);
+	}
+
+	return new Promise(function(resolve) {
+		$.ajax({
+			url: '/telegramAPI/chat-info/' + (userType || 'GUEST') + '/' + encodeURIComponent(chatId),
+			method: 'GET',
+			success: function(data) {
+				if (data && data.chat && data.chat.username) {
+					telegramUsernameCache[chatId] = data.chat.username;
+					resolve(data.chat.username);
+				} else {
+					telegramUsernameCache[chatId] = null;
+					resolve(null);
+				}
+			},
+			error: function() {
+				telegramUsernameCache[chatId] = null;
+				resolve(null);
+			}
+		});
+	});
+}
+
+// Function to update Telegram usernames in the table
+function updateTelegramUsernames() {
+	const table = $('#modal-account-tbl').DataTable();
+	if (!table) return;
+	
+	const rows = table.rows({ page: 'current' }).nodes();
+	
+	$(rows).each(function() {
+		const $row = $(this);
+		const $telegramCell = $row.find('td').eq(2); // TELEGRAM CHAT ID is column index 2
+		
+		if ($telegramCell.length) {
+			const $span = $telegramCell.find('span[id^="telegram-modal-"]');
+			
+			if ($span.length) {
+				const cellId = $span.attr('id');
+				const chatId = $span.text().trim();
+				
+				if (chatId && cellId && !$span.data('username-fetched')) {
+					$span.data('username-fetched', true);
+					
+					fetchTelegramUsername(chatId, 'GUEST').then(function(username) {
+						if (username) {
+							const $targetSpan = $('#' + cellId);
+							if ($targetSpan.length) {
+								const currentText = $targetSpan.text().trim();
+								if (currentText && !currentText.includes('@')) {
+									$targetSpan.html(currentText + ' <span class="text-muted">(@' + username + ')</span>');
+								}
+							}
+						}
+					});
+				}
+			}
+		}
+	});
+}
+
 $(document).ready(function () {
     if ($.fn.DataTable.isDataTable('#modal-account-tbl')) {
         $('#modal-account-tbl').DataTable().destroy();
@@ -40,6 +113,9 @@ $(document).ready(function () {
 			} else {
 				$('#SUB_TOTAL_SUM_VALUE').closest('tr').hide();
 			}
+			
+			// Update Telegram usernames after table draw
+			updateTelegramUsernames();
 		}
     });
 	
@@ -91,19 +167,43 @@ $(document).ready(function () {
 						? `<a href="#" onclick="account_details(${row.account_id}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code}</a>`
 						: `<span>${row.agent_code}</span>`;
 
-					dataTable.row.add([
+					// Create unique ID for Telegram cell
+					const telegramCellId = 'telegram-modal-' + row.agent_id + '-' + row.account_id;
+					const telegramDisplay = row.agent_telegram 
+						? `<span id="${telegramCellId}">${row.agent_telegram}</span>`
+						: '';
+
+					const rowNode = dataTable.row.add([
 						`${row.agent_name}`,
 						account_no,
-						`${row.agent_telegram}`,
+						telegramDisplay,
 						`${row.agent_contact}`,
 						`${row.agent_remarks}`,
 						`₱${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
 						btn
-					]);
+					]).node();
+
+					// Fetch username immediately for this row
+					if (row.agent_telegram) {
+						fetchTelegramUsername(row.agent_telegram, 'GUEST').then(function(username) {
+							if (username) {
+								const $span = $('#' + telegramCellId);
+								if ($span.length) {
+									const currentText = $span.text().trim();
+									if (currentText && !currentText.includes('@')) {
+										$span.html(currentText + ' <span class="text-muted">(@' + username + ')</span>');
+									}
+								}
+							}
+						});
+					}
 				});
 
 				dataTable.draw();
 				$('#TOTAL_SUM_VALUE').text(`₱${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
+				
+				// Update Telegram usernames after data is loaded (for any rows that weren't updated during add)
+				updateTelegramUsernames();
 			},
 			error: function (xhr, status, error) {
 				console.error('Error fetching data:', error);
