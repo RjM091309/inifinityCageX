@@ -169,7 +169,13 @@ $(document).ready(function() {
                                     var total_initial = total_nn_init + total_cc_init;
                                     var total_buy_in_chips = total_nn + total_cc;
                                     var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
-                                    var total_rolling_chips = total_rolling_nn + total_rolling_cc + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc - total_cash_out_nn;
+                                    // TOTAL ROLLING: Follow same logic as game_list_data (reloadData function)
+                                    // Formula: total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn
+                                    // Note: CC chips from CAGE_TYPE == 3 (TOTAL ROLLING) should NOT be included
+                                    // Note: CC chips from CAGE_TYPE == 4 (REAL ROLLING) SHOULD be included
+                                    // Note: Buy-in amounts are NOT included here - they are separate from rolling transactions
+                                    var totalRollingCCWithReturns = total_roller_return_cc;  // Only include roller return CC, exclude CC from CAGE_TYPE == 3
+                                    var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 
                                     var gross = total_buy_in - total_cash_out;
                                     var total_amount = total_buy_in_chips + total_initial;

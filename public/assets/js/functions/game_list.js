@@ -331,7 +331,9 @@ $(document).ready(function () {
                             // TOTAL ROLLING: exclude roller chip movements (ADD/RETURN)
                             // CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
                             // CC chips don't affect rolling (CC chips are winnings from dealer, not played chips)
-							var totalRollingCCWithReturns = total_rolling_cc + total_roller_return_cc;
+                            // Note: CC chips from CAGE_TYPE == 3 (TOTAL ROLLING) should NOT be included
+                            // Note: Buy-in amounts are NOT included here - they are separate from rolling transactions
+							var totalRollingCCWithReturns = total_roller_return_cc;  // Only include roller return CC, exclude CC from CAGE_TYPE == 3
                             var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 	
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
@@ -2577,6 +2579,7 @@ function reloadDataRecord() {
             let total_rolling_real = 0;
             let total_rolling_nn_real = 0;
             let total_rolling_cc_real = 0;
+            let total_roller_return_cc = 0;
             let hasInitialBuyIn = false;
 
             const mergedData = {};
@@ -2606,11 +2609,16 @@ function reloadDataRecord() {
                 if (!mergedData[dateKey]) {
                     mergedData[dateKey] = {
                         buy_in: 0,
+                        buy_in_nn: 0,  // Track NN chips separately for buy-in
                         additional_buyin: 0,
+                        additional_buyin_nn: 0,  // Track NN chips separately for additional buy-in
                         cash_out: 0,
                         cash_out_nn: 0,
                         real_rolling: 0,
                         total_rolling: 0,
+                        total_rolling_for_calc: 0,  // CAGE_TYPE 3: AMOUNT + NN only (no CC)
+                        real_rolling_for_calc: 0,  // CAGE_TYPE 4: AMOUNT + NN + CC
+                        roller_return_cc: 0,  // Roller return CC for this row
                         nn: 0,
                         cc: 0,
                         roller_nn: 0,
@@ -2628,11 +2636,13 @@ function reloadDataRecord() {
                     if (hasInitialBuyIn) {
                         // This is an additional buy-in
                         mergedData[dateKey].additional_buyin += buyInAmount;
+                        mergedData[dateKey].additional_buyin_nn += (row.NN_CHIPS || 0);  // Track NN separately
                         total_nn += (row.NN_CHIPS || 0);
                         total_cc += (row.CC_CHIPS || 0);
                     } else {
                         // This is the initial buy-in
                         mergedData[dateKey].buy_in += buyInAmount;
+                        mergedData[dateKey].buy_in_nn += (row.NN_CHIPS || 0);  // Track NN separately
                         total_nn_init += (row.NN_CHIPS || 0);
                         total_cc_init += (row.CC_CHIPS || 0);
                         hasInitialBuyIn = true;
@@ -2651,6 +2661,8 @@ function reloadDataRecord() {
                 if (row.CAGE_TYPE == 3) { // TOTAL ROLLING
                     const rollingAmount = (row.AMOUNT || 0) + (row.NN_CHIPS || 0) + (row.CC_CHIPS || 0);
                     mergedData[dateKey].total_rolling += rollingAmount;
+                    // For calculation: AMOUNT + NN only (exclude CC chips)
+                    mergedData[dateKey].total_rolling_for_calc += (row.AMOUNT || 0) + (row.NN_CHIPS || 0);
                     total_rolling += (row.AMOUNT || 0);
                     total_rolling_nn += (row.NN_CHIPS || 0);
                     total_rolling_cc += (row.CC_CHIPS || 0);
@@ -2661,6 +2673,8 @@ function reloadDataRecord() {
                 if (row.CAGE_TYPE == 4) { // REAL ROLLING
                     const realRollingAmount = (row.AMOUNT || 0) + (row.NN_CHIPS || 0) + (row.CC_CHIPS || 0);
                     mergedData[dateKey].real_rolling += realRollingAmount;
+                    // For calculation: AMOUNT + NN + CC (all included)
+                    mergedData[dateKey].real_rolling_for_calc += (row.AMOUNT || 0) + (row.NN_CHIPS || 0) + (row.CC_CHIPS || 0);
                     total_rolling_real += (row.AMOUNT || 0);
                     total_rolling_nn_real += (row.NN_CHIPS || 0);
                     total_rolling_cc_real += (row.CC_CHIPS || 0);
@@ -2683,6 +2697,8 @@ function reloadDataRecord() {
                         // RETURN - subtract the values
                         mergedData[dateKey].roller_nn -= (row.ROLLER_NN_CHIPS || 0);
                         mergedData[dateKey].roller_cc -= (row.ROLLER_CC_CHIPS || 0);
+                        mergedData[dateKey].roller_return_cc += (row.ROLLER_CC_CHIPS || 0);  // Track roller return CC for this row
+                        total_roller_return_cc += (row.ROLLER_CC_CHIPS || 0);  // Track roller return CC for total rolling
                     }
                 }
             });
@@ -2720,20 +2736,26 @@ function reloadDataRecord() {
             // Calculate total roller chips
             let totalRollerChips = totalRollerNN + totalRollerCC;
             
-            // Compute running total rolling:
-            // buy-in + add'l buy-in + real rolling - cash out (NN only)
+            // Compute running total rolling: Follow same logic as game_list_data (reloadData function)
+            // Formula: total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn
+            // Note: Buy-in amounts are NOT included here - they are separate from rolling transactions
+            // Note: CC chips from CAGE_TYPE == 3 (TOTAL ROLLING) should NOT be included
+            // Note: CC chips from CAGE_TYPE == 4 (REAL ROLLING) SHOULD be included
+            var totalRollingCCWithReturns = total_roller_return_cc;  // Only include roller return CC, exclude CC from CAGE_TYPE == 3
+            var total_rolling_chips_calc = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+            
+            // Compute running total rolling for display (per row):
+            // Follow same logic as game_list_data: CAGE_TYPE 3 (AMOUNT + NN, no CC) + CAGE_TYPE 4 (AMOUNT + NN + CC) + roller return CC - cash out NN
             let runningTotalRolling = 0;
             for (const date of sortedDates) {
                 const rowData = mergedData[date];
                 const cashOutNN = rowData.cash_out_nn || 0;
-                runningTotalRolling +=
-                    rowData.buy_in +
-                    rowData.additional_buyin +
-                    rowData.real_rolling -
-                    cashOutNN;
+                // Calculate rolling for this row following game_list_data logic
+                const rowRolling = (rowData.total_rolling_for_calc || 0) + (rowData.real_rolling_for_calc || 0) + (rowData.roller_return_cc || 0) - cashOutNN;
+                runningTotalRolling += rowRolling;
                 rowData.total_rolling_actual = runningTotalRolling;
             }
-            totalRolling = runningTotalRolling;
+            totalRolling = total_rolling_chips_calc;  // Use the calculated total (matches game_list_data formula)
 
             // Prepare all rows data
             const allRows = [];
@@ -3721,8 +3743,12 @@ $(document).ready(function () {
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
 							// TOTAL ROLLING: exclude roller chip movements (ADD/RETURN)
 							// CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
-							var totalRollingCCWithReturns = total_rolling_cc + total_roller_return_cc;
-							var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+							// CC chips don't affect rolling (CC chips are winnings from dealer, not played chips)
+							// Note: CC chips from CAGE_TYPE == 3 (TOTAL ROLLING) should NOT be included
+							// Buy-in amounts (NN only) should be included in total rolling
+							var totalRollingCCWithReturns = total_roller_return_cc;  // Only include roller return CC, exclude CC from CAGE_TYPE == 3
+							var buy_in_nn_total = total_nn_init + total_nn;  // NN chips from initial buy-in + additional buy-in
+							var total_rolling_chips = buy_in_nn_total + total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
 							var total_roller_chips = total_roller_nn + total_roller_cc;
@@ -4129,10 +4155,14 @@ function settlement_history(record_id, acc_id) {
 							var total_initial = total_nn_init + total_cc_init;
 							var total_buy_in_chips = total_nn + total_cc;
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
-							// TOTAL ROLLING: exclude roller chip movements (ADD/RETURN)
-							// CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
-							var totalRollingCCWithReturns = total_rolling_cc + total_roller_return_cc;
-							var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+							// TOTAL ROLLING: Follow same logic as game_record (reloadDataRecord function)
+							// Formula: buy-in NN (initial + additional) + real rolling (CAGE_TYPE == 4: AMOUNT + NN + CC) - cash out NN
+							// Note: CAGE_TYPE == 3 (TOTAL ROLLING) is NOT included
+							// Note: CC chips from CAGE_TYPE == 1 (BUY-IN) should NOT be included (only NN chips)
+							// Note: CC chips from CAGE_TYPE == 4 (REAL ROLLING) SHOULD be included (via real_rolling)
+							var buy_in_nn_total = total_nn_init + total_nn;  // NN chips from initial buy-in + additional buy-in
+							var real_rolling_total = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real;  // AMOUNT + NN + CC from CAGE_TYPE == 4
+							var total_rolling_chips = buy_in_nn_total + real_rolling_total - total_cash_out_nn;
 					
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
 					
