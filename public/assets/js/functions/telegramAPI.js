@@ -185,15 +185,33 @@ $(document).ready(function () {
             url: '/telegramAPI_data',
             method: 'GET',
             success: function (data) {
+                console.log('Telegram API data loaded:', data);
                 if (data && Array.isArray(data)) {
                     data.forEach(function(row) {
-                        const userType = row.USER || 'GUEST';
+                        // Normalize userType to uppercase to match botData keys
+                        const userType = (row.USER || 'GUEST').toUpperCase();
+                        const inputId = '#telegramAPI-' + userType.toLowerCase();
+                        const botIdInputId = '#botId-' + userType.toLowerCase();
+                        
+                        // Set values regardless of botData check (but still update botData if it exists)
+                        if (row.TELEGRAM_API) {
+                            $(inputId).val(row.TELEGRAM_API);
+                            console.log('Set token for', userType, ':', row.TELEGRAM_API.substring(0, 20) + '...');
+                        }
+                        
+                        if (row.IDNo) {
+                            $(botIdInputId).val(row.IDNo);
+                        }
+                        
+                        // Update botData if userType exists
                         if (botData[userType]) {
                             botData[userType].id = row.IDNo;
-                            $('#telegramAPI-' + userType.toLowerCase()).val(row.TELEGRAM_API || '');
-                            $('#botId-' + userType.toLowerCase()).val(row.IDNo || '');
+                        } else {
+                            console.warn('Unknown userType:', userType, 'Expected one of:', Object.keys(botData));
                         }
                     });
+                } else {
+                    console.warn('Invalid data format received:', data);
                 }
                 // Load bot details and chat IDs for all user types
                 userTypes.forEach(function(userType) {
@@ -202,7 +220,7 @@ $(document).ready(function () {
                 });
             },
             error: function (xhr, status, error) {
-                console.error('Error fetching data:', error);
+                console.error('Error fetching Telegram API data:', error, xhr);
             }
         });
     }
@@ -211,13 +229,28 @@ $(document).ready(function () {
     $('.update-telegram-api-form').submit(function (event) {
         event.preventDefault();
         const userType = $(this).data('user-type') || 'GUEST';
-        const formData = $(this).serialize();
+        const txtTelegramAPI = $(this).find('[name="txtTelegramAPI"]').val();
         const botId = $('#botId-' + userType.toLowerCase()).val();
+
+        // Validate token before sending
+        if (!txtTelegramAPI || txtTelegramAPI.trim() === '') {
+            const translations = window.telegramAPITranslations || {};
+            Swal.fire({
+                title: translations.error_title || 'Error!',
+                text: 'Telegram API token is required',
+                icon: 'error',
+                confirmButtonText: translations.ok || 'OK'
+            });
+            return;
+        }
 
         $.ajax({
             url: '/telegramAPI/' + userType,
             type: 'PUT',
-            data: formData,
+            contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
+            data: {
+                txtTelegramAPI: txtTelegramAPI.trim()
+            },
             success: function (response) {
                 const translations = window.telegramAPITranslations || {};
                 Swal.fire({
@@ -226,18 +259,38 @@ $(document).ready(function () {
                     icon: 'success',
                     confirmButtonText: translations.ok || 'OK'
                 }).then(() => {
-                    loadBotDetails(userType);
+                    // Reload all data to ensure UI is in sync with database
+                    reloadData();
                 });
             },
-            error: function (error) {
+            error: function (xhr) {
                 const translations = window.telegramAPITranslations || {};
+                let errorMessage = translations.failed_to_update || 'Failed to update Telegram API. Please try again.';
+                
+                // Try to get more specific error message from response
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMessage = xhr.responseJSON.error;
+                } else if (xhr.responseText) {
+                    try {
+                        const errorData = JSON.parse(xhr.responseText);
+                        if (errorData.error) {
+                            errorMessage = errorData.error;
+                        }
+                    } catch (e) {
+                        // If not JSON, use responseText as is
+                        if (xhr.responseText) {
+                            errorMessage = xhr.responseText;
+                        }
+                    }
+                }
+                
                 Swal.fire({
                     title: translations.error_title || 'Error!',
-                    text: translations.failed_to_update || 'Failed to update Telegram API. Please try again.',
+                    text: errorMessage,
                     icon: 'error',
                     confirmButtonText: translations.ok || 'OK'
                 });
-                console.error('Error updating Telegram API:', error);
+                console.error('Error updating Telegram API:', xhr);
             }
         });
     });

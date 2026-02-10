@@ -248,18 +248,58 @@ router.post('/add_game_list', async (req, res) => {
 			[accountId]
 		);
 
-		const date_nowTG = new Date().toLocaleDateString();
-		const updated_time = new Date().toLocaleTimeString();
-		let text = '';
+	const date_nowTG = new Date().toLocaleDateString();
+	const updated_time = new Date().toLocaleTimeString();
+	let text = '';
 
-		if (transType === 2) {
-			const newTotalBalance = totalBalanceGuest - totalAmount;
-			text = `Infinity Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${result.insertId} - ${txtGameType}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()} - Deposit\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
-		} else if (transType === 1) {
-			text = `Infinity Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()} - Cash\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
-		} else if (transType === 3) {
-			text = `Infinity Cage\n\n* Game Start *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${gameId} - ${gameType}\nBuy-in: ${totalAmount.toLocaleString()} - Credit\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
-		}
+	// Function to translate game type to Korean
+	const translateGameType = (gameTypeValue) => {
+		if (!gameTypeValue) return gameTypeValue;
+		const upperValue = gameTypeValue.toUpperCase();
+		if (upperValue === 'LIVE') return '라이브';
+		if (upperValue === 'TELEBET') return '텔레벳';
+		return gameTypeValue;
+	};
+
+	// Check if game type is LIVE or Telebet to use Korean translations
+	const isLiveGame = gameType && (gameType.toUpperCase() === 'LIVE' || gameType === '라이브' || txtGameType && (txtGameType.toUpperCase() === 'LIVE' || txtGameType === '라이브'));
+	const isTelebetGame = gameType && (gameType.toUpperCase() === 'TELEBET' || gameType === '텔레벳' || txtGameType && (txtGameType.toUpperCase() === 'TELEBET' || txtGameType === '텔레벳'));
+	const useKorean = isLiveGame || isTelebetGame;
+	
+	// Translate game type values
+	const translatedGameType = translateGameType(gameType);
+	const translatedTxtGameType = translateGameType(txtGameType);
+	
+	// Korean translations
+	const labels = {
+		gameStart: useKorean ? '게임 시작' : 'Game Start',
+		account: useKorean ? '계정' : 'Account',
+		game: useKorean ? '게임' : 'Game',
+		buyIn: useKorean ? '바이인' : 'Buy-in',
+		accountBalance: useKorean ? '잔고' : 'Account Balance',
+		date: useKorean ? '날짜' : 'Date',
+		time: useKorean ? '시간' : 'Time',
+		cash: useKorean ? '현금' : 'Cash',
+		deposit: useKorean ? '계좌출금' : 'Deposit',
+		credit: useKorean ? '크레딧' : 'Credit'
+	};
+
+	let managementText = ''; // Message for management (without account balance)
+	
+	if (transType === 2) {
+		const newTotalBalance = totalBalanceGuest - totalAmount;
+		text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${result.insertId} - ${translatedTxtGameType}\n${labels.buyIn}: ${parseFloat(totalAmount).toLocaleString()} - ${labels.deposit}\n${labels.accountBalance}: ${parseFloat(newTotalBalance).toLocaleString()}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
+		// Management message without account balance
+		managementText = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${result.insertId} - ${translatedTxtGameType}\n${labels.buyIn}: ${parseFloat(totalAmount).toLocaleString()} - ${labels.deposit}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
+	} else if (transType === 1) {
+		text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${gameId} - ${translatedGameType}\n${labels.buyIn}: ${totalAmount.toLocaleString()} - ${labels.cash}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
+		// Management message (same as regular message since no account balance)
+		managementText = text;
+	} else if (transType === 3) {
+		text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${gameId} - ${translatedGameType}\n${labels.buyIn}: ${totalAmount.toLocaleString()} - ${labels.credit}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
+		// Management message (same as regular message since no account balance)
+		managementText = text;
+	}
 
 		if (text && telegramIdResults.length > 0 && agentId) {
 			const telegramId = telegramIdResults[0].TELEGRAM_ID;
@@ -281,9 +321,9 @@ router.post('/add_game_list', async (req, res) => {
 				// Continue execution even if Telegram fails
 			}
 			
-			// Send to management chat IDs - also with error handling
+			// Send to management chat IDs - without account balance
 			try {
-				await sendTelegramToManagement(text);
+				await sendTelegramToManagement(managementText);
 			} catch (telegramError) {
 				console.error('Failed to send Telegram message to management:', telegramError.message);
 				// Continue execution even if Telegram fails
@@ -1250,11 +1290,16 @@ router.post('/add_settlement', async (req, res) => {
 
 			// Prepare the Telegram message
 			let text;
+			let managementText; // Message for management (without account balance)
 			if (txtTransType == 1) {
 				const currentBalance = parseFloat(txtSettlementBalance.replace(/,/g, '')) + parseFloat(paymentValue);
-				text = `Infinity Cage\n\n* Settlement *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id_settle}\nAmount: ${parseFloat(paymentValue).toLocaleString()} - Deposit\nAccount Balance: ${parseFloat(currentBalance).toLocaleString()}\n\nTotal Buy-in: ${total_buy_in.toLocaleString()}\nTotal Cashout: ${total_cash_out.toLocaleString()}\nWin/Loss: ${winloss.toLocaleString()}\nTotal Rolling: ${total_rolling.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id_settle}\n커미션: ${parseFloat(paymentValue).toLocaleString()} - 계좌입금\n잔고: ${parseFloat(currentBalance).toLocaleString()}\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				// Management message without account balance
+				managementText = `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id_settle}\n커미션: ${parseFloat(paymentValue).toLocaleString()} - 계좌입금\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			} else {
-				text = `Infinity Cage\n\n* Settlement *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id_settle}\nAmount: ${parseFloat(paymentValue).toLocaleString()} - Cash\n\nTotal Buy-in: ${total_buy_in.toLocaleString()}\nTotal Cashout: ${total_cash_out.toLocaleString()}\nWin/Loss: ${winloss.toLocaleString()}\nTotal Rolling: ${total_rolling.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id_settle}\n커미션: ${parseFloat(paymentValue).toLocaleString()} - 현금\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				// Management message (same as regular message since no account balance)
+				managementText = text;
 			}
 
 			// Send the Telegram message
@@ -1274,9 +1319,9 @@ router.post('/add_settlement', async (req, res) => {
 					// Continue execution even if Telegram fails
 				}
 				
-				// Send to management chat IDs - also with error handling
+				// Send to management chat IDs - without account balance
 				try {
-					await sendTelegramToManagement(text);
+					await sendTelegramToManagement(managementText);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to management:', telegramError.message);
 					// Continue execution even if Telegram fails
@@ -1434,12 +1479,19 @@ router.post('/game_list/add/buyin', async (req, res) => {
 
 			// Prepare Telegram message text
 			let text = '';
+			let managementText = ''; // Message for management (without account balance)
 			if (txtTransType == 2) {
-				text = `Infinity Cage\n\n* Additional Buy-in *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()} - Deposit\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}\nAccount Balance: ${parseFloat(newTotalBalance).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n바이인: ${parseFloat(totalAmount).toLocaleString()} - 계좌출금\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString()}\n잔고: ${parseFloat(newTotalBalance).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				// Management message without account balance
+				managementText = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n바이인: ${parseFloat(totalAmount).toLocaleString()} - 계좌출금\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			} else if (txtTransType == 1) {
-				text = `Infinity Cage\n\n* Additional Buy-in *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()} - Cash\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n바이인: ${parseFloat(totalAmount).toLocaleString()} - 현금\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				// Management message (same as regular message since no account balance)
+				managementText = text;
 			} else if (txtTransType == 3) {
-				text = `Infinity Cage\n\n* Additional Buy-in *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nBuy-in: ${parseFloat(totalAmount).toLocaleString()} - Credit\nTotal Buy-in: ${parseFloat(totalBuyin).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n바이인: ${parseFloat(totalAmount).toLocaleString()} - 크레딧\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				// Management message (same as regular message since no account balance)
+				managementText = text;
 			}
 
 			// Send Telegram messages
@@ -1463,9 +1515,9 @@ router.post('/game_list/add/buyin', async (req, res) => {
 					// Continue execution even if Telegram fails
 				}
 				
-				// Send to management chat IDs - also with error handling
+				// Send to management chat IDs - without account balance
 				try {
-					await sendTelegramToManagement(text);
+					await sendTelegramToManagement(managementText);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to management:', telegramError.message);
 					// Continue execution even if Telegram fails
@@ -1584,12 +1636,19 @@ router.post('/game_list/add/cashout', async (req, res) => {
 
 			// Prepare Telegram message
 			let text = '';
+			let managementText = ''; // Message for management (without account balance)
 			if (txtTransType == 2) {
-				text = `Infinity Cage\n\n* Cash-out *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nCash-out: ${chipsReturn.toLocaleString()} - Deposit\nAccount Balance: ${currentBalanceCashout.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n캐시아웃: ${chipsReturn.toLocaleString()} - 계좌출금\n잔고: ${currentBalanceCashout.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				// Management message without account balance
+				managementText = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n캐시아웃: ${chipsReturn.toLocaleString()} - 계좌출금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			} else if (txtTransType == 1) {
-				text = `Infinity Cage\n\n* Cash-out *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nCash-out: ${chipsReturn.toLocaleString()} - Cash\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n캐시아웃: ${chipsReturn.toLocaleString()} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				// Management message (same as regular message since no account balance)
+				managementText = text;
 			} else if (txtTransType == 4) {
-				text = `Infinity Cage\n\n* Cash-out *\n\nAccount: ${agentCode} - ${agentName}\nGame #: ${game_id}\nCash-out: ${chipsReturn.toLocaleString()} - Credit\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n캐시아웃: ${chipsReturn.toLocaleString()} - 크레딧\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				// Management message (same as regular message since no account balance)
+				managementText = text;
 			}
 
 			// Send Telegram message if TELEGRAM_ID is found
@@ -1613,9 +1672,9 @@ router.post('/game_list/add/cashout', async (req, res) => {
 					// Continue execution even if Telegram fails
 				}
 				
-				// Send to management chat IDs - also with error handling
+				// Send to management chat IDs - without account balance
 				try {
-					await sendTelegramToManagement(text);
+					await sendTelegramToManagement(managementText);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to management:', telegramError.message);
 					// Continue execution even if Telegram fails

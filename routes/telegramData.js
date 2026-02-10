@@ -165,6 +165,15 @@ router.put('/telegramAPI/:userType', checkSession, async (req, res) => {
 	const { txtTelegramAPI } = req.body;
 	const date_now = new Date();
 
+	// Validate input
+	if (!txtTelegramAPI || typeof txtTelegramAPI !== 'string' || txtTelegramAPI.trim() === '') {
+		return res.status(400).json({ error: 'Telegram API token is required' });
+	}
+
+	if (!req.session || !req.session.user_id) {
+		return res.status(401).json({ error: 'Unauthorized' });
+	}
+
 	const query = `
 		UPDATE telegram_api 
 		SET TELEGRAM_API = ?, EDITED_BY = ?, EDITED_DT = ? 
@@ -172,11 +181,16 @@ router.put('/telegramAPI/:userType', checkSession, async (req, res) => {
 	`;
 
 	try {
-		await pool.execute(query, [txtTelegramAPI, req.session.user_id, date_now, userType]);
-		res.send('Telegram API updated successfully');
+		const [result] = await pool.execute(query, [txtTelegramAPI.trim(), req.session.user_id, date_now, userType]);
+		
+		if (result.affectedRows === 0) {
+			return res.status(404).json({ error: `No active Telegram API record found for user type: ${userType}` });
+		}
+		
+		res.json({ message: 'Telegram API updated successfully' });
 	} catch (err) {
 		console.error('Error updating Telegram API:', err);
-		res.status(500).send('Error updating Telegram API');
+		res.status(500).json({ error: 'Error updating Telegram API', details: err.message });
 	}
 });
 

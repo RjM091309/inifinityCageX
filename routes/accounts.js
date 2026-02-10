@@ -642,10 +642,20 @@ router.post('/add_account_details', async (req, res) => {
 				// Reformat the amount with commas
 				const formattedAmount = amountNumber.toLocaleString();
 
-				// Build remarks line if remarks exist
-				const remarksLine = txtRemarks ? `Remarks: ${txtRemarks}\n` : '';
+				// Translate transaction type to Korean
+				const translateTransaction = (trans) => {
+					if (trans === 'DEPOSIT') return '어카운트 입금';
+					if (trans === 'WITHDRAW') return '어카운트 출금';
+					if (trans === 'CREDIT') return '크레딧';
+					return trans;
+				};
 
-				const text = `Infinity Cage\n\n* ${transaction} *\n\nAccount: ${guestAccountNum} - ${guestName}\nAmount: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString()}\nAccount Balance: ${parseFloat(totalBalance).toLocaleString()}\n${remarksLine}\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				const translatedTransaction = translateTransaction(transaction);
+
+				// Build remarks line if remarks exist
+				const remarksLine = txtRemarks ? `비고: ${txtRemarks}\n` : '';
+
+				const text = `Infinity Cage\n\n* ${translatedTransaction} *\n\n계정: ${guestAccountNum} - ${guestName}\n금액: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString()}\n잔고: ${parseFloat(totalBalance).toLocaleString()}\n${remarksLine}\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
 				let telegramError = null;
 
@@ -912,7 +922,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 				let date_nowTG = new Date().toLocaleDateString();
 
 				// Prepare message with "From" account details and "To" account details
-				const textFrom = `Infinity Cage\n\n* Transfer *\n\nAccount: ${AGENT_CODE_FROM} - ${NAME_FROM}\nTransferred to Account: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\nAmount Transferred: -${totalAmount.toLocaleString()}\nAccount Balance: ${SenderCurrentBalance.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				const textFrom = `Infinity Cage\n\n* 이체 *\n\n계정: ${AGENT_CODE_FROM} - ${NAME_FROM}\n받으신분: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\n금액: -${totalAmount.toLocaleString()}\n잔고: ${SenderCurrentBalance.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
 				try {
 					await sendTelegramMessage(textFrom, TELEGRAM_ID_FROM);
@@ -964,7 +974,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 				let date_nowTG = new Date().toLocaleDateString();
 
 				// Prepare message with "From" account details and "To" account details
-				const textTo = `Infinity Cage\n\n* Transfer *\n\nAccount: ${AGENT_CODE_TO} - ${NAME_TO}\nTransferred from Account: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\nAmount Transferred: ${totalAmount.toLocaleString()}\nAccount Balance: ${ReceiverCurrentBalance.toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				const textTo = `Infinity Cage\n\n* 이체 *\n\n받으신분: ${AGENT_CODE_TO} - ${NAME_TO}\n보내신분: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\n금액: ${totalAmount.toLocaleString()}\n잔고: ${ReceiverCurrentBalance.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
 				try {
 					await sendTelegramMessage(textTo, TELEGRAM_ID_TO);

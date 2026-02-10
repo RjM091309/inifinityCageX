@@ -3732,7 +3732,9 @@ async function sendTelegramMessage(text, telegramId) {
 
 
 //TELEGRAM API
-//Get TELEGRAM API
+//Get TELEGRAM API - REMOVED: This route has been moved to routes/telegramData.js
+// Old route commented out to prevent route conflicts
+/*
 pageRouter.get('/telegramAPI_data', (req, res) => {
 	connection.query('SELECT * FROM telegram_api WHERE ACTIVE = 1', (error, results, fields) => {
 		if (error) {
@@ -3743,10 +3745,21 @@ pageRouter.get('/telegramAPI_data', (req, res) => {
 		res.json(results);
 	});
 });
+*/
 
-// EDIT TELEGRAM API
+// EDIT TELEGRAM API - REMOVED: This route has been moved to routes/telegramData.js
+// The new route uses /telegramAPI/:userType (e.g., /telegramAPI/GUEST) instead of /telegramAPI/:id
+// Old route commented out to prevent route conflicts
+/*
 pageRouter.put('/telegramAPI/:id', (req, res) => {
 	const id = parseInt(req.params.id);
+	
+	// Validate that id is a valid number
+	if (isNaN(id) || id <= 0) {
+		res.status(400).send('Invalid ID parameter');
+		return;
+	}
+	
 	const {
 		txtTelegramAPI
 	} = req.body;
@@ -3763,6 +3776,7 @@ pageRouter.put('/telegramAPI/:id', (req, res) => {
 		res.send('Telegram API updated successfully');
 	});
 });
+*/
 
 // CHECK BALANCE - Removed duplicate bot code
 // Telegram bot is now handled in utils/telegram.js to avoid conflicts

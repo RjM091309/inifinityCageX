@@ -1446,9 +1446,9 @@ router.post('/add_marker_settlement', async (req, res) => {
 			const currentBalance = parseFloat(AgentBalance.replace(/,/g, '')) - markerReturn;
 
 			if (optTransType === '12') {
-				text = `Infinity Cage\n\n* Credit RETURN *\n\nAccount: ${agentCode} - ${agentName}\nAmount: ${parseFloat(markerReturn).toLocaleString()} - Deposit\nAccount Balance: ${parseFloat(currentBalance).toLocaleString()}\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n커미션: ${parseFloat(markerReturn).toLocaleString()} - 계좌출금\n잔고: ${parseFloat(currentBalance).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			} else {
-				text = `Infinity Cage\n\n* Credit RETURN *\n\nAccount: ${agentCode} - ${agentName}\nAmount: ${parseFloat(markerReturn).toLocaleString()} - Cash\n\nDate: ${date_nowTG}\nTime: ${updated_time}`;
+				text = `Infinity Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n커미션: ${parseFloat(markerReturn).toLocaleString()} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			}
 
 			if (telegramId) {
