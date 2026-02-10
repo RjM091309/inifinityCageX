@@ -65,11 +65,23 @@
 		"deposit_to_account": "存入账户",
 		"withdraw_from_account": "从账户提取",
 		"no_recent_activity": "最近没有活动。",
+		"see_all": "查看全部",
+		"activity": "活动",
+		"description": "描述",
+		"source_table": "来源表",
+		"amount": "金额",
+		"action": "操作",
+		"encoded_by": "录入人",
+		"action_add": "添加",
+		"action_edit": "编辑",
+		"action_delete": "删除",
+		"date_time": "日期和时间",
 		"week": "周",
 		"vs_last_month": "与上月相比",
 		"cash_out": "现金出账",
 		"net_junket_money": "dashboard.net_junket_money",
 		"net_junket_cash": "dashboard.net_junket_cash"
+		
 	},
 	"sidebar": {
 		"home": "主页",

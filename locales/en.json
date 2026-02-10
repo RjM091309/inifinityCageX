@@ -67,9 +67,21 @@
 		"deposit_to_account": "Deposit to Account",
 		"withdraw_from_account": "Withdraw from Account",
 		"no_recent_activity": "No recent activity.",
+		"see_all": "See All",
+		"activity": "Activity",
+		"description": "Description",
+		"source_table": "Source Table",
+		"amount": "Amount",
+		"action": "Action",
+		"encoded_by": "Encoded By",
+		"action_add": "Add",
+		"action_edit": "Edit",
+		"action_delete": "Delete",
+		"date_time": "Date & Time",
 		"week": "Week",
 		"vs_last_month": "vs last month",
-		"cash_out": "Cash-Out"
+		"cash_out": "Cash-Out",
+		"source_table": "dashboard.source_table"
 	},
 	"sidebar": {
 		"home": "Home",

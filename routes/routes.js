@@ -1282,6 +1282,14 @@ pageRouter.get("/guest_game_statistic", checkSession, function (req, res) {
 });
 
 
+// ======================= ACTIVITY LOG ==================
+
+pageRouter.get("/activity_log", checkSession, function (req, res) {
+	const data = sessions(req, 'activity_log');
+	data.permissions = req.session.permissions || 0;
+	res.render("activity_log", data);
+});
+
 // ======================= GAME LIST ==================
 
 pageRouter.get("/game_list", checkSession, function (req, res) {

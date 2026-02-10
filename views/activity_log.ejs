@@ -1,0 +1,644 @@
+<%- include('partials/header') %>
+<%- include('partials/loader') %>
+<%- include('partials/sidebar') %>
+<%- include('partials/topbar') %>
+
+<!-- Main Container -->
+<div class="container-fluid content-inner mt-4">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="card">
+                <div id="user-role" data-permissions="<%= permissions %>"></div>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">
+                        <div id="activity-log-filter" class="breadcrumb1 flat">
+                            <a href="/dashboard"><span class="fa fa-home"></span></a>
+                            <a href="/activity_log" class="active"><%= __('dashboard.activity_overview') %></a>
+                            
+                            <a href="#" class="filter-link active" data-filter="all">All</a>
+                            <a href="#" class="filter-link" data-filter="Game">Game</a>
+                            <a href="#" class="filter-link" data-filter="Account Transaction">Account Transaction</a>
+                            <a href="#" class="filter-link" data-filter="Junket Expense">Junket Expense</a>
+                            <a href="#" class="filter-link" data-filter="Services">Services</a>
+                            <a href="#" class="filter-link" data-filter="Junket Return Money">Junket Return Money</a>
+                            <a href="#" class="filter-link" data-filter="Junket Total Chips">Junket Total Chips</a>
+                            <a href="#" class="filter-link" data-filter="Junket Capital">Junket Capital</a>
+                            <a href="#" class="filter-link" data-filter="Daily Settlement">Daily Settlement</a>
+                            <a href="#" class="filter-link" data-filter="Guest">Guest</a>
+                            <a href="#" class="filter-link" data-filter="agency">Agency</a>
+                            <a href="#" class="filter-link" data-filter="User">User</a>
+                        </div>
+                    </h3>
+                </div>
+       
+                <div class="dataTables_wrapper">
+                    <div class="row mb-2">
+                        <div class="col-sm-4">
+                            <input type="text" id="daterange" class="input-daterange input-group" placeholder="Select date range" autocomplete="off"/>
+                        </div>
+                    </div>
+                </div>
+       
+                <div class="card-body">
+       
+                    <table id="activity-logs-table" class="table nowrap small-text" style="width:100%"> 
+                        <thead>
+                            <tr>
+                                <th><%= __('dashboard.description') %></th>
+                                <th>Source</th>
+                                <th><%= __('dashboard.amount') %></th>
+                                <th><%= __('dashboard.action') %></th>
+                                <th><%= __('dashboard.encoded_by') %></th>
+                                <th><%= __('dashboard.date_time') %></th>
+                            </tr>
+                        </thead>
+                        <tbody id="activity-logs-tbody">
+                            <tr>
+                                <td colspan="6" class="text-muted text-center py-4">
+                                    <i class="fas fa-spinner fa-spin me-2"></i><%= __('dashboard.loading_activity_logs') %>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+       
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('modals/accounts/account_details') %>
+<%- include('partials/footer') %>
+
+<script>
+    // Translation object
+    const translations = {
+        "Transaction: ": "<%= __('dashboard.transaction') %>: ",
+        "Deposit": "<%= __('dashboard.deposit') %>",
+        "Withdraw": "<%= __('dashboard.withdraw') %>",
+        "IOU": "<%= __('dashboard.iou') %>",
+        "Unknown Transaction": "<%= __('dashboard.unknown_transaction') %>",
+        " was Successful!": " <%= __('dashboard.was_successful') %>",
+        "Agent ": "<%= __('dashboard.agent_prefix') %> ",
+        "Guest ": "<%= __('dashboard.guest_prefix') %> ",
+        "Junket Expense: ": "<%= __('dashboard.junket_expense') %>: ",
+        " was added.": " <%= __('dashboard.was_added') %>",
+        " was edited.": " <%= __('dashboard.was_edited') %>",
+        "New User Account: ": "<%= __('dashboard.new_user_account') %>: ",
+        " has been added.": " <%= __('dashboard.has_been_added') %>",
+        "User ": "<%= __('dashboard.user') %> ",
+        " was edited.": " <%= __('dashboard.was_edited') %>",
+        "New Role Added: ": "<%= __('dashboard.new_role_added') %>: ",
+        "User Role: ": "<%= __('dashboard.user_role') %>: ",
+        "New Booking:": "<%= __('dashboard.new_booking') %>:",
+        "Confirmation #": "<%= __('dashboard.confirmation') %> #",
+        "Check In:": "<%= __('dashboard.check_in') %>:",
+        "Check Out:": "<%= __('dashboard.check_out') %>:",
+        "Deposit to Account": "<%= __('dashboard.deposit_to_account') %>",
+        "Withdraw from Account": "<%= __('dashboard.withdraw_from_account') %>",
+        "No recent activity.": "<%= __('dashboard.no_recent_activity') %>"
+    };
+
+    function translateText(text) {
+        if (text == null || text === undefined) return "";
+        let translated = String(text);
+        for (const [en, ko] of Object.entries(translations)) {
+            translated = translated.replace(new RegExp(en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), ko);
+        }
+        return translated;
+    }
+
+    function formatDate(dateString) {
+        const opts = { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" };
+        return new Date(dateString).toLocaleDateString("en-US", opts);
+    }
+
+    function highlightName(text) {
+        if (text == null || text === undefined) return "";
+        return String(text).replace(/₱([\d,]+)(\.\d{2})?/g, '<strong>₱$1</strong>');
+    }
+
+    function getActionDisplay(actionType) {
+        const addKeys = ["added", "expense_added", "user_added", "role_added", "booking_added", "game_added", "service_added", "junket_chips_added", "return_added", "capital_added"];
+        const editKeys = ["edited", "expense_edited", "user_edited", "role_edited", "return_edited", "capital_edited"];
+        if (actionType === "settlement_added") return "Settled";
+        if (addKeys.includes(actionType)) return "<%= __('dashboard.action_add') %>";
+        if (editKeys.includes(actionType)) return "<%= __('dashboard.action_edit') %>";
+        if (actionType === "deleted") return "<%= __('dashboard.action_delete') %>";
+        if (actionType === "transaction") return "<%= __('dashboard.transaction') %>";
+        if (actionType === "transfer") return "Transfer";
+        if (actionType === "deposit") return "Deposit";
+        if (actionType === "withdraw") return "Withdraw";
+        if (actionType === "game_buyin") return "<%= __('dashboard.cash_in') %>";
+        if (actionType === "game_cashout") return "<%= __('dashboard.cash_out') %>";
+        if (actionType === "game_rolling") return "<%= __('dashboard.rolling') %>";
+        if (actionType === "roller_add") return "<%= __('dashboard.action_add') %>";
+        if (actionType === "roller_return") return "Return";
+        return actionType || "-";
+    }
+
+    function formatAmount(log) {
+        if (log == null) return "-";
+        const amt = log.amount;
+        const nn = parseFloat(log.nn_amount) || 0;
+        const cc = parseFloat(log.cc_amount) || 0;
+        const isGame = log.source_table === 'Game' || log.source_table === 'game_list';
+        if (isGame && (nn > 0 || cc > 0)) {
+            const parts = [];
+            if (nn > 0) parts.push('NN : ' + nn.toLocaleString());
+            if (cc > 0) parts.push('CC : ' + cc.toLocaleString());
+            return parts.join(', ') || "-";
+        }
+        if (amt == null || amt === "" || amt === undefined) return "-";
+        return parseFloat(amt).toLocaleString();
+    }
+
+    function getClickableText(fullText, linkUrl, ledgerId, guest = '', acctName = '', sourceTable = '') {
+        if (fullText == null || fullText === undefined) return "<span style=\"color:grey;\">—</span>";
+        // Translate the text first
+        const translatedText = translateText(fullText);
+        
+        const prefixes = ["<%= __('dashboard.new_booking') %>:", "<%= __('dashboard.transaction') %>:", "Transfer:", "Deposit:", "Withdraw:", "Daily Settlement:", "<%= __('dashboard.junket_expense') %>:", "New Game:", "Buy-in -", "Cash Out -", "Rolling -", "Roller Chips -", "Service:", "Junket Chips:", "Return Money:", "Junket Capital:"];
+        let pfx = prefixes.find(p => translatedText.startsWith(p));
+        // Junket Expense: dynamic prefix (Category: description)
+        if (!pfx && sourceTable === 'Junket Expense' && translatedText.includes(': ')) {
+            const idx = translatedText.indexOf(': ');
+            pfx = translatedText.slice(0, idx + 2);
+        }
+        if (!pfx) {
+            return `<span style="color:grey;">${highlightName(translatedText)}</span>`;
+        }
+
+        const rem = translatedText.slice(pfx.length);
+        const highlightedRem = highlightName(rem);
+
+        if (ledgerId && linkUrl !== '#') {
+            return `
+                <a href="${linkUrl}"
+                   data-ledger-id="${ledgerId}"
+                   data-guest="${guest}"
+                   data-account-name="${acctName}"
+                   style="color:grey; text-decoration:none;">
+                  ${pfx}<span style="color:grey;">${highlightedRem}</span>
+                </a>`;
+        } else {
+            return `<span style="color:grey;">${pfx}<span>${highlightedRem}</span></span>`;
+        }
+    }
+
+    // Load activity logs on page load and initialize DataTables
+    $(document).ready(function() {
+        // Initialize Flatpickr date range picker
+        const defaultDates = [
+            moment().startOf('month').format('YYYY-MM-DD'),
+            moment().format('YYYY-MM-DD')
+        ];
+        
+        // Initialize Flatpickr only if element exists
+        if ($('#daterange').length > 0) {
+            const fp = flatpickr("#daterange", {
+                mode: "range",
+                altInput: true,
+                altFormat: "M d, Y",
+                dateFormat: "Y-m-d",
+                defaultDate: defaultDates,
+                showMonths: 2,
+                onReady: function (selectedDates, dateStr, instance) {
+                    instance.setDate(defaultDates, true);
+                    instance.changeMonth(-1, true);
+                    // Load data after picker is ready (with a small delay to ensure DOM is ready)
+                    setTimeout(function() {
+                        reloadData();
+                    }, 100);
+                },
+                onChange: function (selectedDates, dateStr, instance) {
+                    // Only reload if we have both dates selected
+                    if (selectedDates.length === 2) {
+                        reloadData();
+                    }
+                },
+            });
+        }
+
+        // Function to reload data with date range filter
+        function reloadData() {
+            const dateRange = $('#daterange').val();
+            
+            if (!dateRange) {
+                return;
+            }
+            
+            // Parse date range
+            let start, end;
+            if (dateRange.indexOf(" to ") > -1) {
+                [start, end] = dateRange.split(' to ');
+            } else {
+                start = dateRange;
+                end = dateRange;
+            }
+            
+            // Add time to end date to include the full day
+            end = end + ' 23:59:59';
+            start = start + ' 00:00:00';
+
+            // Destroy existing DataTable if it exists
+            if ($.fn.DataTable.isDataTable('#activity-logs-table')) {
+                $('#activity-logs-table').DataTable().destroy();
+            }
+
+            // Fetch data with date range parameters
+            fetch(`/activity_logs?fromDate=${encodeURIComponent(start)}&toDate=${encodeURIComponent(end)}`)
+                .then(r => r.json())
+                .then(data => {
+                const tbody = document.getElementById("activity-logs-tbody");
+                const noActivityText = "<%= __('dashboard.no_recent_activity') %>";
+                
+                if (!data.length) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-muted text-center py-4">${noActivityText}</td></tr>`;
+                    // Initialize DataTable even with no data
+                    initializeDataTable();
+                    return;
+                }
+
+                // Populate table with data
+                tbody.innerHTML = data.map((log, idx) => {
+                    let url = "#";
+                    if (log.related_id) {
+                        if (["transaction", "transfer", "deposit", "withdraw", "added", "edited", "deleted"].includes(log.action_type)) {
+                            url = `/accounts?id=${log.related_id}`;
+                        } else if (["expense_added", "expense_edited", "return_added", "return_edited"].includes(log.action_type)) {
+                            url = `/junket/house_expense?id=${log.related_id}`;
+                        } else if (["user_added", "user_edited"].includes(log.action_type)) {
+                            url = `/user_management?id=${log.related_id}`;
+                        } else if (["role_added", "role_edited"].includes(log.action_type)) {
+                            url = `/user_roles?id=${log.related_id}`;
+                        } else if (["booking_added"].includes(log.action_type)) {
+                            url = `/booking?id=${log.related_id}`;
+                        } else if (["game_added", "game_buyin", "game_cashout", "game_rolling", "roller_add", "roller_return"].includes(log.action_type)) {
+                            url = `/game_list?id=${log.related_id}`;
+                        } else if (log.action_type === "service_added" && log.source_table === "Services") {
+                            url = log.related_id > 0 ? `/game_list?id=${log.related_id}` : "/fnb-hotel";
+                        } else if (log.action_type === "junket_chips_added" && log.source_table === "Junket Total Chips") {
+                            url = "/dashboard";
+                        } else if (["capital_added", "capital_edited"].includes(log.action_type) && log.source_table === "Junket Capital") {
+                            url = "/dashboard";
+                        } else if (log.action_type === "settlement_added" && log.source_table === "Daily Settlement") {
+                            url = "/game_list";
+                        }
+                    }
+                    let displayName = log.name;
+                    const dateValue = log.action_time ? new Date(log.action_time).toISOString() : '';
+                    return `<tr>
+                        <td style="color:#6c757d;">${getClickableText(displayName, url, log.related_id, log.guest_name, log.account_name, log.source_table)}</td>
+                        <td style="color:#6c757d; white-space:nowrap; font-size:12px;">${log.source_table || "—"}</td>
+                        <td style="color:#6c757d; text-align:right;">${formatAmount(log)}</td>
+                        <td style="color:#6c757d;">${getActionDisplay(log.action_type)}</td>
+                        <td style="color:#6c757d;">${log.encoded_by_name || "—"}</td>
+                        <td style="color:#6c757d; white-space:nowrap;" data-order="${dateValue}">${formatDate(log.action_time)}</td>
+                    </tr>`;
+                }).join("");
+
+                    // Initialize DataTable after data is loaded
+                    initializeDataTable();
+                })
+                .catch(err => {
+                    console.error(err);
+                    const tbody = document.getElementById("activity-logs-tbody");
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-danger text-center py-4">Failed to load activity logs.</td></tr>';
+                });
+        }
+
+        // Filter functionality
+        let currentSourceFilter = 'all';
+        const filterLinks = document.querySelectorAll('#activity-log-filter .filter-link');
+
+        function updateSourceFilter(filter) {
+            if (!$.fn.DataTable.isDataTable('#activity-logs-table')) return;
+            
+            currentSourceFilter = filter;
+            const sourceColumnIndex = 1; // Source column is index 1 (0-based)
+
+            if (filter === 'all') {
+                // Clear column filter - show all sources
+                $('#activity-logs-table').DataTable().column(sourceColumnIndex).search('').draw();
+            } else {
+                // Exact match on source text
+                const regex = '^' + filter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$';
+                $('#activity-logs-table').DataTable()
+                    .column(sourceColumnIndex)
+                    .search(regex, true, false) // regex = true, smart = false
+                    .draw();
+            }
+        }
+
+        // Filter link click handlers
+        filterLinks.forEach((link) => {
+            link.addEventListener('click', (event) => {
+                event.preventDefault();
+                const selectedFilter = link.dataset.filter;
+                if (!selectedFilter) return;
+
+                filterLinks.forEach((otherLink) => otherLink.classList.remove('active'));
+                link.classList.add('active');
+                updateSourceFilter(selectedFilter);
+            });
+        });
+
+        function initializeDataTable() {
+            // Check if table exists
+            if ($('#activity-logs-table').length === 0) {
+                console.warn('Activity logs table not found');
+                return;
+            }
+
+            // Destroy existing DataTable if it exists
+            if ($.fn.DataTable.isDataTable('#activity-logs-table')) {
+                try {
+                    $('#activity-logs-table').DataTable().destroy();
+                } catch (e) {
+                    console.warn('Error destroying existing DataTable:', e);
+                    // Force remove DataTable instance
+                    $('#activity-logs-table').removeClass('dataTable');
+                }
+            }
+
+            // Register custom sort type that uses data-order attribute (only once)
+            if (!$.fn.dataTable.ext.order['dom-data-order']) {
+                $.fn.dataTable.ext.order['dom-data-order'] = function(settings, col) {
+                    return this.api().column(col, {order: 'index'}).nodes().map(function(td, i) {
+                        return $(td).attr('data-order') || '';
+                    });
+                };
+            }
+
+            var dataTable = $('#activity-logs-table').DataTable({
+                "order": [[5, 'desc']], // Sort by date/time column (descending) - now column 5 instead of 6
+                "columnDefs": [
+                    {
+                        "targets": 5, // Date & Time column (now column 5)
+                        "orderDataType": "dom-data-order", // Use custom sort that reads data-order attribute
+                        "type": "date",
+                        "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
+                            $(cell).addClass('text-center');
+                        }
+                    },
+                    {
+                        "targets": [0, 1, 2, 3, 4], // All other columns (0-4)
+                        "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
+                            $(cell).addClass('text-center');
+                        }
+                    },
+                    {
+                        "targets": 2, // Amount column (now column 2)
+                        "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
+                            $(cell).addClass('text-right');
+                        }
+                    }
+                ],
+                "paging": true,
+                "lengthChange": true,
+                "searching": true,
+                "ordering": true,
+                "info": true,
+                "autoWidth": false,
+                "pageLength": 10,
+                "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+                "language": {
+                    "search": "Search:",
+                    "info": "Showing _START_ to _END_ of _TOTAL_ entries",
+                    "paginate": {
+                        "previous": "Previous",
+                        "next": "Next"
+                    },
+                    "emptyTable": "<%= __('dashboard.no_recent_activity') %>",
+                    "lengthMenu": "Show _MENU_ entries"
+                }
+            });
+
+            // Apply initial filter after DataTable is initialized
+            updateSourceFilter(currentSourceFilter);
+        }
+    });
+
+    // Click handler for Transaction links (using event delegation for DataTables)
+    $(document).on('click', '#activity-logs-table tbody a[data-ledger-id]', function(e) {
+        const a = e.target.closest("a[data-ledger-id]");
+        if (!a) return;
+        const transactionText = "<%= __('dashboard.transaction') %>:";
+        if (!$(a).text().trim().startsWith(transactionText) && 
+            !$(a).text().trim().startsWith("Transaction") && 
+            !$(a).text().trim().startsWith("Transfer") && 
+            !$(a).text().trim().startsWith("Deposit") && 
+            !$(a).text().trim().startsWith("Withdraw")) return;
+        e.preventDefault();
+        const ledgerId = $(a).attr("data-ledger-id");
+        const guestName = $(a).attr("data-guest");
+        const acctName = $(a).attr("data-account-name");
+        console.log("Activity click → ledgerId:", ledgerId, "guest:", guestName, "acctName:", acctName);
+        account_details_v2(ledgerId, guestName, acctName);
+    });
+</script>
+
+<style>
+    .card-body {
+        overflow-x: auto;
+    }
+    
+    #activity-logs-table {
+        width: 100%;
+        font-size: 13px;
+        border-collapse: collapse;
+    }
+
+    /* Header styles */
+    #activity-logs-table thead th {
+        background: var(--bs-primary-bg-subtle);
+        color: var(--bs-primary);
+        font-weight: 500;
+        padding: 12px 15px;
+        text-align: center;
+        border: none;
+    }
+
+    /* Row styles */
+    #activity-logs-table tbody tr {
+        border-bottom: 1px solid #eee;
+    }
+
+    /* Cell styles */
+    #activity-logs-table td {
+        padding: 12px 15px;
+        color: #666;
+        text-align: center;
+    }
+
+    #activity-logs-table tbody tr:hover {
+        background-color: #f5f5f5 !important;
+    }
+
+    /* Amount column - right aligned */
+    #activity-logs-table td:nth-child(3) {
+        text-align: right;
+        color: #333;
+    }
+
+    /* Adjust spacing and alignment for date range picker */
+    .dataTables_wrapper .row {
+        margin-bottom: 15px;
+        font-size: 12px;
+    }
+    
+    /* Flexbox layout for the date range picker */
+    .input-daterange {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        left: 7.5rem;
+        top: 4rem;
+        max-width: 250px;
+        font-size: 12px;
+    }
+    
+    /* Styling for form controls - reduce width only, keep height same */
+    .input-daterange .form-control {
+        flex: 1;
+        margin-right: 5px;
+        max-width: 100px;
+        font-size: 12px;
+        padding: 8px 6px; /* Keep vertical padding 8px, reduce horizontal to 6px */
+    }
+    
+    /* Remove margin from the last input */
+    .input-daterange .form-control:last-child {
+        margin-right: 0;
+    }
+    
+    /* Responsive tweaks */
+    @media (max-width: 768px) {
+        .dataTables_wrapper .row,
+        .input-daterange,
+        .input-daterange .form-control {
+            font-size: 10px;
+        }
+    
+        .input-daterange .form-control {
+            padding: 5px 4px; /* Keep vertical padding 5px, reduce horizontal to 4px */
+        }
+    }
+
+    /* Hide "Show" and "entries" text in DataTables */
+    .dataTables_length label {
+        font-size: 0;
+    }
+    
+    /* Keep dropdown visible */
+    .dataTables_length select {
+        font-size: 12px;
+        width: auto !important;
+        min-width: 60px !important;
+        max-width: 80px !important;
+    }
+    
+    /* Reduce search input width */
+    .dataTables_filter input {
+        width: 200px !important;
+        max-width: 200px !important;
+        padding: 8px 6px !important; /* Keep vertical padding 8px, reduce horizontal to 6px */
+    }
+    
+    /* Adjust spacing and alignment */
+    .dataTables_wrapper .row {
+        margin-bottom: 15px;
+        font-size: 12px;
+    }
+    
+    @media (max-width: 768px) {
+        #activity-logs-table {
+            font-size: 10px;
+        }
+    
+        #activity-logs-table th,
+        #activity-logs-table td {
+            padding: 5px;
+        }
+    }
+
+    /* Filter links styling - minimal spacing, fit to text, no white background */
+    #activity-log-filter.breadcrumb1.flat {
+        line-height: normal !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: stretch !important;
+        gap: 0 !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        overflow: hidden !important;
+        background: transparent !important;
+    }
+
+
+    /* Restore spacing at the top and sides */
+    .card-header {
+        padding: 0.75rem 1rem !important;
+    }
+
+    .card-title {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+
+    .card-title.mb-0 {
+        margin-bottom: 0 !important;
+    }
+
+    /* Make filter links fill height and remove gaps */
+    #activity-log-filter .filter-link {
+        padding: 0.3rem 0.7rem 0.3rem 1.2rem !important;
+        margin: 0.4rem 0 0 0.1rem !important;
+        font-size: 0.8rem !important;
+        white-space: nowrap;
+        line-height: 1.2 !important;
+        min-width: auto !important;
+        height: 100% !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        float: none !important;
+        position: relative !important;
+    }
+
+
+    /* Override breadcrumb default padding completely */
+    #activity-log-filter .filter-link:first-child {
+        padding-left: 1.2rem !important;
+    }
+
+
+    #activity-log-filter .filter-link:last-child {
+        padding-right: 0.7rem !important;
+    }
+
+    #activity-log-filter .filter-link.active {
+        font-weight: 600;
+    }
+
+    #activity-log-filter .filter-link::after {
+    right: -10px;
+    width: 18px;
+    height: 18px;          /* kontrolado, hindi 100% */
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    
+   
+}
+
+#activity-log-filter .filter-link::after {
+    right: -6px;          /* mas dikit */
+    width: 14px;
+    height: 14px;
+}
+
+
+</style>

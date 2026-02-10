@@ -67,9 +67,21 @@
 		"deposit_to_account": "계정으로 입금",
 		"withdraw_from_account": "계정에서 출금",
 		"no_recent_activity": "최근 활동이 없습니다.",
+		"see_all": "전체 보기",
+		"activity": "활동",
+		"description": "설명",
+		"source_table": "소스 테이블",
+		"amount": "금액",
+		"action": "작업",
+		"encoded_by": "등록자",
+		"action_add": "추가",
+		"action_edit": "수정",
+		"action_delete": "삭제",
+		"date_time": "날짜 및 시간",
 		"week": "주",
 		"vs_last_month": "지난달 대비",
-		"cash_out": "출금"
+		"cash_out": "출금",
+		"source_table": "dashboard.source_table"
 	},
 	"sidebar": {
 		"home": "홈",

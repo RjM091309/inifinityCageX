@@ -215,7 +215,7 @@ aside.sidebar .sidebar-footer {
                     </i>
                     <span class="item-name"><%= __('sidebar.gamebook') %></span>
                 </a>
-            </li>            
+                </li>
               <li class="nav-item">
                   <a class="nav-link <%= currentPage === 'house_expense' || currentPage === 'booking' ||  currentPage === 'commission'  ? 'open' : '' %>" data-bs-toggle="collapse" href="#sidebar-user" role="button" aria-expanded="false" aria-controls="sidebar-user">
                       <i class="icon">
@@ -372,6 +372,18 @@ aside.sidebar .sidebar-footer {
                 </svg> 
               </i>
               <span class="item-name"><%= __('sidebar.modify_game') %></span>
+          </a>
+      </li>
+      <li class="nav-item">
+          <a class="nav-link <%= currentPage === 'activity_log' ? 'active bg-gradient-primary' : '' %>" href="/activity_log">
+              <i class="icon">
+                <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                    <g>
+                    <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
+                    </g>
+                </svg> 
+              </i>
+              <span class="item-name">Activity Log</span>
           </a>
       </li>
       <!-- <li class="nav-item">
