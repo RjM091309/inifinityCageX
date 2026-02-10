@@ -48,6 +48,13 @@ $(document).ready(function() {
 					}
 				},
 				{
+					targets: [8], // Date column: sort by data-order / @data-order (timestamp)
+					render: function (data) {
+						if (typeof data === 'object' && data && data.display !== undefined) return data.display;
+						return data;
+					}
+				},
+				{
 					targets: [9], // Action column
 					orderable: false,
 					searchable: false
@@ -144,7 +151,10 @@ $(document).ready(function() {
 					const paymentHtml = paymentLabel(service.TRANSACTION_ID);
 					const remarksHtml = service.REMARKS || '-';
 					const encodedByHtml = service.encoded_by_name || '-';
-					const dateHtml = formatDateForDisplay(service.ENCODED_DT);
+					const rawDate = service.ENCODED_DT ? new Date(service.ENCODED_DT).getTime() : 0;
+					const dateDisplay = formatDateForDisplay(service.ENCODED_DT);
+					// Orthogonal data: display text for show, @data-order for correct date sort
+					const dateCellData = { display: dateDisplay, '@data-order': String(rawDate) };
 
 					const safeRemarks = (service.REMARKS || '').replace(/"/g, '&quot;');
 
@@ -194,7 +204,7 @@ $(document).ready(function() {
 						paymentHtml,
 						remarksHtml,
 						encodedByHtml,
-						dateHtml,
+						dateCellData,
 						actionHtml
 					]);
 				});

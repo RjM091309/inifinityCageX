@@ -91,7 +91,7 @@
 													<td><%= paymentLabel(service.TRANSACTION_ID) %></td>
 													<td><%= service.REMARKS || '-' %></td>
 													<td><%= service.encoded_by_name || '-' %></td>
-													<td><%= formatDate(service.ENCODED_DT) %></td>
+													<td data-order="<%= service.ENCODED_DT ? new Date(service.ENCODED_DT).getTime() : 0 %>"><%= formatDate(service.ENCODED_DT) %></td>
 													<td class="text-center">
 														<% if (canEdit && canDelete) { %>
 															<div class="btn-group">
