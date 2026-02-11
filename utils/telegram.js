@@ -444,7 +444,7 @@ async function startGuestBot() {
       const date_now = new Date().toLocaleDateString();
       const time_now = new Date().toLocaleTimeString();
 
-      const msg = `Infinity Cage\n\n* Balance Check *\n\nAccount: ${AGENT_CODE} - ${NAME}\nCurrent Balance: ${balance.toLocaleString()}\n\nDate: ${date_now}\nTime: ${time_now}`;
+      const msg = `Infinity Cage\n\n* 잔고 확인  *\n\n계정: ${AGENT_CODE} - ${NAME}\n잔고: ${balance.toLocaleString()}\n\n날짜: ${date_now}\n시간: ${time_now}`;
       bot.sendMessage(telegramId, msg);
 
     } catch (err) {

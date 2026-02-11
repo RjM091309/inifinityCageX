@@ -771,7 +771,7 @@ router.post('/check_balance/:accountId', async (req, res) => {
 		let date_now = new Date().toLocaleDateString();
 		let time_now = new Date().toLocaleTimeString();
 
-		const message = `Infinity Cage\n\n* Balance Check *\n\nAccount: ${AGENT_CODE} - ${NAME}\nCurrent Balance: ${balanceFormatted}\n\nDate: ${date_now}\nTime: ${time_now}`;
+		const message = `Infinity Cage\n\n* 잔고 확인 *\n\n계정: ${AGENT_CODE} - ${NAME}\n잔고: ${balanceFormatted}\n\n날짜: ${date_now}\n시간: ${time_now}`;
 
 		try {
 			await sendTelegramMessage(message, TELEGRAM_ID);
