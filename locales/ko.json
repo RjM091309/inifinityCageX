@@ -746,7 +746,8 @@
 		"description": "설명",
 		"amount": "금액",
 		"save": "저장",
-		"close": "닫기"
+		"close": "닫기",
+		"receipt_photo": "modal_new_house_expense.receipt_photo"
 	},
 	"modal_show_rolling": {
 		"date": "날짜",
@@ -791,7 +792,8 @@
 		"description_placeholder": "설명",
 		"amount_placeholder": "금액",
 		"save": "저장",
-		"close": "닫기"
+		"close": "닫기",
+		"receipt_photo": "modal_edit_house_expense.receipt_photo"
 	},
 	"modal_new_booking": {
 		"add_booking": "예약 추가",

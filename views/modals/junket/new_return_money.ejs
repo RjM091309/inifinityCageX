@@ -9,17 +9,18 @@
 
             <div class="modal-body">
                 <form id="add_return_money" novalidate>
-                    <div class="row mb-2">
-                        <div class="col-sm-12">
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label">Amount</label>
                             <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-                                class="form-control" name="txtAmount" placeholder="Amount" required />
+                                class="form-control" name="txtAmount" required />
                         </div>
                     </div>
-
-                    <div class="row mb-2">
-                        <div class="col-sm-12">
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label">Description</label>
                             <textarea class="form-control" name="txtDescription" 
-                                placeholder="Description" rows="3"></textarea>
+                                rows="3"></textarea>
                         </div>
                     </div>
 

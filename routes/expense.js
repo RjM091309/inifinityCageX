@@ -792,6 +792,13 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		const date_now = new Date();
 		const editXAmount = parseFloat(txtAmount.replace(/,/g, ''));
 
+		// Get previous amount before updating (for Telegram \"before amount\")
+		const [oldRows] = await pool.execute(
+			'SELECT AMOUNT FROM junket_house_expense WHERE IDNo = ? LIMIT 1',
+			[id]
+		);
+		const oldAmount = oldRows.length > 0 ? Number(oldRows[0].AMOUNT) : null;
+
 		let query = `
 			UPDATE junket_house_expense 
 			SET CATEGORY_ID = ?, RECEIPT_NO = ?, DATE_TIME = ?, DESCRIPTION = ?, AMOUNT = ?, EDITED_BY = ?, ENCODED_DT = ?
@@ -819,6 +826,30 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		`;
 		await pool.execute(cashTransactionUpdateQuery, [editXAmount.toString(), 'Expenses', expenseCategoryName, req.session.user_id, date_now, id]);
 
+		// Telegram to Management: expense edited with details
+		try {
+			const [typeRow] = await pool.execute('SELECT TYPE FROM expense_category WHERE IDNo = ? LIMIT 1', [txtCategory]);
+			const typeLabel = (typeRow[0] && typeRow[0].TYPE === 2) ? 'Non-goods / Services' : 'Goods / Services';
+			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
+			const editedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
+			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+			const beforeAmountLabel = oldAmount !== null ? `Before Amount: ₱${oldAmount.toLocaleString()}\n` : '';
+			const editMsg =
+				'Infinity Cage\n\n✏️ * Junket Expense (EDIT) *\n\n' +
+				`Name: ${expenseCategoryName}\n` +
+				`Type: ${typeLabel}\n` +
+				`Receipt #: ${txtReceiptNo || 'N/A'}\n` +
+				`Description: ${txtDescription || 'N/A'}\n` +
+				beforeAmountLabel +
+				`New Amount: ₱${Number(editXAmount).toLocaleString()}\n` +
+				`Edited By: ${editedByName}\n` +
+				`Date & Time: ${dateFormatted} ${timeFormatted}`;
+			await sendTelegramToEmployees(editMsg);
+		} catch (telegramError) {
+			console.error('Error sending Telegram (expense edit):', telegramError);
+		}
+
 		res.send('Junket updated successfully');
 	} catch (err) {
 		console.error('Error updating Junket:', err);
@@ -832,6 +863,33 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 		const id = parseInt(req.params.id);
 		const date_now = new Date();
 
+		// Fetch expense details before delete for Telegram
+		const [expRows] = await pool.execute(
+			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.AMOUNT, e.ENCODED_BY, ec.CATEGORY, ec.TYPE
+			 FROM junket_house_expense e
+			 LEFT JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+			 WHERE e.IDNo = ? LIMIT 1`,
+			[id]
+		);
+		const exp = expRows[0];
+		const categoryName = exp ? (exp.CATEGORY || 'N/A') : 'N/A';
+		const typeLabel = exp && exp.TYPE === 2 ? 'Non-goods / Services' : 'Goods / Services';
+		const receiptNo = exp ? (exp.RECEIPT_NO || 'N/A') : 'N/A';
+		const desc = exp ? (exp.DESCRIPTION || 'N/A') : 'N/A';
+		const amount = exp ? Number(exp.AMOUNT) : 0;
+		const encodedById = exp ? exp.ENCODED_BY : null;
+		let encodedByName = 'N/A';
+		if (encodedById) {
+			const [u] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [encodedById]);
+			encodedByName = u.length > 0 ? (u[0].FIRSTNAME || 'N/A') : 'N/A';
+		}
+		const [editedU] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
+		const editedByName = editedU.length > 0 ? (editedU[0].FIRSTNAME || 'Unknown') : 'Unknown';
+		// Use actual delete time (date_now) instead of stored DATE_TIME
+		const deleteDateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+		const deleteTimeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+		const deleteDateTimeStr = `${deleteDateFormatted} ${deleteTimeFormatted}`;
+
 		const query = `
 			UPDATE junket_house_expense 
 			SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? 
@@ -840,6 +898,24 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 
 		await pool.execute(query, [0, req.session.user_id, date_now, id]);
 		await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ? AND CATEGORY = ?', [id, 'Expenses']);
+
+		// Telegram to Management: expense deleted with details
+		try {
+			const deleteMsg =
+				'Infinity Cage\n\n🗑️ * Junket Expense (DELETED) *\n\n' +
+				`Name: ${categoryName}\n` +
+				`Type: ${typeLabel}\n` +
+				`Receipt #: ${receiptNo}\n` +
+				`Description: ${desc}\n` +
+				`Amount: ₱${amount.toLocaleString()}\n` +
+				`Encoded By: ${encodedByName}\n` +
+				`Date & Time: ${deleteDateTimeStr}\n` +
+				`Deleted By: ${editedByName}`;
+			await sendTelegramToEmployees(deleteMsg);
+		} catch (telegramError) {
+			console.error('Error sending Telegram (expense delete):', telegramError);
+		}
+
 		res.send('Junket updated successfully');
 	} catch (err) {
 		console.error('Error updating Junket:', err);
@@ -905,6 +981,23 @@ router.post('/add_return_money', async (req, res) => {
 			dailySettlementStatus
 		]);
 
+		// Telegram to Management: return money added with details
+		try {
+			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [encodedBy]);
+			const encodedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
+			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+			const addReturnMsg =
+				'Infinity Cage\n\n💸 * Return Money (ADDED) *\n\n' +
+				`Amount: ₱${amount.toLocaleString()}\n` +
+				`Description: ${description || 'N/A'}\n` +
+				`Encoded By: ${encodedByName}\n` +
+				`Date & Time: ${dateFormatted} ${timeFormatted}`;
+			await sendTelegramToEmployees(addReturnMsg);
+		} catch (telegramError) {
+			console.error('Error sending Telegram (return money add):', telegramError);
+		}
+
 		res.json({ success: true, message: 'Return money added successfully' });
 	} catch (err) {
 		console.error('Error inserting return money:', err);
@@ -925,6 +1018,13 @@ router.put('/edit_return_money/:id', async (req, res) => {
 		const description = txtDescription || null;
 		const amount = txtAmount ? parseFloat(txtAmount.replace(/,/g, '')) : 0;
 
+		// Get previous amount before updating (for Telegram \"before amount\")
+		const [oldRmRows] = await pool.execute(
+			'SELECT AMOUNT FROM junket_return_money WHERE IDNo = ? LIMIT 1',
+			[id]
+		);
+		const oldReturnAmount = oldRmRows.length > 0 ? Number(oldRmRows[0].AMOUNT) : null;
+
 		const query = `
 			UPDATE junket_return_money 
 			SET DESCRIPTION = ?, AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ?
@@ -939,6 +1039,25 @@ router.put('/edit_return_money/:id', async (req, res) => {
 			id
 		]);
 
+		// Telegram to Management: return money edited with details
+		try {
+			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
+			const editedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
+			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+			const beforeAmountLabel = oldReturnAmount !== null ? `Before Amount: ₱${oldReturnAmount.toLocaleString()}\n` : '';
+			const editReturnMsg =
+				'Infinity Cage\n\n✏️ * Return Money (EDIT) *\n\n' +
+				beforeAmountLabel +
+				`New Amount: ₱${amount.toLocaleString()}\n` +
+				`Description: ${description || 'N/A'}\n` +
+				`Edited By: ${editedByName}\n` +
+				`Date & Time: ${dateFormatted} ${timeFormatted}`;
+			await sendTelegramToEmployees(editReturnMsg);
+		} catch (telegramError) {
+			console.error('Error sending Telegram (return money edit):', telegramError);
+		}
+
 		res.json({ success: true, message: 'Return money updated successfully' });
 	} catch (err) {
 		console.error('Error updating return money:', err);
@@ -952,6 +1071,27 @@ router.put('/remove_return_money/:id', async (req, res) => {
 		const id = parseInt(req.params.id);
 		const date_now = new Date();
 
+		// Fetch return money details before delete for Telegram
+		const [rmRows] = await pool.execute(
+			'SELECT DESCRIPTION, AMOUNT, ENCODED_BY, ENCODED_DT FROM junket_return_money WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+			[id]
+		);
+		const rm = rmRows[0];
+		const desc = rm ? (rm.DESCRIPTION || 'N/A') : 'N/A';
+		const amount = rm ? Number(rm.AMOUNT) : 0;
+		let encodedByName = 'N/A';
+		if (rm && rm.ENCODED_BY) {
+			const [u] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [rm.ENCODED_BY]);
+			encodedByName = u.length > 0 ? (u[0].FIRSTNAME || 'N/A') : 'N/A';
+		}
+		const [editedU] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
+		const editedByName = editedU.length > 0 ? (editedU[0].FIRSTNAME || 'Unknown') : 'Unknown';
+		let dateTimeStr = 'N/A';
+		if (rm && rm.ENCODED_DT) {
+			const d = rm.ENCODED_DT instanceof Date ? rm.ENCODED_DT : new Date(rm.ENCODED_DT);
+			dateTimeStr = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+		}
+
 		const query = `
 			UPDATE junket_return_money 
 			SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? 
@@ -959,6 +1099,21 @@ router.put('/remove_return_money/:id', async (req, res) => {
 		`;
 
 		await pool.execute(query, [0, req.session.user_id, date_now, id]);
+
+		// Telegram to Management: return money deleted with details
+		try {
+			const deleteReturnMsg =
+				'Infinity Cage\n\n🗑️ * Return Money (DELETED) *\n\n' +
+				`Amount: ₱${amount.toLocaleString()}\n` +
+				`Description: ${desc}\n` +
+				`Encoded By: ${encodedByName}\n` +
+				`Date & Time: ${dateTimeStr}\n` +
+				`Deleted By: ${editedByName}`;
+			await sendTelegramToEmployees(deleteReturnMsg);
+		} catch (telegramError) {
+			console.error('Error sending Telegram (return money delete):', telegramError);
+		}
+
 		res.json({ success: true, message: 'Return money deleted successfully' });
 	} catch (err) {
 		console.error('Error deleting return money:', err);

@@ -1010,10 +1010,26 @@ function archive_expense(id) {
                 url: '/junket_house_expense/remove/' + id,
                 type: 'PUT',
                 success: function (response) {
-                    window.location.reload();
+                    Swal.fire({
+                        icon: 'success',
+                        title: window.houseExpenseTranslations?.updated_successfully || 'Deleted successfully!',
+                        text: window.houseExpenseTranslations?.expense_deleted || 'House expense has been deleted.',
+                        confirmButtonText: window.houseExpenseTranslations?.ok || 'OK',
+                        allowOutsideClick: false
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.reload();
+                        }
+                    });
                 },
                 error: function (error) {
                     console.error('Error deleting junket:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: window.houseExpenseTranslations?.error || 'Error!',
+                        text: window.houseExpenseTranslations?.error_deleting_expense || 'Failed to delete expense. Please try again.',
+                        confirmButtonText: window.houseExpenseTranslations?.ok || 'OK'
+                    });
                 }
             });
         }
@@ -1049,7 +1065,17 @@ function archive_return_money(id) {
                 url: '/remove_return_money/' + id,
                 type: 'PUT',
                 success: function (response) {
-                    window.location.reload();
+                    Swal.fire({
+                        icon: 'success',
+                        title: window.houseExpenseTranslations?.updated_successfully || 'Deleted successfully!',
+                        text: window.houseExpenseTranslations?.return_deleted || 'Return money has been deleted.',
+                        confirmButtonText: window.houseExpenseTranslations?.ok || 'OK',
+                        allowOutsideClick: false
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.reload();
+                        }
+                    });
                 },
                 error: function (error) {
                     console.error('Error deleting return money:', error);

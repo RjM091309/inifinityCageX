@@ -14,37 +14,37 @@
             <div class="modal-body">
                 <form id="add_junket_house_expense" novalidate>
 
-                    <div class="row mb-2">
-                        <div class="col-sm-12">
-                            <select class="select2 form-select" id="expense-category-select" name="txtCategory" style="width: 100%;" data-placeholder="Category" required>
-                                <option value="">--- Category ---</option>
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label"><%= __('modal_new_house_expense.category_placeholder') || 'Category' %></label>
+                            <select class="select2 form-select" id="expense-category-select" name="txtCategory" style="width: 100%;" data-placeholder="" required>
+                                <option value=""></option>
                             </select>
-                            
                         </div>
                     </div>
-                    <div class="row mb-2">
-                        <div class="col-sm-12">
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label"><%= __('modal_new_house_expense.receipt_photo') || 'Receipt Photo' %></label>
                             <input type="file" name="photo" class="form-control" />
                         </div>
                     </div>
-                    <div class="row mb-2">
-                        <div class="col-sm-12">
-                            <input type="text" class="form-control" name="txtReceiptNo" placeholder="<%= __('modal_new_house_expense.receipt_no') %>" />
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label"><%= __('modal_new_house_expense.receipt_no') %></label>
+                            <input type="text" class="form-control" name="txtReceiptNo" />
                         </div>
                     </div>
-
-              
-
-                    <div class="row mb-2">
-                        <div class="col-sm-12">
-                            <input type="text" class="form-control" name="txtDescription" placeholder="<%= __('modal_new_house_expense.description') %>" />
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label"><%= __('modal_new_house_expense.description') %></label>
+                            <input type="text" class="form-control" name="txtDescription" />
                         </div>
                     </div>
-
-                    <div class="row mb-2">
-                        <div class="col-sm-12">
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label"><%= __('modal_new_house_expense.amount') %></label>
                             <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-                                class="form-control" name="txtAmount" placeholder="<%= __('modal_new_house_expense.amount') %>" required />
+                                class="form-control" name="txtAmount" required />
                         </div>
                     </div>
               

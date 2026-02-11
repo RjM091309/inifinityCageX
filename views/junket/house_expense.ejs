@@ -179,6 +179,58 @@
        
         
         <style>
+            /* Label above outline (no overlap with textbox border) */
+            #modal-new-house-expense .form-floating-outline .form-label,
+            #modal-edit-house-expense .form-floating-outline .form-label,
+            #modal-new-return-money .form-floating-outline .form-label,
+            #modal-edit-return-money .form-floating-outline .form-label {
+                display: block;
+                font-size: 0.8125rem;
+                font-weight: 500;
+                color: #3B59ED;
+                margin-bottom: 0.35rem;
+                text-align: left;
+            }
+            #modal-new-house-expense .form-floating-outline .form-control,
+            #modal-edit-house-expense .form-floating-outline .form-control,
+            #modal-new-return-money .form-floating-outline .form-control,
+            #modal-edit-house-expense .form-floating-outline .form-select {
+                padding: 0.5rem 0.75rem;
+                border: 1px solid #d1d5db;
+                border-radius: 0.375rem;
+                outline: none;
+            }
+            #modal-new-house-expense .form-floating-outline input[type="file"].form-control,
+            #modal-edit-house-expense .form-floating-outline input[type="file"].form-control {
+                padding: 0.5rem 0.75rem;
+            }
+            #modal-new-house-expense .form-floating-outline .form-control:focus,
+            #modal-edit-house-expense .form-floating-outline .form-control:focus,
+            #modal-new-return-money .form-floating-outline .form-control:focus,
+            #modal-edit-house-expense .form-floating-outline .form-select:focus {
+                border-color: #3B59ED;
+                box-shadow: 0 0 0 0.2rem rgba(59, 89, 237, 0.25);
+            }
+            /* Fallback: fields without wrapper keep outline */
+            #modal-new-house-expense .form-control,
+            #modal-edit-house-expense .form-control,
+            #modal-new-return-money .form-control,
+            #modal-edit-return-money .form-control,
+            #modal-new-house-expense .form-select,
+            #modal-edit-house-expense .form-select {
+                border: 1px solid #d1d5db;
+                border-radius: 0.375rem;
+                outline: none;
+            }
+            #modal-new-house-expense .form-control:focus,
+            #modal-edit-house-expense .form-control:focus,
+            #modal-new-return-money .form-control:focus,
+            #modal-edit-return-money .form-control:focus,
+            #modal-new-house-expense .form-select:focus,
+            #modal-edit-house-expense .form-select:focus {
+                border-color: #3B59ED;
+                box-shadow: 0 0 0 0.2rem rgba(59, 89, 237, 0.25);
+            }
             .card-body {
   overflow-x: auto;
 }

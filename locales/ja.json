@@ -746,7 +746,8 @@
 		"description": "説明",
 		"amount": "金額",
 		"save": "保存",
-		"close": "閉じる"
+		"close": "閉じる",
+		"receipt_photo": "modal_new_house_expense.receipt_photo"
 	},
 	"modal_show_rolling": {
 		"date": "日付",
@@ -791,7 +792,8 @@
 		"description_placeholder": "説明",
 		"amount_placeholder": "金額",
 		"save": "保存",
-		"close": "閉じる"
+		"close": "閉じる",
+		"receipt_photo": "modal_edit_house_expense.receipt_photo"
 	},
 	"modal_new_booking": {
 		"add_booking": "予約の追加",
