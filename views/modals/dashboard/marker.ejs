@@ -26,10 +26,8 @@
                 <div class="row justify-content-center mb-2">
                     <div class="col-sm-6">
                       
-                            <select class="form-select" name="txtAccountMarker" id="txtAccountMarker">
-                                <option value="" disabled selected><%= __('dashboard_marker.please_select') %></option>
-                                <option value="option1"><%= __('dashboard_marker.option_1') %></option>
-                                <option value="option2"><%= __('dashboard_marker.option_2') %></option>
+                            <select class="js-select2 form-select" name="txtAccountMarker" id="txtAccountMarker" style="width: 100%;" data-placeholder="<%= __('dashboard_marker.please_select') %>">
+                                <option value=""><%= __('dashboard_marker.please_select') %></option>
                             </select>
                        
                     </div>
@@ -181,423 +179,75 @@
     text-align: right;
     color: var(--bs-primary);
 }
+
+.select2-container .select2-selection--single {
+							height: calc(1.5em + 0.75rem + 6px);
+						}
+
+						.select2-container .select2-search--inline .select2-search__field {
+							margin-top: 0;
+							margin: 0.25rem 0.25rem 0.25rem 0;
+							height: 1.375rem;
+							line-height: 1.375rem;
+						}
+
+						.select2-container--default .select2-selection--single {
+							border-color: #eee;
+
+						}
+
+						.select2-container--default .select2-selection--single .select2-selection__rendered {
+							display: flex;
+							align-items: center;
+							padding-left: 0.75rem;
+							height: calc(1.5em + 0.75rem + 6px);
+							line-height: 1.5;
+						}
+
+						.select2-container--default .select2-selection--single .select2-selection__arrow {
+							height: calc(1.5em + 0.75rem + 6px);
+						}
+
+						.select2-container--default .select2-selection--single .select2-selection__placeholder {
+							color: #8A92A6;
+						}
+
+						.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+							padding-right: 0.75rem;
+							padding-left: 0.75rem;
+						}
     </style>
 
 <!--EXCEL MIN JS-->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
-
-
+<!-- Marker init runs from footer (after jQuery + marker_common.js) -->
 <script>
-
- $(document).ready(function() {
-
-   // Retrieve the permissions value from the data attribute
-   const permissions = parseInt($('#user-role').data('permissions'));
-
-// Disable the submit button if permissions are 2 for both forms
-if (permissions === 2) {
-    $('#submit_marker_settlement').prop('disabled', true); 
-    $('#export-excel').prop('disabled', true); 
-}
-
-   
-    let markerData = [];
-    let isSubmittingMarker = false;
-    
-        const table = $('#marker-tbl').DataTable({
-        "order": [[3, 'desc']], // Sort by date (column index 3) descending
-        ajax: {
-            url: '/marker_history', // Endpoint to fetch data
-            dataSrc: function(json) {
-                // Format the date for each entry before displaying
-                return json.map(function(row) {
-                    row.ENCODED_DT = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
-                    return row;
-                });
+window.__markerModalInit = function() {
+    if (typeof window.MarkerCommon === 'undefined') return;
+    window.MarkerCommon.init({
+        tableSelector: '#marker-tbl',
+        exportBtnSelector: '#export-excel',
+        withForm: true,
+        formOptions: {
+            formSelector: '#add_marker_settlement',
+            accountSelectSelector: '#txtAccountMarker',
+            markerIssueSelector: '#txtMarkerIssue',
+            markerReturnSelector: '#txtMarkerReturn',
+            markerBalanceSelector: '#txtMarkerBalance',
+            remarksSelector: '#txtRemarks',
+            submitBtnSelector: '#submit_marker_settlement',
+            agentBalanceSelector: '#AgentBalance',
+            optTransTypeName: 'optTransType',
+            selectPlaceholder: '<%= __("dashboard_marker.select_account") %>',
+            dropdownParent: '#modal-new-marker',
+            onSuccess: function() {
+                $('#modal-new-marker').modal('hide');
+                if (typeof window.reloadData === "function") window.reloadData();
             }
         },
-        columns: [
-        {
-            data: null, // No direct data source; using render for AGENT_CODE and AGENT_NAME
-            render: function(row) {
-                return `${row.AGENT_CODE} (${row.AGENT_NAME})`;
-            }
-        },
-        {
-            data: 'AMOUNT',
-            render: function(data) {
-                return data.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); // Format with commas
-            }
-        },
-        {
-            data: 'TRANSACTION_INFO',
-            render: function(data) {
-                // Extract TRANSACTION_ID and TRANSACTION_TYPE from combined field
-                var parts = data.split('-');
-                var transactionId = parseInt(parts[0]);
-                var transactionType = parseInt(parts[1]);
-
-                switch (transactionId) {
-                    case 3:
-                    return 'Credit Cash';
-                    case 11:
-                        return 'Credit Returned thru Cash';
-                    case 12:
-                        return 'Credit Returned thru Deposit';
-                    case 10:
-                        return 'Buy-in thru Credit';
-                    default:
-                        if (transactionType === 4) {
-                            return 'Chips Return thru Credit';
-                        } else {
-                            return 'Unknown Transaction';
-                        }
-                }
-            }
-        },
-        { data: 'ENCODED_DT' },
-        { data: 'REMARKS', defaultContent: '' }
-    ],
-    columnDefs: [
-        {
-            targets: 3, // ENCODED_DT column
-            render: function(data, type, row) {
-                if (type === 'sort') {
-                    return moment.utc(data, 'MMMM DD, YYYY HH:mm:ss').format('YYYY-MM-DD HH:mm:ss'); // Raw date for sorting
-                }
-
-                const dateMoment = moment(data, 'MMMM DD, YYYY HH:mm:ss'); // Parse with format specification
-
-                if (dateMoment.isValid()) {
-                    return dateMoment.local().format('DD MMM, YYYY HH:mm:ss'); // Localized display
-                } else {
-                    return 'Invalid Date'; // Placeholder for invalid dates
-                }
-            },
-            createdCell: function(cell, cellData, rowData, rowIndex, colIndex) {
-                $(cell).addClass('text-center'); // Apply class for styling
-            }
-        },
-        {
-            targets: 4, // REMARKS column
-            render: function(data) {
-                return data || '';
-            }
-        }
-    ]
-
-
-
-        // Additional options if needed
+        disableSaveExportByPermission: true,
+        modalSelector: '#modal-new-marker',
+        reloadOnModalHidden: true
     });
-
-    // Populate account data in the modal
-    $('#modal-new-marker').on('show.bs.modal', function() {
-        $('#txtAccountMarker').empty().append('<option value="" disabled selected><%= __("dashboard_marker.select_account") %></option>');
-
-        $.ajax({
-            url: '/marker_data',
-            method: 'GET',
-            success: function(data) {
-                markerData = data;
-                data.forEach(function(account) {
-                    $('#txtAccountMarker').append(
-                        `<option value="${account.ACCOUNT_ID}">${account.AGENT_CODE} - ${account.AGENT_NAME}</option>`
-                    );
-                });
-            },
-            error: function(err) {
-                console.error('Error fetching marker data:', err);
-            }
-        });
-    });
-
-    // Update marker issue and balance when an account is selected
-    $('#txtAccountMarker').change(function() {
-        const selectedAccountId = $(this).val();
-        const selectedAccount = markerData.find(account => account.ACCOUNT_ID == selectedAccountId);
-
-        if (selectedAccount) {
-            const totalIssue = selectedAccount.TOTAL_AMOUNT || 0; // Ensure fallback if undefined
-            $('#txtMarkerIssue').val(totalIssue.toLocaleString());
-            $('#txtMarkerBalance').val(totalIssue.toLocaleString());
-        }
-    });
-
-    // Format input with commas
-function formatWithCommas(value) {
-    // Check if the value is a valid number
-    if (isNaN(value) || value === '') {
-        return value; // Return original value if not a number
-    }
-    // Convert the value to a number and format it
-    return Number(value).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 0 });
-}
-
-// Calculate marker balance and validate the return
-$('#txtMarkerReturn').on('input', function() {
-    // Get the marker issue value
-    const markerIssue = parseFloat($('#txtMarkerIssue').val().replace(/,/g, '')) || 0;
-    
-    // Get the raw marker return value (removing commas for parsing)
-    const markerReturnRaw = $(this).val().replace(/,/g, ''); // Remove commas
-    const markerReturn = parseFloat(markerReturnRaw) || 0;
-
-    if (markerReturn > markerIssue) {
-        $(this).val(formatWithCommas(markerIssue)); // Set value to marker issue with formatting
-        $('#txtMarkerBalance').val(formatWithCommas(0)); // Reset balance
-    } else {
-        const balance = markerIssue - markerReturn;
-        $('#txtMarkerBalance').val(formatWithCommas(balance)); // Format balance with commas
-    }
-
-    // Format the marker return input with commas
-    $(this).val(formatWithCommas(markerReturnRaw)); // Update input with formatted value
-});
-
-// Additionally, format the initial marker return input value when it is focused out
-$('#txtMarkerReturn').on('focusout', function() {
-    const rawValue = $(this).val().replace(/,/g, ''); // Remove commas
-    $(this).val(formatWithCommas(rawValue)); // Set formatted value on focus out
-});
-
-    // Reload page after modal closes (bind once)
-    $('#modal-new-marker').off('hidden.bs.modal.marker').on('hidden.bs.modal.marker', function () {
-        window.location.reload();
-    });
-
-    // Handle the form submission for marker settlement
-    $('#add_marker_settlement').off('submit.marker').on('submit.marker', function(event) {
-        event.preventDefault();
-        if (isSubmittingMarker) {
-            return;
-        }
-
-        // Validate required fields
-        const selectedAccount = $('#txtAccountMarker').val();
-        const selectedTransType = $('input[name="optTransType"]:checked').val();
-        const markerIssue = parseFloat($('#txtMarkerIssue').val().replace(/,/g, '')) || 0;
-        const markerReturnRaw = $('#txtMarkerReturn').val().replace(/,/g, '');
-        const markerReturn = parseFloat(markerReturnRaw) || 0;
-
-        // Check if account is selected
-        if (!selectedAccount) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Missing Information',
-                text: 'Please select an account.'
-            });
-            return; // Stop form submission
-        }
-
-        // Check if transaction type is selected
-        if (!selectedTransType) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Missing Information',
-                text: 'Please select a transaction type (Cash or Deposit).'
-            });
-            return; // Stop form submission
-        }
-
-        // Check if marker return is provided and greater than 0
-        if (!markerReturnRaw || markerReturn <= 0) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Amount',
-                text: 'Marker Return must be greater than zero.'
-            });
-            return; // Stop form submission
-        }
-
-        // Check if marker return is greater than marker issue
-        if (markerReturn > markerIssue) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Invalid Return',
-                text: 'Marker Return cannot be greater than Marker Issue!'
-            });
-            return; // Stop form submission
-        }
-
-        // Get form values for confirmation message
-        const accountMarker = $('#txtAccountMarker option:selected').text();
-        const markerReturnFormatted = $('#txtMarkerReturn').val();
-        const transType = $('input[name="optTransType"]:checked').next('label').text();
-
-        // Show confirmation dialog
-        Swal.fire({
-            icon: 'question',
-            title: 'Confirm Marker Return',
-            html: `
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <table style="margin: 0 auto; border-collapse: collapse; width: auto;">
-                        <tr>
-                            <td style="padding: 8px 4px 8px 0; text-align: left; font-weight: bold;">Account:</td>
-                            <td style="padding: 8px 0 8px 4px; text-align: left;">${accountMarker || 'N/A'}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px 4px 8px 0; text-align: left; font-weight: bold;">Amount:</td>
-                            <td style="padding: 8px 0 8px 4px; text-align: left;">${markerReturnFormatted || '0'}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px 4px 8px 0; text-align: left; font-weight: bold;">Transaction:</td>
-                            <td style="padding: 8px 0 8px 4px; text-align: left;">${transType || 'N/A'}</td>
-                        </tr>
-                    </table>
-                </div>
-                <p style="margin-top: 15px; text-align: center;">Are you sure you want to proceed with this marker return?</p>
-            `,
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, Save',
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // User confirmed, proceed with submission
-                isSubmittingMarker = true;
-                const $submitBtn = $('#submit_marker_settlement');
-                if (!$submitBtn.data('original-html')) {
-                    $submitBtn.data('original-html', $submitBtn.html());
-                }
-                $submitBtn.prop('disabled', true).html(`
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    Loading...
-                `);
-
-                const formData = $('#add_marker_settlement').serialize();
-
-                $.ajax({
-                    url: '/add_marker_settlement',
-                    method: 'POST',
-                    data: formData,
-                    success: function(response) {
-                        if (response.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Success',
-                                text: 'Marker Return Successfully!'
-                            }).then(() => {
-                                // Reset the form
-                                $('#add_marker_settlement')[0].reset(); // Reset the form
-                                $('#modal-new-marker').modal('hide'); // Hide the modal
-                                table.ajax.reload(); // Reload the DataTable
-                                reloadData();  // Call reloadData function if needed
-                            });
-                        } else if (response.error === 'Insufficient balance for this deposit transaction.') {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Insufficient Balance',
-                                text: response.error
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: response.message || 'Error processing your request.'
-                            });
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Insufficient Balance',
-                            text: 'Insufficient balance for this deposit transaction.'
-                        });
-                    },
-                    complete: function() {
-                        isSubmittingMarker = false;
-                        const originalHtml = $submitBtn.data('original-html');
-                        $submitBtn.prop('disabled', false);
-                        if (originalHtml) {
-                            $submitBtn.html(originalHtml);
-                        }
-                    }
-                });
-            }
-            // If user cancels, do nothing (form submission is already prevented)
-        });
-    });
-    
-    
-         // Export to Excel function
-        $('#export-excel').on('click', function() {
-            // Get data from DataTable
-            const data = table.rows().data().toArray();
-        
-            // Prepare the worksheet
-            const wsData = [];
-            const header = ["ACCOUNT NAME", "AMOUNT", "TRANSACTION TYPE", "DATE", "REMARKS"];
-            wsData.push(header);
-        
-            // Add each row to the worksheet data
-            data.forEach(row => {
-                const rowData = [
-                    `${row.AGENT_CODE} (${row.AGENT_NAME})`, // Combine AGENT_CODE and AGENT_NAME
-                    row.AMOUNT.toLocaleString(), // Format amount with comma separator
-                    row.TRANSACTION_ID === 11 ? 'Marker Returned Cash' :
-                    row.TRANSACTION_ID === 12 ? 'Marker Returned Deposit' :
-                    row.TRANSACTION_ID === 10 ? 'Buy-in thru Marker' : 'Chips Return thru Credit',
-                    row.ENCODED_DT,
-                    row.REMARKS || ''
-                ];
-                wsData.push(rowData);
-            });
-        
-            // Create a new workbook and add the worksheet
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, 'Marker Data');
-        
-            // Export the workbook
-            XLSX.writeFile(wb, 'Marker_Data.xlsx');
-        });
-
-});
-
-// Trigger when account is selected from dropdown
-$('#txtAccountMarker').on('change', function () {
-    var account_id = $(this).val();  // Get the selected account ID
-
-    if (account_id) {
-        // Make an AJAX call to fetch account details
-        $.ajax({
-            url: '/account_details_data_deposit/' + account_id,  // Pass the selected account ID
-            method: 'GET',
-            success: function (data) {
-                // Initialize amounts
-                var deposit_amount = 0;
-                var withdraw_amount = 0;
-                var marker_issue_amount = 0;
-                var marker_deposit_amount = 0;
-                var marker_return = 0;
-
-                 // Iterate through data and calculate totals
-              data.forEach(function (row) {
-					const amount = parseFloat(row.AMOUNT) || 0; // Ensure numeric
-		
-					if (row.TRANSACTION === 'DEPOSIT') {
-                        deposit_amount += amount;
-                    } else if (row.TRANSACTION === 'WITHDRAW') {
-                        withdraw_amount += amount;
-                    } else if (row.TRANSACTION === 'IOU CASH') {
-                        marker_issue_amount += amount;
-                    } else if (row.TRANSACTION === 'MARKER REDEEM') {
-                        marker_deposit_amount += amount;
-                    } else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
-                    marker_return += amount;
-               		}
-				});
-		
-				const totalBalance = deposit_amount - withdraw_amount - marker_return + marker_issue_amount;
-                $('#AgentBalance').val(totalBalance);
-            },
-            error: function (xhr, status, error) {
-                console.error('Error fetching account details:', error);
-            }
-        });
-    }
-});
-
+};
 </script>

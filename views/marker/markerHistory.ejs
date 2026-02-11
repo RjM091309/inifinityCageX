@@ -1,0 +1,184 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/topbar') %>
+
+<div class="container-fluid content-inner mt-4">
+	<div class="row">
+		<div class="col-sm-12">
+			<div class="card">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<h3 class="card-title">
+						<div class="breadcrumb1 flat">
+							<a href="/dashboard"><span class="fa fa-home"></span></a>
+							<a href="/markerHistory" class="active">Marker</a>
+						</div>
+					</h3>
+				</div>
+				<div class="card-body">
+					<!-- Marker return form (same logic as dashboard modal) -->
+					<form id="add_marker_settlement_page" action="#" method="POST" class="mb-4">
+						<input type="hidden" id="AgentBalance" name="AgentBalance" />
+						<div class="row mb-2">
+							<div class="col-sm-6">
+								<label class="form-label text-muted small">Account</label>
+								<select class="js-select2 form-select" name="txtAccountMarker" id="txtAccountMarker" style="width: 100%;" data-placeholder="Choose account">
+									<option value="">Choose account</option>
+								</select>
+							</div>
+							<div class="col-sm-6">
+								<label class="form-label text-muted small">Credits Issue</label>
+								<input type="text" class="form-control" name="txtMarkerIssue" id="txtMarkerIssue" readonly />
+							</div>
+						</div>
+						<div class="row mb-2">
+							<div class="col-sm-6">
+								<label class="form-label text-muted small">Credits Return</label>
+								<input type="text" class="form-control" name="txtMarkerReturn" id="txtMarkerReturn" required autocomplete="off" />
+							</div>
+							<div class="col-sm-6">
+								<label class="form-label text-muted small">Balance</label>
+								<input type="text" class="form-control" name="txtMarkerBalance" id="txtMarkerBalance" readonly style="color: #0665d0;" />
+							</div>
+						</div>
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<label class="form-label text-muted small">Remarks (optional)</label>
+								<input type="text" class="form-control" name="remarks" id="txtRemarks" maxlength="500" autocomplete="off" />
+							</div>
+						</div>
+						<div class="row mb-2">
+							<div class="col-sm-12">
+								<label class="form-label text-muted small">Transaction Type</label>
+							</div>
+						</div>
+						<div class="row mb-3 align-items-center">
+							<div class="col-sm-12 d-flex flex-wrap align-items-center gap-4">
+								<div class="form-check mb-0">
+									<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="cash_page" name="optTransType" value="11" />
+									<label class="form-check-label" for="cash_page">Cash</label>
+								</div>
+								<div class="form-check mb-0">
+									<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="deposit_page" name="optTransType" value="12" />
+									<label class="form-check-label" for="deposit_page">Deposit</label>
+								</div>
+								<span class="marker-save-gap"></span>
+								<button type="submit" id="submit_marker_settlement" class="btn btn-sm btn-primary">Save</button>
+							</div>
+						</div>
+					</form>
+
+					<hr class="my-3" />
+
+					<div class="d-flex justify-content-between align-items-center mb-2">
+						<span class="text-muted small">Marker history</span>
+						<button type="button" id="export-excel" class="btn btn-sm btn-success-subtle">Export</button>
+					</div>
+					<table id="marker-history-tbl" class="table table-bordered table-responsive" style="width:100%">
+						<thead>
+							<tr>
+								<th class="d-none d-sm-table-cell">Account Name</th>
+								<th class="d-none d-sm-table-cell">Amount</th>
+								<th class="d-none d-sm-table-cell">Transaction Type</th>
+								<th class="d-none d-sm-table-cell" style="width: 200px;">Date</th>
+								<th class="d-none d-sm-table-cell">Remarks</th>
+							</tr>
+						</thead>
+						<tbody></tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<%- include('../partials/footer') %>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+<script src="/assets/js/functions/marker_common.js"></script>
+<script>
+$(document).ready(function() {
+	window.MarkerCommon.init({
+		tableSelector: '#marker-history-tbl',
+		exportBtnSelector: '#export-excel',
+		withForm: true,
+		formOptions: {
+			formSelector: '#add_marker_settlement_page',
+			accountSelectSelector: '#txtAccountMarker',
+			markerIssueSelector: '#txtMarkerIssue',
+			markerReturnSelector: '#txtMarkerReturn',
+			markerBalanceSelector: '#txtMarkerBalance',
+			remarksSelector: '#txtRemarks',
+			submitBtnSelector: '#submit_marker_settlement',
+			agentBalanceSelector: '#AgentBalance',
+			optTransTypeName: 'optTransType',
+			selectPlaceholder: 'Choose account',
+			dropdownParent: 'body',
+			populateAccountsOnInit: true,
+			onSuccess: function() {
+				// Table reload is done inside common script
+			}
+		},
+		disableSaveExportByPermission: true
+	});
+});
+</script>
+
+<style>
+
+.select2-container .select2-selection--single {
+							height: calc(1.5em + 0.75rem + 6px);
+						}
+
+						.select2-container .select2-search--inline .select2-search__field {
+							margin-top: 0;
+							margin: 0.25rem 0.25rem 0.25rem 0;
+							height: 1.375rem;
+							line-height: 1.375rem;
+						}
+
+						.select2-container--default .select2-selection--single {
+							border-color: #eee;
+
+						}
+
+						.select2-container--default .select2-selection--single .select2-selection__rendered {
+							display: flex;
+							align-items: center;
+							padding-left: 0.75rem;
+							height: calc(1.5em + 0.75rem + 6px);
+							line-height: 1.5;
+						}
+
+						.select2-container--default .select2-selection--single .select2-selection__arrow {
+							height: calc(1.5em + 0.75rem + 6px);
+						}
+
+						.select2-container--default .select2-selection--single .select2-selection__placeholder {
+							color: #8A92A6;
+						}
+
+						.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+							padding-right: 0.75rem;
+							padding-left: 0.75rem;
+						}
+.card-body { overflow-x: auto; }
+.marker-save-gap { display: inline-block; width: 2.5rem; }
+#marker-history-tbl {
+	width: 100%;
+	font-size: 13px;
+	border-collapse: collapse;
+}
+#marker-history-tbl thead th {
+	background: var(--bs-primary-bg-subtle);
+	color: var(--bs-primary);
+	font-weight: 500;
+	padding: 12px 15px;
+	text-align: left;
+	border: none;
+}
+#marker-history-tbl tbody tr { border-bottom: 1px solid #eee; }
+#marker-history-tbl td { padding: 12px 15px; color: #666; }
+#marker-history-tbl tbody tr:hover { background-color: #f5f5f5 !important; }
+.dataTables_length label { font-size: 0; }
+.dataTables_length select { font-size: 12px; }
+</style>

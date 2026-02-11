@@ -1120,6 +1120,10 @@ pageRouter.get("/commission", function (req, res) {
 	res.render("junket/commission", sessions(req, 'commission'));
 });
 
+pageRouter.get("/markerHistory", checkSession, function (req, res) {
+	res.render("marker/markerHistory", sessions(req, 'marker_history'));
+});
+
 pageRouter.get("/concierge", function (req, res) {
 	res.render("junket/concierge", sessions(req, 'concierge'));
 });

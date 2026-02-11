@@ -37,6 +37,8 @@
 <script src="/assets/vendor/aos/dist/aos.js"></script>
 <!-- SweetAlert -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+<!-- Marker (credits) shared logic - after jQuery & moment -->
+<script src="/assets/js/functions/marker_common.js"></script>
 
 <!-- Finally your custom scripts -->
 <script src="/assets/js/hope-ui.js" defer></script>
@@ -45,6 +47,8 @@
 <!-- Announcement Modal (available on all pages) -->
 <%- include ('../modals/announcement/new_announcement'); -%>
 <script src="/assets/js/functions/announcement.js"></script>
+<!-- Run marker modal init if page registered it (e.g. dashboard) -->
+<script>$(document).ready(function(){ if (typeof window.__markerModalInit === 'function') window.__markerModalInit(); });</script>
 
 </body>
 </html>
