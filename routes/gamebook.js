@@ -673,9 +673,26 @@ router.delete('/game_services/:id', checkSession, async (req, res) => {
 
 // GET GAME LIST
 router.get('/game_list_data', async (req, res) => {
-    let { start, end, id, date } = req.query;
+    let { start, end, id, date, fromDate, toDate } = req.query;
 
     const gameId = id ? parseInt(id, 10) : null;
+
+    // Define baseSelect first (needed for date range and settlement queries)
+    const baseSelect = `
+        SELECT 
+            game_list.*,
+            game_list.IDNo AS game_list_id, 
+            game_list.ACTIVE AS game_status, 
+            account.IDNo AS account_no, 
+            agent.IDNo AS AGENT_ID,
+            agent.AGENT_CODE AS agent_code, 
+            agent.NAME AS agent_name,  
+            game_list.ENCODED_DT AS GAME_DATE_START 
+        FROM game_list
+        JOIN account ON game_list.ACCOUNT_ID = account.IDNo
+        JOIN agent ON agent.IDNo = account.AGENT_ID
+        JOIN agency ON agency.IDNo = agent.AGENCY
+    `;
 
     // If a specific game ID is requested, bypass date filtering to ensure it shows up.
     if (gameId) {
@@ -728,21 +745,54 @@ router.get('/game_list_data', async (req, res) => {
         }
     }
 
-    const baseSelect = `
-        SELECT 
-            game_list.*,
-            game_list.IDNo AS game_list_id, 
-            game_list.ACTIVE AS game_status, 
-            account.IDNo AS account_no, 
-            agent.IDNo AS AGENT_ID,
-            agent.AGENT_CODE AS agent_code, 
-            agent.NAME AS agent_name,  
-            game_list.ENCODED_DT AS GAME_DATE_START 
-        FROM game_list
-        JOIN account ON game_list.ACCOUNT_ID = account.IDNo
-        JOIN agent ON agent.IDNo = account.AGENT_ID
-        JOIN agency ON agency.IDNo = agent.AGENCY
-    `;
+    // Date range mode: Filter by ENCODED_DT date range
+    if (fromDate && toDate) {
+        const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+        if (!isValidDate(fromDate) || !isValidDate(toDate)) {
+            console.error('[Game List Backend] Invalid date format - fromDate:', fromDate, 'toDate:', toDate);
+            return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+        }
+
+        const query = baseSelect + `
+            WHERE game_list.ACTIVE != 0 
+              AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
+            ORDER BY game_list.IDNo ASC
+        `;
+
+        try {
+            const [rows] = await pool.execute(query, [fromDate, toDate]);
+            
+            // Add pending flag for games that were created before latest settlement run but are still ON GAME
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+            
+            const [latestSettlement] = await pool.execute(
+                `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
+                [firstOfMonth, todayStr]
+            );
+            
+            if (latestSettlement.length > 0) {
+                const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date 
+                    ? latestSettlement[0].RUN_AT 
+                    : new Date(latestSettlement[0].RUN_AT);
+                
+                rows.forEach(row => {
+                    const gameCreatedAt = row.ENCODED_DT instanceof Date 
+                        ? row.ENCODED_DT 
+                        : new Date(row.ENCODED_DT);
+                    
+                    row.is_pending = (gameCreatedAt < settlementRunTime && row.ACTIVE != 1) ? 1 : 0;
+                });
+            } else {
+                rows.forEach(row => { row.is_pending = 0; });
+            }
+            
+            return res.json(rows);
+        } catch (error) {
+            console.error('[Game List Backend] Error fetching data by date range:', error);
+            return res.status(500).json({ error: 'Error fetching data' });
+        }
+    }
 
     // Daily settlement filter: date=current (unsettled only) or date=YYYY-MM-DD (settled that day; if today and no settlement yet, return unsettled)
     if (date !== undefined && date !== null && date !== '') {

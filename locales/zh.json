@@ -81,7 +81,6 @@
 		"cash_out": "现金出账",
 		"net_junket_money": "dashboard.net_junket_money",
 		"net_junket_cash": "dashboard.net_junket_cash"
-		
 	},
 	"sidebar": {
 		"home": "主页",
@@ -332,7 +331,8 @@
 		"type_non_goods": "服务 / 运营",
 		"type_salary": "工资",
 		"type_maintenance": "维护",
-		"type_other": "其他"
+		"type_other": "其他",
+		"settle": "house_expense.settle"
 	},
 	"hotel_booking": {
 		"junket": "接待",

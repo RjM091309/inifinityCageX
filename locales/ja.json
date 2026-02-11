@@ -68,7 +68,7 @@
 		"see_all": "すべて見る",
 		"activity": "アクティビティ",
 		"description": "説明",
-		"source_table": "ソーステーブル",
+		"source_table": "dashboard.source_table",
 		"amount": "金額",
 		"action": "操作",
 		"encoded_by": "登録者",
@@ -80,8 +80,7 @@
 		"vs_last_month": "先月比",
 		"cash_out": "キャッシュアウト",
 		"net_junket_money": "dashboard.net_junket_money",
-		"net_junket_cash": "dashboard.net_junket_cash",
-		"source_table": "dashboard.source_table"
+		"net_junket_cash": "dashboard.net_junket_cash"
 	},
 	"sidebar": {
 		"home": "ホーム",
@@ -330,7 +329,8 @@
 		"type_non_goods": "非物販／サービス",
 		"type_salary": "給与",
 		"type_maintenance": "メンテナンス",
-		"type_other": "その他"
+		"type_other": "その他",
+		"settle": "house_expense.settle"
 	},
 	"hotel_booking": {
 		"junket": "ジャンケット",

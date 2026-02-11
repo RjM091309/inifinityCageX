@@ -70,7 +70,7 @@
 		"see_all": "See All",
 		"activity": "Activity",
 		"description": "Description",
-		"source_table": "Source Table",
+		"source_table": "dashboard.source_table",
 		"amount": "Amount",
 		"action": "Action",
 		"encoded_by": "Encoded By",
@@ -80,8 +80,7 @@
 		"date_time": "Date & Time",
 		"week": "Week",
 		"vs_last_month": "vs last month",
-		"cash_out": "Cash-Out",
-		"source_table": "dashboard.source_table"
+		"cash_out": "Cash-Out"
 	},
 	"sidebar": {
 		"home": "Home",
@@ -332,7 +331,8 @@
 		"date": "Date",
 		"name": "NAME",
 		"type_goods": "Goods / Consumables",
-		"type_non_goods": "Non-goods / Services"
+		"type_non_goods": "Non-goods / Services",
+		"settle": "house_expense.settle"
 	},
 	"hotel_booking": {
 		"junket": "Junket",

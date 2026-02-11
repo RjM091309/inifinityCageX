@@ -1,0 +1,339 @@
+<!-- Game History Modal -->
+<div class="modal fade" id="modal-game-history" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white">
+          <i class="fa fa-gamepad me-2"></i>Game History
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="table nowrap small-text" style="width:100%" id="game-history-tbl">
+            <thead class="table-light">
+              <tr>
+                <th class="text-center" style="width: 150px;">GAME START</th>
+                <th class="text-center" style="width: 100px;">TYPE</th>
+                <th class="text-center" style="width: 80px;">GAME #</th>
+                <th class="text-center col-buyin" style="width: 100px;">BUY-IN</th>
+                <th class="text-center" style="width: 100px;">CASH-OUT</th>
+                <th class="text-center" style="width: 100px;">ROLLING</th>
+                <th class="text-center col-total-rolling" style="width: 120px;">TOTAL ROLLING</th>
+                <th class="text-center" style="width: 120px;">GAME RATE</th>
+                <th class="text-center" style="width: 100px;">COMMISSION</th>
+                <th class="text-center col-winloss" style="width: 100px;">WIN/LOSS</th>
+                <th class="text-center" style="width: 100px;">GAME SOURCE</th>
+                <th class="text-center" style="width: 150px;">GAME END</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Game History Modal - Larger Size */
+#modal-game-history .modal-dialog.modal-xl {
+    max-width: 1400px;
+    width: 1400px;
+}
+
+@media (max-width: 1400px) {
+    #modal-game-history .modal-dialog.modal-xl {
+        max-width: 95%;
+        width: 95%;
+    }
+}
+
+#modal-game-history .modal-content {
+    height: auto;
+    max-height: 800px;
+    display: flex;
+    flex-direction: column;
+}
+
+#modal-game-history .modal-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    max-height: 680px;
+    padding: 1rem;
+}
+
+#modal-game-history .table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+/* Commission badge styles */
+.commission-badge {
+    display: inline-block;
+    padding: 3px 6px;
+    margin-left: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    border-radius: 8px;
+    vertical-align: middle;
+}
+
+.commission-badge-r {
+    background-color: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #90caf9;
+}
+
+.commission-badge-s {
+    background-color: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffcc80;
+}
+
+.commission-badge-l {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #a5d6a7;
+}
+
+/* Column background colors */
+td.col-buyin,
+th.col-buyin {
+    background-color: #e4f0fb !important;
+    color: #1565c0 !important;
+    font-weight: 600;
+}
+
+td.col-total-rolling,
+th.col-total-rolling {
+    background-color: #e8f5e9 !important;
+    color: #2e7d32 !important;
+    font-weight: 600;
+}
+
+td.col-winloss,
+th.col-winloss {
+    background-color: #fff0e1 !important;
+    color: #ef6c00 !important;
+    font-weight: 600;
+}
+</style>
+
+<script>
+(function() {
+    let gameHistoryModal = null;
+    let gameHistoryDataTable = null;
+
+    const formatDate = (val) => {
+        if (!val) return '';
+        if (typeof moment !== 'undefined') {
+            const m = moment.utc(val).utcOffset(8);
+            if (m.isValid()) return m.format('MMMM DD, HH:mm');
+        }
+        const d = new Date(val);
+        return isNaN(d.getTime())
+            ? ''
+            : d.toLocaleString('en-US', { month: 'long', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+    };
+
+    const formatAmount = (val) => {
+        const num = Number(val || 0);
+        return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    };
+
+    const translateGameSource = (source) => {
+        const translations = window.gamelistTranslations || {};
+        if (!source) return '';
+        const sourceUpper = source.toUpperCase();
+        if (sourceUpper === 'CASH') return translations.cash || 'CASH';
+        if (sourceUpper === 'DEPOSIT') return translations.deposit || 'DEPOSIT';
+        if (sourceUpper === 'MARKER') return translations.marker || 'MARKER';
+        if (sourceUpper === 'IOU') return translations.credit || 'Credit';
+        return source;
+    };
+
+    async function loadGameHistoryRows(accountId) {
+        try {
+            const res = await fetch(`/account_game_history/${accountId}`);
+            const rows = await res.json();
+
+            if (gameHistoryDataTable) {
+                gameHistoryDataTable.clear().rows.add(rows || []).draw();
+                return;
+            }
+
+            gameHistoryDataTable = $('#game-history-tbl').DataTable({
+                data: rows || [],
+                order: [[0, 'desc']],
+                pageLength: 10,
+                autoWidth: false,
+                columnDefs: [
+                    { width: "150px", targets: 0 },  // GAME START
+                    { width: "100px", targets: 1 },  // TYPE
+                    { width: "80px", targets: 2 },   // GAME #
+                    { width: "100px", targets: 3 },  // BUY-IN
+                    { width: "100px", targets: 4 },  // CASH-OUT
+                    { width: "100px", targets: 5 },  // ROLLING
+                    { width: "120px", targets: 6 },  // TOTAL ROLLING
+                    { width: "120px", targets: 7 },  // GAME RATE
+                    { width: "100px", targets: 8 },  // COMMISSION
+                    { width: "100px", targets: 9 },  // WIN/LOSS
+                    { width: "100px", targets: 10 }, // GAME SOURCE
+                    { width: "150px", targets: 11 }  // GAME END
+                ],
+                language: {
+                    search: "Search:",
+                    info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                    paginate: {
+                        previous: "Previous",
+                        next: "Next"
+                    },
+                    emptyTable: "No game history available"
+                },
+                columns: [
+                    {
+                        data: 'game_date_start',
+                        className: 'text-center',
+                        render: function (data, type) {
+                            if (type === 'sort' || type === 'type') {
+                                const t = Date.parse(data);
+                                return isNaN(t) ? 0 : t;
+                            }
+                            return formatDate(data);
+                        }
+                    },
+                    {
+                        data: 'GAME_TYPE',
+                        className: 'text-center',
+                        render: function (data) { return data || '-'; }
+                    },
+                    {
+                        data: 'game_list_id',
+                        className: 'text-center',
+                        render: function (data) { return data || ''; }
+                    },
+                    {
+                        data: 'BUY_IN',
+                        className: 'text-center col-buyin',
+                        render: function (data) { return formatAmount(data); }
+                    },
+                    {
+                        data: 'CASH_OUT',
+                        className: 'text-center',
+                        render: function (data) { return formatAmount(data); }
+                    },
+                    {
+                        data: 'ROLLING',
+                        className: 'text-center',
+                        render: function (data) { return formatAmount(data); }
+                    },
+                    {
+                        data: 'TOTAL_ROLLING',
+                        className: 'text-center col-total-rolling',
+                        render: function (data) { return formatAmount(data); }
+                    },
+                    {
+                        data: null,
+                        className: 'text-center',
+                        render: function (_data, _type, row) {
+                            let badge = '';
+                            if (row.COMMISSION_TYPE == 1) {
+                                badge = '<span class="badge commission-badge commission-badge-r" title="Rolling Game">R</span>';
+                            } else if (row.COMMISSION_TYPE == 2) {
+                                badge = '<span class="badge commission-badge commission-badge-s" title="Shared Game">S</span>';
+                            } else if (row.COMMISSION_TYPE == 3) {
+                                badge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
+                            }
+                            return `${row.COMMISSION_PERCENTAGE || 0}% ${badge}`;
+                        }
+                    },
+                    {
+                        data: 'COMMISSION',
+                        className: 'text-center',
+                        render: function (data) { return formatAmount(data); }
+                    },
+                    {
+                        data: 'WIN_LOSS',
+                        className: 'text-center col-winloss',
+                        render: function (data) {
+                            const amount = Number(data || 0);
+                            return formatAmount(amount);
+                        }
+                    },
+                    {
+                        data: 'INITIAL_MOP',
+                        className: 'text-center',
+                        render: function (data) {
+                            return translateGameSource(data);
+                        }
+                    },
+                    {
+                        data: null,
+                        className: 'text-center',
+                        render: function (_data, _type, row) {
+                            if (row.game_status == 2) {
+                                return '<span class="badge bg-primary-subtle text-primary" style="font-size:10px !important;">ON GAME</span>';
+                            } else if (row.game_status == 3) {
+                                return '<span class="badge bg-warning-subtle text-warning" style="font-size:10px !important;">PENDING</span>';
+                            } else if (row.GAME_ENDED) {
+                                if (typeof moment !== 'undefined') {
+                                    return moment.utc(row.GAME_ENDED).utcOffset(8).format('MMMM DD, HH:mm');
+                                }
+                                const d = new Date(row.GAME_ENDED);
+                                return d.toLocaleString('en-US', { month: 'long', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+                            }
+                            return '-';
+                        }
+                    }
+                ]
+            });
+        } catch (err) {
+            console.error('Error loading game history', err);
+            if (gameHistoryDataTable) {
+                gameHistoryDataTable.clear().draw();
+            }
+        }
+    }
+
+    function getGameHistoryModal() {
+        if (!gameHistoryModal) {
+            const modalElement = document.getElementById('modal-game-history');
+            if (modalElement && typeof bootstrap !== 'undefined') {
+                gameHistoryModal = new bootstrap.Modal(modalElement);
+            } else {
+                console.error('Modal element #modal-game-history not found or Bootstrap not loaded');
+                return null;
+            }
+        }
+        return gameHistoryModal;
+    }
+
+    // Make function globally accessible
+    window.game_history = async function(accountId) {
+        if (!accountId) {
+            // Try to get account ID from the modal
+            accountId = document.getElementById('account_id')?.value || 
+                       document.getElementById('account_id_add')?.value;
+        }
+        
+        if (!accountId) {
+            alert('Account ID not found');
+            return;
+        }
+
+        const modal = getGameHistoryModal();
+        if (modal) {
+            await loadGameHistoryRows(accountId);
+            modal.show();
+        } else {
+            console.error('Game history modal not initialized');
+        }
+    };
+})();
+</script>
+

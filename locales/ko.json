@@ -70,7 +70,7 @@
 		"see_all": "전체 보기",
 		"activity": "활동",
 		"description": "설명",
-		"source_table": "소스 테이블",
+		"source_table": "dashboard.source_table",
 		"amount": "금액",
 		"action": "작업",
 		"encoded_by": "등록자",
@@ -80,8 +80,7 @@
 		"date_time": "날짜 및 시간",
 		"week": "주",
 		"vs_last_month": "지난달 대비",
-		"cash_out": "출금",
-		"source_table": "dashboard.source_table"
+		"cash_out": "출금"
 	},
 	"sidebar": {
 		"home": "홈",
@@ -332,7 +331,8 @@
 		"type_non_goods": "서비스 / 운영",
 		"type_salary": "급여",
 		"type_maintenance": "정비",
-		"type_other": "기타"
+		"type_other": "기타",
+		"settle": "house_expense.settle"
 	},
 	"hotel_booking": {
 		"junket": "정켓",
