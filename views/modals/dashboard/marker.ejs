@@ -56,7 +56,12 @@
                 </div>
             </div>
                 
-            
+                <div class="row d-flex justify-content-center mb-2">
+                    <div class="col-sm-12">
+                        <input type="text" class="form-control" placeholder="Remarks (optional)" name="remarks" id="txtRemarks" maxlength="500" autocomplete="off" />
+                    </div>
+                </div>
+
                 <!-- Radio Buttons -->
                 <div class="row d-flex justify-content-center ">
                     <div class="col-sm-3 d-flex justify-content-center">
@@ -96,6 +101,7 @@
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.amount') %></th>
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.transaction_type') %></th>
                         <th class="d-none d-sm-table-cell" style="width: 200px !important;"><%= __('dashboard_marker.date') %></th>
+                        <th class="d-none d-sm-table-cell">Remarks</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -198,8 +204,8 @@ if (permissions === 2) {
     let markerData = [];
     let isSubmittingMarker = false;
     
-    const table = $('#marker-tbl').DataTable({
-        "order": [[3, 'desc']], // Set the first column (index 0) to be sorted in descending order
+        const table = $('#marker-tbl').DataTable({
+        "order": [[3, 'desc']], // Sort by date (column index 3) descending
         ajax: {
             url: '/marker_history', // Endpoint to fetch data
             dataSrc: function(json) {
@@ -249,11 +255,12 @@ if (permissions === 2) {
                 }
             }
         },
-        { data: 'ENCODED_DT' } // This column will also be modified by columnDefs for the date rendering logic
+        { data: 'ENCODED_DT' },
+        { data: 'REMARKS', defaultContent: '' }
     ],
     columnDefs: [
         {
-            targets: 3, // Adjust this index if ENCODED_DT isn't the 4th column
+            targets: 3, // ENCODED_DT column
             render: function(data, type, row) {
                 if (type === 'sort') {
                     return moment.utc(data, 'MMMM DD, YYYY HH:mm:ss').format('YYYY-MM-DD HH:mm:ss'); // Raw date for sorting
@@ -269,6 +276,12 @@ if (permissions === 2) {
             },
             createdCell: function(cell, cellData, rowData, rowIndex, colIndex) {
                 $(cell).addClass('text-center'); // Apply class for styling
+            }
+        },
+        {
+            targets: 4, // REMARKS column
+            render: function(data) {
+                return data || '';
             }
         }
     ]
@@ -515,7 +528,7 @@ $('#txtMarkerReturn').on('focusout', function() {
         
             // Prepare the worksheet
             const wsData = [];
-            const header = ["ACCOUNT NAME", "AMOUNT", "TRANSACTION TYPE", "DATE"];
+            const header = ["ACCOUNT NAME", "AMOUNT", "TRANSACTION TYPE", "DATE", "REMARKS"];
             wsData.push(header);
         
             // Add each row to the worksheet data
@@ -526,7 +539,8 @@ $('#txtMarkerReturn').on('focusout', function() {
                     row.TRANSACTION_ID === 11 ? 'Marker Returned Cash' :
                     row.TRANSACTION_ID === 12 ? 'Marker Returned Deposit' :
                     row.TRANSACTION_ID === 10 ? 'Buy-in thru Marker' : 'Chips Return thru Credit',
-                    row.ENCODED_DT
+                    row.ENCODED_DT,
+                    row.REMARKS || ''
                 ];
                 wsData.push(rowData);
             });

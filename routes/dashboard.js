@@ -1397,7 +1397,7 @@ router.get('/marker_data', async (req, res) => {
 
 // ADD MARKER RETURN
 router.post('/add_marker_settlement', async (req, res) => {
-	const { txtAccountMarker, txtMarkerReturn, optTransType, AgentBalance } = req.body;
+	const { txtAccountMarker, txtMarkerReturn, optTransType, AgentBalance, remarks } = req.body;
 
 	let date_now = new Date();
 	let time_now = new Date();
@@ -1489,10 +1489,10 @@ router.post('/add_marker_settlement', async (req, res) => {
 
 	async function insertSettlementRecord() {
 		const insertQuery = `
-            INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT) 
-            VALUES (?, ?, ?, ?, ?, ?)`;
+            INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT, REMARKS) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)`;
 
-		await pool.execute(insertQuery, [txtAccountMarker, optTransType, 3, markerReturn, req.session.user_id, date_now]);
+		await pool.execute(insertQuery, [txtAccountMarker, optTransType, 3, markerReturn, req.session.user_id, date_now, remarks || null]);
 	}
 });
 

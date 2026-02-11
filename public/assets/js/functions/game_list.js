@@ -2626,23 +2626,33 @@ function reloadDataRecord() {
                         remarks: row.REMARKS || '',
                         action: row.game_record_id,
                         button: btn,
-                        timestamp: new Date(row.record_date).getTime()
+                        timestamp: new Date(row.record_date).getTime(),
+                        is_marker: (row.TRANSACTION == 3),  // 3 = Marker
+                        is_deposit: (row.TRANSACTION == 2),  // 2 = Deposit
+                        buy_in_type: 1,    // 1=Cash, 2=Deposit, 3=Marker (set on first buy-in)
+                        additional_buyin_type: 1
                     };
+                } else {
+                    mergedData[dateKey].is_marker = mergedData[dateKey].is_marker || (row.TRANSACTION == 3);
+                    mergedData[dateKey].is_deposit = mergedData[dateKey].is_deposit || (row.TRANSACTION == 2);
                 }
 
                 // Process the row based on CAGE_TYPE - same logic as game list
                 if (row.CAGE_TYPE == 1) { // BUY IN
                     const buyInAmount = (row.CC_CHIPS || 0) + (row.NN_CHIPS || 0);
+                    var trans = parseInt(row.TRANSACTION, 10) || 1;
                     if (hasInitialBuyIn) {
                         // This is an additional buy-in
                         mergedData[dateKey].additional_buyin += buyInAmount;
                         mergedData[dateKey].additional_buyin_nn += (row.NN_CHIPS || 0);  // Track NN separately
+                        mergedData[dateKey].additional_buyin_type = trans;
                         total_nn += (row.NN_CHIPS || 0);
                         total_cc += (row.CC_CHIPS || 0);
                     } else {
                         // This is the initial buy-in
                         mergedData[dateKey].buy_in += buyInAmount;
                         mergedData[dateKey].buy_in_nn += (row.NN_CHIPS || 0);  // Track NN separately
+                        mergedData[dateKey].buy_in_type = trans;
                         total_nn_init += (row.NN_CHIPS || 0);
                         total_cc_init += (row.CC_CHIPS || 0);
                         hasInitialBuyIn = true;
@@ -2776,14 +2786,24 @@ function reloadDataRecord() {
                 ''  // Empty for action column
             ]);
 
-            // Add individual records
+            // Add individual records (color buy-in / additional_buyin only when value > 0 and deposit/marker)
+            function formatBuyinCell(val, transType) {
+                var num = parseFloat(val) || 0;
+                var str = num.toLocaleString();
+                if (num === 0) return str;
+                if (transType === 2) return '<span class="rolling-cell rolling-cell-deposit">' + str + '</span>';
+                if (transType === 3) return '<span class="rolling-cell rolling-cell-marker">' + str + '</span>';
+                return str;
+            }
             for (const date of sortedDates) {
                 const rowData = mergedData[date];
                 const rollerChips = (rowData.roller_nn || 0) + (rowData.roller_cc || 0);
+                var buyInType = parseInt(rowData.buy_in_type, 10) || 1;
+                var addBuyinType = parseInt(rowData.additional_buyin_type, 10) || 1;
                 allRows.push([
                     date,
-                    rowData.buy_in.toLocaleString(),
-                    rowData.additional_buyin.toLocaleString(),
+                    formatBuyinCell(rowData.buy_in, buyInType),
+                    formatBuyinCell(rowData.additional_buyin, addBuyinType),
                     rowData.cash_out.toLocaleString(),
                     rowData.real_rolling.toLocaleString(),
                     (rowData.total_rolling_actual || 0).toLocaleString(),

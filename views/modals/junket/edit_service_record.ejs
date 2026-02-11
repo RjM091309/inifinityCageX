@@ -21,8 +21,8 @@
 			  </div>
           <div class="col-md-4" id="edit-services-account-wrapper" style="display:none">
             <div class="fw-semibold text-muted">Account</div>
-            <select id="edit-services-account" class="form-select" disabled>
-              <option value="" selected disabled>Select account</option>
+            <select id="edit-services-account" class="js-select2 form-select" style="width: 100%;" data-placeholder="Choose account" disabled>
+              <option value="">Choose account</option>
             </select>
           </div>
           <div class="col-md-4">
@@ -85,7 +85,11 @@
 		function resetForm() {
 			$('#edit-services-id').val('');
 			$transactionType.val('').trigger('change');
-			$accountSelect.val('');
+			if ($accountSelect.data('select2')) {
+				$accountSelect.val('').trigger('change');
+			} else {
+				$accountSelect.val('');
+			}
 			$agentInput.val('');
 			$('#edit-services-type').val('');
 			$('#edit-services-amount').val('');
@@ -103,13 +107,29 @@
 				$paymentMethods.show();
 			} else {
 				$accountWrapper.hide();
-				$accountSelect.val('').prop('disabled', true);
+				if ($accountSelect.data('select2')) {
+					$accountSelect.val('').trigger('change');
+				} else {
+					$accountSelect.val('');
+				}
+				$accountSelect.prop('disabled', true);
 				$agentInput.val('');
 				depositBalance = 0;
 				updateBalanceHint();
 				$paymentMethods.hide();
 				$('#edit-services-transaction-cash').prop('checked', true);
 			}
+		}
+
+		function initAccountSelect2() {
+			if ($accountSelect.data('select2')) {
+				$accountSelect.select2('destroy');
+			}
+			$accountSelect.select2({
+				placeholder: 'Choose account',
+				allowClear: true,
+				dropdownParent: $modal
+			});
 		}
 
 		async function populateAccounts() {
@@ -120,8 +140,11 @@
 					throw new Error('Unable to load accounts.');
 				}
 				const accounts = await res.json();
+				if ($accountSelect.data('select2')) {
+					$accountSelect.select2('destroy');
+				}
 				$accountSelect.empty();
-				$accountSelect.append('<option value="" selected disabled>Select account</option>');
+				$accountSelect.append('<option value="">Choose account</option>');
 				accounts.forEach(acc => {
 					const label = acc.agent_name
 						? `${acc.agent_name} (${acc.agent_code || 'No code'})`
@@ -133,10 +156,12 @@
 						.data('balance', acc.balance || 0);
 					$accountSelect.append($option);
 				});
+				initAccountSelect2();
 				return Promise.resolve();
 			} catch (err) {
 				console.error(err);
 				$accountSelect.empty().append('<option value="" disabled>Failed to load accounts</option>');
+				initAccountSelect2();
 				return Promise.reject(err);
 			} finally {
 				$accountSelect.prop('disabled', false);
