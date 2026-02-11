@@ -119,9 +119,10 @@
     }
 
     function getActionDisplay(actionType) {
-        const addKeys = ["added", "expense_added", "user_added", "role_added", "booking_added", "game_added", "service_added", "junket_chips_added", "return_added", "capital_added"];
+        const addKeys = ["added", "expense_added", "user_added", "role_added", "booking_added", "service_added", "junket_chips_added", "return_added", "capital_added"];
         const editKeys = ["edited", "expense_edited", "user_edited", "role_edited", "return_edited", "capital_edited"];
         if (actionType === "settlement_added") return "Settled";
+        if (actionType === "game_added") return "New Game";
         if (addKeys.includes(actionType)) return "<%= __('dashboard.action_add') %>";
         if (editKeys.includes(actionType)) return "<%= __('dashboard.action_edit') %>";
         if (actionType === "deleted") return "<%= __('dashboard.action_delete') %>";
@@ -129,11 +130,12 @@
         if (actionType === "transfer") return "Transfer";
         if (actionType === "deposit") return "Deposit";
         if (actionType === "withdraw") return "Withdraw";
-        if (actionType === "game_buyin") return "<%= __('dashboard.cash_in') %>";
+        if (actionType === "game_buyin") return "Buy-in";
         if (actionType === "game_cashout") return "<%= __('dashboard.cash_out') %>";
         if (actionType === "game_rolling") return "<%= __('dashboard.rolling') %>";
         if (actionType === "roller_add") return "<%= __('dashboard.action_add') %>";
         if (actionType === "roller_return") return "Return";
+        if (actionType === "credit_return") return "Credit Return";
         return actionType || "-";
     }
 
@@ -158,7 +160,7 @@
         // Translate the text first
         const translatedText = translateText(fullText);
         
-        const prefixes = ["<%= __('dashboard.new_booking') %>:", "<%= __('dashboard.transaction') %>:", "Transfer:", "Deposit:", "Withdraw:", "Daily Settlement:", "<%= __('dashboard.junket_expense') %>:", "New Game:", "Buy-in -", "Cash Out -", "Rolling -", "Roller Chips -", "Service:", "Junket Chips:", "Return Money:", "Junket Capital:"];
+        const prefixes = ["<%= __('dashboard.new_booking') %>:", "<%= __('dashboard.transaction') %>:", "Transfer From:", "Transfer To:", "Transfer:", "Deposit:", "Withdraw:", "Daily Settlement:", "<%= __('dashboard.junket_expense') %>:", "New Game:", "Buy-in -", "Cash Out -", "Rolling -", "Roller Chips -", "Service:", "Junket Chips:", "Return Money:", "Junket Capital:"];
         let pfx = prefixes.find(p => translatedText.startsWith(p));
         // Junket Expense: dynamic prefix (Category: description)
         if (!pfx && sourceTable === 'Junket Expense' && translatedText.includes(': ')) {
@@ -383,7 +385,13 @@
                         }
                     },
                     {
-                        "targets": [0, 1, 2, 3, 4], // All other columns (0-4)
+                        "targets": 0, // Description column (0)
+                        "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
+                            $(cell).addClass('text-left');
+                        }
+                    },
+                    {
+                        "targets": [1, 2, 3, 4], // Other columns (1-4)
                         "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
                             $(cell).addClass('text-center');
                         }
@@ -460,6 +468,11 @@
         border: none;
     }
 
+    /* Description header - left aligned */
+    #activity-logs-table thead th:nth-child(1) {
+        text-align: left;
+    }
+
     /* Row styles */
     #activity-logs-table tbody tr {
         border-bottom: 1px solid #eee;
@@ -470,6 +483,11 @@
         padding: 12px 15px;
         color: #666;
         text-align: center;
+    }
+
+    /* Description column - left aligned */
+    #activity-logs-table td:nth-child(1) {
+        text-align: left;
     }
 
     #activity-logs-table tbody tr:hover {
