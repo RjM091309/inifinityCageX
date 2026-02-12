@@ -25,6 +25,7 @@ router.get("/dashboard", checkSession, async (req, res) => {
 
 	let sqlTotalRollingReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_ROLLING FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE IN (3,4) AND RESET=1';
 	let sqlTotalCashOutRollingReset = 'SELECT SUM(NN_CHIPS) AS RESET_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
+	let sqlReturnRollerCCChips = 'SELECT SUM(ROLLER_CC_CHIPS) AS RETURN_ROLLER_CC FROM game_record WHERE ACTIVE = 1 AND ROLLER_TRANSACTION = 2 AND RESET=1';
 
 	let sqlTotalCashOutReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS CASHOUT_RESET FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
 	let sqlWinLossReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND RESET=1';
@@ -733,6 +734,7 @@ let sqlServiceSettle = `
 		const [RollerNNAddResult] = await pool.execute(sqlRollerNNAdd);
 		const [RollerCCSubtractResult] = await pool.execute(sqlRollerCCSubtract);
 		const [RollerCCAddResult] = await pool.execute(sqlRollerCCAdd);
+		const [ReturnRollerCCChipsResult] = await pool.execute(sqlReturnRollerCCChips);
 		const [AgentCountResult] = await pool.execute(sqlAgentCount);
 
 		res.render('dashboard', {
@@ -820,6 +822,7 @@ let sqlServiceSettle = `
 			sqlRollerNNAdd: RollerNNAddResult,
 			sqlRollerCCSubtract: RollerCCSubtractResult,
 			sqlRollerCCAdd: RollerCCAddResult,
+			sqlReturnRollerCCChips: ReturnRollerCCChipsResult,
 			sqlAgentCount: AgentCountResult,
 			sqlServiceCashGuest: serviceCashGuestResults,
 			sqlServiceDepositGuest: serviceDepositGuestResults,

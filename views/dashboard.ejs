@@ -1281,7 +1281,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                        <!-- In-update na chart container: -->
                                        <div id="myChart" class="col-md-12 col-lg-12 myChart"
-                                          data-totalrolling="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0)) %>"
+                                          data-totalrolling="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0) + (+sqlReturnRollerCCChips[0].RETURN_ROLLER_CC || 0) - (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0)) %>"
                                        data-houserolling="<%- (+sqlCCChipsCashoutReset[0].CCResetCashout || 0) %>">
                                           <span id="totalrolling"></span>
                                           <span id="totalhouserolling"></span>
@@ -1289,7 +1289,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                        <input type="hidden" name="HOUSE_ROLLING_HISTORY"
                                        value="<%- (+sqlCCChipsCashoutReset[0].CCResetCashout || 0) %>">
                                        <input type="hidden" name="TOTAL_ROLLING_HISTORY"
-                                          value="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0)) %>">
+                                          value="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0) + (+sqlReturnRollerCCChips[0].RETURN_ROLLER_CC || 0) - (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0)) %>">
                                     </div>
                                  </div>
                               </div>
