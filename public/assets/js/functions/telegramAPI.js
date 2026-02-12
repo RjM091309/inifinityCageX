@@ -232,24 +232,12 @@ $(document).ready(function () {
         const txtTelegramAPI = $(this).find('[name="txtTelegramAPI"]').val();
         const botId = $('#botId-' + userType.toLowerCase()).val();
 
-        // Validate token before sending
-        if (!txtTelegramAPI || txtTelegramAPI.trim() === '') {
-            const translations = window.telegramAPITranslations || {};
-            Swal.fire({
-                title: translations.error_title || 'Error!',
-                text: 'Telegram API token is required',
-                icon: 'error',
-                confirmButtonText: translations.ok || 'OK'
-            });
-            return;
-        }
-
         $.ajax({
             url: '/telegramAPI/' + userType,
             type: 'PUT',
             contentType: 'application/x-www-form-urlencoded; charset=UTF-8',
             data: {
-                txtTelegramAPI: txtTelegramAPI.trim()
+                txtTelegramAPI: txtTelegramAPI ? txtTelegramAPI.trim() : ''
             },
             success: function (response) {
                 const translations = window.telegramAPITranslations || {};

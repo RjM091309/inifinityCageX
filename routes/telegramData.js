@@ -165,10 +165,8 @@ router.put('/telegramAPI/:userType', checkSession, async (req, res) => {
 	const { txtTelegramAPI } = req.body;
 	const date_now = new Date();
 
-	// Validate input
-	if (!txtTelegramAPI || typeof txtTelegramAPI !== 'string' || txtTelegramAPI.trim() === '') {
-		return res.status(400).json({ error: 'Telegram API token is required' });
-	}
+	// Allow blank/empty values to clear the token
+	const telegramToken = txtTelegramAPI && typeof txtTelegramAPI === 'string' ? txtTelegramAPI.trim() : '';
 
 	if (!req.session || !req.session.user_id) {
 		return res.status(401).json({ error: 'Unauthorized' });
@@ -181,7 +179,7 @@ router.put('/telegramAPI/:userType', checkSession, async (req, res) => {
 	`;
 
 	try {
-		const [result] = await pool.execute(query, [txtTelegramAPI.trim(), req.session.user_id, date_now, userType]);
+		const [result] = await pool.execute(query, [telegramToken, req.session.user_id, date_now, userType]);
 		
 		if (result.affectedRows === 0) {
 			return res.status(404).json({ error: `No active Telegram API record found for user type: ${userType}` });
