@@ -110,6 +110,31 @@
 										</table>
 									</div>
 									<div class="chat-ids-empty text-muted text-center py-3" data-user-type="GUEST" style="display: none;"><%= __('telegram_api.chat_ids_empty') %></div>
+									
+									<hr class="my-4">
+									
+									<!-- Agent Notification Chat IDs -->
+									<div class="d-flex align-items-center justify-content-between mb-2">
+										<h6 class="mb-0">Agent Notification Chat IDs</h6>
+										<button type="button" class="btn btn-sm btn-success btn-add-agent-chat-id">
+											<i class="fa fa-plus me-1"></i> Add Agent Chat ID
+										</button>
+									</div>
+									<p class="text-muted small mb-3">Messages sent to guests <strong style="color: #000;">INF501-INF599</strong> will also be sent to these agent chat IDs.</p>
+									<div class="table-responsive">
+										<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
+											<thead>
+												<tr>
+													<th class="text-center" style="width: 60px;">#</th>
+													<th style="width: calc((100% - 200px) / 2);">Chat ID</th>
+													<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
+													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
+												</tr>
+											</thead>
+											<tbody class="agent-chat-ids-tbody"></tbody>
+										</table>
+									</div>
+									<div class="agent-chat-ids-empty text-muted text-center py-3" style="display: none;">No agent chat IDs. Click "Add Agent Chat ID" to add one.</div>
 								</div>
 								
 								<!-- MANAGEMENT BOT SECTION -->
@@ -249,6 +274,30 @@
 						<div class="modal-footer">
 							<button type="button" class="btn btn-primary" id="btn-save-chat-id"><%= __('telegram_api.save') %></button>
 							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('telegram_api.cancel') %></button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Modal: Add / Edit Agent Chat ID -->
+			<div class="modal fade" id="modal-agent-chat-id" tabindex="-1" aria-labelledby="modal-agent-chat-id-label" aria-hidden="true">
+				<div class="modal-dialog modal-dialog-centered">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title" id="modal-agent-chat-id-label">Add Agent Chat ID</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<input type="hidden" id="modal-agent-chat-id-index">
+							<div class="mb-2">
+								<label for="input-agent-chat-id" class="form-label">Chat ID</label>
+								<input type="text" class="form-control" id="input-agent-chat-id" placeholder="Chat ID">
+								<small class="text-muted">Use <code>/getchatid</code> in Telegram to get the Chat ID</small>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-primary" id="btn-save-agent-chat-id">Save</button>
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
 						</div>
 					</div>
 				</div>

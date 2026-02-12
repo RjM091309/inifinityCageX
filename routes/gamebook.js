@@ -6,40 +6,69 @@ const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats, sendTelegramToManagement } = require('../utils/telegram');
 const dashboardQueries = require('../utils/dashboardQueries');
 
-// Helper function to get INF500's TELEGRAM_ID
-async function getINF500TelegramId() {
+// Helper function to get agent notification chat IDs from telegram_api table
+// Returns all chat IDs stored in AGENT_CHATID column (for INF501-INF599 notifications)
+async function getAgentNotificationChatIds() {
 	try {
+		// Query telegram_api table for GUEST user type with AGENT_CHATID column
 		const [rows] = await pool.execute(
-			'SELECT TELEGRAM_ID FROM agent WHERE AGENT_CODE = ? AND ACTIVE = 1 LIMIT 1',
-			['INF500']
+			'SELECT AGENT_CHATID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
+			['GUEST']
 		);
-		return rows.length > 0 ? rows[0].TELEGRAM_ID : null;
+		
+		if (rows.length === 0 || !rows[0].AGENT_CHATID) return [];
+		
+		const raw = String(rows[0].AGENT_CHATID).trim();
+		if (!raw) return [];
+		
+		// Parse JSON format: ["123456", "789012", ...]
+		try {
+			const parsed = JSON.parse(raw);
+			if (Array.isArray(parsed)) {
+				return parsed.filter(Boolean);
+			}
+		} catch (e) {
+			// Not JSON, try comma-separated format
+			return raw.split(',').map(s => s.trim()).filter(Boolean);
+		}
+		
+		return [];
 	} catch (error) {
-		console.error('Error fetching INF500 TELEGRAM_ID:', error);
-		return null;
+		// If AGENT_CHATID column doesn't exist yet, return empty array
+		console.warn('Error fetching agent notification chat IDs (AGENT_CHATID column may not exist):', error.message);
+		return [];
 	}
 }
 
-// Helper function to check if agent code is INF501-INF599 and send to INF500
-async function sendToINF500IfNeeded(agentCode, messageText) {
+// Helper function to send message to agent notification chat IDs
+async function sendToAgentNotifications(agentCode, messageText) {
 	if (!agentCode || !messageText) return;
 	
-	// Check if agent code is between INF501 and INF599
-	const isInRange = agentCode >= 'INF501' && agentCode <= 'INF599';
+	// Check if agent code is between INF501 and INF599 (case-insensitive)
+	const agentCodeUpper = String(agentCode).toUpperCase();
+	const isInRange = agentCodeUpper >= 'INF501' && agentCodeUpper <= 'INF599';
 	
-	if (isInRange) {
-		try {
-			const inf500TelegramId = await getINF500TelegramId();
-			if (inf500TelegramId) {
-				await sendTelegramMessage(messageText, inf500TelegramId);
-				console.log(`✅ Also sent message to INF500 for agent ${agentCode}`);
-			} else {
-				console.warn('⚠️ INF500 TELEGRAM_ID not found or inactive');
-			}
-		} catch (error) {
-			console.error('Error sending message to INF500:', error.message);
-			// Continue execution even if sending to INF500 fails
+	if (!isInRange) return; // Only send notifications for INF501-INF599
+	
+	try {
+		const chatIds = await getAgentNotificationChatIds();
+		
+		if (chatIds.length === 0) {
+			return; // No notifications configured
 		}
+		
+		// Send to each configured chat ID
+		for (const chatId of chatIds) {
+			try {
+				await sendTelegramMessage(messageText, chatId);
+			} catch (error) {
+				console.error(`Error sending message to chat ID ${chatId} for agent ${agentCode}:`, error.message);
+				// Continue sending to other chat IDs even if one fails
+			}
+		}
+	} catch (error) {
+		console.error('Error in sendToAgentNotifications:', error.message);
+		// Continue execution even if notification fails
 	}
 }
 
@@ -344,8 +373,8 @@ router.post('/add_game_list', async (req, res) => {
 			if (telegramId) {
 				try {
 					await sendTelegramMessage(text, telegramId);
-					// Send to INF500 if agent code is INF501-INF599
-					await sendToINF500IfNeeded(agentCode, text);
+					// Send to agent-specific notification chat IDs (e.g., INF500, INF600)
+					await sendToAgentNotifications(agentCode, text);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to agent:', telegramError.message);
 					// Continue execution even if Telegram fails
@@ -1402,8 +1431,8 @@ router.post('/add_settlement', async (req, res) => {
 			if (telegramId) {
 				try {
 					await sendTelegramMessage(text, telegramId);
-					// Send to INF500 if agent code is INF501-INF599
-					await sendToINF500IfNeeded(agentCode, text);
+					// Send to agent-specific notification chat IDs (e.g., INF500, INF600)
+					await sendToAgentNotifications(agentCode, text);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to agent:', telegramError.message);
 					// Continue execution even if Telegram fails
@@ -1599,8 +1628,8 @@ router.post('/game_list/add/buyin', async (req, res) => {
 				if (telegramId) {
 					try {
 						await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
-						// Send to INF500 if agent code is INF501-INF599
-						await sendToINF500IfNeeded(agentCode, text);
+						// Send to agent-specific notification chat IDs (e.g., INF500, INF600)
+						await sendToAgentNotifications(agentCode, text);
 					} catch (telegramError) {
 						console.error('Failed to send Telegram message to agent:', telegramError.message);
 						// Continue execution even if Telegram fails
@@ -1758,8 +1787,8 @@ router.post('/game_list/add/cashout', async (req, res) => {
 				if (telegramId) {
 					try {
 						await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
-						// Send to INF500 if agent code is INF501-INF599
-						await sendToINF500IfNeeded(agentCode, text);
+						// Send to agent-specific notification chat IDs (e.g., INF500, INF600)
+						await sendToAgentNotifications(agentCode, text);
 					} catch (telegramError) {
 						console.error('Failed to send Telegram message to agent:', telegramError.message);
 						// Continue execution even if Telegram fails

@@ -159,6 +159,79 @@ router.put('/telegramAPI/chat-ids/:userType', checkSession, async (req, res) => 
 	}
 });
 
+// Get agent-specific notification chat IDs (AGENT_CHATID column for GUEST)
+router.get('/telegramAPI/agent-chat-ids', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.execute(
+			'SELECT AGENT_CHATID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
+			['GUEST']
+		);
+		
+		if (rows.length === 0 || !rows[0].AGENT_CHATID) {
+			return res.json({ agentChatIds: [] });
+		}
+		
+		const raw = String(rows[0].AGENT_CHATID).trim();
+		if (!raw) {
+			return res.json({ agentChatIds: [] });
+		}
+		
+		// Parse JSON format: ["123456", "789012", ...] or comma-separated
+		try {
+			const parsed = JSON.parse(raw);
+			if (Array.isArray(parsed)) {
+				// Array of chat IDs
+				return res.json({ agentChatIds: parsed.filter(Boolean) });
+			}
+		} catch (e) {
+			// Not JSON, try comma-separated format
+			const chatIds = raw.split(',').map(s => s.trim()).filter(Boolean);
+			return res.json({ agentChatIds: chatIds });
+		}
+		
+		res.json({ agentChatIds: [] });
+	} catch (err) {
+		// If AGENT_CHATID column doesn't exist, return empty array
+		console.warn('Error fetching agent chat IDs (AGENT_CHATID column may not exist):', err.message);
+		res.json({ agentChatIds: [] });
+	}
+});
+
+// Update agent-specific notification chat IDs (AGENT_CHATID column for GUEST)
+router.put('/telegramAPI/agent-chat-ids', checkSession, async (req, res) => {
+	try {
+		let agentChatIds = req.body.agentChatIds;
+		if (!Array.isArray(agentChatIds)) {
+			agentChatIds = [];
+		}
+		
+		// Validate: just array of chat ID strings
+		const validated = agentChatIds
+			.map(item => {
+				// Support both string and object format for backward compatibility
+				if (typeof item === 'string') {
+					return item.trim();
+				} else if (item && item.chatId) {
+					return String(item.chatId).trim();
+				}
+				return null;
+			})
+			.filter(Boolean);
+		
+		const value = validated.length > 0 ? JSON.stringify(validated) : null;
+		
+		await pool.execute(
+			'UPDATE telegram_api SET AGENT_CHATID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE ACTIVE = 1 AND USER = ?',
+			[value, req.session.user_id, new Date(), 'GUEST']
+		);
+		
+		res.json({ success: true, agentChatIds: validated });
+	} catch (err) {
+		console.error('Error updating agent chat IDs:', err);
+		res.status(500).json({ error: 'Error updating agent chat IDs' });
+	}
+});
+
 // EDIT TELEGRAM API by USER type
 router.put('/telegramAPI/:userType', checkSession, async (req, res) => {
 	const userType = req.params.userType || 'GUEST';

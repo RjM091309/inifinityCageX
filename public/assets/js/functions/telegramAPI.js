@@ -20,6 +20,11 @@ var botData = {
     }
 };
 
+// Store agent-specific chat IDs (just array of chat ID strings)
+var agentChatIds = [];
+var agentChatIdEditIndex = null;
+var agentChatDetailsCache = {};
+
 var currentModalUserType = null;
 
 $(document).ready(function () {
@@ -393,6 +398,173 @@ $(document).ready(function () {
         });
     });
 
+    // ==================== Agent Chat IDs Functions ====================
+    
+    function loadAgentChatIds() {
+        $.ajax({
+            url: '/telegramAPI/agent-chat-ids',
+            method: 'GET',
+            success: function (data) {
+                agentChatIds = Array.isArray(data.agentChatIds) ? data.agentChatIds : [];
+                fetchAllAgentChatDetails(agentChatIds, agentChatDetailsCache).then(function() {
+                    renderAgentChatIdsTable();
+                });
+            },
+            error: function () {
+                agentChatIds = [];
+                renderAgentChatIdsTable();
+            }
+        });
+    }
+    
+    function fetchAllAgentChatDetails(agentChatIds, cache) {
+        const promises = agentChatIds.map(function(chatId) {
+            return fetchChatInfo('GUEST', chatId, cache);
+        });
+        return Promise.all(promises);
+    }
+    
+    function renderAgentChatIdsTable() {
+        const tbody = $('.agent-chat-ids-tbody');
+        const emptyEl = $('.agent-chat-ids-empty');
+        
+        if (!agentChatIds.length) {
+            tbody.html('');
+            emptyEl.show();
+            return;
+        }
+        emptyEl.hide();
+        tbody.html(agentChatIds.map(function (chatId, i) {
+            const chatInfo = agentChatDetailsCache[chatId] || { title: 'Loading...', username: null };
+            return '<tr><td class="text-center">' + (i + 1) + '</td>' +
+                '<td><code>' + escapeHtml(String(chatId)) + '</code></td>' +
+                '<td>' + formatChatDisplay(chatInfo) + '</td>' +
+                '<td class="text-center">' +
+                '<button type="button" class="btn btn-sm btn-alt-secondary me-1 btn-edit-agent-chat-id" data-index="' + i + '" title="Edit"><i class="fa fa-pencil-alt"></i></button>' +
+                '<button type="button" class="btn btn-sm btn-alt-danger btn-delete-agent-chat-id" data-index="' + i + '" title="Delete"><i class="fa fa-trash"></i></button>' +
+                '</td></tr>';
+        }).join(''));
+    }
+    
+    // Agent Chat IDs: Add button handler
+    $('.btn-add-agent-chat-id').on('click', function () {
+        agentChatIdEditIndex = null;
+        $('#modal-agent-chat-id-label').text('Add Agent Chat ID');
+        $('#input-agent-chat-id').val('');
+        $('#modal-agent-chat-id-index').val('');
+        var modalEl = document.getElementById('modal-agent-chat-id');
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            new bootstrap.Modal(modalEl).show();
+        } else {
+            $(modalEl).modal('show');
+        }
+    });
+    
+    $('#btn-save-agent-chat-id').on('click', function () {
+        const chatId = ($('#input-agent-chat-id').val() || '').trim();
+        
+        if (!chatId) {
+            Swal.fire({ title: 'Error', text: 'Please enter a Chat ID.', icon: 'warning' });
+            return;
+        }
+        
+        const index = $('#modal-agent-chat-id-index').val();
+        if (index === '' || index === null) {
+            // Add new
+            if (agentChatIds.indexOf(chatId) !== -1) {
+                Swal.fire({ title: 'Error', text: 'This Chat ID already exists.', icon: 'warning' });
+                return;
+            }
+            agentChatIds.push(chatId);
+        } else {
+            // Edit existing
+            const i = parseInt(index, 10);
+            if (!isNaN(i) && i >= 0 && i < agentChatIds.length) {
+                const oldChatId = agentChatIds[i];
+                if (oldChatId !== chatId && agentChatIds.indexOf(chatId) !== -1) {
+                    Swal.fire({ title: 'Error', text: 'This Chat ID already exists.', icon: 'warning' });
+                    return;
+                }
+                agentChatIds[i] = chatId;
+                if (oldChatId !== chatId) {
+                    delete agentChatDetailsCache[oldChatId];
+                }
+                delete agentChatDetailsCache[chatId];
+            }
+        }
+        
+        $.ajax({
+            url: '/telegramAPI/agent-chat-ids',
+            type: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify({ agentChatIds: agentChatIds }),
+            success: function () {
+                var modalEl = document.getElementById('modal-agent-chat-id');
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getInstance(modalEl).hide();
+                } else {
+                    $(modalEl).modal('hide');
+                }
+                Swal.fire({ title: 'Success', text: 'Saved.', icon: 'success' });
+                loadAgentChatIds();
+            },
+            error: function () {
+                Swal.fire({ title: 'Error', text: 'Failed to save.', icon: 'error' });
+            }
+        });
+    });
+    
+    // Agent Chat IDs: Edit handler
+    $(document).on('click', '.btn-edit-agent-chat-id', function () {
+        const i = parseInt($(this).data('index'), 10);
+        if (isNaN(i) || i < 0 || i >= agentChatIds.length) return;
+        
+        agentChatIdEditIndex = i;
+        const chatId = agentChatIds[i];
+        $('#modal-agent-chat-id-label').text('Edit Agent Chat ID');
+        $('#input-agent-chat-id').val(chatId);
+        $('#modal-agent-chat-id-index').val(i);
+        var modalEl = document.getElementById('modal-agent-chat-id');
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            new bootstrap.Modal(modalEl).show();
+        } else {
+            $(modalEl).modal('show');
+        }
+    });
+    
+    // Agent Chat IDs: Delete handler
+    $(document).on('click', '.btn-delete-agent-chat-id', function () {
+        const i = parseInt($(this).data('index'), 10);
+        if (isNaN(i) || i < 0 || i >= agentChatIds.length) return;
+        
+        Swal.fire({
+            title: 'Delete Agent Chat ID?',
+            text: 'This chat will no longer receive notifications for agents INF501-INF599.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Delete',
+            cancelButtonText: 'Cancel'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            const deletedChatId = agentChatIds.splice(i, 1)[0];
+            delete agentChatDetailsCache[deletedChatId];
+            $.ajax({
+                url: '/telegramAPI/agent-chat-ids',
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ agentChatIds: agentChatIds }),
+                success: function () {
+                    Swal.fire({ title: 'Success', text: 'Deleted.', icon: 'success' });
+                    loadAgentChatIds();
+                },
+                error: function () {
+                    Swal.fire({ title: 'Error', text: 'Failed to delete.', icon: 'error' });
+                }
+            });
+        });
+    });
+
     // Load data on page load
     reloadData();
+    loadAgentChatIds();
 });
