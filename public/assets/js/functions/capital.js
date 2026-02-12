@@ -56,8 +56,11 @@ function reloadData() {
                     combinedDescription.push(`<span class="css-violet">IOU Payment</span> ${row.comms_description || ''}`);
                 }
 
-                // Add capital description logic
-                if (row.capital_description) {
+                // Add capital description logic (expense rows: use CATEGORY from expense_category; others: legacy numeric mapping)
+                if (row.CATEGORY_ID > 0) {
+                    const categoryLabel = (row.CATEGORY && String(row.CATEGORY).trim()) ? row.CATEGORY : 'Junket Expense';
+                    combinedDescription.push(`<span class="css-blue1">${categoryLabel}</span>`);
+                } else if (row.capital_description) {
                     if (row.capital_description == 1) {
                         combinedDescription.push(`<span class="css-blue1">PURCHASE OF BUSINESS SUPPLIES</span>`);
                     } else if (row.capital_description == 2) {
@@ -131,8 +134,9 @@ function reloadData() {
                     combinedChipsText = `Cash Out :<span style="color: red;">-${parseFloat(comms).toLocaleString()}</span>`;
                 } else if (IOU > 0) { // Show IOU only if it's greater than 0
                     combinedChipsText = `IOU Cash :\n${IOU.toLocaleString()}`;
-                } else if (row.CATEGORY_ID > 0 && cbal > 0) { // Show junket Expense if CATEGORY_ID is greater than 0
-                    combinedChipsText = `Junket Expense :<span style="color: red;">-${parseFloat(cbal).toLocaleString()}</span>`;
+                } else if (row.CATEGORY_ID > 0 && row.capital_amount != null && row.capital_amount !== 0) { // Junket expense: AMOUNT column shows "Junket Expense"; TYPE column shows category (Supplies, Others, Car, etc.)
+                    const absAmount = Math.abs(parseFloat(row.capital_amount));
+                    combinedChipsText = `Junket Expense :<span style="color: red;">-${absAmount.toLocaleString()}</span>`;
                 } else if (cbal > 0 && row.capital_description == '<span class="css-blue">Cash-in</span>') {
                     combinedChipsText = `Cash Balance :\n<span style="color: green;">+${parseFloat(cbal).toLocaleString()}</span>`;
                 } else if (cbal > 0 && row.capital_description == '<span class="css-blue">Cash-out</span>') {
@@ -1188,38 +1192,13 @@ function loadJunketExpenseData() {
                 
                 // Filter junket expense transactions
                 const filteredData = json.filter(row => {
-                    // Filter only rows with CATEGORY_ID > 0 and capital_amount > 0
-                    return row.CATEGORY_ID > 0 && row.capital_amount > 0;
+                    // Filter only junket expense rows (CATEGORY_ID > 0) with non-zero amount (stored as positive or negative)
+                    return row.CATEGORY_ID > 0 && row.capital_amount != null && row.capital_amount !== 0;
                 }).map(function(row) {
-                    let amount = parseFloat(row.capital_amount || 0).toLocaleString();
-                    let description = '';
-                    
-                    // Map category descriptions
-                    switch(parseInt(row.capital_description)) {
-                        case 1:
-                            description = '<span class="css-blue1">PURCHASE OF BUSINESS SUPPLIES</span>';
-                            break;
-                        case 2:
-                            description = '<span class="css-blue1">Hotel</span>';
-                            break;
-                        case 3:
-                            description = '<span class="css-blue1">Guest</span>';
-                            break;
-                        case 4:
-                            description = '<span class="css-blue1">FnB</span>';
-                            break;
-                        case 5:
-                            description = '<span class="css-blue1">Car</span>';
-                            break;
-                        case 6:
-                            description = '<span class="css-blue1">Employee</span>';
-                            break;
-                        case 7:
-                            description = '<span class="css-blue1">Etc</span>';
-                            break;
-                        default:
-                            description = row.capital_description || '';
-                    }
+                    let amount = Math.abs(parseFloat(row.capital_amount || 0)).toLocaleString();
+                    // Use dynamic category name from expense_category (row.CATEGORY from API)
+                    const categoryName = (row.CATEGORY && String(row.CATEGORY).trim()) ? row.CATEGORY : 'N/A';
+                    const description = `<span class="css-blue1">${categoryName}</span>`;
                     
                     return [
                         row.ENCODED_BY_NAME || 'N/A',
