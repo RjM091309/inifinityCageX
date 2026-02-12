@@ -4384,14 +4384,13 @@ function settlement_history(record_id, acc_id) {
 							var total_initial = total_nn_init + total_cc_init;
 							var total_buy_in_chips = total_nn + total_cc;
 							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
-							// TOTAL ROLLING: Follow same logic as game_record (reloadDataRecord function)
-							// Formula: buy-in NN (initial + additional) + real rolling (CAGE_TYPE == 4: AMOUNT + NN + CC) - cash out NN
-							// Note: CAGE_TYPE == 3 (TOTAL ROLLING) is NOT included
-							// Note: CC chips from CAGE_TYPE == 1 (BUY-IN) should NOT be included (only NN chips)
-							// Note: CC chips from CAGE_TYPE == 4 (REAL ROLLING) SHOULD be included (via real_rolling)
-							var buy_in_nn_total = total_nn_init + total_nn;  // NN chips from initial buy-in + additional buy-in
-							var real_rolling_total = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real;  // AMOUNT + NN + CC from CAGE_TYPE == 4
-							var total_rolling_chips = buy_in_nn_total + real_rolling_total - total_cash_out_nn;
+							// TOTAL ROLLING: Follow same logic as backend add_settlement route
+							// Formula: total_rolling_nn + totalRollingCCWithReturns + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn
+							// Note: CC chips from CAGE_TYPE == 3 (TOTAL ROLLING) should NOT be included
+							// Note: CC chips from CAGE_TYPE == 4 (REAL ROLLING) SHOULD be included
+							// Note: Buy-in amounts are NOT included here - they are separate from rolling transactions
+							var totalRollingCCWithReturns = total_roller_return_cc;  // Only include roller return CC, exclude CC from CAGE_TYPE == 3
+							var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 					
 							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
 					
