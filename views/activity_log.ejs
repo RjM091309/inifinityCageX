@@ -11,22 +11,27 @@
                 <div id="user-role" data-permissions="<%= permissions %>"></div>
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h3 class="card-title mb-0">
-                        <div id="activity-log-filter" class="breadcrumb1 flat">
-                            <a href="/dashboard"><span class="fa fa-home"></span></a>
-                            <a href="/activity_log" class="active"><%= __('dashboard.activity_overview') %></a>
-                            
-                            <a href="#" class="filter-link active" data-filter="all">All</a>
-                            <a href="#" class="filter-link" data-filter="Game">Game</a>
-                            <a href="#" class="filter-link" data-filter="Account Transaction">Account Transaction</a>
-                            <a href="#" class="filter-link" data-filter="Junket Expense">Junket Expense</a>
-                            <a href="#" class="filter-link" data-filter="Services">Services</a>
-                            <a href="#" class="filter-link" data-filter="Junket Return Money">Junket Return Money</a>
-                            <a href="#" class="filter-link" data-filter="Junket Total Chips">Junket Total Chips</a>
-                            <a href="#" class="filter-link" data-filter="Junket Capital">Junket Capital</a>
-                            <a href="#" class="filter-link" data-filter="Daily Settlement">Daily Settlement</a>
-                            <a href="#" class="filter-link" data-filter="Guest">Guest</a>
-                            <a href="#" class="filter-link" data-filter="agency">Agency</a>
-                            <a href="#" class="filter-link" data-filter="User">User</a>
+                        <div class="d-flex align-items-center gap-2">
+                            <h3 class="card-title">
+                                <div class="breadcrumb1 flat">
+                                    <a href="/dashboard"><span class="fa fa-home"></span></a>
+                                    <a href="#" class="active">Activity Log</a>
+                                </div>
+                            </h3>
+                            <select id="activity-log-filter-select" class="js-select2 form-select" data-placeholder="Filter by source" style="width: 300px;">
+                                <option value="all">All</option>
+                                <option value="Game">Game</option>
+                                <option value="Account Transaction">Account Transaction</option>
+                                <option value="Junket Expense">Junket Expense</option>
+                                <option value="Services">Services</option>
+                                <option value="Junket Return Money">Junket Return Money</option>
+                                <option value="Junket Total Chips">Junket Total Chips</option>
+                                <option value="Junket Capital">Junket Capital</option>
+                                <option value="Daily Settlement">Daily Settlement</option>
+                                <option value="Guest">Guest</option>
+                                <option value="agency">Agency</option>
+                                <option value="User">User</option>
+                            </select>
                         </div>
                     </h3>
                 </div>
@@ -310,9 +315,8 @@
                 });
         }
 
-        // Filter functionality
+        // Filter functionality (Select2 dropdown)
         let currentSourceFilter = 'all';
-        const filterLinks = document.querySelectorAll('#activity-log-filter .filter-link');
 
         function updateSourceFilter(filter) {
             if (!$.fn.DataTable.isDataTable('#activity-logs-table')) return;
@@ -321,30 +325,29 @@
             const sourceColumnIndex = 1; // Source column is index 1 (0-based)
 
             if (filter === 'all') {
-                // Clear column filter - show all sources
                 $('#activity-logs-table').DataTable().column(sourceColumnIndex).search('').draw();
             } else {
-                // Exact match on source text
                 const regex = '^' + filter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$';
                 $('#activity-logs-table').DataTable()
                     .column(sourceColumnIndex)
-                    .search(regex, true, false) // regex = true, smart = false
+                    .search(regex, true, false)
                     .draw();
             }
         }
 
-        // Filter link click handlers
-        filterLinks.forEach((link) => {
-            link.addEventListener('click', (event) => {
-                event.preventDefault();
-                const selectedFilter = link.dataset.filter;
-                if (!selectedFilter) return;
-
-                filterLinks.forEach((otherLink) => otherLink.classList.remove('active'));
-                link.classList.add('active');
+        // Select2 for filter dropdown
+        if ($('#activity-log-filter-select').length && typeof $.fn.select2 === 'function') {
+            $('#activity-log-filter-select').select2({
+                placeholder: 'Filter by source',
+                allowClear: false,
+                dropdownParent: $('body')
+            });
+            $('#activity-log-filter-select').val('all').trigger('change');
+            $('#activity-log-filter-select').on('change', function() {
+                const selectedFilter = $(this).val() || 'all';
                 updateSourceFilter(selectedFilter);
             });
-        });
+        }
 
         function initializeDataTable() {
             // Check if table exists
@@ -581,22 +584,6 @@
         }
     }
 
-    /* Filter links styling - minimal spacing, fit to text, no white background */
-    #activity-log-filter.breadcrumb1.flat {
-        line-height: normal !important;
-        display: flex !important;
-        flex-wrap: wrap !important;
-        align-items: stretch !important;
-        gap: 0 !important;
-        margin: 0 auto !important;
-        padding: 0 !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-        overflow: hidden !important;
-        background: transparent !important;
-    }
-
-
     /* Restore spacing at the top and sides */
     .card-header {
         padding: 0.75rem 1rem !important;
@@ -612,51 +599,45 @@
         margin-bottom: 0 !important;
     }
 
-    /* Make filter links fill height and remove gaps */
-    #activity-log-filter .filter-link {
-        padding: 0.3rem 0.7rem 0.3rem 1.2rem !important;
-        margin: 0.4rem 0 0 0.1rem !important;
-        font-size: 0.8rem !important;
-        white-space: nowrap;
-        line-height: 1.2 !important;
-        min-width: auto !important;
-        height: 100% !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        float: none !important;
-        position: relative !important;
-    }
+    .select2-container .select2-selection--single {
+							height: calc(1.5em );
+						}
 
+						.select2-container .select2-search--inline .select2-search__field {
+							margin-top: 0;
+							margin: 0.25rem 0.25rem 0.25rem 0;
+							height: 1.375rem;
+							line-height: 1.375rem;
+						}
 
-    /* Override breadcrumb default padding completely */
-    #activity-log-filter .filter-link:first-child {
-        padding-left: 1.2rem !important;
-    }
+						.select2-container--default .select2-selection--single {
+							border-color: #eee;
 
+						}
 
-    #activity-log-filter .filter-link:last-child {
-        padding-right: 0.7rem !important;
-    }
+						.select2-container--default .select2-selection--single .select2-selection__rendered {
+							display: flex;
+							align-items: center;
+							padding-left: 0.75rem;
+							height: calc(1.5em + 0.75rem + 2px);
+							line-height: 1.5;
+                            font-size: 0.975rem;     
+                            
+						}
 
-    #activity-log-filter .filter-link.active {
-        font-weight: 600;
-    }
+						.select2-container--default .select2-selection--single .select2-selection__arrow {
+							height: calc(1.5em);
+						}
 
-    #activity-log-filter .filter-link::after {
-    right: -10px;
-    width: 18px;
-    height: 18px;          /* kontrolado, hindi 100% */
-    top: 50%;
-    transform: translateY(-50%) rotate(45deg);
-    
-   
-}
+						.select2-container--default .select2-selection--single .select2-selection__placeholder {
+							color: #8A92A6;
+						}
 
-#activity-log-filter .filter-link::after {
-    right: -6px;          /* mas dikit */
-    width: 14px;
-    height: 14px;
-}
+						.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+							padding-right: 0.75rem;
+							padding-left: 0.75rem;
+						}
+
 
 
 </style>
