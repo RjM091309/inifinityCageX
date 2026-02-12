@@ -92,10 +92,6 @@ $(document).ready(function () {
                 method: 'GET',
                 data: requestData,
                 success: function (data) {
-                    console.log("Returned data:", data);
-                    console.log(`Total records received: ${data.length}`);
-                    console.log(`Expense records: ${data.filter(r => r.record_type === 'expense').length}`);
-                    console.log(`Return money records: ${data.filter(r => r.record_type === 'return_money').length}`);
                     dataTable.clear();
                     var total_expense = 0;
                     var total_return_money = 0;
@@ -111,7 +107,6 @@ $(document).ready(function () {
                     }
 
                     data.forEach(function (row) {
-                        console.log(`Processing row:`, row.record_type, row.expense_category, row.AMOUNT);
                         const amount = parseFloat(row.AMOUNT) || 0; // 🛡️ Ensure valid number
                         
                         // Calculate totals separately
@@ -211,7 +206,7 @@ $(document).ready(function () {
 
                 },
                 error: function (xhr, status, error) {
-                    console.error('Error fetching data:', error);
+                    // Error fetching data
                 }
             });
         }
@@ -240,6 +235,36 @@ $(document).ready(function () {
         } else {
             $('#settlement-date-wrapper').hide();
             $('#daterange-wrapper').show();
+            
+            // Update date range picker to default range (earliest settlement to next settlement)
+            var daterangePickerEl = document.getElementById('daterange-picker');
+            if (daterangePickerEl && daterangePickerEl._flatpickr) {
+                var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
+                var defaultSettlementDate = null;
+                var settledDates = window.settledDatesForMonth || [];
+                
+                if (wrapper) {
+                    defaultSettlementDate = wrapper.getAttribute('data-default-settlement-date');
+                }
+                
+                // Get earliest settlement date
+                var earliestSettlementDate = null;
+                if (settledDates.length > 0) {
+                    var sortedDates = settledDates.slice().sort();
+                    earliestSettlementDate = sortedDates[0];
+                } else {
+                    var now = new Date();
+                    var pad = function(n) { return String(n).padStart(2, '0'); };
+                    var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                    earliestSettlementDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+                }
+                
+                // Set default range and max date
+                var defaultToDate = defaultSettlementDate || new Date().toISOString().slice(0, 10);
+                daterangePickerEl._flatpickr.set('maxDate', defaultToDate);
+                daterangePickerEl._flatpickr.setDate([earliestSettlementDate, defaultToDate], false);
+            }
+            
             // Reload data with date range
             if (typeof window.reloadData === 'function') {
                 window.reloadData();
@@ -256,30 +281,36 @@ $(document).ready(function () {
         // Get default settlement date (next settlement date) from wrapper
         var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
         var defaultSettlementDate = null;
+        var settledDates = [];
         if (wrapper) {
             defaultSettlementDate = wrapper.getAttribute('data-default-settlement-date');
             var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
-            console.log('[Date Range Picker - Initialization] Raw settled dates from wrapper:', settledDatesRaw);
             try {
                 var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
-                console.log('[Date Range Picker - Initialization] Parsed settled dates:', parsedDates);
                 // Make sure window.settledDatesForMonth is set if not already set
                 if (!window.settledDatesForMonth || window.settledDatesForMonth.length === 0) {
                     window.settledDatesForMonth = parsedDates;
-                    console.log('[Date Range Picker - Initialization] Set window.settledDatesForMonth:', window.settledDatesForMonth);
                 }
+                settledDates = window.settledDatesForMonth || parsedDates;
             } catch (e) {
-                console.error('[Date Range Picker - Initialization] Error parsing settled dates:', e);
+                // Error parsing settled dates
             }
         }
-        console.log('[Date Range Picker - Initialization] Final window.settledDatesForMonth:', window.settledDatesForMonth);
         
-        // Use next settlement date as default "From Date", or first of month if not available
-        var defaultFromDate = defaultSettlementDate || (function() {
+        // Get earliest settlement date (start of settlement period)
+        var earliestSettlementDate = null;
+        if (settledDates.length > 0) {
+            var sortedDates = settledDates.slice().sort();
+            earliestSettlementDate = sortedDates[0];
+        } else {
+            // If no settled dates, use first of month
             var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            return firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
-        })();
-        var defaultToDate = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+            earliestSettlementDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+        }
+        
+        // Default date range: From earliest settlement date to next settlement date
+        var defaultFromDate = earliestSettlementDate;
+        var defaultToDate = defaultSettlementDate || now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
         
         dateRangePicker = flatpickr("#daterange-picker", {
             mode: 'range',
@@ -287,16 +318,14 @@ $(document).ready(function () {
             altInput: true,
             altFormat: 'M d, Y',
             defaultDate: [defaultFromDate, defaultToDate],
-            // maxDate: 'today',
+            maxDate: defaultToDate,
             onDayCreate: function (dayElem) {
                 if (!dayElem || !dayElem.dateObj) return;
                 var d = dayElem.dateObj;
                 var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
                 var settledDates = window.settledDatesForMonth || [];
-                console.log('[Date Range Picker - onDayCreate] Date:', dStr, 'Settled Dates:', settledDates, 'Is Settled:', settledDates.indexOf(dStr) !== -1);
                 if (dStr && settledDates.indexOf(dStr) !== -1) {
                     dayElem.classList.add('settled-day');
-                    console.log('[Date Range Picker - onDayCreate] Added settled-day class to:', dStr);
                 }
             },
             onReady: function (selectedDates, dateStr, instance) {
@@ -304,7 +333,6 @@ $(document).ready(function () {
                 setTimeout(function () {
                     if (!instance.calendarContainer) return;
                     var settledDates = window.settledDatesForMonth || [];
-                    console.log('[Date Range Picker - onReady] Settled Dates:', settledDates);
                     var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
                     days.forEach(function (el) {
                         el.classList.remove('settled-day');
@@ -313,7 +341,6 @@ $(document).ready(function () {
                         var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
                         if (dStr && settledDates.indexOf(dStr) !== -1) {
                             el.classList.add('settled-day');
-                            console.log('[Date Range Picker - onReady] Added settled-day class to:', dStr);
                         }
                     });
                 }, 100);
@@ -322,7 +349,6 @@ $(document).ready(function () {
                 setTimeout(function () {
                     if (!instance.calendarContainer) return;
                     var settledDates = window.settledDatesForMonth || [];
-                    console.log('[Date Range Picker - onOpen] Settled Dates:', settledDates);
                     var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
                     days.forEach(function (el) {
                         el.classList.remove('settled-day');
@@ -331,7 +357,6 @@ $(document).ready(function () {
                         var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
                         if (dStr && settledDates.indexOf(dStr) !== -1) {
                             el.classList.add('settled-day');
-                            console.log('[Date Range Picker - onOpen] Added settled-day class to:', dStr);
                         }
                     });
                 }, 0);
@@ -340,7 +365,6 @@ $(document).ready(function () {
                 setTimeout(function () {
                     if (!instance.calendarContainer) return;
                     var settledDates = window.settledDatesForMonth || [];
-                    console.log('[Date Range Picker - onMonthChange] Settled Dates:', settledDates);
                     var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
                     days.forEach(function (el) {
                         el.classList.remove('settled-day');
@@ -349,7 +373,6 @@ $(document).ready(function () {
                         var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
                         if (dStr && settledDates.indexOf(dStr) !== -1) {
                             el.classList.add('settled-day');
-                            console.log('[Date Range Picker - onMonthChange] Added settled-day class to:', dStr);
                         }
                     });
                 }, 0);
@@ -375,19 +398,6 @@ $(document).ready(function () {
                 }
             }
         });
-        
-        // Log initial settled dates
-        console.log('[Date Range Picker - Initialization] window.settledDatesForMonth:', window.settledDatesForMonth);
-        if (wrapper) {
-            var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
-            console.log('[Date Range Picker - Initialization] Raw settled dates from wrapper:', settledDatesRaw);
-            try {
-                var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
-                console.log('[Date Range Picker - Initialization] Parsed settled dates:', parsedDates);
-            } catch (e) {
-                console.error('[Date Range Picker - Initialization] Error parsing settled dates:', e);
-            }
-        }
     }
     
     // Initialize settlement date picker
@@ -397,12 +407,9 @@ $(document).ready(function () {
         if (wrapper) {
             var defaultDate = wrapper.getAttribute('data-default-settlement-date') || new Date().toISOString().slice(0, 10);
             var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
-            console.log('[Settlement Date Picker - Initialization] Raw settled dates from wrapper:', settledDatesRaw);
             try {
                 window.settledDatesForMonth = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
-                console.log('[Settlement Date Picker - Initialization] Parsed settled dates:', window.settledDatesForMonth);
             } catch (e) {
-                console.error('[Settlement Date Picker - Initialization] Error parsing settled dates:', e);
                 window.settledDatesForMonth = [];
             }
             
@@ -767,7 +774,7 @@ $(document).ready(function () {
                         }
                     },
             error: function (xhr, status, error) {
-                console.error('Error fetching data:', error);
+                // Error fetching data
             }
         });
     };
@@ -843,7 +850,6 @@ $(document).ready(function () {
                 },
                 error: function (xhr) {
                     var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to run settlement';
-                    console.error('[Expense Settlement] Settle error:', err, xhr);
                     Swal.fire({
                         title: 'Error',
                         text: err,
@@ -937,7 +943,6 @@ $(document).ready(function () {
                 });
             },
             error: function (error) {
-                console.error('Error updating house expense:', error);
                 Swal.fire({
                     icon: 'error',
                     title: window.houseExpenseTranslations?.error || 'Error!',
@@ -977,11 +982,8 @@ function edit_expense(id, category_id, receipt_no, datetimeval, description, amo
         if (parsedDate.isValid()) {
             formattedDate = parsedDate.format('YYYY-MM-DD');
         } else {
-            console.warn("Invalid datetime value:", datetimeval);
             formattedDate = '';
         }
-    } else {
-        console.warn("datetimeval is null or empty.");
     }
 
     $('#txtDateandTime').val(formattedDate);
@@ -1023,7 +1025,6 @@ function archive_expense(id) {
                     });
                 },
                 error: function (error) {
-                    console.error('Error deleting junket:', error);
                     Swal.fire({
                         icon: 'error',
                         title: window.houseExpenseTranslations?.error || 'Error!',
@@ -1078,7 +1079,6 @@ function archive_return_money(id) {
                     });
                 },
                 error: function (error) {
-                    console.error('Error deleting return money:', error);
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
@@ -1128,7 +1128,6 @@ $(document).ready(function() {
                 });
             },
             error: function (error) {
-                console.error('Error updating return money:', error);
                 Swal.fire({
                     icon: 'error',
                     title: window.houseExpenseTranslations?.error || 'Error!',
@@ -1163,7 +1162,7 @@ function expense_category() {
             });
         },
         error: function (xhr, status, error) {
-            console.error('Error fetching options:', error);
+            // Error fetching options
         }
     });
 }
@@ -1187,7 +1186,7 @@ function get_agent() {
             });
         },
         error: function (xhr, status, error) {
-            console.error('Error fetching options:', error);
+            // Error fetching options
         }
     });
 }
@@ -1218,7 +1217,7 @@ function edit_expense_category(id) {
             });
         },
         error: function (xhr, status, error) {
-            console.error('Error fetching options:', error);
+            // Error fetching options
         }
     });
 }

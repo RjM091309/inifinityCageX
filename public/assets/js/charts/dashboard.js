@@ -156,13 +156,13 @@ if (document.querySelectorAll('#d-activity').length) {
   
     try {
       // Ipakita muna sa console ang raw data
-      console.log('Raw chartData.data:', chartData.data);
+      // console.log('Raw chartData.data:', chartData.data);
     
       // Gawin mong numeric
       const realData = chartData.data.map(v => parseFloat(v));
     
       // Log mo rin para makita kung negative nga ba
-      console.log('Parsed numeric realData:', realData);
+      // console.log('Parsed numeric realData:', realData);
     
       // Itabi sa chart object para sa tooltip
       winlossChart.realNetData = realData;

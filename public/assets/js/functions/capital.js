@@ -352,7 +352,7 @@ function computeTotalCashIn() {
             });
             
             $('#cash-in-total').text(`₱${totalCashIn.toLocaleString()}`);
-            console.log('Updated total cash-in:', totalCashIn);
+            // console.log('Updated total cash-in:', totalCashIn);
             loadedTotalsCount++;
             if (loadedTotalsCount >= totalComputationCount) {
                 updateProgressBars(); // Update progress bars only after all totals are loaded
@@ -394,7 +394,7 @@ function computeTotalCashOut() {
             });
             
             $('#cash-out-total').text(`₱${totalCashOut.toLocaleString()}`);
-            console.log('Updated total cash-out:', totalCashOut);
+            // console.log('Updated total cash-out:', totalCashOut);
             loadedTotalsCount++;
             if (loadedTotalsCount >= totalComputationCount) {
                 updateProgressBars(); // Update progress bars only after all totals are loaded
@@ -680,7 +680,7 @@ function chipsTransactionComputation() {
             // Net chips = totalChipsBuyIn - totalChipsReturn
             const netChips = totalChipsBuyIn - totalChipsReturn;
             $('#chips-transaction-total').text(`₱${netChips.toLocaleString()}`);
-            console.log('Updated net chips (Buy-in minus Return):', netChips);
+            // console.log('Updated net chips (Buy-in minus Return):', netChips);
             loadedTotalsCount++;
             if (loadedTotalsCount >= totalComputationCount) {
                 updateProgressBars(); // Update progress bars only after all totals are loaded
@@ -746,13 +746,13 @@ function updateProgressBars() {
         chipsProgressBar.attr('aria-valuenow', Math.round(chipsPercent));
     }
     
-    console.log('Progress bars updated:', {
-        cashIn: cashInPercent.toFixed(2) + '%',
-        cashOut: cashOutPercent.toFixed(2) + '% (based on Cash-In: ' + cashInMax.toLocaleString() + ')',
-        chips: chipsPercent.toFixed(2) + '%',
-        maxValueForCashInChips: maxValueForCashInChips,
-        cashInMax: cashInMax
-    });
+    // console.log('Progress bars updated:', {
+    //     cashIn: cashInPercent.toFixed(2) + '%',
+    //     cashOut: cashOutPercent.toFixed(2) + '% (based on Cash-In: ' + cashInMax.toLocaleString() + ')',
+    //     chips: chipsPercent.toFixed(2) + '%',
+    //     maxValueForCashInChips: maxValueForCashInChips,
+    //     cashInMax: cashInMax
+    // });
 }
 
 
@@ -1150,7 +1150,7 @@ $(document).ready(function() {
 
 function loadJunketExpenseData() {
     const dateRange = $('#junket-daterange').val();
-    console.log('Junket Expense Date Range:', dateRange);
+    // console.log('Junket Expense Date Range:', dateRange);
 
     if (!dateRange) {
         alert('Please select a date range.');
@@ -1164,7 +1164,7 @@ function loadJunketExpenseData() {
         startDate = dateRange;
         endDate = dateRange;
     }
-    console.log('Junket Expense Start Date:', startDate, 'End Date:', endDate);
+    // console.log('Junket Expense Start Date:', startDate, 'End Date:', endDate);
 
     // Show loading state
     if ($.fn.DataTable.isDataTable('#junket-expense-tbl')) {
@@ -1179,7 +1179,7 @@ function loadJunketExpenseData() {
             "url": `/junket_capital_data?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
             "type": "GET",
             "dataSrc": function(json) {
-                console.log('Raw Junket Expense Data:', json);
+                // console.log('Raw Junket Expense Data:', json);
 
                 if (!Array.isArray(json)) {
                     console.error('Expected array but got:', json);
@@ -1231,7 +1231,7 @@ function loadJunketExpenseData() {
                     ];
                 });
 
-                console.log('Filtered Junket Expense Data:', filteredData);
+                // console.log('Filtered Junket Expense Data:', filteredData);
                 return filteredData;
             }
         },
@@ -1463,7 +1463,7 @@ function fetchTotalJunketExpense() {
             });
 
             $('#junket-expense-total').text(`₱${totalJunketExpense.toLocaleString()}`);
-            console.log('Updated total junket expense:', totalJunketExpense);
+            // console.log('Updated total junket expense:', totalJunketExpense);
         },
         error: function(xhr, status, error) {
             console.error('Error fetching total junket expense:', error);
