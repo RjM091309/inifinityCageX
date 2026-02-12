@@ -6,6 +6,43 @@ const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats, sendTelegramToManagement } = require('../utils/telegram');
 const dashboardQueries = require('../utils/dashboardQueries');
 
+// Helper function to get INF500's TELEGRAM_ID
+async function getINF500TelegramId() {
+	try {
+		const [rows] = await pool.execute(
+			'SELECT TELEGRAM_ID FROM agent WHERE AGENT_CODE = ? AND ACTIVE = 1 LIMIT 1',
+			['INF500']
+		);
+		return rows.length > 0 ? rows[0].TELEGRAM_ID : null;
+	} catch (error) {
+		console.error('Error fetching INF500 TELEGRAM_ID:', error);
+		return null;
+	}
+}
+
+// Helper function to check if agent code is INF501-INF599 and send to INF500
+async function sendToINF500IfNeeded(agentCode, messageText) {
+	if (!agentCode || !messageText) return;
+	
+	// Check if agent code is between INF501 and INF599
+	const isInRange = agentCode >= 'INF501' && agentCode <= 'INF599';
+	
+	if (isInRange) {
+		try {
+			const inf500TelegramId = await getINF500TelegramId();
+			if (inf500TelegramId) {
+				await sendTelegramMessage(messageText, inf500TelegramId);
+				console.log(`✅ Also sent message to INF500 for agent ${agentCode}`);
+			} else {
+				console.warn('⚠️ INF500 TELEGRAM_ID not found or inactive');
+			}
+		} catch (error) {
+			console.error('Error sending message to INF500:', error.message);
+			// Continue execution even if sending to INF500 fails
+		}
+	}
+}
+
 // ======================= GAME LIST ==================
 
 router.get("/game_list", checkSession, async function (req, res) {
@@ -307,6 +344,8 @@ router.post('/add_game_list', async (req, res) => {
 			if (telegramId) {
 				try {
 					await sendTelegramMessage(text, telegramId);
+					// Send to INF500 if agent code is INF501-INF599
+					await sendToINF500IfNeeded(agentCode, text);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to agent:', telegramError.message);
 					// Continue execution even if Telegram fails
@@ -1363,6 +1402,8 @@ router.post('/add_settlement', async (req, res) => {
 			if (telegramId) {
 				try {
 					await sendTelegramMessage(text, telegramId);
+					// Send to INF500 if agent code is INF501-INF599
+					await sendToINF500IfNeeded(agentCode, text);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to agent:', telegramError.message);
 					// Continue execution even if Telegram fails
@@ -1558,6 +1599,8 @@ router.post('/game_list/add/buyin', async (req, res) => {
 				if (telegramId) {
 					try {
 						await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
+						// Send to INF500 if agent code is INF501-INF599
+						await sendToINF500IfNeeded(agentCode, text);
 					} catch (telegramError) {
 						console.error('Failed to send Telegram message to agent:', telegramError.message);
 						// Continue execution even if Telegram fails
@@ -1715,6 +1758,8 @@ router.post('/game_list/add/cashout', async (req, res) => {
 				if (telegramId) {
 					try {
 						await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
+						// Send to INF500 if agent code is INF501-INF599
+						await sendToINF500IfNeeded(agentCode, text);
 					} catch (telegramError) {
 						console.error('Failed to send Telegram message to agent:', telegramError.message);
 						// Continue execution even if Telegram fails

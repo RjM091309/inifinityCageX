@@ -86,7 +86,7 @@ async function sendTelegramToAdditionalChats(text) {
     try {
       await sendTelegramMessage(text, id);
     } catch (error) {
-      console.error(`Error sending Telegram message to guest chat ID ${id}:`, error);
+      console.error(`Error sending Telegram message to guest chat ID ${id}:`, error.message);
       // Continue sending to other chat IDs even if one fails
     }
   }
@@ -133,7 +133,7 @@ async function sendTelegramToEmployees(text) {
         throw new Error(`Telegram API error: ${errorData.description || response.statusText}`);
       }
     } catch (error) {
-      console.error(`Error sending Telegram message to employee chat ID ${id}:`, error);
+      console.error(`Error sending Telegram message to employee chat ID ${id}:`, error.message);
       // Continue sending to other chat IDs even if one fails
     }
   }
@@ -180,7 +180,7 @@ async function sendTelegramToManagement(text) {
         throw new Error(`Telegram API error: ${errorData.description || response.statusText}`);
       }
     } catch (error) {
-      console.error(`Error sending Telegram message to management chat ID ${id}:`, error);
+      console.error(`Error sending Telegram message to management chat ID ${id}:`, error.message);
       // Continue sending to other chat IDs even if one fails
     }
   }
@@ -327,12 +327,12 @@ async function sendTelegramPhoto(photoBufferOrPath, filename, caption, telegramI
     const result = await response.json();
     if (!result.ok) {
       const errorMsg = result.description || 'Telegram API error';
-      console.error('Telegram API error:', result);
+      console.error('Telegram API error:', errorMsg);
       throw new Error(errorMsg);
     }
     return result;
   } catch (error) {
-    console.error('Error sending photo via Telegram:', error);
+    console.error('Error sending photo via Telegram:', error.message);
     throw error;
   }
 }
@@ -347,20 +347,14 @@ function setupBotErrorHandlers(bot, botType) {
     const isNetworkError = 
       error.code === 'EFATAL' || 
       error.code === 'ETIMEDOUT' ||
-      error.code === 'ECONNRESET' ||
-      errorMsg.includes('ECONNRESET') || 
-      errorMsg.includes('ETIMEDOUT') ||
-      errorMsg.includes('timeout') ||
-      errorMsg.includes('network') ||
-      errorMsg.includes('ECONNREFUSED') ||
-      errorMsg.includes('ENOTFOUND');
+      error.code === 'ECONNRESET';
     
     if (isNetworkError) {
       console.warn(`⚠️ Network issue detected for ${botType} bot (slow/unstable internet):`, errorMsg);
       console.log('🔄 Bot will automatically retry. If this persists, check your internet connection.');
       // The bot will automatically retry, no need to restart manually
     } else {
-      console.error(`❌ Fatal polling error for ${botType} bot:`, error);
+      console.error(`❌ Fatal polling error for ${botType} bot:`, errorMsg);
     }
   });
 
