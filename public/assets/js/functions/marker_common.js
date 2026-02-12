@@ -53,8 +53,23 @@
         var orderCol = options.orderCol != null ? options.orderCol : 3;
         var orderDir = options.orderDir || 'desc';
 
+        // Get translations from window object
+        var translations = window.markerTranslations || {};
+
         var table = $table.DataTable({
             order: [[orderCol, orderDir]],
+            language: {
+                info: translations.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: "",
+                infoFiltered: "",
+                search: translations.search || "Search:",
+                paginate: {
+                    previous: translations.previous || "Previous",
+                    next: translations.next || "Next"
+                },
+                emptyTable: translations.no_data_available || "No data available in table",
+                zeroRecords: translations.no_data_available || "No matching records found"
+            },
             ajax: {
                 url: options.ajaxUrl || '/marker_history',
                 dataSrc: function (json) {

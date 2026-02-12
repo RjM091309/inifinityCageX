@@ -33,16 +33,16 @@
 					<h3 class="card-title mb-0">
 						<div id="fnb-hotel-filter" class="breadcrumb1 flat">
 							<a href="/dashboard"><span class="fa fa-home"></span></a>
-							<a href="#">Junket</a>
+							<a href="#"><%= __('fnb_hotel.junket') %></a>
 							
-							<a href="#" class="filter-link active" data-filter="all">F&B / Hotel</a>
-							<a href="#" class="filter-link" data-filter="fnb">F&B</a>
-							<a href="#" class="filter-link" data-filter="hotel">Hotel</a>
-							<a href="#" class="filter-link" data-filter="delivery">Delivery</a>
+							<a href="#" class="filter-link active" data-filter="all"><%= __('fnb_hotel.all') %></a>
+							<a href="#" class="filter-link" data-filter="fnb"><%= __('fnb_hotel.fnb') %></a>
+							<a href="#" class="filter-link" data-filter="hotel"><%= __('fnb_hotel.hotel') %></a>
+							<a href="#" class="filter-link" data-filter="delivery"><%= __('fnb_hotel.delivery') %></a>
 						</div>
 					</h3>
 					<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-services-new-record">
-						<i class="fa fa-plus" aria-hidden="true"></i> New Record
+						<i class="fa fa-plus" aria-hidden="true"></i> <%= __('fnb_hotel.new_record') %>
 					</button>
 				</div>
 				<div class="card-body">
@@ -53,16 +53,16 @@
 								<table id="fnb-hotel-table" class="table  nowrap small-text" style="width:100%">
 									<thead>
 											<tr>
-												<th>Source</th>
-												<th>Agent</th>
-												<th>Game ID</th>
-												<th>Service Type</th>
-												<th>Amount</th>
-												<th>Payment</th>
-												<th>Remarks</th>
-												<th>Encoded By</th>
-												<th>Date</th>
-												<th>Action</th>
+												<th><%= __('fnb_hotel.source') %></th>
+												<th><%= __('fnb_hotel.agent') %></th>
+												<th><%= __('fnb_hotel.game_id') %></th>
+												<th><%= __('fnb_hotel.service_type') %></th>
+												<th><%= __('fnb_hotel.amount') %></th>
+												<th><%= __('fnb_hotel.payment') %></th>
+												<th><%= __('fnb_hotel.remarks') %></th>
+												<th><%= __('fnb_hotel.encoded_by') %></th>
+												<th><%= __('fnb_hotel.date') %></th>
+												<th><%= __('fnb_hotel.action') %></th>
 											</tr>
 									</thead>
 									<tbody>
@@ -116,12 +116,12 @@
 															</div>
 														<% } else if (hasGameId && isGameSettled) { %>
 															<span class="badge bg-success-subtle text-success fw-semibold px-3 py-2">
-																Settled
+																<%= __('fnb_hotel.settled') %>
 															</span>
 														<% } else if (hasGameId && !isGameSettled) { %>
 															<button type="button"
 																class="btn btn-sm bg-warning-subtle text-warning gamebook-notice-btn"
-																title="Edit in Gamebook">
+																title="<%= __('fnb_hotel.edit_in_gamebook') %>">
 																<i class="fa fa-info-circle"></i>
 															</button>
 														<% } %>
@@ -234,6 +234,25 @@
 
 </style>
 <%- include('../partials/footer') %>
+<script>
+	// Pass translations to JavaScript
+	window.fnbHotelTranslations = {
+		showing_entries: "<%= __('fnb_hotel.showing_entries') %>",
+		previous: "<%= __('fnb_hotel.previous') %>",
+		next: "<%= __('fnb_hotel.next') %>",
+		search: "<%= __('fnb_hotel.search') %>",
+		no_data_available: "<%= __('fnb_hotel.no_data_available') %>",
+		delete_confirmation: "<%= __('fnb_hotel.delete_confirmation') %>",
+		yes_delete: "<%= __('fnb_hotel.yes_delete') %>",
+		cancelled: "<%= __('fnb_hotel.cancelled') %>",
+		delete_cancelled: "<%= __('fnb_hotel.delete_cancelled') %>",
+		deleted: "<%= __('fnb_hotel.deleted') %>",
+		service_deleted: "<%= __('fnb_hotel.service_deleted') %>",
+		delete_failed: "<%= __('fnb_hotel.delete_failed') %>",
+		failed_to_delete: "<%= __('fnb_hotel.failed_to_delete') %>",
+		error: "<%= __('fnb_hotel.error') %>"
+	};
+</script>
 <script src="/assets/js/functions/fnb_hotel.js"></script>
 <%- include('../modals/junket/new_service_record') %>
 <%- include('../modals/junket/edit_service_record') %>

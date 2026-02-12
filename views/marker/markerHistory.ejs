@@ -11,7 +11,7 @@
 					<h3 class="card-title">
 						<div class="breadcrumb1 flat">
 							<a href="/dashboard"><span class="fa fa-home"></span></a>
-							<a href="/markerHistory" class="active">Marker</a>
+							<a href="/markerHistory" class="active"><%= __('sidebar.credit_history') %></a>
 						</div>
 					</h3>
 				</div>
@@ -21,49 +21,49 @@
 						<input type="hidden" id="AgentBalance" name="AgentBalance" />
 						<div class="row mb-2">
 							<div class="col-sm-6">
-								<label class="form-label text-muted small">Account</label>
-								<select class="js-select2 form-select" name="txtAccountMarker" id="txtAccountMarker" style="width: 100%;" data-placeholder="Choose account">
-									<option value="">Choose account</option>
+								<label class="form-label text-muted small"><%= __('dashboard_marker.account') %></label>
+								<select class="js-select2 form-select" name="txtAccountMarker" id="txtAccountMarker" style="width: 100%;" data-placeholder="<%= __('dashboard_marker.choose_account') %>">
+									<option value=""><%= __('dashboard_marker.choose_account') %></option>
 								</select>
 							</div>
 							<div class="col-sm-6">
-								<label class="form-label text-muted small">Credits Issue</label>
+								<label class="form-label text-muted small"><%= __('dashboard_marker.credits_issue') %></label>
 								<input type="text" class="form-control" name="txtMarkerIssue" id="txtMarkerIssue" readonly />
 							</div>
 						</div>
 						<div class="row mb-2">
 							<div class="col-sm-6">
-								<label class="form-label text-muted small">Credits Return</label>
+								<label class="form-label text-muted small"><%= __('dashboard_marker.credits_return') %></label>
 								<input type="text" class="form-control" name="txtMarkerReturn" id="txtMarkerReturn" required autocomplete="off" />
 							</div>
 							<div class="col-sm-6">
-								<label class="form-label text-muted small">Balance</label>
+								<label class="form-label text-muted small"><%= __('dashboard_marker.balance') %></label>
 								<input type="text" class="form-control" name="txtMarkerBalance" id="txtMarkerBalance" readonly style="color: #0665d0;" />
 							</div>
 						</div>
 						<div class="row mb-2">
 							<div class="col-sm-12">
-								<label class="form-label text-muted small">Remarks (optional)</label>
+								<label class="form-label text-muted small"><%= __('dashboard_marker.remarks_optional') %></label>
 								<input type="text" class="form-control" name="remarks" id="txtRemarks" maxlength="500" autocomplete="off" />
 							</div>
 						</div>
 						<div class="row mb-2">
 							<div class="col-sm-12">
-								<label class="form-label text-muted small">Transaction Type</label>
+								<label class="form-label text-muted small"><%= __('dashboard_marker.transaction_type') %></label>
 							</div>
 						</div>
 						<div class="row mb-3 align-items-center">
 							<div class="col-sm-12 d-flex flex-wrap align-items-center gap-4">
 								<div class="form-check mb-0">
 									<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="cash_page" name="optTransType" value="11" />
-									<label class="form-check-label" for="cash_page">Cash</label>
+									<label class="form-check-label" for="cash_page"><%= __('dashboard_marker.cash') %></label>
 								</div>
 								<div class="form-check mb-0">
 									<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="deposit_page" name="optTransType" value="12" />
-									<label class="form-check-label" for="deposit_page">Deposit</label>
+									<label class="form-check-label" for="deposit_page"><%= __('dashboard_marker.deposit') %></label>
 								</div>
 								<span class="marker-save-gap"></span>
-								<button type="submit" id="submit_marker_settlement" class="btn btn-sm btn-primary">Save</button>
+								<button type="submit" id="submit_marker_settlement" class="btn btn-sm btn-primary"><%= __('dashboard_marker.save') %></button>
 							</div>
 						</div>
 					</form>
@@ -71,17 +71,17 @@
 					<hr class="my-3" />
 
 					<div class="d-flex justify-content-between align-items-center mb-2">
-						<span class="text-muted small">Marker history</span>
-						<button type="button" id="export-excel" class="btn btn-sm btn-success-subtle">Export</button>
+						<span class="text-muted small"><%= __('dashboard_marker.marker_history') %></span>
+						<button type="button" id="export-excel" class="btn btn-sm btn-success-subtle"><%= __('dashboard_marker.export') %></button>
 					</div>
 					<table id="marker-history-tbl" class="table table-bordered table-responsive" style="width:100%">
 						<thead>
 							<tr>
-								<th class="d-none d-sm-table-cell">Account Name</th>
-								<th class="d-none d-sm-table-cell">Amount</th>
-								<th class="d-none d-sm-table-cell">Transaction Type</th>
-								<th class="d-none d-sm-table-cell" style="width: 200px;">Date</th>
-								<th class="d-none d-sm-table-cell">Remarks</th>
+								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.account_name') %></th>
+								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.amount') %></th>
+								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.transaction_type_col') %></th>
+								<th class="d-none d-sm-table-cell" style="width: 200px;"><%= __('dashboard_marker.date') %></th>
+								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.remarks') %></th>
 							</tr>
 						</thead>
 						<tbody></tbody>
@@ -94,6 +94,16 @@
 
 <%- include('../partials/footer') %>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+<script>
+	// Pass translations to JavaScript
+	window.markerTranslations = {
+		showing_entries: "<%= __('dashboard_marker.showing_entries') %>",
+		previous: "<%= __('dashboard_marker.previous') %>",
+		next: "<%= __('dashboard_marker.next') %>",
+		search: "<%= __('dashboard_marker.search') %>",
+		no_data_available: "<%= __('account_dashboard.no_data_available') %>"
+	};
+</script>
 <script src="/assets/js/functions/marker_common.js"></script>
 <script>
 $(document).ready(function() {
@@ -111,7 +121,7 @@ $(document).ready(function() {
 			submitBtnSelector: '#submit_marker_settlement',
 			agentBalanceSelector: '#AgentBalance',
 			optTransTypeName: 'optTransType',
-			selectPlaceholder: 'Choose account',
+			selectPlaceholder: '<%= __("dashboard_marker.choose_account") %>',
 			dropdownParent: 'body',
 			populateAccountsOnInit: true,
 			onSuccess: function() {

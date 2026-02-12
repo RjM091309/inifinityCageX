@@ -2,7 +2,7 @@
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header bg-primary">
-        <h5 class="modal-title text-white" id="modal-services-edit-record-label">Edit Service Record</h5>
+        <h5 class="modal-title text-white" id="modal-services-edit-record-label"><%= __('fnb_hotel.edit_service_record') %></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
@@ -11,59 +11,59 @@
 
         <div class="row g-3">
 			<div class="col-md-4">
-				<div class="fw-semibold text-muted">Transaction Type</div>
+				<div class="fw-semibold text-muted"><%= __('fnb_hotel.transaction_type') %></div>
 				<select id="edit-transaction-type" class="form-select">
-				  <option value="" selected disabled>Select Transaction</option>
-				  <option value="JUNKET">Junket Payment</option>
-				  <option value="GUEST">Guest Payment</option>
+				  <option value="" selected disabled><%= __('fnb_hotel.select_transaction') %></option>
+				  <option value="JUNKET"><%= __('fnb_hotel.junket_payment') %></option>
+				  <option value="GUEST"><%= __('fnb_hotel.guest_payment') %></option>
 				
 				</select>
 			  </div>
           <div class="col-md-4" id="edit-services-account-wrapper" style="display:none">
-            <div class="fw-semibold text-muted">Account</div>
-            <select id="edit-services-account" class="js-select2 form-select" style="width: 100%;" data-placeholder="Choose account" disabled>
-              <option value="">Choose account</option>
+            <div class="fw-semibold text-muted"><%= __('fnb_hotel.account') %></div>
+            <select id="edit-services-account" class="js-select2 form-select" style="width: 100%;" data-placeholder="<%= __('fnb_hotel.choose_account') %>" disabled>
+              <option value=""><%= __('fnb_hotel.choose_account') %></option>
             </select>
           </div>
           <div class="col-md-4">
-            <div class="fw-semibold text-muted">Service Type</div>
+            <div class="fw-semibold text-muted"><%= __('fnb_hotel.service_type') %></div>
             <select id="edit-services-type" class="form-select">
-              <option value="" selected disabled>Select service</option>
-              <option value="fnb">F &amp; B</option>
-              <option value="hotel">Hotel</option>
-              <option value="delivery">Delivery</option>
+              <option value="" selected disabled><%= __('fnb_hotel.select_service') %></option>
+              <option value="fnb"><%= __('fnb_hotel.fnb') %></option>
+              <option value="hotel"><%= __('fnb_hotel.hotel') %></option>
+              <option value="delivery"><%= __('fnb_hotel.delivery') %></option>
             </select>
           </div>
           <div class="col-md-4">
-            <div class="fw-semibold text-muted">Amount</div>
-            <input type="text" id="edit-services-amount" class="form-control" data-type="number" placeholder="Enter amount" />
+            <div class="fw-semibold text-muted"><%= __('fnb_hotel.amount') %></div>
+            <input type="text" id="edit-services-amount" class="form-control" data-type="number" placeholder="<%= __('fnb_hotel.enter_amount') %>" />
             <div id="edit-deposit-balance" class="text-muted small mt-1" style="display:none">
-              Available balance: <span id="edit-deposit-balance-value">0</span>
+              <%= __('fnb_hotel.available_balance') %> <span id="edit-deposit-balance-value">0</span>
             </div>
           </div>
         </div>
 
-        <div class="mt-3 mb-1 fw-semibold text-muted">Remarks</div>
-        <textarea id="edit-services-remarks" class="form-control" rows="2" placeholder="Optional remarks"></textarea>
+        <div class="mt-3 mb-1 fw-semibold text-muted"><%= __('fnb_hotel.remarks') %></div>
+        <textarea id="edit-services-remarks" class="form-control" rows="2" placeholder="<%= __('fnb_hotel.optional_remarks') %>"></textarea>
 
         <div class="row mt-3 gx-4 justify-content-center" id="edit-services-payment-methods">
           <div class="col-sm-3">
             <div class="form-check">
               <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="edit-services-transaction-cash" name="edit-services-transaction" />
-              <label class="form-check-label" for="edit-services-transaction-cash">Cash</label>
+              <label class="form-check-label" for="edit-services-transaction-cash"><%= __('fnb_hotel.cash') %></label>
             </div>
           </div>
           <div class="col-sm-3">
             <div class="form-check">
               <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="edit-services-transaction-deposit" name="edit-services-transaction" />
-              <label class="form-check-label" for="edit-services-transaction-deposit">Deposit</label>
+              <label class="form-check-label" for="edit-services-transaction-deposit"><%= __('fnb_hotel.deposit') %></label>
             </div>
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" id="edit-services-save" class="btn btn-sm btn-primary">Update</button>
-        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" id="edit-services-save" class="btn btn-sm btn-primary"><%= __('fnb_hotel.update') %></button>
+        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('fnb_hotel.close') %></button>
       </div>
     </div>
   </div>
@@ -81,6 +81,9 @@
 		const $balanceHint = $('#edit-deposit-balance');
 		const $balanceValue = $('#edit-deposit-balance-value');
 		let depositBalance = 0;
+
+		// Get translations
+		const t = window.fnbHotelTranslations || {};
 
 		function resetForm() {
 			$('#edit-services-id').val('');
@@ -126,7 +129,7 @@
 				$accountSelect.select2('destroy');
 			}
 			$accountSelect.select2({
-				placeholder: 'Choose account',
+				placeholder: $accountSelect.attr('data-placeholder'),
 				allowClear: false,
 				dropdownParent: $modal
 			});
@@ -144,7 +147,7 @@
 					$accountSelect.select2('destroy');
 				}
 				$accountSelect.empty();
-				$accountSelect.append('<option value="">Choose account</option>');
+				$accountSelect.append($('<option>').val('').text($accountSelect.attr('data-placeholder')));
 				accounts.forEach(acc => {
 					const label = acc.agent_name
 						? `${acc.agent_name} (${acc.agent_code || 'No code'})`
@@ -275,31 +278,31 @@
 			const sourceType = $transactionType.val();
 
 			if (!serviceId) {
-				Swal.fire({ icon: 'error', title: 'Error', text: 'Service ID is missing.' });
+				Swal.fire({ icon: 'error', title: t.error || 'Error', text: t.service_id_missing || 'Service ID is missing.' });
 				return;
 			}
 			if (!sourceType) {
-				Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select who is paying.' });
+				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_who_is_paying || 'Select who is paying.' });
 				return;
 			}
 			if (!serviceType) {
-				Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select a service type.' });
+				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_service_type || 'Select a service type.' });
 				return;
 			}
 			if (sourceType === 'GUEST' && !accountId) {
-				Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select an account for guest payment.' });
+				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_account_for_guest || 'Select an account for guest payment.' });
 				return;
 			}
 			if (!transactionId) {
-				Swal.fire({ icon: 'warning', title: 'Missing fields', text: 'Select a transaction type.' });
+				Swal.fire({ icon: 'warning', title: t.missing_fields || 'Missing fields', text: t.select_transaction_type || 'Select a transaction type.' });
 				return;
 			}
 			if (amount <= 0) {
-				Swal.fire({ icon: 'warning', title: 'Invalid amount', text: 'Amount must be greater than 0.' });
+				Swal.fire({ icon: 'warning', title: t.invalid_amount || 'Invalid amount', text: t.amount_must_be_greater || 'Amount must be greater than 0.' });
 				return;
 			}
 
-			$saveBtn.prop('disabled', true).text('Updating...');
+			$saveBtn.prop('disabled', true).text(t.updating || 'Updating...');
 
 			try {
 				const response = await fetch(`/fnb-hotel/service/${serviceId}`, {
@@ -318,12 +321,12 @@
 
 				if (!response.ok) {
 					const error = await response.json().catch(() => ({}));
-					throw new Error(error.error || 'Failed to update service record.');
+					throw new Error(error.error || (t.failed_to_update || 'Failed to update service record.'));
 				}
 
 				await Swal.fire({
 					icon: 'success',
-					title: 'Service updated',
+					title: t.service_updated || 'Service updated',
 					timer: 1200,
 					showConfirmButton: false
 				});
@@ -333,9 +336,9 @@
 					window.reloadFnbHotelData();
 				}
 			} catch (err) {
-				Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Failed to update record.' });
+				Swal.fire({ icon: 'error', title: t.error || 'Error', text: err.message || (t.failed_to_update || 'Failed to update record.') });
 			} finally {
-				$saveBtn.prop('disabled', false).text('Update');
+				$saveBtn.prop('disabled', false).text(t.update || 'Update');
 			}
 		});
 	})();
