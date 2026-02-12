@@ -6,33 +6,7 @@ $(document).ready(function () {
 
     function initializeExpenseTable() {
 
-        // 1. Set up Flatpickr
-        const defaultDates = [
-            moment().startOf('month').format('YYYY-MM-DD'),
-            moment().format('YYYY-MM-DD')
-        ];
-        const fp = flatpickr("#daterange", {
-            mode: "range",
-            altInput: true,
-            altFormat: "M d, Y",
-            dateFormat: "Y-m-d",
-            defaultDate: defaultDates,
-            showMonths: 2,
-            onReady: function (selectedDates, dateStr, instance) {
-                instance.setDate(defaultDates, true);
-                instance.changeMonth(-1, true);
-                if (typeof reloadData === 'function') {
-                    reloadData();
-                }
-            },
-            onChange: function (selectedDates, dateStr, instance) {
-                if (typeof reloadData === 'function') {
-                    reloadData();
-                }
-            },
-        });
-
-        // 2. Initialize DataTable
+        // 1. Initialize DataTable (date range picker removed - using settlement date picker instead)
         if ($.fn.DataTable.isDataTable('#expense-tbl')) {
             $('#expense-tbl').DataTable().destroy();
         }
@@ -41,15 +15,23 @@ $(document).ready(function () {
         const nonGoodsTypeLabel = window.houseExpenseTranslations?.type_non_goods || 'Non-goods / Services';
         var dataTable = $('#expense-tbl').DataTable({
             "order": [[6, 'desc']],
+            "pageLength": 100,
+            "lengthMenu": [[100, 50, 25, 10, -1], [100, 50, 25, 10, "All"]],
             "columnDefs": [
                 {
                     "targets": 6,
                     "render": function (data, type, row) {
+                        // Check if this is a "no data" row - return empty string
+                        if (!data || data === '' || (row && Array.isArray(row) && row.length > 0 && (row[0] === (window.houseExpenseTranslations?.no_data_found || 'No data found')))) {
+                            return '';
+                        }
                         if (type === 'sort') {
+                            if (!data) return '';
                             return moment.utc(data, 'MMMM DD, YYYY HH:mm:ss').format('YYYY-MM-DD HH:mm:ss');
                         }
+                        if (!data) return '';
                         const dateMoment = moment(data, 'MMMM DD, YYYY HH:mm:ss');
-                        return dateMoment.isValid() ? dateMoment.local().format('DD MMM, YYYY HH:mm:ss') : (window.houseExpenseTranslations?.invalid_date || 'Invalid Date');
+                        return dateMoment.isValid() ? dateMoment.local().format('DD MMM, YYYY HH:mm:ss') : '';
                     },
                     "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
                         $(cell).addClass('text-center');
@@ -68,30 +50,47 @@ $(document).ready(function () {
             }
         });
 
-        // 3. reloadData function
+        // 2. reloadData function - Supports both settlement date and date range modes
         function reloadData() {
-            const dateRange = $('#daterange').val();
-
-		if (!dateRange) {
-			alert(window.houseExpenseTranslations?.please_select_date_range || 'Please select a date range.');
-			return;
-		}
-	
-		// Kung may " to " ang dateRange, hatiin ito, kung wala, ituring itong single date
-		let start, end;
-		if (dateRange.indexOf(" to ") > -1) {
-			[start, end] = dateRange.split(' to ');
-		} else {
-			start = dateRange;
-			end = dateRange;
-		}
-
-            console.log('Client side dateRange => start:', start, 'end:', end);
-
+            var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+            var requestData = {};
+            
+            if (filterMode === 'settlement') {
+                // Settlement date mode
+                var settlementDate = window.selectedSettlementDate || 'current';
+                requestData.date = settlementDate;
+            } else {
+                // Date range mode
+                var dateRangePicker = document.getElementById('daterange-picker');
+                var fromDate = null;
+                var toDate = null;
+                
+                if (dateRangePicker && dateRangePicker._flatpickr) {
+                    var selectedDates = dateRangePicker._flatpickr.selectedDates;
+                    if (selectedDates && selectedDates.length === 2) {
+                        var pad = function(n) { return String(n).padStart(2, '0'); };
+                        fromDate = selectedDates[0].getFullYear() + '-' + pad(selectedDates[0].getMonth() + 1) + '-' + pad(selectedDates[0].getDate());
+                        toDate = selectedDates[1].getFullYear() + '-' + pad(selectedDates[1].getMonth() + 1) + '-' + pad(selectedDates[1].getDate());
+                    }
+                }
+                
+                if (!fromDate || !toDate) {
+                    // Default to current month if not set
+                    var now = new Date();
+                    var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                    var pad = function(n) { return String(n).padStart(2, '0'); };
+                    fromDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+                    toDate = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+                }
+                
+                requestData.fromDate = fromDate;
+                requestData.toDate = toDate;
+            }
+            
             $.ajax({
                 url: '/junket_house_expense_data',
                 method: 'GET',
-                data: { fromDate: start, toDate: end },
+                data: requestData,
                 success: function (data) {
                     console.log("Returned data:", data);
                     console.log(`Total records received: ${data.length}`);
@@ -102,11 +101,10 @@ $(document).ready(function () {
                     var total_return_money = 0;
 
                     if (data.length === 0) {
-                        // Put "No data found" in the first column to avoid "Invalid Date"
+                        // Add centered "No data found" message
                         const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
-                        dataTable.row.add([
-                            noDataText, '', '', '', '', '', '', ''
-                        ]).draw();
+                        var tbody = dataTable.table().body();
+                        $(tbody).html('<tr><td colspan="8" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
                         $('#TOTAL_EXPENSE_AMOUNT').text(`₱0.00`);
                         $('#TOTAL_RETURN_MONEY_AMOUNT').text(`₱0.00`);
                         return;
@@ -220,14 +218,655 @@ $(document).ready(function () {
 
         // Expose reloadData if needed
         window.reloadData = reloadData;
-
-        // 4. Initial load
-        reloadData();
+        
+        // Don't load data here - wait for settlement initialization
     }
 
-    // 5. Initialize DataTable and load initial data
+    // 3. Initialize DataTable
     initializeExpenseTable();
 
+    // ======================= EXPENSE SETTLEMENT FUNCTIONALITY ==================
+    
+    // Filter mode toggle handler
+    $('input[name="filter-mode"]').on('change', function() {
+        var mode = $(this).val();
+        if (mode === 'settlement') {
+            $('#settlement-date-wrapper').show();
+            $('#daterange-wrapper').hide();
+            // Reload data with settlement date
+            if (typeof window.reloadData === 'function') {
+                window.reloadData();
+            }
+        } else {
+            $('#settlement-date-wrapper').hide();
+            $('#daterange-wrapper').show();
+            // Reload data with date range
+            if (typeof window.reloadData === 'function') {
+                window.reloadData();
+            }
+        }
+    });
+    
+    // Initialize date range picker (single input with range mode)
+    var dateRangePicker = null;
+    if (document.getElementById('daterange-picker')) {
+        var now = new Date();
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        
+        // Get default settlement date (next settlement date) from wrapper
+        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
+        var defaultSettlementDate = null;
+        if (wrapper) {
+            defaultSettlementDate = wrapper.getAttribute('data-default-settlement-date');
+            var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
+            console.log('[Date Range Picker - Initialization] Raw settled dates from wrapper:', settledDatesRaw);
+            try {
+                var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
+                console.log('[Date Range Picker - Initialization] Parsed settled dates:', parsedDates);
+                // Make sure window.settledDatesForMonth is set if not already set
+                if (!window.settledDatesForMonth || window.settledDatesForMonth.length === 0) {
+                    window.settledDatesForMonth = parsedDates;
+                    console.log('[Date Range Picker - Initialization] Set window.settledDatesForMonth:', window.settledDatesForMonth);
+                }
+            } catch (e) {
+                console.error('[Date Range Picker - Initialization] Error parsing settled dates:', e);
+            }
+        }
+        console.log('[Date Range Picker - Initialization] Final window.settledDatesForMonth:', window.settledDatesForMonth);
+        
+        // Use next settlement date as default "From Date", or first of month if not available
+        var defaultFromDate = defaultSettlementDate || (function() {
+            var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            return firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+        })();
+        var defaultToDate = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+        
+        dateRangePicker = flatpickr("#daterange-picker", {
+            mode: 'range',
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'M d, Y',
+            defaultDate: [defaultFromDate, defaultToDate],
+            // maxDate: 'today',
+            onDayCreate: function (dayElem) {
+                if (!dayElem || !dayElem.dateObj) return;
+                var d = dayElem.dateObj;
+                var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                var settledDates = window.settledDatesForMonth || [];
+                console.log('[Date Range Picker - onDayCreate] Date:', dStr, 'Settled Dates:', settledDates, 'Is Settled:', settledDates.indexOf(dStr) !== -1);
+                if (dStr && settledDates.indexOf(dStr) !== -1) {
+                    dayElem.classList.add('settled-day');
+                    console.log('[Date Range Picker - onDayCreate] Added settled-day class to:', dStr);
+                }
+            },
+            onReady: function (selectedDates, dateStr, instance) {
+                // Highlight settled dates when calendar is ready (initial render)
+                setTimeout(function () {
+                    if (!instance.calendarContainer) return;
+                    var settledDates = window.settledDatesForMonth || [];
+                    console.log('[Date Range Picker - onReady] Settled Dates:', settledDates);
+                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                    days.forEach(function (el) {
+                        el.classList.remove('settled-day');
+                        if (!el.dateObj) return;
+                        var d = el.dateObj;
+                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        if (dStr && settledDates.indexOf(dStr) !== -1) {
+                            el.classList.add('settled-day');
+                            console.log('[Date Range Picker - onReady] Added settled-day class to:', dStr);
+                        }
+                    });
+                }, 100);
+            },
+            onOpen: function (selectedDates, dateStr, instance) {
+                setTimeout(function () {
+                    if (!instance.calendarContainer) return;
+                    var settledDates = window.settledDatesForMonth || [];
+                    console.log('[Date Range Picker - onOpen] Settled Dates:', settledDates);
+                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                    days.forEach(function (el) {
+                        el.classList.remove('settled-day');
+                        if (!el.dateObj) return;
+                        var d = el.dateObj;
+                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        if (dStr && settledDates.indexOf(dStr) !== -1) {
+                            el.classList.add('settled-day');
+                            console.log('[Date Range Picker - onOpen] Added settled-day class to:', dStr);
+                        }
+                    });
+                }, 0);
+            },
+            onMonthChange: function (selectedDates, dateStr, instance) {
+                setTimeout(function () {
+                    if (!instance.calendarContainer) return;
+                    var settledDates = window.settledDatesForMonth || [];
+                    console.log('[Date Range Picker - onMonthChange] Settled Dates:', settledDates);
+                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                    days.forEach(function (el) {
+                        el.classList.remove('settled-day');
+                        if (!el.dateObj) return;
+                        var d = el.dateObj;
+                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        if (dStr && settledDates.indexOf(dStr) !== -1) {
+                            el.classList.add('settled-day');
+                            console.log('[Date Range Picker - onMonthChange] Added settled-day class to:', dStr);
+                        }
+                    });
+                }, 0);
+            },
+            onChange: function(selectedDates, dateStr, instance) {
+                // Also highlight settled dates when date selection changes
+                setTimeout(function () {
+                    if (!instance.calendarContainer) return;
+                    var settledDates = window.settledDatesForMonth || [];
+                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                    days.forEach(function (el) {
+                        el.classList.remove('settled-day');
+                        if (!el.dateObj) return;
+                        var d = el.dateObj;
+                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        if (dStr && settledDates.indexOf(dStr) !== -1) {
+                            el.classList.add('settled-day');
+                        }
+                    });
+                }, 0);
+                if (selectedDates.length === 2 && typeof window.reloadData === 'function') {
+                    window.reloadData();
+                }
+            }
+        });
+        
+        // Log initial settled dates
+        console.log('[Date Range Picker - Initialization] window.settledDatesForMonth:', window.settledDatesForMonth);
+        if (wrapper) {
+            var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
+            console.log('[Date Range Picker - Initialization] Raw settled dates from wrapper:', settledDatesRaw);
+            try {
+                var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
+                console.log('[Date Range Picker - Initialization] Parsed settled dates:', parsedDates);
+            } catch (e) {
+                console.error('[Date Range Picker - Initialization] Error parsing settled dates:', e);
+            }
+        }
+    }
+    
+    // Initialize settlement date picker
+    var settlementDatePicker = null;
+    if (document.getElementById('settlement-date-picker')) {
+        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
+        if (wrapper) {
+            var defaultDate = wrapper.getAttribute('data-default-settlement-date') || new Date().toISOString().slice(0, 10);
+            var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
+            console.log('[Settlement Date Picker - Initialization] Raw settled dates from wrapper:', settledDatesRaw);
+            try {
+                window.settledDatesForMonth = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
+                console.log('[Settlement Date Picker - Initialization] Parsed settled dates:', window.settledDatesForMonth);
+            } catch (e) {
+                console.error('[Settlement Date Picker - Initialization] Error parsing settled dates:', e);
+                window.settledDatesForMonth = [];
+            }
+            
+            window.selectedSettlementDate = defaultDate;
+            
+            // Initialize Flatpickr for settlement date picker (same as game_list)
+            var earliestSettlementDate = null;
+            var settledDates = window.settledDatesForMonth || [];
+            if (settledDates.length > 0) {
+                var sortedDates = settledDates.slice().sort();
+                earliestSettlementDate = sortedDates[0];
+            } else {
+                var now = new Date();
+                var pad = function(n) { return String(n).padStart(2, '0'); };
+                var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                earliestSettlementDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+            }
+            
+            settlementDatePicker = flatpickr("#settlement-date-picker", {
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'F d, Y',
+                defaultDate: defaultDate,
+                minDate: earliestSettlementDate,
+                maxDate: defaultDate, // Allow up to default settlement date (can be future date like Feb 13)
+                allowInput: false,
+                onDayCreate: function (dayElem) {
+                    if (!dayElem || !dayElem.dateObj) return;
+                    var d = dayElem.dateObj;
+                    var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                    if (dStr && settledDates.indexOf(dStr) !== -1) dayElem.classList.add('settled-day');
+                },
+                onOpen: function (selectedDates, dateStr, instance) {
+                    setTimeout(function () {
+                        if (!instance.calendarContainer) return;
+                        var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                        days.forEach(function (el) {
+                            el.classList.remove('settled-day');
+                            if (!el.dateObj) return;
+                            var d = el.dateObj;
+                            var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                            if (dStr && settledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
+                        });
+                    }, 0);
+                },
+                onChange: function (selectedDates, dateStr, instance) {
+                    window.selectedSettlementDate = dateStr || '';
+                    if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
+                    if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
+                    if (typeof window.reloadExpenseBySettlementDate === 'function') window.reloadExpenseBySettlementDate();
+                },
+                onMonthChange: function (selectedDates, dateStr, instance) {
+                    setTimeout(function () {
+                        if (!instance.calendarContainer) return;
+                        var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                        days.forEach(function (el) {
+                            el.classList.remove('settled-day');
+                            if (!el.dateObj) return;
+                            var d = el.dateObj;
+                            var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                            if (dStr && settledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
+                        });
+                    }, 0);
+                }
+            });
+        }
+    }
+
+    // Settlement button state management
+    var settleBtnLabel = (window.houseExpenseTranslations && window.houseExpenseTranslations.settle) || 'Settle';
+    var settledBtnLabel = (window.houseExpenseTranslations && window.houseExpenseTranslations.settled) || 'Settled';
+    
+    window.updateSettleButtonState = function (recordCount) {
+        // Only update if in settlement mode
+        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+        if (filterMode !== 'settlement') {
+            // Hide settle button in date range mode
+            $('#btn-daily-settle').addClass('disabled').css('pointer-events', 'none').css('opacity', '0.5');
+            return;
+        }
+        
+        var date = window.selectedSettlementDate;
+        var todayStr = $('#settlement-date-wrapper .input-group').attr('data-today') || new Date().toISOString().slice(0, 10);
+        if (!date) {
+            $('#btn-daily-settle').addClass('disabled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
+            return;
+        }
+        var settled = (window.settledDatesForMonth || []).indexOf(date) !== -1;
+        var isPastDate = date < todayStr;
+        var noRecordsForPastDate = (recordCount !== undefined && recordCount === 0 && isPastDate);
+        var $btn = $('#btn-daily-settle');
+        if (settled) {
+            $btn.addClass('disabled').text(settledBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
+        } else if (noRecordsForPastDate) {
+            $btn.addClass('disabled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
+        } else {
+            $btn.removeClass('disabled').text(settleBtnLabel).css('pointer-events', 'auto').css('opacity', '1');
+        }
+    };
+
+    // Previous/Next Date Navigation Functions
+    function getEarliestSettlementDate() {
+        var settledDates = window.settledDatesForMonth || [];
+        if (settledDates.length === 0) {
+            var now = new Date();
+            var pad = function(n) { return String(n).padStart(2, '0'); };
+            var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            return firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+        }
+        var sortedDates = settledDates.slice().sort();
+        return sortedDates[0];
+    }
+    
+    function getPreviousDate(currentDate) {
+        if (!currentDate) return null;
+        var current = new Date(currentDate + 'T12:00:00');
+        var previous = new Date(current);
+        previous.setDate(previous.getDate() - 1);
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        var previousDateStr = previous.getFullYear() + '-' + pad(previous.getMonth() + 1) + '-' + pad(previous.getDate());
+        var earliestSettlementDate = getEarliestSettlementDate();
+        if (previousDateStr < earliestSettlementDate) {
+            return null;
+        }
+        return previousDateStr;
+    }
+    
+    function getNextDate(currentDate) {
+        if (!currentDate) return null;
+        
+        var current = new Date(currentDate + 'T12:00:00');
+        var next = new Date(current);
+        next.setDate(next.getDate() + 1);
+        
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        var nextDateStr = next.getFullYear() + '-' + pad(next.getMonth() + 1) + '-' + pad(next.getDate());
+        
+        // Don't go beyond today OR default settlement date (whichever is later)
+        // This allows navigation to default settlement date even if it's tomorrow
+        var todayStr = $('#settlement-date-wrapper .input-group').attr('data-today') || new Date().toISOString().slice(0, 10);
+        var defaultSettlementDate = $('#settlement-date-wrapper .input-group').attr('data-default-settlement-date') || todayStr;
+        var maxAllowedDate = defaultSettlementDate > todayStr ? defaultSettlementDate : todayStr;
+        
+        if (nextDateStr > maxAllowedDate) {
+            return null;
+        }
+        
+        return nextDateStr;
+    }
+    
+    // Expose updateNavigationButtons globally so it can be called from flatpickr onChange
+    window.updateNavigationButtons = function() {
+        var currentDate = window.selectedSettlementDate || $('#settlement-date-wrapper .input-group').attr('data-default-settlement-date');
+        var previousDate = getPreviousDate(currentDate);
+        var nextDate = getNextDate(currentDate);
+        
+        // Update previous button state
+        if (previousDate) {
+            $('#btn-settlement-prev').prop('disabled', false);
+        } else {
+            $('#btn-settlement-prev').prop('disabled', true);
+        }
+        
+        // Update next button state
+        if (nextDate) {
+            $('#btn-settlement-next').prop('disabled', false);
+        } else {
+            $('#btn-settlement-next').prop('disabled', true);
+        }
+    };
+    
+    function navigateToDate(targetDate) {
+        if (!targetDate) return;
+        
+        // Update global selected date
+        window.selectedSettlementDate = targetDate;
+        
+        // Update flatpickr date picker
+        var pickerEl = document.getElementById('settlement-date-picker');
+        if (pickerEl && pickerEl._flatpickr) {
+            pickerEl._flatpickr.setDate(targetDate, false);
+        }
+        
+        // Update navigation button states
+        updateNavigationButtons();
+        
+        // Update settle button state
+        if (typeof window.updateSettleButtonState === 'function') {
+            window.updateSettleButtonState();
+        }
+        
+        // Reload data
+        if (typeof window.reloadExpenseBySettlementDate === 'function') {
+            window.reloadExpenseBySettlementDate();
+        }
+    }
+    
+    // Previous button click handler
+    $('#btn-settlement-prev').on('click', function() {
+        var currentDate = window.selectedSettlementDate || $('.day-selector-wrapper').attr('data-default-settlement-date');
+        var previousDate = getPreviousDate(currentDate);
+        
+        if (previousDate) {
+            navigateToDate(previousDate);
+        } else {
+            var earliestDate = getEarliestSettlementDate();
+            var formattedEarliest = earliestDate ? new Date(earliestDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'earliest settlement date';
+            Swal.fire({
+                icon: 'info',
+                title: 'No Previous Date',
+                text: 'You are already at the earliest settlement date (' + formattedEarliest + ').',
+                confirmButtonText: 'OK',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    });
+    
+    // Next button click handler
+    $('#btn-settlement-next').on('click', function() {
+        var currentDate = window.selectedSettlementDate || $('#settlement-date-wrapper .input-group').attr('data-default-settlement-date');
+        var nextDate = getNextDate(currentDate);
+        
+        if (nextDate) {
+            navigateToDate(nextDate);
+        } else {
+            Swal.fire({
+                icon: 'info',
+                title: 'No Next Date',
+                text: 'You are already at the latest available date.',
+                confirmButtonText: 'OK',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+    });
+
+    // Update reloadData to support settlement date
+    window.reloadExpenseBySettlementDate = function() {
+        // Get fresh date each time function is called
+        var date = window.selectedSettlementDate || 'current';
+        $.ajax({
+            url: '/junket_house_expense_data',
+            method: 'GET',
+            data: { date: date },
+                    success: function (data) {
+                        var dataTable = $('#expense-tbl').DataTable();
+                        dataTable.clear();
+                        var total_expense = 0;
+                        var total_return_money = 0;
+
+                        if (data.length === 0) {
+                            const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
+                            var tbody = dataTable.table().body();
+                            $(tbody).html('<tr><td colspan="8" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
+                            $('#TOTAL_EXPENSE_AMOUNT').text(`₱0.00`);
+                            $('#TOTAL_RETURN_MONEY_AMOUNT').text(`₱0.00`);
+                            if (typeof window.updateSettleButtonState === 'function') {
+                                window.updateSettleButtonState(0);
+                            }
+                            return;
+                        }
+
+                        const goodsTypeLabel = window.houseExpenseTranslations?.type_goods || 'Goods / Consumables';
+                        const nonGoodsTypeLabel = window.houseExpenseTranslations?.type_non_goods || 'Non-goods / Services';
+
+                        data.forEach(function (row) {
+                            const amount = parseFloat(row.AMOUNT) || 0;
+                            
+                            if (row.record_type === 'return_money') {
+                                total_return_money += amount;
+                            } else {
+                                total_expense += amount;
+                            }
+                        
+                            const permissions = parseInt($('#user-role').data('permissions'));
+                            let btn = '';
+                            if (permissions !== 2) {
+                                btn = `
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-sm btn-alt-secondary"
+                                                onclick="viewReceipt('${row.photoUrl}')"
+                                                ${row.record_type === 'return_money' ? 'disabled' : ''}
+                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
+                                            <i class="fa fa-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-alt-secondary"
+                                                onclick="${row.record_type === 'return_money' ? `edit_return_money(${row.expense_id}, '${(row.DESCRIPTION || '').replace(/'/g, "\\'")}', '${amount}')` : `edit_expense(${row.expense_id}, '${row.expense_category_id || ''}', '${(row.RECEIPT_NO || '').replace(/'/g, "\\'")}', '${row.DATE_TIME || row.ENCODED_DT || ''}', '${(row.DESCRIPTION || '').replace(/'/g, "\\'")}', '${amount}', '${row.OIC || ''}')`}"
+                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
+                                            <i class="fa fa-pencil-alt"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-alt-secondary"
+                                                onclick="downloadReceipt('${row.photoUrl}')"
+                                                ${row.record_type === 'return_money' ? 'disabled' : ''}
+                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
+                                            <i class="fa fa-download"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-alt-danger"
+                                                onclick="${row.record_type === 'return_money' ? `archive_return_money(${row.expense_id})` : `archive_expense(${row.expense_id})`}"
+                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
+                                            <i class="fa fa-trash-alt"></i>
+                                        </button>
+                                    </div>`;
+                            } else {
+                                btn = `
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-sm btn-primary"
+                                                onclick="viewReceipt('${row.photoUrl}')"
+                                                ${row.record_type === 'return_money' ? 'disabled' : ''}
+                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
+                                            <i class="fa fa-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-alt-secondary" disabled
+                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
+                                            <i class="fa fa-pencil-alt"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-secondary"
+                                                onclick="downloadReceipt('${row.photoUrl}')"
+                                                ${row.record_type === 'return_money' ? 'disabled' : ''}
+                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
+                                            <i class="fa fa-download"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-alt-danger" disabled
+                                                data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
+                                            <i class="fa fa-trash-alt"></i>
+                                        </button>
+                                    </div>`;
+                            }
+                        
+                            const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
+                            
+                            let expenseTypeLabel = '-';
+                            if (row.record_type !== 'return_money') {
+                                const typeValue = parseInt(row.expense_type, 10);
+                                expenseTypeLabel = (typeValue === 2)
+                                    ? nonGoodsTypeLabel
+                                    : goodsTypeLabel;
+                            }
+                            
+                            const formattedAmount = amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                            const amountDisplay = row.record_type === 'return_money' 
+                                ? `<span style="color: green;">${formattedAmount}</span>`
+                                : formattedAmount;
+                            
+                            dataTable.row.add([
+                                row.expense_category || 'N/A',
+                                expenseTypeLabel,
+                                row.RECEIPT_NO || '-',
+                                row.DESCRIPTION || '-',
+                                amountDisplay,
+                                row.FIRSTNAME || 'N/A',
+                                formattedDate,
+                                btn
+                            ]).draw();
+                        });
+                        
+                        $('#TOTAL_EXPENSE_AMOUNT').text(`₱${total_expense.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
+                        $('#TOTAL_RETURN_MONEY_AMOUNT').text(`₱${total_return_money.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
+                        
+                        if (typeof window.updateSettleButtonState === 'function') {
+                            window.updateSettleButtonState(data.length);
+                        }
+                    },
+            error: function (xhr, status, error) {
+                console.error('Error fetching data:', error);
+            }
+        });
+    };
+
+    // Settlement button click handler
+    $('#btn-daily-settle').on('click', function (e) {
+        e.preventDefault();
+        if ($(this).hasClass('disabled') || $(this).prop('disabled')) return;
+        var settlementDate = window.selectedSettlementDate || new Date().toISOString().slice(0, 10);
+        var formattedDate = settlementDate ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : settlementDate;
+        var $btn = $(this);
+        
+        Swal.fire({
+            title: 'Confirm Settlement',
+            text: 'Settle all expenses for ' + formattedDate + '?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Settle',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#0d6efd',
+            cancelButtonColor: '#6c757d'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+            $btn.addClass('disabled').css('pointer-events', 'none').css('opacity', '0.5');
+            $.ajax({
+                url: '/expense_daily_settlement/run',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ settlement_date: settlementDate }),
+                success: function (res) {
+                    var settledDate = (res && res.settlement_date) ? res.settlement_date : $('.day-selector-wrapper').attr('data-today');
+                    window.selectedSettlementDate = settledDate || '';
+                    
+                    // Update settled dates array to include the newly settled date
+                    if (settledDate && window.settledDatesForMonth) {
+                        if (window.settledDatesForMonth.indexOf(settledDate) === -1) {
+                            window.settledDatesForMonth.push(settledDate);
+                            window.settledDatesForMonth.sort();
+                        }
+                    }
+                    
+                    var pickerEl = document.getElementById('settlement-date-picker');
+                    if (pickerEl && pickerEl._flatpickr) pickerEl._flatpickr.setDate(settledDate || '', false);
+                    
+                    // Refresh date range picker highlighting if it exists
+                    var dateRangePickerEl = document.getElementById('daterange-picker');
+                    if (dateRangePickerEl && dateRangePickerEl._flatpickr && dateRangePickerEl._flatpickr.isOpen) {
+                        var instance = dateRangePickerEl._flatpickr;
+                        setTimeout(function () {
+                            if (!instance.calendarContainer) return;
+                            var currentSettledDates = window.settledDatesForMonth || [];
+                            var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                            days.forEach(function (el) {
+                                el.classList.remove('settled-day');
+                                if (!el.dateObj) return;
+                                var d = el.dateObj;
+                                var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                                if (dStr && currentSettledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
+                            });
+                        }, 0);
+                    }
+                    
+                    var settledFormatted = (settledDate || settlementDate) ? new Date((settledDate || settlementDate) + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : (settledDate || settlementDate);
+                    Swal.fire({
+                        title: 'Settled',
+                        text: 'Settlement for ' + settledFormatted + ' completed. Expenses: ' + (res.expense_count || 0) + ', Return Money: ' + (res.return_money_count || 0),
+                        icon: 'success',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#0d6efd'
+                    }).then(function () {
+                        window.location.reload();
+                    });
+                },
+                error: function (xhr) {
+                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to run settlement';
+                    console.error('[Expense Settlement] Settle error:', err, xhr);
+                    Swal.fire({
+                        title: 'Error',
+                        text: err,
+                        icon: 'error',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                },
+                complete: function () {
+                    if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
+                }
+            });
+        });
+    });
+
+    // Initialize settlement UI state
+    if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
+    if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
+
+    // Initial load with settlement date
+    if (typeof window.reloadData === 'function') {
+        window.reloadData();
+    }
 
     // Utility functions for receipt actions
     window.viewReceipt = function (photoUrl) {
@@ -371,10 +1010,26 @@ function archive_expense(id) {
                 url: '/junket_house_expense/remove/' + id,
                 type: 'PUT',
                 success: function (response) {
-                    window.location.reload();
+                    Swal.fire({
+                        icon: 'success',
+                        title: window.houseExpenseTranslations?.updated_successfully || 'Deleted successfully!',
+                        text: window.houseExpenseTranslations?.expense_deleted || 'House expense has been deleted.',
+                        confirmButtonText: window.houseExpenseTranslations?.ok || 'OK',
+                        allowOutsideClick: false
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.reload();
+                        }
+                    });
                 },
                 error: function (error) {
                     console.error('Error deleting junket:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: window.houseExpenseTranslations?.error || 'Error!',
+                        text: window.houseExpenseTranslations?.error_deleting_expense || 'Failed to delete expense. Please try again.',
+                        confirmButtonText: window.houseExpenseTranslations?.ok || 'OK'
+                    });
                 }
             });
         }
@@ -410,7 +1065,17 @@ function archive_return_money(id) {
                 url: '/remove_return_money/' + id,
                 type: 'PUT',
                 success: function (response) {
-                    window.location.reload();
+                    Swal.fire({
+                        icon: 'success',
+                        title: window.houseExpenseTranslations?.updated_successfully || 'Deleted successfully!',
+                        text: window.houseExpenseTranslations?.return_deleted || 'Return money has been deleted.',
+                        confirmButtonText: window.houseExpenseTranslations?.ok || 'OK',
+                        allowOutsideClick: false
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.reload();
+                        }
+                    });
                 },
                 error: function (error) {
                     console.error('Error deleting return money:', error);

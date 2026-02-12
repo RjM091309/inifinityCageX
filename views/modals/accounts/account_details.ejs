@@ -113,7 +113,8 @@
                             </div>
                             <div class="card-body">
                                 <div class="text-end mb-4">
-                                    <button class="btn btn-sm btn-info" onclick="transfer_account()"><%= __('modal_account_details.transfer_account') %></button>
+                                    <button class="btn btn-sm btn-primary" onclick="game_history($('#account_id').val() || $('#account_id_add').val())">Game History</button>
+                                    <button class="btn btn-sm btn-info" onclick="transfer_account()"><%= __('modal_account_details.transfer_account') %></button>                       
                                     <button class="btn btn-sm btn-success" onclick="export_data()"><%= __('modal_account_details.export') %></button>
                                 </div>
                                 <input type="hidden" id="account_id">
@@ -441,3 +442,5 @@
 })();
 </script>
 
+<!-- Include Game History Modal -->
+<%- include ('game_history') %>

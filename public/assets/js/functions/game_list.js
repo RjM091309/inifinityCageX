@@ -159,15 +159,45 @@ $(document).ready(function () {
 		if (highlightId) {
 			params.id = highlightId;
 		} else {
-			// Always use selected day (from day selector)
-			var date = window.selectedSettlementDate || $('.day-selector-wrapper').attr('data-default-settlement-date');
-			if (!date) {
-				alert('Please select a day.');
-				return;
+			// Check filter mode: settlement or date range
+			var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+			
+			if (filterMode === 'settlement') {
+				// Settlement date mode
+				var date = window.selectedSettlementDate || $('#settlement-date-wrapper .input-group').attr('data-default-settlement-date');
+				if (!date) {
+					alert('Please select a day.');
+					return;
+				}
+				params.date = date;
+			} else {
+				// Date range mode
+				var dateRangePicker = document.getElementById('daterange-picker');
+				var fromDate = null;
+				var toDate = null;
+				
+				if (dateRangePicker && dateRangePicker._flatpickr) {
+					var selectedDates = dateRangePicker._flatpickr.selectedDates;
+					if (selectedDates && selectedDates.length === 2) {
+						var pad = function(n) { return String(n).padStart(2, '0'); };
+						fromDate = selectedDates[0].getFullYear() + '-' + pad(selectedDates[0].getMonth() + 1) + '-' + pad(selectedDates[0].getDate());
+						toDate = selectedDates[1].getFullYear() + '-' + pad(selectedDates[1].getMonth() + 1) + '-' + pad(selectedDates[1].getDate());
+					}
+				}
+				
+				if (!fromDate || !toDate) {
+					// Default to current month if not set
+					var now = new Date();
+					var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+					var pad = function(n) { return String(n).padStart(2, '0'); };
+					fromDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+					toDate = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+				}
+				
+				params.fromDate = fromDate;
+				params.toDate = toDate;
 			}
-			params.date = date;
 		}
-
         $.ajax({
             url: '/game_list_data', // Endpoint to fetch data
             method: 'GET',
@@ -186,7 +216,11 @@ $(document).ready(function () {
                     if (params.date && typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState(0);
                     return;
                 }
-                if (params.date && typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState(data.length);
+                // Only update settle button state if in settlement mode
+                var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+                if (filterMode === 'settlement' && params.date && typeof window.updateSettleButtonState === 'function') {
+                    window.updateSettleButtonState(data.length);
+                }
 
                 // Assume you have the user's permissions stored in a variable `userPermissions`
                 var userPermissions = parseInt(document.getElementById('user-role').getAttribute('data-permissions'));
@@ -643,9 +677,11 @@ $(document).ready(function () {
         });
     }
 
+    // Expose reloadData to window so it can be called from date range picker
+    window.reloadData = reloadData;
     window.reloadGameListBySettlementDate = function () { reloadData(); };
 
-    var settledDatesRaw = $('.day-selector-wrapper').attr('data-settled-dates');
+    var settledDatesRaw = $('#settlement-date-wrapper .input-group').attr('data-settled-dates');
     try {
         window.settledDatesForMonth = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
     } catch (e) {
@@ -654,10 +690,18 @@ $(document).ready(function () {
     var settleBtnLabel = (window.gamelistTranslations && window.gamelistTranslations.settle) || 'Settle';
     var settledBtnLabel = (window.gamelistTranslations && window.gamelistTranslations.settle_btn_settled) || 'Settled';
     window.updateSettleButtonState = function (recordCount) {
+        // Only update if in settlement mode
+        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+        if (filterMode !== 'settlement') {
+            // Hide settle button in date range mode
+            $('#btn-daily-settle').addClass('disabled').css('pointer-events', 'none').css('opacity', '0.5');
+            return;
+        }
+        
         var date = window.selectedSettlementDate;
-        var todayStr = $('.day-selector-wrapper').attr('data-today') || new Date().toISOString().slice(0, 10);
+        var todayStr = $('#settlement-date-wrapper .input-group').attr('data-today') || new Date().toISOString().slice(0, 10);
         if (!date) {
-            $('#btn-daily-settle').prop('disabled', true).text(settleBtnLabel);
+            $('#btn-daily-settle').addClass('disabled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
             return;
         }
         var settled = (window.settledDatesForMonth || []).indexOf(date) !== -1;
@@ -665,11 +709,11 @@ $(document).ready(function () {
         var noRecordsForPastDate = (recordCount !== undefined && recordCount === 0 && isPastDate);
         var $btn = $('#btn-daily-settle');
         if (settled) {
-            $btn.prop('disabled', true).text(settledBtnLabel);
+            $btn.addClass('disabled').text(settledBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
         } else if (noRecordsForPastDate) {
-            $btn.prop('disabled', true).text(settleBtnLabel);
+            $btn.addClass('disabled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
         } else {
-            $btn.prop('disabled', false).text(settleBtnLabel);
+            $btn.removeClass('disabled').text(settleBtnLabel).css('pointer-events', 'auto').css('opacity', '1');
         }
     };
 
@@ -732,7 +776,7 @@ $(document).ready(function () {
     
     // Expose updateNavigationButtons globally so it can be called from flatpickr onChange
     window.updateNavigationButtons = function() {
-        var currentDate = window.selectedSettlementDate || $('.day-selector-wrapper').attr('data-default-settlement-date');
+        var currentDate = window.selectedSettlementDate || $('#settlement-date-wrapper .input-group').attr('data-default-settlement-date');
         var previousDate = getPreviousDate(currentDate);
         var nextDate = getNextDate(currentDate);
         
@@ -779,7 +823,7 @@ $(document).ready(function () {
     
     // Previous button click handler
     $('#btn-settlement-prev').on('click', function() {
-        var currentDate = window.selectedSettlementDate || $('.day-selector-wrapper').attr('data-default-settlement-date');
+        var currentDate = window.selectedSettlementDate || $('#settlement-date-wrapper .input-group').attr('data-default-settlement-date');
         var previousDate = getPreviousDate(currentDate);
         
         if (previousDate) {
@@ -800,7 +844,7 @@ $(document).ready(function () {
     
     // Next button click handler
     $('#btn-settlement-next').on('click', function() {
-        var currentDate = window.selectedSettlementDate || $('.day-selector-wrapper').attr('data-default-settlement-date');
+        var currentDate = window.selectedSettlementDate || $('#settlement-date-wrapper .input-group').attr('data-default-settlement-date');
         var nextDate = getNextDate(currentDate);
         
         if (nextDate) {
@@ -816,6 +860,171 @@ $(document).ready(function () {
             });
         }
     });
+
+    // Filter mode toggle handler
+    $('input[name="filter-mode"]').on('change', function() {
+        var mode = $(this).val();
+        if (mode === 'settlement') {
+            $('#settlement-date-wrapper').show();
+            $('#daterange-wrapper').hide();
+            // Reload data with settlement date
+            if (typeof window.reloadData === 'function') {
+                window.reloadData();
+            }
+        } else {
+            $('#settlement-date-wrapper').hide();
+            $('#daterange-wrapper').show();
+            // Reload data with date range
+            if (typeof window.reloadData === 'function') {
+                window.reloadData();
+            }
+        }
+    });
+    
+    // Initialize date range picker (single input with range mode)
+    var dateRangePicker = null;
+    if (document.getElementById('daterange-picker')) {
+        var now = new Date();
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        
+        // Get default settlement date (next settlement date) from wrapper
+        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
+        var defaultSettlementDate = null;
+        if (wrapper) {
+            defaultSettlementDate = wrapper.getAttribute('data-default-settlement-date');
+            var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
+            try {
+                var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
+                // Make sure window.settledDatesForMonth is set if not already set
+                if (!window.settledDatesForMonth || window.settledDatesForMonth.length === 0) {
+                    window.settledDatesForMonth = parsedDates;
+                }
+            } catch (e) {
+                console.error('[Date Range Picker - Initialization] Error parsing settled dates:', e);
+            }
+        }
+        
+        // Default date range: First settlement date to next day after last settlement (or next settlement date)
+        var settledDates = window.settledDatesForMonth || [];
+        var defaultFromDate;
+        var defaultToDate;
+        
+        if (settledDates.length > 0) {
+            // From Date: First settlement date (earliest)
+            var sortedDates = settledDates.slice().sort();
+            defaultFromDate = sortedDates[0];
+            
+            // To Date: Next day after last settlement date OR next settlement date (defaultSettlementDate)
+            var lastSettlementDate = sortedDates[sortedDates.length - 1];
+            var lastDate = new Date(lastSettlementDate + 'T12:00:00');
+            var nextDayAfterLast = new Date(lastDate);
+            nextDayAfterLast.setDate(nextDayAfterLast.getDate() + 1);
+            var nextDayAfterLastStr = nextDayAfterLast.getFullYear() + '-' + pad(nextDayAfterLast.getMonth() + 1) + '-' + pad(nextDayAfterLast.getDate());
+            
+            // Use defaultSettlementDate (next settlement date) if available, otherwise use next day after last settlement
+            defaultToDate = defaultSettlementDate || nextDayAfterLastStr;
+        } else {
+            // Fallback: First of current month to today (or default settlement date)
+            var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            defaultFromDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+            var todayStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+            defaultToDate = defaultSettlementDate || todayStr;
+        }
+        
+        dateRangePicker = flatpickr("#daterange-picker", {
+            mode: 'range',
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'M d, Y',
+            defaultDate: [defaultFromDate, defaultToDate],
+            maxDate: defaultSettlementDate || 'today',
+            onDayCreate: function (dayElem) {
+                if (!dayElem || !dayElem.dateObj) return;
+                var d = dayElem.dateObj;
+                var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                var settledDates = window.settledDatesForMonth || [];
+                if (dStr && settledDates.indexOf(dStr) !== -1) {
+                    dayElem.classList.add('settled-day');
+                }
+            },
+            onReady: function (selectedDates, dateStr, instance) {
+                // Highlight settled dates when calendar is ready (initial render)
+                setTimeout(function () {
+                    if (!instance.calendarContainer) return;
+                    var settledDates = window.settledDatesForMonth || [];
+                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                    days.forEach(function (el) {
+                        el.classList.remove('settled-day');
+                        if (!el.dateObj) return;
+                        var d = el.dateObj;
+                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        if (dStr && settledDates.indexOf(dStr) !== -1) {
+                            el.classList.add('settled-day');
+                        }
+                    });
+                }, 100);
+                // Trigger reloadData if date range mode is selected and we have default dates
+                var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+                if (filterMode === 'daterange' && selectedDates && selectedDates.length === 2 && typeof window.reloadData === 'function') {
+                    setTimeout(function() {
+                        window.reloadData();
+                    }, 200);
+                }
+            },
+            onOpen: function (selectedDates, dateStr, instance) {
+                setTimeout(function () {
+                    if (!instance.calendarContainer) return;
+                    var settledDates = window.settledDatesForMonth || [];
+                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                    days.forEach(function (el) {
+                        el.classList.remove('settled-day');
+                        if (!el.dateObj) return;
+                        var d = el.dateObj;
+                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        if (dStr && settledDates.indexOf(dStr) !== -1) {
+                            el.classList.add('settled-day');
+                        }
+                    });
+                }, 0);
+            },
+            onMonthChange: function (selectedDates, dateStr, instance) {
+                setTimeout(function () {
+                    if (!instance.calendarContainer) return;
+                    var settledDates = window.settledDatesForMonth || [];
+                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                    days.forEach(function (el) {
+                        el.classList.remove('settled-day');
+                        if (!el.dateObj) return;
+                        var d = el.dateObj;
+                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        if (dStr && settledDates.indexOf(dStr) !== -1) {
+                            el.classList.add('settled-day');
+                        }
+                    });
+                }, 0);
+            },
+            onChange: function(selectedDates, dateStr, instance) {
+                // Also highlight settled dates when date selection changes
+                setTimeout(function () {
+                    if (!instance.calendarContainer) return;
+                    var settledDates = window.settledDatesForMonth || [];
+                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                    days.forEach(function (el) {
+                        el.classList.remove('settled-day');
+                        if (!el.dateObj) return;
+                        var d = el.dateObj;
+                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        if (dStr && settledDates.indexOf(dStr) !== -1) {
+                            el.classList.add('settled-day');
+                        }
+                    });
+                }, 0);
+                if (selectedDates && selectedDates.length === 2 && typeof window.reloadData === 'function') {
+                    window.reloadData();
+                }
+            }
+        });
+    }
 
     reloadData(); // Load data initially (uses selectedSettlementDate = 'current' from EJS)
     if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
@@ -868,7 +1077,7 @@ $(document).ready(function () {
                 contentType: 'application/json',
                 data: JSON.stringify({ settlement_date: settlementDate }),
                 success: function (res) {
-                    var settledDate = (res && res.settlement_date) ? res.settlement_date : $('.day-selector-wrapper').attr('data-today');
+                    var settledDate = (res && res.settlement_date) ? res.settlement_date : $('#settlement-date-wrapper .input-group').attr('data-today');
                     window.selectedSettlementDate = settledDate || '';
                     var pickerEl = document.getElementById('settlement-date-picker');
                     if (pickerEl && pickerEl._flatpickr) pickerEl._flatpickr.setDate(settledDate || '', false);
@@ -924,7 +1133,7 @@ $(document).ready(function () {
                         contentType: 'application/json',
                         data: JSON.stringify({ settlement_date: settlementDate }),
                         success: function (res) {
-                            var settledDate = (res && res.settlement_date) ? res.settlement_date : $('.day-selector-wrapper').attr('data-today');
+                            var settledDate = (res && res.settlement_date) ? res.settlement_date : $('#settlement-date-wrapper .input-group').attr('data-today');
                             window.selectedSettlementDate = settledDate || '';
                             var pickerEl = document.getElementById('settlement-date-picker');
                             if (pickerEl && pickerEl._flatpickr) pickerEl._flatpickr.setDate(settledDate || '', false);

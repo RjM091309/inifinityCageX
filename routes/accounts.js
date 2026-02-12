@@ -1137,7 +1137,137 @@ router.get('/account_details_data_deposit/:id', async (req, res) => {
 	}
   });
   
-  
+// GET ACCOUNT GAME HISTORY
+router.get('/account_game_history/:id', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id);
+		
+		// First, get all games for this account
+		const gameQuery = `
+			SELECT 
+				game_list.*,
+				game_list.IDNo AS game_list_id,
+				game_list.ACTIVE AS game_status,
+				account.IDNo AS account_no,
+				agent.AGENT_CODE AS agent_code,
+				agent.NAME AS agent_name,
+				game_list.ENCODED_DT AS game_date_start,
+				game_list.GAME_ENDED AS game_date_end
+			FROM game_list
+			JOIN account ON game_list.ACCOUNT_ID = account.IDNo
+			JOIN agent ON agent.IDNo = account.AGENT_ID
+			WHERE game_list.ACCOUNT_ID = ?
+			  AND game_list.ACTIVE != 0
+			ORDER BY game_list.ENCODED_DT DESC
+		`;
+		const [games] = await pool.execute(gameQuery, [id]);
+		
+		// For each game, calculate totals using the same logic as game_list.js
+		const gamesWithTotals = await Promise.all(games.map(async (game) => {
+			// Get game records
+			const recordQuery = `
+				SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE 
+				FROM game_record
+				WHERE ACTIVE != 0 AND GAME_ID = ?
+				ORDER BY IDNo ASC
+			`;
+			const [records] = await pool.execute(recordQuery, [game.game_list_id]);
+			
+			// Initialize totals (same as game_list.js)
+			let total_nn_init = 0;
+			let total_cc_init = 0;
+			let total_nn = 0;
+			let total_cc = 0;
+			let total_cash_out_nn = 0;
+			let total_cash_out_cc = 0;
+			let total_rolling_nn = 0;
+			let total_rolling_cc = 0;
+			let total_rolling = 0;
+			let total_rolling_real = 0;
+			let total_rolling_nn_real = 0;
+			let total_rolling_cc_real = 0;
+			let total_roller_nn = 0;
+			let total_roller_cc = 0;
+			let total_roller_return_cc = 0;
+			
+			// Process records (same logic as game_list.js)
+			records.forEach((res) => {
+				if (res.CAGE_TYPE == 1 && (total_nn_init != 0 || total_cc_init != 0)) {
+					total_nn = total_nn + (Number(res.NN_CHIPS) || 0);
+					total_cc = total_cc + (Number(res.CC_CHIPS) || 0);
+				}
+				
+				if ((total_nn_init == 0 && total_cc_init == 0) && res.CAGE_TYPE == 1) {
+					total_nn_init = total_nn_init + (Number(res.NN_CHIPS) || 0);
+					total_cc_init = total_cc_init + (Number(res.CC_CHIPS) || 0);
+				}
+				
+				if (res.CAGE_TYPE == 2) {
+					total_cash_out_nn = total_cash_out_nn + (Number(res.NN_CHIPS) || 0);
+					total_cash_out_cc = total_cash_out_cc + (Number(res.CC_CHIPS) || 0);
+				}
+				
+				if (res.CAGE_TYPE == 3) {
+					total_rolling = total_rolling + (Number(res.AMOUNT) || 0);
+					total_rolling_nn = total_rolling_nn + (Number(res.NN_CHIPS) || 0);
+					total_rolling_cc = total_rolling_cc + (Number(res.CC_CHIPS) || 0);
+				}
+				
+				if (res.CAGE_TYPE == 4) {
+					total_rolling_real = total_rolling_real + (Number(res.AMOUNT) || 0);
+					total_rolling_nn_real = total_rolling_nn_real + (Number(res.NN_CHIPS) || 0);
+					total_rolling_cc_real = total_rolling_cc_real + (Number(res.CC_CHIPS) || 0);
+				}
+				
+				if (res.CAGE_TYPE == 5) {
+					const rollerTransaction = res.ROLLER_TRANSACTION || 1;
+					if (rollerTransaction == 1) {
+						total_roller_nn = total_roller_nn + (Number(res.ROLLER_NN_CHIPS) || 0);
+						total_roller_cc = total_roller_cc + (Number(res.ROLLER_CC_CHIPS) || 0);
+					} else if (rollerTransaction == 2) {
+						total_roller_nn = total_roller_nn - (Number(res.ROLLER_NN_CHIPS) || 0);
+						total_roller_cc = total_roller_cc - (Number(res.ROLLER_CC_CHIPS) || 0);
+						total_roller_return_cc += (Number(res.ROLLER_CC_CHIPS) || 0);
+					}
+				}
+			});
+			
+			// Calculate totals (same as game_list.js)
+			const total_initial = total_nn_init + total_cc_init;
+			const total_buy_in_chips = total_nn + total_cc;
+			const total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
+			const totalRollingCCWithReturns = total_roller_return_cc;
+			const total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+			const total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
+			const total_amount = total_buy_in_chips + total_initial;
+			const winloss = total_amount - total_cash_out_chips;
+			
+			// Calculate commission (net) - same logic as game_list.js
+			let net = 0;
+			if (game.COMMISSION_TYPE == 1 || game.COMMISSION_TYPE == 3) {
+				net = Math.round((total_rolling_chips * game.COMMISSION_PERCENTAGE) / 100);
+			} else if (game.COMMISSION_TYPE == 2) {
+				net = Math.round((winloss * game.COMMISSION_PERCENTAGE) / 100);
+			}
+			
+			// Return game with calculated values
+			return {
+				...game,
+				BUY_IN: total_amount,
+				CASH_OUT: total_cash_out_chips,
+				ROLLING: total_rolling_real_chips,
+				TOTAL_ROLLING: total_rolling_chips,
+				COMMISSION: net,
+				WIN_LOSS: winloss
+			};
+		}));
+		
+		res.json(gamesWithTotals);
+	} catch (error) {
+		console.error('Error fetching game history:', error);
+		res.status(500).send('Error fetching game history');
+	}
+});
 
 
 

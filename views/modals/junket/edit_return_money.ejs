@@ -8,17 +8,18 @@
             </div>
             <div class="modal-body">
                 <form id="edit_return_money">
-                    <div class="row mb-2">
-                        <div class="col-sm-12">
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label">Amount</label>
                             <input type="text" class="form-control" name="txtAmount" id="txtReturnMoneyAmount" 
-                                placeholder="Amount" onkeypress="return onlyNumberKey(event)" data-type="number" />
+                                onkeypress="return onlyNumberKey(event)" data-type="number" />
                         </div>
                     </div>
-
-                    <div class="row mb-2">
-                        <div class="col-sm-12">
+                    <div class="row mb-3">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label">Description</label>
                             <textarea class="form-control" name="txtDescription" id="txtReturnMoneyDescription"
-                                placeholder="Description" rows="3"></textarea>
+                                rows="3"></textarea>
                         </div>
                     </div>
 

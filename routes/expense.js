@@ -27,14 +27,72 @@ const uploadReceiptImg = multer({
 	}
 });
 
-router.get("/house_expense", checkSession, function (req, res) {
+router.get("/house_expense", checkSession, async function (req, res) {
+	try {
+		const permissions = req.session.permissions;
 
-	const permissions = req.session.permissions;
+		// Get expense settlement info (default date and settled dates)
+		const now = new Date();
+		const pad = (n) => String(n).padStart(2, '0');
+		const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+		const firstOfMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+		let defaultSettlementDate = todayStr;
 
-	res.render("junket/house_expense", {
-		...sessions(req, 'house_expense'),
-		permissions: permissions
-	});
+		// Get last settlement date (can be future date if advance settlement was done)
+		// Default settlement date should be the next day after the last settlement
+		// Example: Today is Feb 11, but Feb 12 was already settled -> default should be Feb 13
+		// If no settlement exists, use today
+		try {
+			// Get MAX settlement date without restricting to today (to handle advance settlements)
+			const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+			const lastDayStr = `${lastDayOfMonth.getFullYear()}-${pad(lastDayOfMonth.getMonth() + 1)}-${pad(lastDayOfMonth.getDate())}`;
+			const [rows] = await pool.execute(
+				'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM expense_daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ?',
+				[firstOfMonth, lastDayStr]
+			);
+			const lastSettlement = rows[0] && rows[0].last_settlement;
+			if (lastSettlement) {
+				const last = lastSettlement instanceof Date ? lastSettlement : new Date(String(lastSettlement).slice(0, 10) + 'T12:00:00Z');
+				const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
+				const nextDateStr = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(nextDate.getDate())}`;
+				// Always use next day after last settlement (even if it's in the future)
+				// This is the correct default for new expenses
+				defaultSettlementDate = nextDateStr;
+			}
+		} catch (e) {
+			// keep defaultSettlementDate = todayStr
+		}
+
+		// Get settled dates this month
+		let settledDatesForMonth = [];
+		try {
+			const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+			const lastDayStr = `${lastDayOfMonth.getFullYear()}-${pad(lastDayOfMonth.getMonth() + 1)}-${pad(lastDayOfMonth.getDate())}`;
+			const [settledRows] = await pool.execute(
+				'SELECT DISTINCT SETTLEMENT_DATE FROM expense_daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE',
+				[firstOfMonth, lastDayStr]
+			);
+			settledDatesForMonth = (settledRows || []).map(r => {
+				const d = r.SETTLEMENT_DATE;
+				if (!d) return null;
+				const x = d instanceof Date ? d : new Date(String(d).slice(0, 10) + 'T12:00:00Z');
+				return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
+			}).filter(Boolean);
+		} catch (e) {
+			// keep settledDatesForMonth = []
+		}
+
+		res.render("junket/house_expense", {
+			...sessions(req, 'house_expense'),
+			permissions: permissions,
+			defaultSettlementDate: defaultSettlementDate,
+			settledDatesForMonth: settledDatesForMonth,
+			todayStr: todayStr
+		});
+	} catch (err) {
+		console.error('Error loading house_expense page:', err);
+		res.status(500).send('Error loading page');
+	}
 });
 
 
@@ -136,9 +194,41 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 
 		const query = `
 			INSERT INTO junket_house_expense 
-			(CATEGORY_ID, RECEIPT_NO, DATE_TIME, DESCRIPTION, AMOUNT, PHOTO, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			(CATEGORY_ID, RECEIPT_NO, DATE_TIME, DESCRIPTION, AMOUNT, PHOTO, ENCODED_BY, ENCODED_DT, DAILY_SETTLEMENT)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`;
+
+		// Determine DAILY_SETTLEMENT status based on latest settlement
+		let dailySettlementStatus = 1; // Default: unsettled
+		try {
+			const todayStr = new Date().toISOString().slice(0, 10);
+			const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+			const [latestSettlement] = await pool.execute(
+				`SELECT RUN_AT FROM expense_daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
+				[firstOfMonth, todayStr]
+			);
+			
+			if (latestSettlement.length > 0) {
+				const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date 
+					? latestSettlement[0].RUN_AT 
+					: new Date(latestSettlement[0].RUN_AT);
+				const expenseCreatedAt = date_now instanceof Date ? date_now : new Date(date_now);
+				
+				// If expense created before settlement run, it's pending (should be in previous settlement)
+				// Otherwise, mark as unsettled (will be in next settlement)
+				if (expenseCreatedAt < settlementRunTime) {
+					// This is a pending expense - should be added to previous settlement
+					// For now, mark as unsettled and let settlement process handle it
+					dailySettlementStatus = 1;
+				} else {
+					// New expense after settlement - mark as unsettled
+					dailySettlementStatus = 1;
+				}
+			}
+		} catch (e) {
+			// If error, default to unsettled
+			dailySettlementStatus = 1;
+		}
 
 		const [insertResult] = await pool.execute(query, [
 			category,
@@ -148,7 +238,8 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			amount,
 			receiptFileName,
 			encodedBy,
-			date_now
+			date_now,
+			dailySettlementStatus
 		]);
 
 		const [categoryRows] = await pool.execute('SELECT CATEGORY FROM expense_category WHERE IDNo = ? LIMIT 1', [
@@ -216,10 +307,292 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 
 
 // GET JUNKET EXPENSE
+// Supports settlement filtering: date=current (unsettled only) or date=YYYY-MM-DD (settled that day; if today and no settlement yet, return unsettled)
 router.get('/junket_house_expense_data', async (req, res) => {
 	try {
-		let { fromDate, toDate } = req.query;
+		let { fromDate, toDate, date } = req.query;
 
+		// If 'date' parameter is provided, use settlement filtering logic
+		if (date !== undefined && date !== null && date !== '') {
+			const todayStr = new Date().toISOString().slice(0, 10);
+			const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+			
+			if (date === 'current') {
+				// Show only unsettled expenses
+				const query = `
+					SELECT 
+						e.IDNo,
+						e.CATEGORY_ID,
+						e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+						e.DATE_TIME,
+						e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+						e.AMOUNT,
+						e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
+						e.ENCODED_BY,
+						e.ENCODED_DT,
+						e.EDITED_BY,
+						e.EDITED_DT,
+						e.ACTIVE,
+						e.RESET,
+						e.IDNo AS expense_id,
+						ec.IDNo AS expense_category_id,
+						ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
+						ec.TYPE AS expense_type,
+						u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+						'expense' COLLATE utf8mb4_unicode_ci AS record_type
+					FROM junket_house_expense e
+					JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+					JOIN user_info u ON u.IDNo = e.ENCODED_BY
+					WHERE e.ACTIVE = 1
+						AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
+					
+					UNION ALL
+					
+					SELECT 
+						rm.IDNo,
+						NULL AS CATEGORY_ID,
+						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+						NULL AS DATE_TIME,
+						rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+						rm.AMOUNT,
+						CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
+						rm.ENCODED_BY,
+						rm.ENCODED_DT,
+						rm.EDITED_BY,
+						rm.EDITED_DT,
+						rm.ACTIVE,
+						NULL AS RESET,
+						rm.IDNo AS expense_id,
+						NULL AS expense_category_id,
+						'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
+						0 AS expense_type,
+						COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+						'return_money' COLLATE utf8mb4_unicode_ci AS record_type
+					FROM junket_return_money rm
+					LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
+					WHERE rm.ACTIVE = 1
+						AND (rm.DAILY_SETTLEMENT = 1 OR rm.DAILY_SETTLEMENT IS NULL)
+					
+					ORDER BY ENCODED_DT DESC
+				`;
+				const [result] = await pool.execute(query);
+				const updatedResult = result.map(expense => ({
+					...expense,
+					photoUrl: expense.PHOTO ? '/ReceiptUpload/' + expense.PHOTO : null
+				}));
+				return res.json(updatedResult);
+			}
+			
+			const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+			if (isValidDate(date)) {
+				// Check if settlement exists for this date
+				const [hasSettlement] = await pool.execute(
+					'SELECT IDNo FROM expense_daily_settlement WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1 LIMIT 1',
+					[date]
+				);
+				
+				if (hasSettlement.length > 0) {
+					// Show expenses from this settlement
+					const query = `
+						SELECT 
+							e.IDNo,
+							e.CATEGORY_ID,
+							e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+							e.DATE_TIME,
+							e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+							e.AMOUNT,
+							e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
+							e.ENCODED_BY,
+							e.ENCODED_DT,
+							e.EDITED_BY,
+							e.EDITED_DT,
+							e.ACTIVE,
+							e.RESET,
+							e.IDNo AS expense_id,
+							ec.IDNo AS expense_category_id,
+							ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
+							ec.TYPE AS expense_type,
+							u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+							'expense' COLLATE utf8mb4_unicode_ci AS record_type
+						FROM junket_house_expense e
+						JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+						JOIN user_info u ON u.IDNo = e.ENCODED_BY
+						JOIN expense_daily_settlement_items edsi ON edsi.EXPENSE_ID = e.IDNo AND edsi.EXPENSE_TYPE = 'expense'
+						JOIN expense_daily_settlement eds ON edsi.DAILY_SETTLEMENT_ID = eds.IDNo AND eds.ACTIVE = 1
+						WHERE e.ACTIVE = 1
+							AND eds.SETTLEMENT_DATE = ?
+						
+						UNION ALL
+						
+						SELECT 
+							rm.IDNo,
+							NULL AS CATEGORY_ID,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+							NULL AS DATE_TIME,
+							rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+							rm.AMOUNT,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
+							rm.ENCODED_BY,
+							rm.ENCODED_DT,
+							rm.EDITED_BY,
+							rm.EDITED_DT,
+							rm.ACTIVE,
+							NULL AS RESET,
+							rm.IDNo AS expense_id,
+							NULL AS expense_category_id,
+							'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
+							0 AS expense_type,
+							COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+							'return_money' COLLATE utf8mb4_unicode_ci AS record_type
+						FROM junket_return_money rm
+						LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
+						JOIN expense_daily_settlement_items edsi2 ON edsi2.EXPENSE_ID = rm.IDNo AND edsi2.EXPENSE_TYPE = 'return_money'
+						JOIN expense_daily_settlement eds2 ON edsi2.DAILY_SETTLEMENT_ID = eds2.IDNo AND eds2.ACTIVE = 1
+						WHERE rm.ACTIVE = 1
+							AND eds2.SETTLEMENT_DATE = ?
+						
+						ORDER BY ENCODED_DT DESC
+					`;
+					const [result] = await pool.execute(query, [date, date]);
+					const updatedResult = result.map(expense => ({
+						...expense,
+						photoUrl: expense.PHOTO ? '/ReceiptUpload/' + expense.PHOTO : null
+					}));
+					return res.json(updatedResult);
+				} else if (date >= todayStr) {
+					// Future date or today with no settlement: show unsettled
+					const query = `
+						SELECT 
+							e.IDNo,
+							e.CATEGORY_ID,
+							e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+							e.DATE_TIME,
+							e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+							e.AMOUNT,
+							e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
+							e.ENCODED_BY,
+							e.ENCODED_DT,
+							e.EDITED_BY,
+							e.EDITED_DT,
+							e.ACTIVE,
+							e.RESET,
+							e.IDNo AS expense_id,
+							ec.IDNo AS expense_category_id,
+							ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
+							ec.TYPE AS expense_type,
+							u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+							'expense' COLLATE utf8mb4_unicode_ci AS record_type
+						FROM junket_house_expense e
+						JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+						JOIN user_info u ON u.IDNo = e.ENCODED_BY
+						WHERE e.ACTIVE = 1
+							AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
+						
+						UNION ALL
+						
+						SELECT 
+							rm.IDNo,
+							NULL AS CATEGORY_ID,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+							NULL AS DATE_TIME,
+							rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+							rm.AMOUNT,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
+							rm.ENCODED_BY,
+							rm.ENCODED_DT,
+							rm.EDITED_BY,
+							rm.EDITED_DT,
+							rm.ACTIVE,
+							NULL AS RESET,
+							rm.IDNo AS expense_id,
+							NULL AS expense_category_id,
+							'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
+							0 AS expense_type,
+							COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+							'return_money' COLLATE utf8mb4_unicode_ci AS record_type
+						FROM junket_return_money rm
+						LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
+						WHERE rm.ACTIVE = 1
+							AND (rm.DAILY_SETTLEMENT = 1 OR rm.DAILY_SETTLEMENT IS NULL)
+						
+						ORDER BY ENCODED_DT DESC
+					`;
+					const [result] = await pool.execute(query);
+					const updatedResult = result.map(expense => ({
+						...expense,
+						photoUrl: expense.PHOTO ? '/ReceiptUpload/' + expense.PHOTO : null
+					}));
+					return res.json(updatedResult);
+				} else {
+					// Past date with no settlement: show all unsettled
+					const query = `
+						SELECT 
+							e.IDNo,
+							e.CATEGORY_ID,
+							e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+							e.DATE_TIME,
+							e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+							e.AMOUNT,
+							e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
+							e.ENCODED_BY,
+							e.ENCODED_DT,
+							e.EDITED_BY,
+							e.EDITED_DT,
+							e.ACTIVE,
+							e.RESET,
+							e.IDNo AS expense_id,
+							ec.IDNo AS expense_category_id,
+							ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
+							ec.TYPE AS expense_type,
+							u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+							'expense' COLLATE utf8mb4_unicode_ci AS record_type
+						FROM junket_house_expense e
+						JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+						JOIN user_info u ON u.IDNo = e.ENCODED_BY
+						WHERE e.ACTIVE = 1
+							AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
+						
+						UNION ALL
+						
+						SELECT 
+							rm.IDNo,
+							NULL AS CATEGORY_ID,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+							NULL AS DATE_TIME,
+							rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+							rm.AMOUNT,
+							CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
+							rm.ENCODED_BY,
+							rm.ENCODED_DT,
+							rm.EDITED_BY,
+							rm.EDITED_DT,
+							rm.ACTIVE,
+							NULL AS RESET,
+							rm.IDNo AS expense_id,
+							NULL AS expense_category_id,
+							'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
+							0 AS expense_type,
+							COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+							'return_money' COLLATE utf8mb4_unicode_ci AS record_type
+						FROM junket_return_money rm
+						LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
+						WHERE rm.ACTIVE = 1
+							AND (rm.DAILY_SETTLEMENT = 1 OR rm.DAILY_SETTLEMENT IS NULL)
+						
+						ORDER BY ENCODED_DT DESC
+					`;
+					const [result] = await pool.execute(query);
+					const updatedResult = result.map(expense => ({
+						...expense,
+						photoUrl: expense.PHOTO ? '/ReceiptUpload/' + expense.PHOTO : null
+					}));
+					return res.json(updatedResult);
+				}
+			}
+		}
+
+		// Date range mode: Filter by settlement date
+		// Shows settled expenses within date range + unsettled expenses if toDate > last settlement date
 		if (!fromDate || !toDate) {
 			const currentDate = new Date();
 			const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -232,7 +605,104 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
 		}
 
-		const query = `
+		// Get last settlement date to determine if unsettled expenses should be shown
+		let nextSettlementDateStr = null;
+		let lastSettlementDateStr = null;
+		let hasSettlement = false;
+		try {
+			const [lastSettlementRows] = await pool.execute(
+				'SELECT MAX(CAST(SETTLEMENT_DATE AS DATE)) AS last_settlement FROM expense_daily_settlement WHERE ACTIVE = 1 AND CAST(SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)',
+				[toDate]
+			);
+			if (lastSettlementRows[0] && lastSettlementRows[0].last_settlement) {
+				hasSettlement = true;
+				const lastSettlement = lastSettlementRows[0].last_settlement;
+				let lastDate;
+				if (lastSettlement instanceof Date) {
+					const pad = (n) => String(n).padStart(2, '0');
+					lastDate = `${lastSettlement.getFullYear()}-${pad(lastSettlement.getMonth() + 1)}-${pad(lastSettlement.getDate())}`;
+				} else {
+					lastDate = String(lastSettlement).slice(0, 10);
+				}
+				lastSettlementDateStr = lastDate;
+				
+				const last = new Date(lastDate + 'T12:00:00');
+				const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
+				const pad = (n) => String(n).padStart(2, '0');
+				nextSettlementDateStr = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(nextDate.getDate())}`;
+			}
+		} catch (e) {
+			// If error, don't show unsettled expenses
+		}
+
+		// Date range mode: Show expenses settled within date range + unsettled expenses if toDate > last settlement
+		let query = `
+			-- Expenses settled within the date range
+			SELECT 
+				e.IDNo,
+				e.CATEGORY_ID,
+				e.RECEIPT_NO COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+				e.DATE_TIME,
+				e.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+				e.AMOUNT,
+				e.PHOTO COLLATE utf8mb4_unicode_ci AS PHOTO,
+				e.ENCODED_BY,
+				e.ENCODED_DT,
+				e.EDITED_BY,
+				e.EDITED_DT,
+				e.ACTIVE,
+				e.RESET,
+				e.IDNo AS expense_id,
+				ec.IDNo AS expense_category_id,
+				ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
+				ec.TYPE AS expense_type,
+				u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+				'expense' COLLATE utf8mb4_unicode_ci AS record_type
+			FROM junket_house_expense e
+			JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+			JOIN user_info u ON u.IDNo = e.ENCODED_BY
+			JOIN expense_daily_settlement_items edsi ON edsi.EXPENSE_ID = e.IDNo AND edsi.EXPENSE_TYPE = 'expense'
+			JOIN expense_daily_settlement eds ON edsi.DAILY_SETTLEMENT_ID = eds.IDNo AND eds.ACTIVE = 1
+			WHERE e.ACTIVE = 1
+				AND eds.SETTLEMENT_DATE BETWEEN ? AND ?
+			
+			UNION ALL
+			
+			-- Return money settled within the date range
+			SELECT 
+				rm.IDNo,
+				NULL AS CATEGORY_ID,
+				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS RECEIPT_NO,
+				NULL AS DATE_TIME,
+				rm.DESCRIPTION COLLATE utf8mb4_unicode_ci AS DESCRIPTION,
+				rm.AMOUNT,
+				CAST(NULL AS CHAR) COLLATE utf8mb4_unicode_ci AS PHOTO,
+				rm.ENCODED_BY,
+				rm.ENCODED_DT,
+				rm.EDITED_BY,
+				rm.EDITED_DT,
+				rm.ACTIVE,
+				NULL AS RESET,
+				rm.IDNo AS expense_id,
+				NULL AS expense_category_id,
+				'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
+				0 AS expense_type,
+				COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
+				'return_money' COLLATE utf8mb4_unicode_ci AS record_type
+			FROM junket_return_money rm
+			LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
+			JOIN expense_daily_settlement_items edsi2 ON edsi2.EXPENSE_ID = rm.IDNo AND edsi2.EXPENSE_TYPE = 'return_money'
+			JOIN expense_daily_settlement eds2 ON edsi2.DAILY_SETTLEMENT_ID = eds2.IDNo AND eds2.ACTIVE = 1
+			WHERE rm.ACTIVE = 1
+				AND eds2.SETTLEMENT_DATE BETWEEN ? AND ?`;
+
+		// Add unsettled expenses only if toDate > last settlement date
+		if (hasSettlement && lastSettlementDateStr && toDate > lastSettlementDateStr) {
+			query += `
+			
+			UNION ALL
+			
+			-- Unsettled expenses (for next settlement date)
 			SELECT 
 				e.IDNo,
 				e.CATEGORY_ID,
@@ -257,10 +727,11 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
 			JOIN user_info u ON u.IDNo = e.ENCODED_BY
 			WHERE e.ACTIVE = 1
-				AND DATE(e.ENCODED_DT) BETWEEN ? AND ?
+				AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
 			
 			UNION ALL
 			
+			-- Unsettled return money (for next settlement date)
 			SELECT 
 				rm.IDNo,
 				NULL AS CATEGORY_ID,
@@ -284,7 +755,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 			FROM junket_return_money rm
 			LEFT JOIN user_info u2 ON u2.IDNo = rm.ENCODED_BY AND u2.ACTIVE = 1
 			WHERE rm.ACTIVE = 1
-				AND DATE(rm.ENCODED_DT) BETWEEN ? AND ?
+				AND (rm.DAILY_SETTLEMENT = 1 OR rm.DAILY_SETTLEMENT IS NULL)`;
+		}
+
+		query += `
 			
 			ORDER BY ENCODED_DT DESC
 		`;
@@ -299,8 +773,6 @@ router.get('/junket_house_expense_data', async (req, res) => {
 		res.json(updatedResult);
 	} catch (err) {
 		console.error('Error executing query:', err);
-		console.error('Query:', query);
-		console.error('Parameters:', [fromDate, toDate, fromDate, toDate]);
 		res.status(500).json({ error: 'Internal Server Error', details: err.message });
 	}
 });
@@ -319,6 +791,13 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 
 		const date_now = new Date();
 		const editXAmount = parseFloat(txtAmount.replace(/,/g, ''));
+
+		// Get previous amount before updating (for Telegram \"before amount\")
+		const [oldRows] = await pool.execute(
+			'SELECT AMOUNT FROM junket_house_expense WHERE IDNo = ? LIMIT 1',
+			[id]
+		);
+		const oldAmount = oldRows.length > 0 ? Number(oldRows[0].AMOUNT) : null;
 
 		let query = `
 			UPDATE junket_house_expense 
@@ -347,6 +826,30 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		`;
 		await pool.execute(cashTransactionUpdateQuery, [editXAmount.toString(), 'Expenses', expenseCategoryName, req.session.user_id, date_now, id]);
 
+		// Telegram to Management: expense edited with details
+		try {
+			const [typeRow] = await pool.execute('SELECT TYPE FROM expense_category WHERE IDNo = ? LIMIT 1', [txtCategory]);
+			const typeLabel = (typeRow[0] && typeRow[0].TYPE === 2) ? 'Non-goods / Services' : 'Goods / Services';
+			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
+			const editedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
+			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+			const beforeAmountLabel = oldAmount !== null ? `Before Amount: ₱${oldAmount.toLocaleString()}\n` : '';
+			const editMsg =
+				'Infinity Cage\n\n✏️ * Junket Expense (EDIT) *\n\n' +
+				`Name: ${expenseCategoryName}\n` +
+				`Type: ${typeLabel}\n` +
+				`Receipt #: ${txtReceiptNo || 'N/A'}\n` +
+				`Description: ${txtDescription || 'N/A'}\n` +
+				beforeAmountLabel +
+				`New Amount: ₱${Number(editXAmount).toLocaleString()}\n` +
+				`Edited By: ${editedByName}\n` +
+				`Date & Time: ${dateFormatted} ${timeFormatted}`;
+			await sendTelegramToEmployees(editMsg);
+		} catch (telegramError) {
+			console.error('Error sending Telegram (expense edit):', telegramError);
+		}
+
 		res.send('Junket updated successfully');
 	} catch (err) {
 		console.error('Error updating Junket:', err);
@@ -360,6 +863,33 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 		const id = parseInt(req.params.id);
 		const date_now = new Date();
 
+		// Fetch expense details before delete for Telegram
+		const [expRows] = await pool.execute(
+			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.AMOUNT, e.ENCODED_BY, ec.CATEGORY, ec.TYPE
+			 FROM junket_house_expense e
+			 LEFT JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+			 WHERE e.IDNo = ? LIMIT 1`,
+			[id]
+		);
+		const exp = expRows[0];
+		const categoryName = exp ? (exp.CATEGORY || 'N/A') : 'N/A';
+		const typeLabel = exp && exp.TYPE === 2 ? 'Non-goods / Services' : 'Goods / Services';
+		const receiptNo = exp ? (exp.RECEIPT_NO || 'N/A') : 'N/A';
+		const desc = exp ? (exp.DESCRIPTION || 'N/A') : 'N/A';
+		const amount = exp ? Number(exp.AMOUNT) : 0;
+		const encodedById = exp ? exp.ENCODED_BY : null;
+		let encodedByName = 'N/A';
+		if (encodedById) {
+			const [u] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [encodedById]);
+			encodedByName = u.length > 0 ? (u[0].FIRSTNAME || 'N/A') : 'N/A';
+		}
+		const [editedU] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
+		const editedByName = editedU.length > 0 ? (editedU[0].FIRSTNAME || 'Unknown') : 'Unknown';
+		// Use actual delete time (date_now) instead of stored DATE_TIME
+		const deleteDateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+		const deleteTimeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+		const deleteDateTimeStr = `${deleteDateFormatted} ${deleteTimeFormatted}`;
+
 		const query = `
 			UPDATE junket_house_expense 
 			SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? 
@@ -368,6 +898,24 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 
 		await pool.execute(query, [0, req.session.user_id, date_now, id]);
 		await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ? AND CATEGORY = ?', [id, 'Expenses']);
+
+		// Telegram to Management: expense deleted with details
+		try {
+			const deleteMsg =
+				'Infinity Cage\n\n🗑️ * Junket Expense (DELETED) *\n\n' +
+				`Name: ${categoryName}\n` +
+				`Type: ${typeLabel}\n` +
+				`Receipt #: ${receiptNo}\n` +
+				`Description: ${desc}\n` +
+				`Amount: ₱${amount.toLocaleString()}\n` +
+				`Encoded By: ${encodedByName}\n` +
+				`Date & Time: ${deleteDateTimeStr}\n` +
+				`Deleted By: ${editedByName}`;
+			await sendTelegramToEmployees(deleteMsg);
+		} catch (telegramError) {
+			console.error('Error sending Telegram (expense delete):', telegramError);
+		}
+
 		res.send('Junket updated successfully');
 	} catch (err) {
 		console.error('Error updating Junket:', err);
@@ -392,16 +940,63 @@ router.post('/add_return_money', async (req, res) => {
 
 		const query = `
 			INSERT INTO junket_return_money
-			(DESCRIPTION, AMOUNT, ENCODED_BY, ENCODED_DT)
-			VALUES (?, ?, ?, ?)
+			(DESCRIPTION, AMOUNT, ENCODED_BY, ENCODED_DT, DAILY_SETTLEMENT)
+			VALUES (?, ?, ?, ?, ?)
 		`;
+
+		// Determine DAILY_SETTLEMENT status based on latest settlement
+		let dailySettlementStatus = 1; // Default: unsettled
+		try {
+			const todayStr = new Date().toISOString().slice(0, 10);
+			const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
+			const [latestSettlement] = await pool.execute(
+				`SELECT RUN_AT FROM expense_daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
+				[firstOfMonth, todayStr]
+			);
+			
+			if (latestSettlement.length > 0) {
+				const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date 
+					? latestSettlement[0].RUN_AT 
+					: new Date(latestSettlement[0].RUN_AT);
+				const returnMoneyCreatedAt = date_now instanceof Date ? date_now : new Date(date_now);
+				
+				// If return money created before settlement run, it's pending
+				// Otherwise, mark as unsettled (will be in next settlement)
+				if (returnMoneyCreatedAt < settlementRunTime) {
+					dailySettlementStatus = 1;
+				} else {
+					dailySettlementStatus = 1;
+				}
+			}
+		} catch (e) {
+			// If error, default to unsettled
+			dailySettlementStatus = 1;
+		}
 
 		const [insertResult] = await pool.execute(query, [
 			description,
 			amount,
 			encodedBy,
-			date_now
+			date_now,
+			dailySettlementStatus
 		]);
+
+		// Telegram to Management: return money added with details
+		try {
+			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [encodedBy]);
+			const encodedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
+			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+			const addReturnMsg =
+				'Infinity Cage\n\n💸 * Return Money (ADDED) *\n\n' +
+				`Amount: ₱${amount.toLocaleString()}\n` +
+				`Description: ${description || 'N/A'}\n` +
+				`Encoded By: ${encodedByName}\n` +
+				`Date & Time: ${dateFormatted} ${timeFormatted}`;
+			await sendTelegramToEmployees(addReturnMsg);
+		} catch (telegramError) {
+			console.error('Error sending Telegram (return money add):', telegramError);
+		}
 
 		res.json({ success: true, message: 'Return money added successfully' });
 	} catch (err) {
@@ -423,6 +1018,13 @@ router.put('/edit_return_money/:id', async (req, res) => {
 		const description = txtDescription || null;
 		const amount = txtAmount ? parseFloat(txtAmount.replace(/,/g, '')) : 0;
 
+		// Get previous amount before updating (for Telegram \"before amount\")
+		const [oldRmRows] = await pool.execute(
+			'SELECT AMOUNT FROM junket_return_money WHERE IDNo = ? LIMIT 1',
+			[id]
+		);
+		const oldReturnAmount = oldRmRows.length > 0 ? Number(oldRmRows[0].AMOUNT) : null;
+
 		const query = `
 			UPDATE junket_return_money 
 			SET DESCRIPTION = ?, AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ?
@@ -437,6 +1039,25 @@ router.put('/edit_return_money/:id', async (req, res) => {
 			id
 		]);
 
+		// Telegram to Management: return money edited with details
+		try {
+			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
+			const editedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
+			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
+			const timeFormatted = date_now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+			const beforeAmountLabel = oldReturnAmount !== null ? `Before Amount: ₱${oldReturnAmount.toLocaleString()}\n` : '';
+			const editReturnMsg =
+				'Infinity Cage\n\n✏️ * Return Money (EDIT) *\n\n' +
+				beforeAmountLabel +
+				`New Amount: ₱${amount.toLocaleString()}\n` +
+				`Description: ${description || 'N/A'}\n` +
+				`Edited By: ${editedByName}\n` +
+				`Date & Time: ${dateFormatted} ${timeFormatted}`;
+			await sendTelegramToEmployees(editReturnMsg);
+		} catch (telegramError) {
+			console.error('Error sending Telegram (return money edit):', telegramError);
+		}
+
 		res.json({ success: true, message: 'Return money updated successfully' });
 	} catch (err) {
 		console.error('Error updating return money:', err);
@@ -450,6 +1071,27 @@ router.put('/remove_return_money/:id', async (req, res) => {
 		const id = parseInt(req.params.id);
 		const date_now = new Date();
 
+		// Fetch return money details before delete for Telegram
+		const [rmRows] = await pool.execute(
+			'SELECT DESCRIPTION, AMOUNT, ENCODED_BY, ENCODED_DT FROM junket_return_money WHERE IDNo = ? AND ACTIVE = 1 LIMIT 1',
+			[id]
+		);
+		const rm = rmRows[0];
+		const desc = rm ? (rm.DESCRIPTION || 'N/A') : 'N/A';
+		const amount = rm ? Number(rm.AMOUNT) : 0;
+		let encodedByName = 'N/A';
+		if (rm && rm.ENCODED_BY) {
+			const [u] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [rm.ENCODED_BY]);
+			encodedByName = u.length > 0 ? (u[0].FIRSTNAME || 'N/A') : 'N/A';
+		}
+		const [editedU] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
+		const editedByName = editedU.length > 0 ? (editedU[0].FIRSTNAME || 'Unknown') : 'Unknown';
+		let dateTimeStr = 'N/A';
+		if (rm && rm.ENCODED_DT) {
+			const d = rm.ENCODED_DT instanceof Date ? rm.ENCODED_DT : new Date(rm.ENCODED_DT);
+			dateTimeStr = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+		}
+
 		const query = `
 			UPDATE junket_return_money 
 			SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? 
@@ -457,10 +1099,199 @@ router.put('/remove_return_money/:id', async (req, res) => {
 		`;
 
 		await pool.execute(query, [0, req.session.user_id, date_now, id]);
+
+		// Telegram to Management: return money deleted with details
+		try {
+			const deleteReturnMsg =
+				'Infinity Cage\n\n🗑️ * Return Money (DELETED) *\n\n' +
+				`Amount: ₱${amount.toLocaleString()}\n` +
+				`Description: ${desc}\n` +
+				`Encoded By: ${encodedByName}\n` +
+				`Date & Time: ${dateTimeStr}\n` +
+				`Deleted By: ${editedByName}`;
+			await sendTelegramToEmployees(deleteReturnMsg);
+		} catch (telegramError) {
+			console.error('Error sending Telegram (return money delete):', telegramError);
+		}
+
 		res.json({ success: true, message: 'Return money deleted successfully' });
 	} catch (err) {
 		console.error('Error deleting return money:', err);
 		res.status(500).json({ error: 'Error deleting return money' });
+	}
+});
+
+// ======================= EXPENSE DAILY SETTLEMENT ==================
+
+// GET expense settlement info (default date and settled dates)
+router.get('/expense_settlement_info', async (req, res) => {
+	try {
+		const now = new Date();
+		const pad = (n) => String(n).padStart(2, '0');
+		const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+		const firstOfMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+		let defaultSettlementDate = todayStr;
+
+		// Get last settlement date (can be future date if advance settlement was done)
+		// Default settlement date should be the next day after the last settlement
+		// Example: Today is Feb 11, but Feb 12 was already settled -> default should be Feb 13
+		// If no settlement exists, use today
+		try {
+			// Get MAX settlement date without restricting to today (to handle advance settlements)
+			const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+			const lastDayStr = `${lastDayOfMonth.getFullYear()}-${pad(lastDayOfMonth.getMonth() + 1)}-${pad(lastDayOfMonth.getDate())}`;
+			const [rows] = await pool.execute(
+				'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM expense_daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ?',
+				[firstOfMonth, lastDayStr]
+			);
+			const lastSettlement = rows[0] && rows[0].last_settlement;
+			if (lastSettlement) {
+				const last = lastSettlement instanceof Date ? lastSettlement : new Date(String(lastSettlement).slice(0, 10) + 'T12:00:00Z');
+				const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
+				const nextDateStr = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(nextDate.getDate())}`;
+				// Always use next day after last settlement (even if it's in the future)
+				// This is the correct default for new expenses
+				defaultSettlementDate = nextDateStr;
+			}
+		} catch (e) {
+			// keep defaultSettlementDate = todayStr
+		}
+
+		// Get settled dates this month
+		let settledDatesForMonth = [];
+		try {
+			const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+			const lastDayStr = `${lastDayOfMonth.getFullYear()}-${pad(lastDayOfMonth.getMonth() + 1)}-${pad(lastDayOfMonth.getDate())}`;
+			const [settledRows] = await pool.execute(
+				'SELECT DISTINCT SETTLEMENT_DATE FROM expense_daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE',
+				[firstOfMonth, lastDayStr]
+			);
+			settledDatesForMonth = (settledRows || []).map(r => {
+				const d = r.SETTLEMENT_DATE;
+				if (!d) return null;
+				const x = d instanceof Date ? d : new Date(String(d).slice(0, 10) + 'T12:00:00Z');
+				return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
+			}).filter(Boolean);
+		} catch (e) {
+			// keep settledDatesForMonth = []
+		}
+
+		res.json({
+			defaultSettlementDate,
+			settledDatesForMonth
+		});
+	} catch (err) {
+		console.error('Error fetching expense settlement info:', err);
+		res.status(500).json({ error: 'Error fetching expense settlement info' });
+	}
+});
+
+// POST run daily settlement for expenses (move all unsettled expenses into today's settlement)
+router.post('/expense_daily_settlement/run', async (req, res) => {
+	const encodedBy = req.session?.user_id;
+	if (!encodedBy) {
+		return res.status(401).json({ error: 'Not authenticated' });
+	}
+	const settlementDate = (req.body && req.body.settlement_date) 
+		? req.body.settlement_date 
+		: new Date().toISOString().slice(0, 10);
+
+	const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+	if (!isValidDate(settlementDate)) {
+		return res.status(400).json({ error: 'Invalid settlement_date. Use YYYY-MM-DD.' });
+	}
+
+	let connection;
+	try {
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		// Check if settlement for this date already exists
+		const [existing] = await connection.execute(
+			'SELECT IDNo FROM expense_daily_settlement WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1',
+			[settlementDate]
+		);
+		if (existing.length > 0) {
+			await connection.rollback();
+			connection.release();
+			return res.status(400).json({ error: 'Settlement for this date already exists.' });
+		}
+
+		// Create settlement record
+		const [insertSettlement] = await connection.execute(
+			`INSERT INTO expense_daily_settlement (SETTLEMENT_DATE, RUN_AT, ENCODED_BY, STATUS, ACTIVE)
+			 VALUES (?, NOW(), ?, 'finalized', 1)`,
+			[settlementDate, encodedBy]
+		);
+		const settlementId = insertSettlement.insertId;
+
+		// Get all unsettled expenses (junket_house_expense)
+		const [openExpenses] = await connection.execute(
+			`SELECT IDNo FROM junket_house_expense 
+			 WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
+		);
+
+		// Get all unsettled return money (junket_return_money)
+		const [openReturnMoney] = await connection.execute(
+			`SELECT IDNo FROM junket_return_money 
+			 WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
+		);
+
+		// Bulk insert expense items
+		if (openExpenses.length > 0) {
+			const expensePlaceholders = openExpenses.map(() => '(?, ?, ?, NOW())').join(', ');
+			const expenseParams = openExpenses.flatMap(row => [settlementId, row.IDNo, 'expense']);
+			await connection.execute(
+				`INSERT INTO expense_daily_settlement_items (DAILY_SETTLEMENT_ID, EXPENSE_ID, EXPENSE_TYPE, ADDED_AT) 
+				 VALUES ${expensePlaceholders}`,
+				expenseParams
+			);
+		}
+
+		// Bulk insert return money items
+		if (openReturnMoney.length > 0) {
+			const returnMoneyPlaceholders = openReturnMoney.map(() => '(?, ?, ?, NOW())').join(', ');
+			const returnMoneyParams = openReturnMoney.flatMap(row => [settlementId, row.IDNo, 'return_money']);
+			await connection.execute(
+				`INSERT INTO expense_daily_settlement_items (DAILY_SETTLEMENT_ID, EXPENSE_ID, EXPENSE_TYPE, ADDED_AT) 
+				 VALUES ${returnMoneyPlaceholders}`,
+				returnMoneyParams
+			);
+		}
+
+		// Update expense status to settled
+		if (openExpenses.length > 0) {
+			await connection.execute(
+				`UPDATE junket_house_expense SET DAILY_SETTLEMENT = 2 
+				 WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
+			);
+		}
+
+		// Update return money status to settled
+		if (openReturnMoney.length > 0) {
+			await connection.execute(
+				`UPDATE junket_return_money SET DAILY_SETTLEMENT = 2 
+				 WHERE ACTIVE = 1 AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
+			);
+		}
+
+		await connection.commit();
+		connection.release();
+		res.json({
+			success: true,
+			settlement_date: settlementDate,
+			settlement_id: settlementId,
+			expense_count: openExpenses.length,
+			return_money_count: openReturnMoney.length,
+			total_count: openExpenses.length + openReturnMoney.length
+		});
+	} catch (err) {
+		if (connection) {
+			try { await connection.rollback(); } catch (_) {}
+			connection.release();
+		}
+		console.error('Error running expense daily settlement:', err);
+		res.status(500).json({ error: 'Error running expense daily settlement' });
 	}
 });
 

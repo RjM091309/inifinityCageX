@@ -81,7 +81,6 @@
 		"cash_out": "现金出账",
 		"net_junket_money": "dashboard.net_junket_money",
 		"net_junket_cash": "dashboard.net_junket_cash"
-		
 	},
 	"sidebar": {
 		"home": "主页",
@@ -332,7 +331,8 @@
 		"type_non_goods": "服务 / 运营",
 		"type_salary": "工资",
 		"type_maintenance": "维护",
-		"type_other": "其他"
+		"type_other": "其他",
+		"settle": "house_expense.settle"
 	},
 	"hotel_booking": {
 		"junket": "接待",
@@ -746,7 +746,8 @@
 		"description": "描述",
 		"amount": "金额",
 		"save": "保存",
-		"close": "关闭"
+		"close": "关闭",
+		"receipt_photo": "modal_new_house_expense.receipt_photo"
 	},
 	"modal_show_rolling": {
 		"date": "日期",
@@ -791,7 +792,8 @@
 		"description_placeholder": "描述",
 		"amount_placeholder": "金额",
 		"save": "保存",
-		"close": "关闭"
+		"close": "关闭",
+		"receipt_photo": "modal_edit_house_expense.receipt_photo"
 	},
 	"modal_new_booking": {
 		"add_booking": "添加预订",
