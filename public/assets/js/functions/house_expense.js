@@ -187,11 +187,12 @@ $(document).ready(function () {
                         ? `<span style="color: green;">${formattedAmount}</span>`
                         : formattedAmount;
                     
+                    // For Return Money: description goes in second column (DESCRIPTION); RECEIPT NO column shows '-'
                     dataTable.row.add([
                         row.expense_category || 'N/A',
                         // expenseTypeLabel, // Type column hidden per request
-                        row.RECEIPT_NO || '-',
-                        row.DESCRIPTION || '-',
+                        row.record_type === 'return_money' ? (row.DESCRIPTION || '-') : (row.RECEIPT_NO || '-'),
+                        row.record_type === 'return_money' ? '-' : (row.DESCRIPTION || '-'),
                         amountDisplay,
                         row.FIRSTNAME || 'N/A',
                         formattedDate,
@@ -754,11 +755,12 @@ $(document).ready(function () {
                                 ? `<span style="color: green;">${formattedAmount}</span>`
                                 : formattedAmount;
                             
+                            // For Return Money: description goes in second column (DESCRIPTION); RECEIPT NO column shows '-'
                             dataTable.row.add([
                                 row.expense_category || 'N/A',
                                 // expenseTypeLabel, // Type column hidden per request
-                                row.RECEIPT_NO || '-',
-                                row.DESCRIPTION || '-',
+                                row.record_type === 'return_money' ? (row.DESCRIPTION || '-') : (row.RECEIPT_NO || '-'),
+                                row.record_type === 'return_money' ? '-' : (row.DESCRIPTION || '-'),
                                 amountDisplay,
                                 row.FIRSTNAME || 'N/A',
                                 formattedDate,
