@@ -84,7 +84,9 @@
                                 <thead>
                                     <tr>
                                         <th><%= __('house_expense.name') %></th>
+                                        <!-- Type column hidden per request
                                         <th><%= __('house_expense.type') %></th>
+                                        -->
                                         <th><%= __('house_expense.receipt_no') %></th>
                                         <th><%= __('house_expense.description') %></th>
                                         <th><%= __('house_expense.amount') %></th>
@@ -99,12 +101,12 @@
                                     <tr>
                                         <th colspan="1"><%= __('house_expense.total_expenses') || 'TOTAL EXPENSES' %></th>
                                         <th id="TOTAL_EXPENSE_AMOUNT">₱0.00</th>
-                                        <th colspan="6"></th>
+                                        <th colspan="5"></th>
                                     </tr>
                                     <tr>
                                         <th colspan="1"><%= __('house_expense.total_return_money') || 'TOTAL RETURN MONEY' %></th>
                                         <th id="TOTAL_RETURN_MONEY_AMOUNT">₱0.00</th>
-                                        <th colspan="6"></th>
+                                        <th colspan="5"></th>
                                     </tr>
                                 </tfoot>
                             </table>

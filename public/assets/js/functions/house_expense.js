@@ -14,12 +14,12 @@ $(document).ready(function () {
         const goodsTypeLabel = window.houseExpenseTranslations?.type_goods || 'Goods / Consumables';
         const nonGoodsTypeLabel = window.houseExpenseTranslations?.type_non_goods || 'Non-goods / Services';
         var dataTable = $('#expense-tbl').DataTable({
-            "order": [[6, 'desc']],
+            "order": [[5, 'desc']],
             "pageLength": 100,
             "lengthMenu": [[100, 50, 25, 10, -1], [100, 50, 25, 10, "All"]],
             "columnDefs": [
                 {
-                    "targets": 6,
+                    "targets": 5,
                     "render": function (data, type, row) {
                         // Check if this is a "no data" row - return empty string
                         if (!data || data === '' || (row && Array.isArray(row) && row.length > 0 && (row[0] === (window.houseExpenseTranslations?.no_data_found || 'No data found')))) {
@@ -100,7 +100,7 @@ $(document).ready(function () {
                         // Add centered "No data found" message
                         const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
                         var tbody = dataTable.table().body();
-                        $(tbody).html('<tr><td colspan="8" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
+                        $(tbody).html('<tr><td colspan="7" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
                         $('#TOTAL_EXPENSE_AMOUNT').text(`₱0.00`);
                         $('#TOTAL_RETURN_MONEY_AMOUNT').text(`₱0.00`);
                         return;
@@ -189,7 +189,7 @@ $(document).ready(function () {
                     
                     dataTable.row.add([
                         row.expense_category || 'N/A',
-                        expenseTypeLabel,
+                        // expenseTypeLabel, // Type column hidden per request
                         row.RECEIPT_NO || '-',
                         row.DESCRIPTION || '-',
                         amountDisplay,
@@ -664,7 +664,7 @@ $(document).ready(function () {
                         if (data.length === 0) {
                             const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
                             var tbody = dataTable.table().body();
-                            $(tbody).html('<tr><td colspan="8" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
+                            $(tbody).html('<tr><td colspan="7" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
                             $('#TOTAL_EXPENSE_AMOUNT').text(`₱0.00`);
                             $('#TOTAL_RETURN_MONEY_AMOUNT').text(`₱0.00`);
                             if (typeof window.updateSettleButtonState === 'function') {
@@ -756,7 +756,7 @@ $(document).ready(function () {
                             
                             dataTable.row.add([
                                 row.expense_category || 'N/A',
-                                expenseTypeLabel,
+                                // expenseTypeLabel, // Type column hidden per request
                                 row.RECEIPT_NO || '-',
                                 row.DESCRIPTION || '-',
                                 amountDisplay,
