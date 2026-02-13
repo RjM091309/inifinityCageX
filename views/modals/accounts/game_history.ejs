@@ -29,6 +29,19 @@
             </thead>
             <tbody>
             </tbody>
+            <tfoot class="game-history-tfoot-total">
+              <tr id="game-history-totals-row">
+                <td class="text-center" colspan="3">TOTAL</td>
+                <td class="text-center" id="gh-total-buyin">0</td>
+                <td class="text-center" id="gh-total-cashout">0</td>
+                <td class="text-center" id="gh-total-rolling">0</td>
+                <td class="text-center" id="gh-total-total-rolling">0</td>
+                <td class="text-center">—</td>
+                <td class="text-center" id="gh-total-commission">0</td>
+                <td class="text-center" id="gh-total-winloss">0</td>
+                <td class="text-center" colspan="2">—</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -122,6 +135,19 @@ th.col-winloss {
     color: #ef6c00 !important;
     font-weight: 600;
 }
+
+/* TOTAL row - gray for all cells */
+#modal-game-history .game-history-tfoot-total,
+#modal-game-history .game-history-tfoot-total td {
+    background-color: #e9ecef !important;
+    color: #6c757d !important;
+    font-weight: 700 !important;
+}
+
+/* TOTAL row - WIN/LOSS red when negative */
+#modal-game-history .game-history-tfoot-total td.gh-total-winloss-negative {
+    color: #dc3545 !important;
+}
 </style>
 
 <script>
@@ -146,6 +172,42 @@ th.col-winloss {
         return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     };
 
+    function updateGameHistoryTotals(rows) {
+        if (!rows || !rows.length) {
+            ['gh-total-buyin', 'gh-total-cashout', 'gh-total-rolling', 'gh-total-total-rolling', 'gh-total-commission', 'gh-total-winloss'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '0';
+            });
+            const winlossEl = document.getElementById('gh-total-winloss');
+            if (winlossEl) winlossEl.classList.remove('gh-total-winloss-negative');
+            return;
+        }
+        let buyIn = 0, cashOut = 0, rolling = 0, totalRolling = 0, commission = 0, winLoss = 0;
+        rows.forEach(r => {
+            buyIn += Number(r.BUY_IN) || 0;
+            cashOut += Number(r.CASH_OUT) || 0;
+            rolling += Number(r.ROLLING) || 0;
+            totalRolling += Number(r.TOTAL_ROLLING) || 0;
+            commission += Number(r.COMMISSION) || 0;
+            winLoss += Number(r.WIN_LOSS) || 0;
+        });
+        const set = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = formatAmount(val);
+        };
+        set('gh-total-buyin', buyIn);
+        set('gh-total-cashout', cashOut);
+        set('gh-total-rolling', rolling);
+        set('gh-total-total-rolling', totalRolling);
+        set('gh-total-commission', commission);
+        set('gh-total-winloss', winLoss);
+        const winlossEl = document.getElementById('gh-total-winloss');
+        if (winlossEl) {
+            if (winLoss < 0) winlossEl.classList.add('gh-total-winloss-negative');
+            else winlossEl.classList.remove('gh-total-winloss-negative');
+        }
+    }
+
     const translateGameSource = (source) => {
         const translations = window.gamelistTranslations || {};
         if (!source) return '';
@@ -161,14 +223,16 @@ th.col-winloss {
         try {
             const res = await fetch(`/account_game_history/${accountId}`);
             const rows = await res.json();
+            const dataRows = rows || [];
 
             if (gameHistoryDataTable) {
-                gameHistoryDataTable.clear().rows.add(rows || []).draw();
+                gameHistoryDataTable.clear().rows.add(dataRows).draw();
+                updateGameHistoryTotals(dataRows);
                 return;
             }
 
             gameHistoryDataTable = $('#game-history-tbl').DataTable({
-                data: rows || [],
+                data: dataRows,
                 order: [[0, 'desc']],
                 pageLength: 10,
                 autoWidth: false,
@@ -292,6 +356,7 @@ th.col-winloss {
                     }
                 ]
             });
+            updateGameHistoryTotals(dataRows);
         } catch (err) {
             console.error('Error loading game history', err);
             if (gameHistoryDataTable) {
