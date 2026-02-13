@@ -54,6 +54,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// CORS: allow Flutter web (and other dev origins) to call /api
+app.use('/api', (req, res, next) => {
+  const origin = req.headers.origin;
+  const allow = origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+    ? origin
+    : '*';
+  res.setHeader('Access-Control-Allow-Origin', allow);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
 // Body parser middleware for handling form submissions
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -147,6 +160,8 @@ app.get('/change-lang', (req, res) => {
 });
 
 routes.forEach(router => app.use('/', router));
+// API for external apps (e.g. Flutter cageApp) — base path /api
+app.use('/api', require('./routes/api'));
 // Static file serving (for PassportUpload folder)
 app.use('/PassportUpload', express.static(path.join(__dirname, 'PassportUpload')));
 // Static file serving (for ReceiptUpload folder)
