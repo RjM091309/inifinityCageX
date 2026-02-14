@@ -63,7 +63,8 @@ function computeRollingGameListStyle(recs) {
 
 // --- Helper: same rolling + winloss formula, aggregated by agent (for ranking) ---
 // Recs must have: GAME_ID, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, agent_id, AGENT_CODE, agent_name
-// Returns: { byAgent: { agent_id: { rolling, winloss, agent_code, agent_name } }, list: [...] }
+// Optional: COMMISSION_TYPE, COMMISSION_PERCENTAGE (from game_list) to compute total commission per guest (same as game history modal).
+// Returns: { byGame, byAgent } with byAgent[].commission when commission fields present.
 function computeRollingAndWinlossByAgent(recs) {
   const byGame = {};
   recs.forEach((r) => {
@@ -81,6 +82,8 @@ function computeRollingAndWinlossByAgent(recs) {
       total_rolling_nn_real: 0,
       total_rolling_cc_real: 0,
       total_roller_return_cc: 0,
+      COMMISSION_TYPE: r.COMMISSION_TYPE != null ? Number(r.COMMISSION_TYPE) : null,
+      COMMISSION_PERCENTAGE: r.COMMISSION_PERCENTAGE != null ? Number(r.COMMISSION_PERCENTAGE) : null,
     };
     const ct = Number(r.CAGE_TYPE);
     const amt = Number(r.AMOUNT) || 0;
@@ -113,10 +116,23 @@ function computeRollingAndWinlossByAgent(recs) {
     g.rolling = g.total_rolling_nn + totalRollingCCWithReturns + g.total_rolling_amount + g.total_rolling_real + g.total_rolling_nn_real + g.total_rolling_cc_real - g.total_cash_out_nn;
     g.winloss = g.buyin - g.cashout;
 
+    // Commission per game: same formula as account_game_history / game history modal (per guest)
+    let gameCommission = 0;
+    const commType = g.COMMISSION_TYPE;
+    const commPct = g.COMMISSION_PERCENTAGE;
+    if (commType != null && commPct != null && commPct > 0) {
+      if (commType === 1 || commType === 3) {
+        gameCommission = Math.round((g.rolling * commPct) / 100);
+      } else if (commType === 2) {
+        gameCommission = Math.round((g.winloss * commPct) / 100);
+      }
+    }
+
     const aid = g.agent_id;
-    if (!byAgent[aid]) byAgent[aid] = { agent_id: aid, agent_code: g.AGENT_CODE, agent_name: g.agent_name, rolling: 0, winloss: 0 };
+    if (!byAgent[aid]) byAgent[aid] = { agent_id: aid, agent_code: g.AGENT_CODE, agent_name: g.agent_name, rolling: 0, winloss: 0, commission: 0 };
     byAgent[aid].rolling += g.rolling;
     byAgent[aid].winloss += g.winloss;
+    byAgent[aid].commission += gameCommission;
   });
   return { byGame, byAgent };
 }
@@ -465,13 +481,40 @@ router.get('/notifications', async (req, res) => {
   }
 });
 
+const NOTIFICATION_DEDUPE_SECONDS = 30;
+
+/**
+ * Helper: create one notification in DB (for server-side use, e.g. from gamebook/routes).
+ * Dedupe: same title+message in last 30s → return existing id (no double insert vs app-created).
+ * Usage: const api = require('./routes/api'); await api.createServerNotification({ title, message, type });
+ */
+async function createServerNotification({ title, message, type }) {
+  await ensureNotificationsTable();
+  const titleStr = (title != null && String(title).trim()) ? String(title).trim() : 'Notification';
+  const messageStr = (message != null && String(message).trim()) ? String(message).trim() : '';
+  const typeStr = (type != null && String(type).trim()) ? String(type).trim() : 'info';
+
+  const [existing] = await pool.query(
+    `SELECT id FROM \`${NOTIFICATIONS_TABLE}\` WHERE title = ? AND message = ? AND created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND) ORDER BY created_at DESC LIMIT 1`,
+    [titleStr, messageStr, NOTIFICATION_DEDUPE_SECONDS]
+  );
+  if (existing && existing.length > 0) {
+    return Number(existing[0].id);
+  }
+
+  const [result] = await pool.query(
+    `INSERT INTO \`${NOTIFICATIONS_TABLE}\` (title, message, type) VALUES (?, ?, ?)`,
+    [titleStr, messageStr, typeStr]
+  );
+  return result?.insertId != null ? Number(result.insertId) : null;
+}
+
 /**
  * POST /api/notifications
  * Create one notification (e.g. when new game appears in realtime).
  * Body: { title, message, type } (type optional, default 'info').
  * Dedupe: if same title+message was inserted in the last 30s, skip insert and return existing id (avoids duplicate from multiple tabs/clients).
  */
-const NOTIFICATION_DEDUPE_SECONDS = 30;
 router.post('/notifications', async (req, res) => {
   try {
     await ensureNotificationsTable();
@@ -496,6 +539,22 @@ router.post('/notifications', async (req, res) => {
     res.status(201).json({ success: true, id: id != null ? Number(id) : null });
   } catch (err) {
     console.error('Error in POST /api/notifications:', err);
+    res.status(500).json({ success: false, error: 'Error creating notification' });
+  }
+});
+
+/**
+ * POST /api/notifications/from-server
+ * Same as POST /api/notifications but for server-side callers. Uses same 30s dedupe (title+message)
+ * so app and server don't create duplicate rows for the same event.
+ * Body: { title, message, type }.
+ */
+router.post('/notifications/from-server', async (req, res) => {
+  try {
+    const id = await createServerNotification(req.body || {});
+    res.status(201).json({ success: true, id });
+  } catch (err) {
+    console.error('Error in POST /api/notifications/from-server:', err);
     res.status(500).json({ success: false, error: 'Error creating notification' });
   }
 });
@@ -725,6 +784,7 @@ router.get('/daily-settlement', async (req, res) => {
 /**
  * GET /api/monthly-accumulated
  * Monthly accumulated: win loss, commission (rank + amount), junket expenses, rolling (games), rolling (casino).
+ * All values are strictly per requested month (year + month).
  * Query: year=YYYY&month=MM (optional; default current month).
  */
 router.get('/monthly-accumulated', async (req, res) => {
@@ -732,10 +792,10 @@ router.get('/monthly-accumulated', async (req, res) => {
     const now = new Date();
     const year = parseInt(req.query.year, 10) || now.getFullYear();
     const month = parseInt(req.query.month, 10) || (now.getMonth() + 1);
+    // Strictly this month's range: 1st through last day (or today if current month).
     const startStr = `${year}-${String(month).padStart(2, '0')}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const endOfMonthStr = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    // Current month: from 1st up to today (month-to-date). Past month: full month.
     const todayStr = now.toISOString().slice(0, 10);
     const endStr = (year === now.getFullYear() && month === now.getMonth() + 1) && endOfMonthStr > todayStr
       ? todayStr
@@ -749,41 +809,49 @@ router.get('/monthly-accumulated', async (req, res) => {
     );
     const monthly_win_loss = Number(wlRow[0]?.v) || 0;
 
-    // Commission per game; join account/agent for guest/agent ranking
+    // Commission: per month only. Include games that were settled/encoded in this month (DATE(gl.ENCODED_DT) in [startStr, endStr]).
+    // Same formula as dashboard: per-game total_rolling_chips + winloss (SETTLED=1), type 1/3 => rolling*rate, type 2 => winloss*rate.
     const [gamesInMonth] = await pool.execute(
       `SELECT gl.IDNo, gl.ACCOUNT_ID, gl.COMMISSION_PERCENTAGE, gl.COMMISSION_TYPE,
               ag.IDNo AS agent_id, ag.AGENT_CODE, ag.NAME AS agent_name
        FROM game_list gl
        JOIN account a ON gl.ACCOUNT_ID = a.IDNo
        JOIN agent ag ON a.AGENT_ID = ag.IDNo
-       WHERE gl.ACTIVE != 0 AND gl.SETTLED = 1 AND DATE(gl.ENCODED_DT) BETWEEN ? AND ?`,
+       WHERE gl.ACTIVE != 0 AND gl.SETTLED = 1
+         AND DATE(gl.ENCODED_DT) >= ? AND DATE(gl.ENCODED_DT) <= ?`,
       [startStr, endStr]
     );
     const commissionByGame = [];
-    for (const row of gamesInMonth) {
-      const [cr] = await pool.execute(
-        `SELECT SUM(CASE WHEN CAGE_TYPE IN (3,4) THEN NN_CHIPS+CC_CHIPS WHEN CAGE_TYPE=5 AND ROLLER_TRANSACTION=2 THEN ROLLER_CC_CHIPS ELSE 0 END) AS r,
-          SUM(CASE WHEN CAGE_TYPE=2 THEN NN_CHIPS ELSE 0 END) AS c FROM game_record WHERE ACTIVE!=0 AND GAME_ID=? AND DATE(ENCODED_DT) BETWEEN ? AND ?`,
-        [row.IDNo, startStr, endStr]
+    if (gamesInMonth.length > 0) {
+      const gameIds = gamesInMonth.map((r) => r.IDNo);
+      const ph = gameIds.map(() => '?').join(',');
+      const [recs] = await pool.execute(
+        `SELECT GAME_ID, CAGE_TYPE, COALESCE(AMOUNT, 0) AS AMOUNT, COALESCE(NN_CHIPS, 0) AS NN_CHIPS, COALESCE(CC_CHIPS, 0) AS CC_CHIPS,
+         COALESCE(ROLLER_CC_CHIPS, 0) AS ROLLER_CC_CHIPS, ROLLER_TRANSACTION
+         FROM game_record WHERE ACTIVE != 0 AND GAME_ID IN (${ph})`,
+        gameIds
       );
-      const [buyout] = await pool.execute(
-        `SELECT SUM(NN_CHIPS+CC_CHIPS) AS buyin, SUM(CASE WHEN CAGE_TYPE=2 THEN NN_CHIPS+CC_CHIPS ELSE 0 END) AS cashout FROM game_record WHERE ACTIVE!=0 AND GAME_ID=? AND DATE(ENCODED_DT) BETWEEN ? AND ?`,
-        [row.IDNo, startStr, endStr]
-      );
-      const rolling = Number(cr[0]?.r) || 0;
-      const cashout = Number(cr[0]?.c) || 0;
-      const buyin = Number(buyout[0]?.buyin) || 0;
-      const cashOutTotal = Number(buyout[0]?.cashout) || 0;
-      let amt = 0;
-      if (row.COMMISSION_TYPE === 1) amt = (rolling - cashout) * (row.COMMISSION_PERCENTAGE / 100);
-      else if (row.COMMISSION_TYPE === 2) amt = (buyin - cashOutTotal) * (row.COMMISSION_PERCENTAGE / 100);
-      commissionByGame.push({
-        game_id: row.IDNo,
-        agent_id: row.agent_id,
-        agent_code: row.AGENT_CODE || '',
-        agent_name: row.agent_name || '',
-        amount: Math.round(amt),
-      });
+      const { byGame } = computeRollingGameListStyle(recs);
+      for (const row of gamesInMonth) {
+        const g = byGame[row.IDNo];
+        if (!g) continue;
+        const rolling = Number(g.rolling) || 0;
+        const winloss = g.buyin - g.cashout;
+        const commType = Number(row.COMMISSION_TYPE);
+        const commPct = Number(row.COMMISSION_PERCENTAGE) || 0;
+        let amt = 0;
+        if (commPct > 0) {
+          if (commType === 1 || commType === 3) amt = Math.round((rolling * commPct) / 100);
+          else if (commType === 2) amt = Math.round((winloss * commPct) / 100);
+        }
+        commissionByGame.push({
+          game_id: row.IDNo,
+          agent_id: row.agent_id,
+          agent_code: row.AGENT_CODE || '',
+          agent_name: row.agent_name || '',
+          amount: amt,
+        });
+      }
     }
     const monthly_commission_total = commissionByGame.reduce((s, x) => s + x.amount, 0);
     // Aggregate by agent (guest/agent): sum commission per agent, then rank
@@ -817,11 +885,13 @@ router.get('/monthly-accumulated', async (req, res) => {
     );
     const { totalRollingSum: monthly_rolling_games } = computeRollingGameListStyle(rollRecs);
 
-    const [casinoRollRow] = await pool.execute(
-      'SELECT COALESCE(SUM(ROLLING_AMOUNT), 0) AS v FROM cage_rolling WHERE ACTIVE = 1 AND DATE(ENCODED_DT) BETWEEN ? AND ?',
+    // Monthly casino rolling = Total Chips Cashout for the month (same as new_total_chips.ejs modal: junket_total_chips TRANSACTION_ID=2)
+    const [chipsCashoutRow] = await pool.execute(
+      `SELECT COALESCE(SUM(TOTAL_CHIPS), 0) AS v FROM junket_total_chips
+       WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND DATE(ENCODED_DT) BETWEEN ? AND ?`,
       [startStr, endStr]
     ).catch(() => [{ v: 0 }]);
-    const monthly_rolling_casino = Number(casinoRollRow[0]?.v) || 0;
+    const monthly_rolling_casino = Number(chipsCashoutRow[0]?.v) || 0;
 
     res.json({
       success: true,
@@ -836,6 +906,35 @@ router.get('/monthly-accumulated', async (req, res) => {
   } catch (err) {
     console.error('Error in GET /api/monthly-accumulated:', err);
     res.status(500).json({ success: false, error: 'Error fetching monthly accumulated' });
+  }
+});
+
+/**
+ * GET /api/monthly-rolling-casino-by-year
+ * Returns Total Chips Cashout (monthly casino rolling) for all 12 months of a year in one call.
+ * Query: year=YYYY (optional; default current year).
+ * Response: { success, year, by_month: [ { month: 1..12, value: number }, ... ] } (always 12 entries).
+ */
+router.get('/monthly-rolling-casino-by-year', async (req, res) => {
+  try {
+    const now = new Date();
+    const year = parseInt(req.query.year, 10) || now.getFullYear();
+    const [rows] = await pool.execute(
+      `SELECT MONTH(ENCODED_DT) AS month, COALESCE(SUM(TOTAL_CHIPS), 0) AS v
+       FROM junket_total_chips
+       WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND YEAR(ENCODED_DT) = ?
+       GROUP BY MONTH(ENCODED_DT)`,
+      [year]
+    );
+    const byMonth = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, value: 0 }));
+    (rows || []).forEach((r) => {
+      const idx = Number(r.month) - 1;
+      if (idx >= 0 && idx < 12) byMonth[idx].value = Number(r.v) || 0;
+    });
+    res.json({ success: true, year, by_month: byMonth });
+  } catch (err) {
+    console.error('Error in GET /api/monthly-rolling-casino-by-year:', err);
+    res.status(500).json({ success: false, error: 'Error fetching monthly rolling casino by year' });
   }
 });
 
@@ -901,7 +1000,8 @@ router.get('/ranking', async (req, res) => {
 
     const [rows] = await pool.execute(
       `SELECT gr.GAME_ID, gr.CAGE_TYPE, gr.AMOUNT, gr.NN_CHIPS, gr.CC_CHIPS, gr.ROLLER_CC_CHIPS, gr.ROLLER_TRANSACTION,
-              ag.IDNo AS agent_id, ag.AGENT_CODE, ag.NAME AS agent_name
+              ag.IDNo AS agent_id, ag.AGENT_CODE, ag.NAME AS agent_name,
+              gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE
        FROM game_record gr
        JOIN game_list gl ON gr.GAME_ID = gl.IDNo AND gl.ACTIVE != 0
        JOIN account a ON gl.ACCOUNT_ID = a.IDNo
@@ -922,6 +1022,7 @@ router.get('/ranking', async (req, res) => {
         monthly_accumulated_rolling: Math.round(Number(a.rolling) || 0),
         monthly_accumulated_winning: winloss > 0 ? winloss : 0,
         monthly_accumulated_losing: winloss < 0 ? Math.abs(winloss) : 0,
+        monthly_accumulated_commission: Number(a.commission) || 0,
       };
     });
 
@@ -952,4 +1053,5 @@ router.get('/ranking', async (req, res) => {
 // ========== LEGACY: WINLOSS ==========
 
 router.getRealtimeData = getRealtimeData;
+router.createServerNotification = createServerNotification;
 module.exports = router;
