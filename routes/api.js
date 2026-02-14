@@ -421,9 +421,24 @@ router.post('/auth/login', async (req, res) => {
 
 // ========== NOTIFICATIONS (executive app) ==========
 // Table: executive_notifications — created automatically on first API call (no manual DB step).
-// Columns: id, title, message, type, created_at, read. type: urgent|success|warning|info. read: 0=unread, 1=read.
+// Read state is per user: executive_notification_reads(notification_id, user_id) so read by A stays unread for B.
 
 const NOTIFICATIONS_TABLE = 'executive_notifications';
+const NOTIFICATION_READS_TABLE = 'executive_notification_reads';
+const NOTIFICATION_CLEARED_TABLE = 'executive_notification_cleared';
+
+/** Resolve Authorization Bearer token to user_id (user_info.IDNo). Returns null if missing or invalid. */
+async function getAuthUserId(req) {
+  const auth = req.headers && req.headers.authorization;
+  if (!auth || typeof auth !== 'string') return null;
+  const token = auth.replace(/^\s*Bearer\s+/i, '').trim();
+  if (!token) return null;
+  const [rows] = await pool.execute(
+    'SELECT IDNo FROM user_info WHERE SESSION_TOKEN = ? AND ACTIVE = 1 LIMIT 1',
+    [token]
+  );
+  return rows && rows[0] ? Number(rows[0].IDNo) : null;
+}
 
 async function ensureNotificationsTable() {
   const createSql = `
@@ -445,17 +460,49 @@ async function ensureNotificationsTable() {
   }
 }
 
+async function ensureNotificationReadsTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS \`${NOTIFICATION_READS_TABLE}\` (
+      notification_id INT NOT NULL,
+      user_id INT NOT NULL,
+      read_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (notification_id, user_id),
+      INDEX idx_user (user_id)
+    )
+  `);
+}
+
+/** Per user: notifications this user has "cleared" (read + clear) so they stay hidden from list. */
+async function ensureNotificationClearedTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS \`${NOTIFICATION_CLEARED_TABLE}\` (
+      notification_id INT NOT NULL,
+      user_id INT NOT NULL,
+      cleared_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (notification_id, user_id),
+      INDEX idx_user (user_id)
+    )
+  `);
+}
+
 /**
  * GET /api/notifications
- * Returns list of notifications for executive app (newest first).
+ * Returns latest notifications from DB. With auth: read state per user, and cleared (read+clear) ones are hidden so they don't come back.
  */
 router.get('/notifications', async (req, res) => {
   try {
+    const userId = await getAuthUserId(req);
     await ensureNotificationsTable();
+    await ensureNotificationReadsTable();
+    await ensureNotificationClearedTable();
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    });
     let [rows] = await pool.query(
-      `SELECT id, title, message, type, created_at, COALESCE(\`read\`, 0) AS \`read\` FROM \`${NOTIFICATIONS_TABLE}\` ORDER BY created_at DESC LIMIT 100`
+      `SELECT id, title, message, type, created_at FROM \`${NOTIFICATIONS_TABLE}\` ORDER BY created_at DESC LIMIT 100`
     );
-    // Optional: seed sample notifications when table is empty (for first-run demo).
     if (!rows || rows.length === 0) {
       await pool.query(
         `INSERT INTO \`${NOTIFICATIONS_TABLE}\` (title, message, type) VALUES
@@ -463,17 +510,29 @@ router.get('/notifications', async (req, res) => {
          ('Welcome', 'Infinity CageX App is ready. You can monitor cage activity from here.', 'success')`
       );
       [rows] = await pool.query(
-        `SELECT id, title, message, type, created_at, COALESCE(\`read\`, 0) AS \`read\` FROM \`${NOTIFICATIONS_TABLE}\` ORDER BY created_at DESC LIMIT 100`
+        `SELECT id, title, message, type, created_at FROM \`${NOTIFICATIONS_TABLE}\` ORDER BY created_at DESC LIMIT 100`
       );
     }
-    const notifications = (rows || []).map((r) => ({
-      id: r.id,
-      title: r.title || '',
-      message: r.message || '',
-      type: r.type || 'info',
-      created_at: r.created_at ? new Date(r.created_at).toISOString() : null,
-      read: !!Number(r.read),
-    }));
+    let readIds = new Set();
+    let clearedIds = new Set();
+    if (userId != null) {
+      const [[readRows], [clearedRows]] = await Promise.all([
+        pool.execute(`SELECT notification_id FROM \`${NOTIFICATION_READS_TABLE}\` WHERE user_id = ?`, [userId]),
+        pool.execute(`SELECT notification_id FROM \`${NOTIFICATION_CLEARED_TABLE}\` WHERE user_id = ?`, [userId]),
+      ]);
+      readIds = new Set((readRows || []).map((r) => Number(r.notification_id)));
+      clearedIds = new Set((clearedRows || []).map((r) => Number(r.notification_id)));
+    }
+    const notifications = (rows || [])
+      .filter((r) => !clearedIds.has(Number(r.id)))
+      .map((r) => ({
+        id: r.id,
+        title: r.title || '',
+        message: r.message || '',
+        type: r.type || 'info',
+        created_at: r.created_at ? new Date(r.created_at).toISOString() : null,
+        read: readIds.has(Number(r.id)),
+      }));
     res.json({ notifications });
   } catch (err) {
     console.error('Error in GET /api/notifications:', err);
@@ -561,22 +620,25 @@ router.post('/notifications/from-server', async (req, res) => {
 
 /**
  * PATCH /api/notifications/:id
- * Mark one notification as read. Body: { read: true } or empty.
+ * Mark one notification as read for this user only. Requires Authorization: Bearer <token>.
  */
 router.patch('/notifications/:id', async (req, res) => {
   try {
+    const userId = await getAuthUserId(req);
+    if (userId == null) {
+      return res.status(401).json({ success: false, error: 'Authorization required' });
+    }
     await ensureNotificationsTable();
+    await ensureNotificationReadsTable();
     const id = parseInt(req.params.id, 10);
     if (!id || id < 1) {
       return res.status(400).json({ success: false, error: 'Invalid notification id' });
     }
-    const [result] = await pool.query(
-      `UPDATE \`${NOTIFICATIONS_TABLE}\` SET \`read\` = 1 WHERE id = ?`,
-      [id]
+    await pool.execute(
+      `INSERT INTO \`${NOTIFICATION_READS_TABLE}\` (notification_id, user_id, read_at) VALUES (?, ?, NOW())
+       ON DUPLICATE KEY UPDATE read_at = NOW()`,
+      [id, userId]
     );
-    if (result?.affectedRows === 0) {
-      return res.status(404).json({ success: false, error: 'Notification not found' });
-    }
     res.json({ success: true });
   } catch (err) {
     console.error('Error in PATCH /api/notifications/:id:', err);
@@ -586,13 +648,29 @@ router.patch('/notifications/:id', async (req, res) => {
 
 /**
  * DELETE /api/notifications
- * Clears all notifications (for "Clear all" in executive app).
+ * Clear = hide read notifications for this user (they won't come back in the list). Marks as cleared then removes read state.
  */
 router.delete('/notifications', async (req, res) => {
   try {
-    await ensureNotificationsTable();
-    await pool.query(`DELETE FROM \`${NOTIFICATIONS_TABLE}\``);
-    res.json({ success: true, message: 'Notifications cleared' });
+    const userId = await getAuthUserId(req);
+    if (userId == null) {
+      return res.status(401).json({ success: false, error: 'Authorization required' });
+    }
+    await ensureNotificationReadsTable();
+    await ensureNotificationClearedTable();
+    const [readRows] = await pool.execute(
+      `SELECT notification_id FROM \`${NOTIFICATION_READS_TABLE}\` WHERE user_id = ?`,
+      [userId]
+    );
+    const toClear = (readRows || []).map((r) => Number(r.notification_id));
+    if (toClear.length > 0) {
+      await pool.execute(
+        `INSERT IGNORE INTO \`${NOTIFICATION_CLEARED_TABLE}\` (notification_id, user_id, cleared_at) VALUES ${toClear.map(() => '(?, ?, NOW())').join(',')}`,
+        toClear.flatMap((id) => [id, userId])
+      );
+    }
+    await pool.execute(`DELETE FROM \`${NOTIFICATION_READS_TABLE}\` WHERE user_id = ?`, [userId]);
+    res.json({ success: true, message: 'Read notifications cleared; they will not show again for this user', cleared: toClear.length });
   } catch (err) {
     console.error('Error in DELETE /api/notifications:', err);
     res.status(500).json({ success: false, error: 'Error clearing notifications' });
@@ -1049,6 +1127,96 @@ router.get('/ranking', async (req, res) => {
     res.status(500).json({ success: false, error: 'Error fetching ranking' });
   }
 });
+
+// ========== SERVER-SIDE NOTIFICATION JOB (so app receives activity even when closed) ==========
+// Polls realtime data and creates notifications for new game / buy-in / cash-out / game ended.
+// Same logic as Flutter app; createServerNotification dedupes with app-created (30s title+message).
+
+const NOTIFICATION_POLL_INTERVAL_MS = 30 * 1000; // 30 seconds
+let _realtimePrev = null; // { byId: Map<game_id, { buyin, cashout }> }
+
+function fmtPeso(n) {
+  return 'P' + Number(n).toLocaleString('en-PH', { maximumFractionDigits: 0, minimumFractionDigits: 0 });
+}
+function fmtTableDateTime(encodedDt) {
+  if (encodedDt == null || encodedDt === '') return '';
+  const d = typeof encodedDt === 'string' && !/Z|[-+]\d{2}:?\d{2}$/.test(encodedDt.trim())
+    ? new Date(encodedDt.trim() + 'Z') : new Date(encodedDt);
+  if (isNaN(d.getTime())) return String(encodedDt);
+  const pad = (n) => (n < 10 ? '0' : '') + n;
+  const months = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
+  return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()} ${(d.getUTCHours() % 12) || 12}:${pad(d.getUTCMinutes())} ${d.getUTCHours() >= 12 ? 'PM' : 'AM'}`;
+}
+
+async function runServerNotificationJob() {
+  try {
+    const data = await getRealtimeData();
+    const games = data.ongoing_games || [];
+    const byId = new Map(games.map((g) => [
+      g.game_id,
+      {
+        buyin: Number(g.buyin) || 0,
+        cashout: Number(g.cashout) || 0,
+        account: `${(g.agent_name || '').trim()} (${(g.agent_code || '').trim()})`.trim() || g.agent_code,
+        encoded_dt: g.encoded_dt,
+        game_type: g.game_type || '',
+      },
+    ]));
+    const prev = _realtimePrev;
+    _realtimePrev = byId;
+
+    if (prev === null) return; // first run: only set previous, no notifications (same as app)
+
+    const prevIds = new Set(prev.keys());
+    const currentIds = new Set(byId.keys());
+
+    // New game started
+    for (const g of games) {
+      if (prevIds.has(g.game_id)) continue;
+      const account = `${(g.agent_name || '').trim()} (${(g.agent_code || '').trim()})`.trim() || g.agent_code;
+      const msg = `${account} – Buy-in ${fmtPeso(g.buyin)} at ${fmtTableDateTime(g.encoded_dt)} (${g.game_type || ''})`;
+      await createServerNotification({ title: 'New game started', message: msg, type: 'info' });
+    }
+
+    // Buy-in added
+    for (const g of games) {
+      const p = prev.get(g.game_id);
+      if (!p || g.buyin <= p.buyin) continue;
+      const added = Number(g.buyin) - p.buyin;
+      const nowStr = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+      const account = `${(g.agent_name || '').trim()} (${(g.agent_code || '').trim()})`.trim() || g.agent_code;
+      const msg = `${account} added ${fmtPeso(added)} at ${nowStr} – total ${fmtPeso(g.buyin)} (${g.game_type || ''})`;
+      await createServerNotification({ title: 'Buy-in added', message: msg, type: 'info' });
+    }
+
+    // Cash-out added
+    for (const g of games) {
+      const p = prev.get(g.game_id);
+      if (!p || g.cashout <= p.cashout) continue;
+      const added = Number(g.cashout) - p.cashout;
+      const nowStr = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+      const account = `${(g.agent_name || '').trim()} (${(g.agent_code || '').trim()})`.trim() || g.agent_code;
+      const msg = `${account} cashed out ${fmtPeso(added)} at ${nowStr} – total ${fmtPeso(g.cashout)} (${g.game_type || ''})`;
+      await createServerNotification({ title: 'Cash-out added', message: msg, type: 'warning' });
+    }
+
+    // Game ended
+    for (const id of prevIds) {
+      if (currentIds.has(id)) continue;
+      const p = prev.get(id);
+      if (!p) continue;
+      const nowStr = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+      const winLoss = p.buyin - p.cashout;
+      const msg = `${p.account} – game ended at ${nowStr} (${p.game_type}) – Win/Loss: ${fmtPeso(winLoss)}`;
+      await createServerNotification({ title: 'Game has ended', message: msg, type: 'info' });
+    }
+  } catch (err) {
+    console.error('Error in server notification job:', err);
+  }
+}
+
+let _serverNotificationInterval = setInterval(runServerNotificationJob, NOTIFICATION_POLL_INTERVAL_MS);
+if (_serverNotificationInterval.unref) _serverNotificationInterval.unref();
 
 // ========== LEGACY: WINLOSS ==========
 
