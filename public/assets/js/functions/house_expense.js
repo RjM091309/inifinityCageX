@@ -2,6 +2,17 @@
 var expense_id;
 var return_money_id;
 
+// Helper: encode string for safe use in HTML data attributes (handles newlines, quotes, etc.)
+function attrEncode(str) {
+    if (str == null || str === '') return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\r\n|\r|\n/g, '&#10;');
+}
+
 $(document).ready(function () {
 
     function initializeExpenseTable() {
@@ -127,8 +138,15 @@ $(document).ready(function () {
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                         <i class="fa fa-eye"></i>
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-alt-secondary"
-                                            onclick="${row.record_type === 'return_money' ? `edit_return_money(${row.expense_id}, '${(row.DESCRIPTION || '').replace(/'/g, "\\'")}', '${amount}')` : `edit_expense(${row.expense_id}, '${row.expense_category_id || ''}', '${(row.RECEIPT_NO || '').replace(/'/g, "\\'")}', '${row.DATE_TIME || row.ENCODED_DT || ''}', '${(row.DESCRIPTION || '').replace(/'/g, "\\'")}', '${amount}', '${row.OIC || ''}')`}"
+                                    <button type="button" class="btn btn-sm btn-alt-secondary btn-edit-row"
+                                            data-record-type="${row.record_type || 'expense'}"
+                                            data-expense-id="${row.expense_id}"
+                                            data-category-id="${attrEncode(row.expense_category_id || '')}"
+                                            data-receipt-no="${attrEncode(row.RECEIPT_NO || '')}"
+                                            data-date-time="${attrEncode(row.DATE_TIME || row.ENCODED_DT || '')}"
+                                            data-description="${attrEncode(row.DESCRIPTION || '')}"
+                                            data-amount="${amount}"
+                                            data-oic="${attrEncode(row.OIC || '')}"
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
                                         <i class="fa fa-pencil-alt"></i>
                                     </button>
@@ -697,8 +715,15 @@ $(document).ready(function () {
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                             <i class="fa fa-eye"></i>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-alt-secondary"
-                                                onclick="${row.record_type === 'return_money' ? `edit_return_money(${row.expense_id}, '${(row.DESCRIPTION || '').replace(/'/g, "\\'")}', '${amount}')` : `edit_expense(${row.expense_id}, '${row.expense_category_id || ''}', '${(row.RECEIPT_NO || '').replace(/'/g, "\\'")}', '${row.DATE_TIME || row.ENCODED_DT || ''}', '${(row.DESCRIPTION || '').replace(/'/g, "\\'")}', '${amount}', '${row.OIC || ''}')`}"
+                                        <button type="button" class="btn btn-sm btn-alt-secondary btn-edit-row"
+                                                data-record-type="${row.record_type || 'expense'}"
+                                                data-expense-id="${row.expense_id}"
+                                                data-category-id="${attrEncode(row.expense_category_id || '')}"
+                                                data-receipt-no="${attrEncode(row.RECEIPT_NO || '')}"
+                                                data-date-time="${attrEncode(row.DATE_TIME || row.ENCODED_DT || '')}"
+                                                data-description="${attrEncode(row.DESCRIPTION || '')}"
+                                                data-amount="${amount}"
+                                                data-oic="${attrEncode(row.OIC || '')}"
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
                                             <i class="fa fa-pencil-alt"></i>
                                         </button>
@@ -875,6 +900,24 @@ $(document).ready(function () {
     if (typeof window.reloadData === 'function') {
         window.reloadData();
     }
+
+    // Event delegation for Edit button (avoids inline onclick issues with special chars: newlines, quotes, etc.)
+    $(document).on('click', '.btn-edit-row', function () {
+        var $btn = $(this);
+        var recordType = $btn.attr('data-record-type') || 'expense';
+        var id = $btn.attr('data-expense-id');
+        var description = $btn.attr('data-description') || '';
+        var amount = $btn.attr('data-amount') || '0';
+        if (recordType === 'return_money') {
+            edit_return_money(id, description, amount);
+        } else {
+            var categoryId = $btn.attr('data-category-id') || '';
+            var receiptNo = $btn.attr('data-receipt-no') || '';
+            var dateTime = $btn.attr('data-date-time') || '';
+            var oic = $btn.attr('data-oic') || '';
+            edit_expense(id, categoryId, receiptNo, dateTime, description, amount, oic);
+        }
+    });
 
     // Utility functions for receipt actions
     window.viewReceipt = function (photoUrl) {
