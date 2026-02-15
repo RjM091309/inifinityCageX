@@ -421,7 +421,10 @@ router.post('/auth/login', async (req, res) => {
 
 // ========== NOTIFICATIONS (executive app) ==========
 // Table: executive_notifications — created automatically on first API call (no manual DB step).
-// Read state is per user: executive_notification_reads(notification_id, user_id) so read by A stays unread for B.
+// Per-user isolation (Account A vs B):
+//   - Read: executive_notification_reads(notification_id, user_id). When A marks as read, B still sees unread.
+//   - Cleared: executive_notification_cleared(notification_id, user_id). When A clears, only A's list hides those; B still sees them.
+// GET uses current user's token → only this user's readIds/clearedIds. PATCH/DELETE only write for this user.
 
 const NOTIFICATIONS_TABLE = 'executive_notifications';
 const NOTIFICATION_READS_TABLE = 'executive_notification_reads';
@@ -485,9 +488,12 @@ async function ensureNotificationClearedTable() {
   `);
 }
 
+const NOTIFICATION_PAGE_LIMIT = 20;
+
 /**
  * GET /api/notifications
- * Returns latest notifications from DB. With auth: read state per user, and cleared (read+clear) ones are hidden so they don't come back.
+ * Returns notifications for the current user only. Read and cleared state are per user (user_id from Bearer token).
+ * Query: limit (default 20), offset (default 0). Response: { notifications, total }.
  */
 router.get('/notifications', async (req, res) => {
   try {
@@ -500,40 +506,57 @@ router.get('/notifications', async (req, res) => {
       'Pragma': 'no-cache',
       'Expires': '0',
     });
-    let [rows] = await pool.query(
-      `SELECT id, title, message, type, created_at FROM \`${NOTIFICATIONS_TABLE}\` ORDER BY created_at DESC LIMIT 100`
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || NOTIFICATION_PAGE_LIMIT, 1), 100);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+    let clearedIds = new Set();
+    if (userId != null) {
+      const [clearedRows] = await pool.execute(`SELECT notification_id FROM \`${NOTIFICATION_CLEARED_TABLE}\` WHERE user_id = ?`, [userId]);
+      clearedIds = new Set((clearedRows || []).map((r) => Number(r.notification_id)));
+    }
+
+    const clearedList = clearedIds.size > 0 ? [...clearedIds] : [0];
+    const placeholders = clearedList.map(() => '?').join(',');
+    const [totalRows] = await pool.query(
+      `SELECT COUNT(*) AS c FROM \`${NOTIFICATIONS_TABLE}\` WHERE id NOT IN (${placeholders})`,
+      clearedList
     );
-    if (!rows || rows.length === 0) {
+    const total = Number(totalRows?.[0]?.c ?? 0);
+
+    let [rows] = await pool.query(
+      `SELECT id, title, message, type, created_at FROM \`${NOTIFICATIONS_TABLE}\` WHERE id NOT IN (${placeholders}) ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      [...clearedList, limit, offset]
+    );
+    if (!rows?.length && total === 0 && offset === 0) {
       await pool.query(
         `INSERT INTO \`${NOTIFICATIONS_TABLE}\` (title, message, type) VALUES
          ('System', 'Notifications are connected. Clear all to start fresh.', 'info'),
          ('Welcome', 'Infinity CageX App is ready. You can monitor cage activity from here.', 'success')`
       );
       [rows] = await pool.query(
-        `SELECT id, title, message, type, created_at FROM \`${NOTIFICATIONS_TABLE}\` ORDER BY created_at DESC LIMIT 100`
+        `SELECT id, title, message, type, created_at FROM \`${NOTIFICATIONS_TABLE}\` WHERE id NOT IN (${placeholders}) ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+        [...clearedList, limit, offset]
       );
     }
+    rows = rows || [];
     let readIds = new Set();
-    let clearedIds = new Set();
-    if (userId != null) {
-      const [[readRows], [clearedRows]] = await Promise.all([
-        pool.execute(`SELECT notification_id FROM \`${NOTIFICATION_READS_TABLE}\` WHERE user_id = ?`, [userId]),
-        pool.execute(`SELECT notification_id FROM \`${NOTIFICATION_CLEARED_TABLE}\` WHERE user_id = ?`, [userId]),
-      ]);
+    if (userId != null && rows.length > 0) {
+      const ids = rows.map((r) => Number(r.id));
+      const [readRows] = await pool.execute(
+        `SELECT notification_id FROM \`${NOTIFICATION_READS_TABLE}\` WHERE user_id = ? AND notification_id IN (${ids.map(() => '?').join(',')})`,
+        [userId, ...ids]
+      );
       readIds = new Set((readRows || []).map((r) => Number(r.notification_id)));
-      clearedIds = new Set((clearedRows || []).map((r) => Number(r.notification_id)));
     }
-    const notifications = (rows || [])
-      .filter((r) => !clearedIds.has(Number(r.id)))
-      .map((r) => ({
-        id: r.id,
-        title: r.title || '',
-        message: r.message || '',
-        type: r.type || 'info',
-        created_at: r.created_at ? new Date(r.created_at).toISOString() : null,
-        read: readIds.has(Number(r.id)),
-      }));
-    res.json({ notifications });
+    const notifications = rows.map((r) => ({
+      id: r.id,
+      title: r.title || '',
+      message: r.message || '',
+      type: r.type || 'info',
+      created_at: r.created_at ? new Date(r.created_at).toISOString() : null,
+      read: readIds.has(Number(r.id)),
+    }));
+    res.json({ notifications, total });
   } catch (err) {
     console.error('Error in GET /api/notifications:', err);
     res.status(500).json({ success: false, error: 'Error fetching notifications' });
@@ -620,7 +643,7 @@ router.post('/notifications/from-server', async (req, res) => {
 
 /**
  * PATCH /api/notifications/:id
- * Mark one notification as read for this user only. Requires Authorization: Bearer <token>.
+ * Mark one notification as read for this user only (other users keep it unread). Requires Authorization: Bearer <token>.
  */
 router.patch('/notifications/:id', async (req, res) => {
   try {
@@ -647,8 +670,70 @@ router.patch('/notifications/:id', async (req, res) => {
 });
 
 /**
+ * POST /api/notifications/mark-all-read
+ * Mark all visible notifications as read for this user. List stays; red dot goes away. Per user.
+ */
+router.post('/notifications/mark-all-read', async (req, res) => {
+  try {
+    const userId = await getAuthUserId(req);
+    if (userId == null) {
+      return res.status(401).json({ success: false, error: 'Authorization required' });
+    }
+    await ensureNotificationsTable();
+    await ensureNotificationReadsTable();
+    await ensureNotificationClearedTable();
+    const [clearedRows] = await pool.execute(`SELECT notification_id FROM \`${NOTIFICATION_CLEARED_TABLE}\` WHERE user_id = ?`, [userId]);
+    const clearedIds = new Set((clearedRows || []).map((r) => Number(r.notification_id)));
+    const clearedList = clearedIds.size > 0 ? [...clearedIds] : [0];
+    const placeholders = clearedList.map(() => '?').join(',');
+    const [rows] = await pool.query(
+      `SELECT id FROM \`${NOTIFICATIONS_TABLE}\` WHERE id NOT IN (${placeholders}) ORDER BY created_at DESC LIMIT 500`,
+      clearedList
+    );
+    const ids = (rows || []).map((r) => Number(r.id)).filter((id) => id > 0);
+    if (ids.length > 0) {
+      await pool.execute(
+        `INSERT INTO \`${NOTIFICATION_READS_TABLE}\` (notification_id, user_id, read_at) VALUES ${ids.map(() => '(?, ?, NOW())').join(',')} ON DUPLICATE KEY UPDATE read_at = NOW()`,
+        ids.flatMap((id) => [id, userId])
+      );
+    }
+    res.json({ success: true, marked: ids.length });
+  } catch (err) {
+    console.error('Error in POST /api/notifications/mark-all-read:', err);
+    res.status(500).json({ success: false, error: 'Error marking all as read' });
+  }
+});
+
+/**
+ * DELETE /api/notifications/:id
+ * Hide this one notification for this user (swipe to dismiss). Other users still see it. Per user.
+ */
+router.delete('/notifications/:id', async (req, res) => {
+  try {
+    const userId = await getAuthUserId(req);
+    if (userId == null) {
+      return res.status(401).json({ success: false, error: 'Authorization required' });
+    }
+    await ensureNotificationClearedTable();
+    const id = parseInt(req.params.id, 10);
+    if (!id || id < 1) {
+      return res.status(400).json({ success: false, error: 'Invalid notification id' });
+    }
+    await pool.execute(
+      `INSERT IGNORE INTO \`${NOTIFICATION_CLEARED_TABLE}\` (notification_id, user_id, cleared_at) VALUES (?, ?, NOW())`,
+      [id, userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error in DELETE /api/notifications/:id:', err);
+    res.status(500).json({ success: false, error: 'Error hiding notification' });
+  }
+});
+
+/**
  * DELETE /api/notifications
- * Clear = hide read notifications for this user (they won't come back in the list). Marks as cleared then removes read state.
+ * Clear all = hide every notification for this user in one go (read + unread). Other users unaffected.
+ * No need to mark as read first; one tap clears the whole list for this user.
  */
 router.delete('/notifications', async (req, res) => {
   try {
@@ -656,21 +741,21 @@ router.delete('/notifications', async (req, res) => {
     if (userId == null) {
       return res.status(401).json({ success: false, error: 'Authorization required' });
     }
+    await ensureNotificationsTable();
     await ensureNotificationReadsTable();
     await ensureNotificationClearedTable();
-    const [readRows] = await pool.execute(
-      `SELECT notification_id FROM \`${NOTIFICATION_READS_TABLE}\` WHERE user_id = ?`,
-      [userId]
+    const [rows] = await pool.query(
+      `SELECT id FROM \`${NOTIFICATIONS_TABLE}\` ORDER BY created_at DESC LIMIT 100`
     );
-    const toClear = (readRows || []).map((r) => Number(r.notification_id));
-    if (toClear.length > 0) {
+    const allIds = (rows || []).map((r) => Number(r.id)).filter((id) => id > 0);
+    if (allIds.length > 0) {
       await pool.execute(
-        `INSERT IGNORE INTO \`${NOTIFICATION_CLEARED_TABLE}\` (notification_id, user_id, cleared_at) VALUES ${toClear.map(() => '(?, ?, NOW())').join(',')}`,
-        toClear.flatMap((id) => [id, userId])
+        `INSERT IGNORE INTO \`${NOTIFICATION_CLEARED_TABLE}\` (notification_id, user_id, cleared_at) VALUES ${allIds.map(() => '(?, ?, NOW())').join(',')}`,
+        allIds.flatMap((id) => [id, userId])
       );
     }
     await pool.execute(`DELETE FROM \`${NOTIFICATION_READS_TABLE}\` WHERE user_id = ?`, [userId]);
-    res.json({ success: true, message: 'Read notifications cleared; they will not show again for this user', cleared: toClear.length });
+    res.json({ success: true, message: 'All notifications cleared for this user', cleared: allIds.length });
   } catch (err) {
     console.error('Error in DELETE /api/notifications:', err);
     res.status(500).json({ success: false, error: 'Error clearing notifications' });
@@ -1175,7 +1260,7 @@ async function runServerNotificationJob() {
       if (prevIds.has(g.game_id)) continue;
       const account = `${(g.agent_name || '').trim()} (${(g.agent_code || '').trim()})`.trim() || g.agent_code;
       const msg = `${account} – Buy-in ${fmtPeso(g.buyin)} at ${fmtTableDateTime(g.encoded_dt)} (${g.game_type || ''})`;
-      await createServerNotification({ title: 'New game started', message: msg, type: 'info' });
+      await createServerNotification({ title: 'New game started', message: msg, type: 'game_start' });
     }
 
     // Buy-in added
@@ -1186,7 +1271,7 @@ async function runServerNotificationJob() {
       const nowStr = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
       const account = `${(g.agent_name || '').trim()} (${(g.agent_code || '').trim()})`.trim() || g.agent_code;
       const msg = `${account} added ${fmtPeso(added)} at ${nowStr} – total ${fmtPeso(g.buyin)} (${g.game_type || ''})`;
-      await createServerNotification({ title: 'Buy-in added', message: msg, type: 'info' });
+      await createServerNotification({ title: 'Buy-in added', message: msg, type: 'buy_in' });
     }
 
     // Cash-out added
@@ -1197,7 +1282,7 @@ async function runServerNotificationJob() {
       const nowStr = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
       const account = `${(g.agent_name || '').trim()} (${(g.agent_code || '').trim()})`.trim() || g.agent_code;
       const msg = `${account} cashed out ${fmtPeso(added)} at ${nowStr} – total ${fmtPeso(g.cashout)} (${g.game_type || ''})`;
-      await createServerNotification({ title: 'Cash-out added', message: msg, type: 'warning' });
+      await createServerNotification({ title: 'Cash-out added', message: msg, type: 'cash_out' });
     }
 
     // Game ended
@@ -1208,7 +1293,7 @@ async function runServerNotificationJob() {
       const nowStr = new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
       const winLoss = p.buyin - p.cashout;
       const msg = `${p.account} – game ended at ${nowStr} (${p.game_type}) – Win/Loss: ${fmtPeso(winLoss)}`;
-      await createServerNotification({ title: 'Game has ended', message: msg, type: 'info' });
+      await createServerNotification({ title: 'Game has ended', message: msg, type: 'game_ended' });
     }
   } catch (err) {
     console.error('Error in server notification job:', err);
