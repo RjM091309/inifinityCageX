@@ -48,13 +48,14 @@
 												const now = new Date();
 												const pad = value => value.toString().padStart(2, '0');
 												const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-												const maxSettlementDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr;
+												const initialDate = typeof initialSettlementDate !== 'undefined' ? initialSettlementDate : (typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr);
+												const maxPickerDate = typeof maxSettlementDate !== 'undefined' ? maxSettlementDate : initialDate;
 											%>
-												<div class="input-group" data-today="<%= todayStr %>" data-default-settlement-date="<%= maxSettlementDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
+												<div class="input-group" data-today="<%= todayStr %>" data-default-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
 													<button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
 														<i class="fa fa-chevron-left"></i>
 													</button>
-													<input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= maxSettlementDate %>" readonly />
+													<input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
 													<button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
 														<i class="fa fa-chevron-right"></i>
 													</button>
@@ -161,6 +162,7 @@
 						const wrapper = document.querySelector('#settlement-date-wrapper .input-group');
 						const todayStr = wrapper ? wrapper.getAttribute('data-today') : '';
 						const defaultDate = wrapper ? wrapper.getAttribute('data-default-settlement-date') : '';
+						const maxPickerDate = wrapper ? wrapper.getAttribute('data-max-settlement-date') : (defaultDate || todayStr);
 						window.selectedSettlementDate = defaultDate || todayStr || '';
 						var settledDates = [];
 						try {
@@ -194,7 +196,7 @@
 								altFormat: 'F d, Y',
 								defaultDate: defaultDate || todayStr,
 								minDate: earliestSettlementDate,
-								maxDate: defaultDate || todayStr,
+								maxDate: maxPickerDate || defaultDate || todayStr,
 								allowInput: false,
 								onDayCreate: function (dayElem) {
 									var dStr = dayDateStr(dayElem);

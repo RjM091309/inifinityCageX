@@ -140,21 +140,29 @@ $(document).ready(function() {
             totalCashin += cashin;
             totalCashout += cashout;
             
-            // Format settlement date
+            // Format settlement date and build sort key for correct chronological order
             let formattedDate = 'Unsettled';
             let rawDate = null;
+            let sortKey = '9999-99-99'; // Unsettled sorts first when descending
             if (row.settlement_date && row.settlement_date !== 'Unsettled') {
               const date = new Date(row.settlement_date);
               if (!isNaN(date.getTime())) {
                 formattedDate = moment(date).format('MMMM D, YYYY');
-                rawDate = row.settlement_date.split('T')[0]; // Extract date part for URL (YYYY-MM-DD)
+                // Use local date parts so URL matches the displayed date (avoids timezone off-by-one)
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                rawDate = y + '-' + m + '-' + d;
+                sortKey = rawDate;
               } else {
                 formattedDate = row.settlement_date;
                 rawDate = row.settlement_date;
+                sortKey = rawDate || sortKey;
               }
             }
             
             return {
+              settlementDateSort: sortKey,
               settlementDate: formattedDate,
               cashin: formatCurrency(cashin),
               cashout: formatCurrency(cashout),
@@ -162,7 +170,7 @@ $(document).ready(function() {
               winlossValue: winloss,
               status: row.status || 'Unsettled',
               settlementId: row.settlement_id || null,
-              rawSettlementDate: rawDate // Keep raw date for link
+              rawSettlementDate: rawDate
             };
           });
           
@@ -182,7 +190,14 @@ $(document).ready(function() {
         }
       },
       columns: [
-        { data: 'settlementDate', className: 'text-center' },
+        {
+          data: 'settlementDateSort',
+          className: 'text-center',
+          render: function(data, type, row) {
+            if (type === 'display' || type === 'filter') return row.settlementDate;
+            return data;
+          }
+        },
         { data: 'cashin', className: 'text-end' },
         { data: 'cashout', className: 'text-end' },
         { 

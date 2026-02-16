@@ -145,6 +145,18 @@ router.get("/game_list", checkSession, async function (req, res) {
 	    // keep defaultSettlementDate = todayStr
 	  }
 
+	  // When opening via View Games link (e.g. /game_list?date=2026-02-03), use that date as initial
+	  let initialSettlementDate = defaultSettlementDate;
+	  const urlDate = req.query.date;
+	  if (urlDate) {
+	    if (urlDate === 'current') {
+	      initialSettlementDate = defaultSettlementDate;
+	    } else if (/^\d{4}-\d{2}-\d{2}$/.test(urlDate)) {
+	      initialSettlementDate = urlDate;
+	    }
+	  }
+	  const maxSettlementDate = defaultSettlementDate; // For picker max (allow navigating up to today/next)
+
 	  // Settled dates this month (for disabling Settle button when date already settled)
 	  let settledDatesForMonth = [];
 	  try {
@@ -187,6 +199,8 @@ router.get("/game_list", checkSession, async function (req, res) {
 		sqlCCBuyin,
 		sqlCCReturn,
 		defaultSettlementDate,
+		initialSettlementDate,
+		maxSettlementDate,
 		settledDatesForMonth
 	  });
   
