@@ -60,10 +60,13 @@
             order: [[orderCol, orderDir]],
             language: {
                 info: translations.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries",
-                infoEmpty: "",
-                infoFiltered: "",
+                infoEmpty: translations.info_empty || "Showing 0 to 0 of 0 entries",
+                infoFiltered: translations.info_filtered || "(filtered from _MAX_ total entries)",
+                lengthMenu: translations.length_menu || "Show _MENU_ entries",
                 search: translations.search || "Search:",
                 paginate: {
+                    first: translations.first || "First",
+                    last: translations.last || "Last",
                     previous: translations.previous || "Previous",
                     next: translations.next || "Next"
                 },

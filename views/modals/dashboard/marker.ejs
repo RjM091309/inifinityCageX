@@ -2,7 +2,7 @@
     <div class="modal-dialog modal-dialog-centered modal-lg2" role="document">
         <div class="modal-content">
         <div class="modal-header bg-primary">
-            <h5 class="modal-title text-white" id="staticBackdropLiveLabel">Credits</h5>
+            <h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('dashboard_marker.title') %></h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form id="add_marker_settlement" action="/" method="POST">
@@ -56,7 +56,7 @@
                 
                 <div class="row d-flex justify-content-center mb-2">
                     <div class="col-sm-12">
-                        <input type="text" class="form-control" placeholder="Remarks (optional)" name="remarks" id="txtRemarks" maxlength="500" autocomplete="off" />
+                        <input type="text" class="form-control" placeholder="<%= __('dashboard_marker.remarks_optional') %>" name="remarks" id="txtRemarks" maxlength="500" autocomplete="off" />
                     </div>
                 </div>
 
@@ -99,7 +99,7 @@
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.amount') %></th>
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.transaction_type') %></th>
                         <th class="d-none d-sm-table-cell" style="width: 200px !important;"><%= __('dashboard_marker.date') %></th>
-                        <th class="d-none d-sm-table-cell">Remarks</th>
+                        <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.remarks') %></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -220,6 +220,20 @@
 
 <!--EXCEL MIN JS-->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+<script>
+window.markerTranslations = window.markerTranslations || {
+	showing_entries: "<%= __('dashboard_marker.showing_entries') %>",
+	length_menu: "<%= __('dashboard_marker.length_menu') %>",
+	info_empty: "<%= __('dashboard_marker.info_empty') %>",
+	info_filtered: "<%= __('dashboard_marker.info_filtered') %>",
+	first: "<%= __('dashboard_marker.first') %>",
+	last: "<%= __('dashboard_marker.last') %>",
+	previous: "<%= __('dashboard_marker.previous') %>",
+	next: "<%= __('dashboard_marker.next') %>",
+	search: "<%= __('dashboard_marker.search') %>",
+	no_data_available: "<%= __('dashboard_marker.no_data_available') %>"
+};
+</script>
 <!-- Marker init runs from footer (after jQuery + marker_common.js) -->
 <script>
 window.__markerModalInit = function() {

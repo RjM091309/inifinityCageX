@@ -930,8 +930,9 @@ function loadNNChipsHistory() {
     const dateRange = $('#nnchips-daterange').val();
     console.log('NN Chips History Date Range:', dateRange);
 
+    var nnT = window.nnChipsHistoryTranslations || {};
     if (!dateRange) {
-        alert('Please select a date range.');
+        alert(nnT.please_select_date_range || 'Please select a date range.');
         return;
     }
 
@@ -1016,10 +1017,24 @@ function loadNNChipsHistory() {
             { "className": "text-center", "orderable": false }
         ],
         responsive: true,
-        language: {
-            "emptyTable": "No NN chips transactions found",
-            "processing": "Loading NN chips transactions..."
-        },
+        language: (function() {
+            var t = window.nnChipsHistoryTranslations || {};
+            return {
+                emptyTable: t.empty_table || "No NN chips transactions found",
+                processing: t.processing || "Loading NN chips transactions...",
+                lengthMenu: t.length_menu || "Show _MENU_ entries",
+                search: t.search || "Search:",
+                info: t.info || "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: t.info_empty || "Showing 0 to 0 of 0 entries",
+                infoFiltered: t.info_filtered || "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: t.first || "First",
+                    last: t.last || "Last",
+                    next: t.next || "Next",
+                    previous: t.previous || "Previous"
+                }
+            };
+        })(),
         drawCallback: function(settings) {
             $('[data-bs-toggle="tooltip"]').tooltip();
         }
@@ -1031,8 +1046,9 @@ function loadCCChipsHistory() {
     const dateRange = $('#ccchips-daterange').val();
     console.log('CC Chips History Date Range:', dateRange);
 
+    var ccT = window.ccChipsHistoryTranslations || {};
     if (!dateRange) {
-        alert('Please select a date range.');
+        alert(ccT.please_select_date_range || 'Please select a date range.');
         return;
     }
 
@@ -1103,10 +1119,24 @@ function loadCCChipsHistory() {
             { "className": "text-center", "orderable": false }
         ],
         responsive: true,
-        language: {
-            "emptyTable": "No CC chips transactions found",
-            "processing": "Loading CC chips transactions..."
-        },
+        language: (function() {
+            var t = window.ccChipsHistoryTranslations || {};
+            return {
+                emptyTable: t.empty_table || "No CC chips transactions found",
+                processing: t.processing || "Loading CC chips transactions...",
+                lengthMenu: t.length_menu || "Show _MENU_ entries",
+                search: t.search || "Search:",
+                info: t.info || "Showing _START_ to _END_ of _TOTAL_ entries",
+                infoEmpty: t.info_empty || "Showing 0 to 0 of 0 entries",
+                infoFiltered: t.info_filtered || "(filtered from _MAX_ total entries)",
+                paginate: {
+                    first: t.first || "First",
+                    last: t.last || "Last",
+                    next: t.next || "Next",
+                    previous: t.previous || "Previous"
+                }
+            };
+        })(),
         drawCallback: function(settings) {
             $('[data-bs-toggle="tooltip"]').tooltip();
         }

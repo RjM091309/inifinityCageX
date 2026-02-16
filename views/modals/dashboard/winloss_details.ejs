@@ -2,25 +2,25 @@
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header bg-primary">
-        <h5 class="block-title text-white" id="modal-winloss-details-label">Win/Loss</h5>
+        <h5 class="block-title text-white" id="modal-winloss-details-label"><%= __('modal_winloss_details.title') %></h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <div class="row mb-3">
           <div class="col-sm-4">
-            <label class="form-label">Date Range</label>
-            <input type="text" id="winloss-daterange" class="form-control" placeholder="Select date range" readonly>
+            <label class="form-label"><%= __('modal_winloss_details.date_range') %></label>
+            <input type="text" id="winloss-daterange" class="form-control" placeholder="<%= __('modal_winloss_details.select_date_range') %>" readonly>
           </div>
         </div>
         <table id="winloss-details-tbl" class="table table-bordered table-responsive" style="font-size: 13px;">
           <thead>
             <tr>
-              <th class="text-center">Settlement Date</th>
-              <th class="text-center">Buy-in</th>
-              <th class="text-center">Cash Out</th>
-              <th class="text-center">Win/Loss</th>
-              <th class="text-center">Status</th>
-              <th class="text-center">Action</th>
+              <th class="text-center"><%= __('modal_winloss_details.settlement_date') %></th>
+              <th class="text-center"><%= __('modal_winloss_details.buy_in') %></th>
+              <th class="text-center"><%= __('modal_winloss_details.cash_out') %></th>
+              <th class="text-center"><%= __('modal_winloss_details.win_loss') %></th>
+              <th class="text-center"><%= __('modal_winloss_details.status') %></th>
+              <th class="text-center"><%= __('modal_winloss_details.action') %></th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -31,15 +31,15 @@
               <div class="card-body">
                 <div class="row">
                   <div class="col-md-4">
-                    <strong>Total Cash In:</strong>
+                    <strong id="label-total-cashin"><%= __('modal_winloss_details.total_cash_in') %></strong>
                     <span id="total-cashin" class="text-success">0</span>
                   </div>
                   <div class="col-md-4">
-                    <strong>Total Cash Out:</strong>
+                    <strong id="label-total-cashout"><%= __('modal_winloss_details.total_cash_out') %></strong>
                     <span id="total-cashout" class="text-danger">0</span>
                   </div>
                   <div class="col-md-4">
-                    <strong>Total Win/Loss:</strong>
+                    <strong id="label-total-winloss"><%= __('modal_winloss_details.total_win_loss') %></strong>
                     <span id="total-winloss" class="fw-bold">0</span>
                   </div>
                 </div>
@@ -49,11 +49,29 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_winloss_details.close') %></button>
       </div>
     </div>
   </div>
 </div>
+<script>
+window.winlossDetailsTranslations = {
+	unsettled: "<%= __('modal_winloss_details.unsettled') %>",
+	settled: "<%= __('modal_winloss_details.settled') %>",
+	view_games: "<%= __('modal_winloss_details.view_games') %>",
+	empty_table: "<%= __('modal_winloss_details.empty_table') %>",
+	processing: "<%= __('modal_winloss_details.processing') %>",
+	length_menu: "<%= __('modal_winloss_details.length_menu') %>",
+	search: "<%= __('modal_winloss_details.search') %>",
+	info: "<%= __('modal_winloss_details.info') %>",
+	info_empty: "<%= __('modal_winloss_details.info_empty') %>",
+	info_filtered: "<%= __('modal_winloss_details.info_filtered') %>",
+	first: "<%= __('modal_winloss_details.first') %>",
+	last: "<%= __('modal_winloss_details.last') %>",
+	previous: "<%= __('modal_winloss_details.previous') %>",
+	next: "<%= __('modal_winloss_details.next') %>"
+};
+</script>
 
 <style>
 #winloss-details-tbl td {
@@ -111,6 +129,9 @@ $(document).ready(function() {
     const range = $('#winloss-daterange').val();
     if (!range) return;
     
+    const t = window.winlossDetailsTranslations || {};
+    const unsettledLabel = t.unsettled || 'Unsettled';
+    
     let [start, end] = range.split(" to ");
     if (!end) end = start;
     
@@ -141,10 +162,10 @@ $(document).ready(function() {
             totalCashout += cashout;
             
             // Format settlement date and build sort key for correct chronological order
-            let formattedDate = 'Unsettled';
+            let formattedDate = unsettledLabel;
             let rawDate = null;
             let sortKey = '9999-99-99'; // Unsettled sorts first when descending
-            if (row.settlement_date && row.settlement_date !== 'Unsettled') {
+            if (row.settlement_date && row.settlement_date !== 'Unsettled' && row.settlement_date !== unsettledLabel) {
               const date = new Date(row.settlement_date);
               if (!isNaN(date.getTime())) {
                 formattedDate = moment(date).format('MMMM D, YYYY');
@@ -213,10 +234,13 @@ $(document).ready(function() {
           data: 'status',
           className: 'text-center',
           render: function(data) {
+            var t = window.winlossDetailsTranslations || {};
+            var settled = t.settled || 'Settled';
+            var unsettled = t.unsettled || 'Unsettled';
             if (data === 'Settled') {
-              return '<span class="badge bg-success">Settled</span>';
+              return '<span class="badge bg-success">' + settled + '</span>';
             } else {
-              return '<span class="badge bg-warning">Unsettled</span>';
+              return '<span class="badge bg-warning">' + unsettled + '</span>';
             }
           }
         },
@@ -224,24 +248,36 @@ $(document).ready(function() {
           data: 'settlementId',
           className: 'text-center',
           render: function(data, type, row) {
+            var t = window.winlossDetailsTranslations || {};
+            var viewGames = t.view_games || 'View Games';
             if (row.status === 'Settled' && data && row.rawSettlementDate) {
-              return `<a href="/game_list?date=${row.rawSettlementDate}" target="_blank" class="btn btn-sm btn-primary">
-                <i class="fa fa-eye"></i> View Games
-              </a>`;
+              return '<a href="/game_list?date=' + row.rawSettlementDate + '" target="_blank" class="btn btn-sm btn-primary"><i class="fa fa-eye"></i> ' + viewGames + '</a>';
             } else if (row.status === 'Unsettled') {
-              return `<a href="/game_list?date=current" target="_blank" class="btn btn-sm btn-warning">
-                <i class="fa fa-eye"></i> View Games
-              </a>`;
+              return '<a href="/game_list?date=current" target="_blank" class="btn btn-sm btn-warning"><i class="fa fa-eye"></i> ' + viewGames + '</a>';
             }
             return '-';
           }
         }
       ],
       responsive: true,
-      language: {
-        emptyTable: 'No settlement data found',
-        processing: 'Loading settlement details...'
-      }
+      language: (function() {
+        var t = window.winlossDetailsTranslations || {};
+        return {
+          emptyTable: t.empty_table || 'No settlement data found',
+          processing: t.processing || 'Loading settlement details...',
+          lengthMenu: t.length_menu || 'Show _MENU_ entries',
+          search: t.search || 'Search:',
+          info: t.info || 'Showing _START_ to _END_ of _TOTAL_ entries',
+          infoEmpty: t.info_empty || 'Showing 0 to 0 of 0 entries',
+          infoFiltered: t.info_filtered || '(filtered from _MAX_ total entries)',
+          paginate: {
+            first: t.first || 'First',
+            last: t.last || 'Last',
+            next: t.next || 'Next',
+            previous: t.previous || 'Previous'
+          }
+        };
+      })()
     });
   }
 
