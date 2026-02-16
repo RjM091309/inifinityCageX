@@ -151,11 +151,13 @@
             });
         }
 
-        // Page-level buttons/links to disable when view-only (e.g. Settle, fnb_hotel delete/edit, telegram Save, Change Game No)
+        // Page-level buttons/links to disable when view-only (e.g. Settle, fnb_hotel delete/edit, game_services delete/edit, telegram Save, Change Game No)
         var pageActionSelectors = [
             '#btn-daily-settle',
             '.delete-service-btn',
             '.edit-service-btn',
+            '.service-delete-btn',
+            '.service-edit-btn',
             '.update-telegram-api-form button[type="submit"]',
             '#btn-save-chat-id',
             '#btn-save-agent-chat-id',

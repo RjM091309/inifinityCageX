@@ -3379,6 +3379,12 @@ function renderServicesList(list) {
 		info: true,
 		autoWidth: false
 	});
+
+	// View-only: disable delete/edit in Services modal after list is rendered (buttons are dynamic)
+	if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
+		var modalEl = document.getElementById('modal-services');
+		if (modalEl) window.PermissionViewOnly.disableModalSubmitAndDelete(null, modalEl);
+	}
 }
 
 // Save service
