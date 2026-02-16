@@ -30,6 +30,8 @@ router.get("/dashboard", checkSession, async (req, res) => {
 	let sqlTotalCashOutReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS CASHOUT_RESET FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
 	let sqlWinLossReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND RESET=1';
 
+	let sqlManualBalancing = 'SELECT SUM(AMOUNT) AS MANUAL_BALANCING FROM manual_balancing';
+
 	let sqlWinLossLive = `SELECT 
     winloss.GAMEId,
     winloss.CASHIN_LIVE,
@@ -526,6 +528,8 @@ let sqlServiceSettle = `
 		const [serviceDepositJunketResults] = await pool.execute(sqlServiceDepositJunket);
 		const [serviceSettleResults] = await pool.execute(sqlServiceSettle);
 		const [totalCommisionRolling] = await pool.execute(sqlCommisionRolling);
+		
+		const [manualBalancingResult] = await pool.execute(sqlManualBalancing);
 
 		const [totalCommisionCashout] = await pool.execute(sqlCommisionCashout);
 		// totalCommisionRolling ay inasume nang nakuha na (mula sa query ng sqlCommisionRolling)
@@ -830,8 +834,8 @@ let sqlServiceSettle = `
 			sqlServiceDepositJunket: serviceDepositJunketResults,
 			sqlServiceSettle: serviceSettleResults,
 			// Dashboard Commission card should show Settlement (NET commission)
-			sqlCommissionSettlement: totalCommissionSettlement || 0
-
+			sqlCommissionSettlement: totalCommissionSettlement || 0,
+			sqlManualBalancing: manualBalancingResult || 0
 		});
 
 	} catch (err) {
