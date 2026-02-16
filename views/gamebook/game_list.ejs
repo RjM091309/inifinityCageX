@@ -572,6 +572,35 @@ table.dataTable tbody tr.highlight-row {
 							padding: 12px 15px;
 						}
 
+						/* Align Account Search and Search on same baseline, keep at end (right) */
+						.dataTables_wrapper .dataTables_filter {
+							display: flex;
+							align-items: center;
+							justify-content: flex-end;
+							flex-wrap: wrap;
+							gap: 0.5rem;
+						}
+						.dataTables_wrapper .dataTables_filter label {
+							display: inline-flex;
+							align-items: center;
+							margin-bottom: 0;
+							gap: 0.35rem;
+						}
+						.dataTables_wrapper .dataTables_filter input[type="search"],
+						.dataTables_wrapper .dataTables_filter input[type="text"],
+						.dataTables_wrapper .dataTables_filter #input-account-search {
+							height: 31px;
+							width: 200px;
+						}
+						#input-account-search::placeholder {
+							font-size: 0.8rem;
+							color: #999;
+						}
+						/* When Account Search active: hide list, show Grand Total only */
+						#game_list-tbl.account-search-only tbody {
+							display: none;
+						}
+
 						@media screen and (max-width: 768px) {
 	.dataTables_wrapper .dataTables_length,
 	.dataTables_wrapper .dataTables_filter {
@@ -878,6 +907,8 @@ table.dataTable tbody tr.highlight-row {
 									},
 									"drawCallback": function () {
 										calculateTotal();
+										var hasAccountSearch = ($('#input-account-search').val() || '').trim().length > 0;
+										$('#game_list-tbl').toggleClass('account-search-only', !!hasAccountSearch);
 									}
 								});
 							}
@@ -936,9 +967,34 @@ table.dataTable tbody tr.highlight-row {
 								return false; // Exclude the row if it doesn't match the filter
 							});
 
+							// Account Search - filter by ACCT No, supports range (e.g. 500-501)
+							$.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+								if (settings.nTable.id !== 'game_list-tbl') return true;
+								var val = ($('#input-account-search').val() || '').trim();
+								if (!val) return true;
+								var acctStr = (data[3] || '').toString();
+								var match = acctStr.match(/\d+/);
+								var acctNum = match ? parseInt(match[0], 10) : null;
+								if (acctNum === null) return false;
+								var parts = val.split(/[\s\-–—]+/).map(function (p) { return p.trim(); }).filter(Boolean);
+								var minNum = parseInt(parts[0], 10);
+								var maxNum = parts.length > 1 ? parseInt(parts[1], 10) : minNum;
+								if (isNaN(minNum)) return true;
+								if (isNaN(maxNum)) maxNum = minNum;
+								if (minNum > maxNum) return false; // invalid range - first must be <= second
+								return acctNum >= minNum && acctNum <= maxNum;
+							});
+
 							// Re-draw the DataTable whenever the date inputs change
 							$('#from-date, #to-date').change(function () {
 								$('#game_list-tbl').DataTable().draw();
+							});
+
+							// Re-draw when Account Search input changes
+							$(document).on('keyup input', '#input-account-search', function () {
+								if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
+									$('#game_list-tbl').DataTable().draw();
+								}
 							});
 
 							// Trigger the initial draw to apply the default date filtering on page load

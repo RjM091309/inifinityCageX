@@ -136,19 +136,42 @@ $(document).ready(function () {
 					'color': 'red'
 				});
 			}
-	
+
 			// ✅ HIGHLIGHTING logic
 			// Step 1: Remove HTML from Game # column to extract pure ID
 			const gameListIdText = $('<div>').html(data[2]).text(); // assuming column 2 is GAME #
 			const gameListId = parseInt(gameListIdText);
-	
+
 			// Step 2: Compare with highlightId from URL
 			const isHighlighted = highlightId && gameListId === parseInt(highlightId);
-	
+
 			if (isHighlighted) {
 				console.log("✅ Highlighting row:", gameListId);
 				$(row).addClass('highlight-row');
 			}
+		},
+
+		initComplete: function () {
+			var filterDiv = $('#game_list-tbl').closest('.dataTables_wrapper').find('.dataTables_filter');
+			if (filterDiv.length) {
+				var accountSearchHtml = '<label class="me-3 mb-0 d-inline-flex align-items-center gap-2">' +
+					'<span>Account Search:</span>' +
+					'<input type="text" id="input-account-search" class="form-control form-control-sm" placeholder="e.g. xxx or xxx-xxx" />' +
+					'</label>';
+				filterDiv.prepend(accountSearchHtml);
+			}
+		},
+
+		drawCallback: function () {
+			var hasAccountSearch = ($('#input-account-search').val() || '').trim().length > 0;
+			$('#game_list-tbl').toggleClass('account-search-only', !!hasAccountSearch);
+		}
+	});
+
+	// Account Search - re-draw when input changes
+	$(document).on('keyup input', '#input-account-search', function () {
+		if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
+			$('#game_list-tbl').DataTable().draw();
 		}
 	});
 	
