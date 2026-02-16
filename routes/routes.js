@@ -1120,8 +1120,41 @@ pageRouter.get("/commission", function (req, res) {
 	res.render("junket/commission", sessions(req, 'commission'));
 });
 
-pageRouter.get("/markerHistory", checkSession, function (req, res) {
-	res.render("marker/markerHistory", sessions(req, 'marker_history'));
+pageRouter.get("/markerHistory", checkSession, async function (req, res) {
+	const sqlMarkerIssueGame = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_ISSUE_GAME FROM game_record WHERE ACTIVE =1 AND TRANSACTION = 3 AND CAGE_TYPE = 1';
+	const sqlMarkerIssueAccount = `SELECT SUM(account_ledger.AMOUNT) AS TOTAL_ISSUE_RECORD FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE = 1 AND account_ledger.TRANSACTION_ID = 3 AND account.ACTIVE = 1 AND agent.ACTIVE = 1`;
+	const sqlNNChipsAccountMarker = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_MARKER FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION = 3';
+	const sqlMArkerReturnCash = `SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_CASH FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE = 1 AND account_ledger.TRANSACTION_TYPE = 3 AND account_ledger.TRANSACTION_ID = 11 AND account.ACTIVE = 1 AND agent.ACTIVE = 1`;
+	const sqlMArkerReturnDeposit = `SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE = 1 AND account_ledger.TRANSACTION_TYPE = 3 AND account_ledger.TRANSACTION_ID = 12 AND account.ACTIVE = 1 AND agent.ACTIVE = 1`;
+	const sqlChipsReturnMarker = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS CHIPS_RETURN_MARKER FROM game_record WHERE CAGE_TYPE = 2 AND TRANSACTION = 4`;
+	try {
+		const [r1, r2, r3, r4, r5, r6] = await Promise.all([
+			pool.execute(sqlMarkerIssueGame),
+			pool.execute(sqlMarkerIssueAccount),
+			pool.execute(sqlNNChipsAccountMarker),
+			pool.execute(sqlMArkerReturnCash),
+			pool.execute(sqlMArkerReturnDeposit),
+			pool.execute(sqlChipsReturnMarker)
+		]);
+		const data = sessions(req, 'marker_history');
+		data.sqlMarkerIssueGame = [r1[0][0] || { TOTAL_ISSUE_GAME: 0 }];
+		data.sqlMarkerIssueAccount = [r2[0][0] || { TOTAL_ISSUE_RECORD: 0 }];
+		data.sqlNNChipsAccountMarker = [r3[0][0] || { TOTAL_NN_MARKER: 0 }];
+		data.sqlMArkerReturnCash = [r4[0][0] || { MARKER_RETURN_CASH: 0 }];
+		data.sqlMArkerReturnDeposit = [r5[0][0] || { MARKER_RETURN_DEPOSIT: 0 }];
+		data.sqlChipsReturnMarker = [r6[0][0] || { CHIPS_RETURN_MARKER: 0 }];
+		res.render("marker/markerHistory", data);
+	} catch (err) {
+		console.error('markerHistory query error:', err);
+		const data = sessions(req, 'marker_history');
+		data.sqlMarkerIssueGame = [{ TOTAL_ISSUE_GAME: 0 }];
+		data.sqlMarkerIssueAccount = [{ TOTAL_ISSUE_RECORD: 0 }];
+		data.sqlNNChipsAccountMarker = [{ TOTAL_NN_MARKER: 0 }];
+		data.sqlMArkerReturnCash = [{ MARKER_RETURN_CASH: 0 }];
+		data.sqlMArkerReturnDeposit = [{ MARKER_RETURN_DEPOSIT: 0 }];
+		data.sqlChipsReturnMarker = [{ CHIPS_RETURN_MARKER: 0 }];
+		res.render("marker/markerHistory", data);
+	}
 });
 
 pageRouter.get("/concierge", function (req, res) {

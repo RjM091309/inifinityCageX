@@ -16,6 +16,20 @@
 					</h3>
 				</div>
 				<div class="card-body">
+					<!-- Total Credits Issue -->
+					<div class="row mb-3 d-flex justify-content-center">
+						<span class="section-header text-center"><%= __('dashboard_marker.total_credits_issue') %></span>
+						<div class="col-sm-12 mb-3">
+							<input type="text" class="form-control text-center" name="txtTotalMarkerIssue" id="txtTotalMarkerIssue" 
+							value="<%- ( (+sqlMarkerIssueGame[0].TOTAL_ISSUE_GAME || 0) +
+							(+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
+							(+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
+							(+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
+							(+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
+							(+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0) ).toLocaleString() %>" readonly/>
+						</div>
+					</div>
+
 					<!-- Marker return form (same logic as dashboard modal) -->
 					<form id="add_marker_settlement_page" action="#" method="POST" class="mb-4">
 						<input type="hidden" id="AgentBalance" name="AgentBalance" />
