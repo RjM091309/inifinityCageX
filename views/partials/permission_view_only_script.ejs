@@ -1,0 +1,18 @@
+<!-- Reusable: disable buttons/links when permission 2 (view only). Add data-view-only-disable to elements. -->
+<style>
+  .view-only-disabled,
+  .view-only-disabled:focus,
+  .view-only-disabled:disabled {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+</style>
+<script src="/assets/js/functions/permission-view-only.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.PermissionViewOnly && typeof window.PermissionViewOnly.applyToPage === 'function') {
+      window.PermissionViewOnly.applyToPage();
+    }
+  });
+</script>

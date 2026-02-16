@@ -432,7 +432,7 @@ c103 -64 195 -293 198 -495 2 -114 -12 -152 -73 -192 -44 -31 -173 -32 -237
                                           <div class="progress-detail">
                                              <h6 class="mb-2">
                                                 <%= __('dashboard.total_chips') %>
-                                                   <a href="#modal-new-total-chips" data-bs-toggle="modal">
+                                                   <a href="#modal-new-total-chips" data-bs-toggle="modal" data-view-only-disable>
                                                       <span class="ms-2 plus-spacing">
                                                          <i class="fa-solid fa-circle-plus plus-icon"></i>
                                                       </span>
@@ -552,7 +552,7 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                           <div class="progress-detail">
                                              <h6 class="mb-2">
                                                 <%= __('dashboard.nn_chips') %>
-                                                   <a href="#modal-new-nn-chips" data-bs-toggle="modal">
+                                                   <a href="#modal-new-nn-chips" data-bs-toggle="modal" data-view-only-disable>
                                                       <span class="ms-2 plus-spacing">
                                                          <i class="fa-solid fa-eye plus-icon tooltip-hover"
                                                             data-bs-toggle="tooltip" data-bs-placement="top"
@@ -705,7 +705,7 @@ l-132 -7 -5 34 c-7 38 -27 332 -23 335 5 5 216 21 289 23 76 1 76 1 82 -26z" />
                                           <div class="progress-detail">
                                              <h6 class="mb-2 ">
                                                 <%= __('dashboard.cc_chips') %>
-                                                   <a href="#modal-new-cc-chips" data-bs-toggle="modal">
+                                                   <a href="#modal-new-cc-chips" data-bs-toggle="modal" data-view-only-disable>
                                                       <span class="ms-2 plus-spacing">
                                                          <i class="fa-solid fa-eye plus-icon tooltip-hover"
                                                             data-bs-toggle="tooltip" data-bs-placement="top"
@@ -930,7 +930,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                  <div class="row mt-4 house-balance-actions">
                                     <div class="col-6">
                                        <a href="#" class="btn bg-gradient-primary d-block rounded text-white" data-bs-toggle="modal"
-                                          data-bs-target="#modal-new-capital">
+                                          data-bs-target="#modal-new-capital" data-view-only-disable>
                                           <%= __('dashboard.add_view_history') %>
                                        </a>
                                     </div>
@@ -945,7 +945,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     <div class="pb-3">
                                        <div
                                           class="d-flex align-items-center justify-content-between mb-2 cursor-pointer"
-                                          data-bs-target="#modal-Cash-In" data-bs-toggle="modal">
+                                          data-bs-target="#modal-Cash-In" data-bs-toggle="modal" data-view-only-disable>
                                           <p class="mt-0">
                                              <%= __('dashboard.cash_in') %>
                                           </p>
@@ -963,7 +963,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     <div class="pb-3">
                                        <div
                                           class="d-flex align-items-center justify-content-between mb-2 cursor-pointer"
-                                          data-bs-target="#modal-Cash-Out" data-bs-toggle="modal">
+                                          data-bs-target="#modal-Cash-Out" data-bs-toggle="modal" data-view-only-disable>
                                           <p class="mb-0">
                                             <%= __('dashboard.cash_out') %>
                                           </p>
@@ -980,7 +980,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     <div class="pb-3">
                                        <div
                                           class="d-flex align-items-center justify-content-between mb-2 cursor-pointer"
-                                          data-bs-target="#modal-Transaction" data-bs-toggle="modal">
+                                          data-bs-target="#modal-Transaction" data-bs-toggle="modal" data-view-only-disable>
                                           <p class="mb-0">
                                              <%= __('dashboard.chips_transaction') %>
                                           </p>
@@ -1028,7 +1028,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                     </div>
                                     <span class="plus-spacing d-flex align-items-center justify-content-center">
                                        <a href="#" class="btn btn-sm btn-guest-balance" data-bs-toggle="modal"
-                                          data-bs-target="#modal-guestAccount">
+                                          data-bs-target="#modal-guestAccount" data-view-only-disable>
                                           <%= __('dashboard.details') %>
                                        </a>
                                     </span>
@@ -1067,7 +1067,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                        <a href="/agent" target="_blank" class="btn btn-sm btn-guest-balance flex-fill text-center">
                                           Guest
                                        </a>
-                                       <a href="#" class="btn btn-sm btn-net-junket-money flex-fill text-center" data-bs-toggle="modal" data-bs-target="#modal-services-new-record">
+                                       <a href="#" class="btn btn-sm btn-net-junket-money flex-fill text-center" data-bs-toggle="modal" data-bs-target="#modal-services-new-record" data-view-only-disable>
                                           Service
                                        </a>
                                        
@@ -1313,15 +1313,13 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                  <%- include ('modals/dashboard/marker') %>
                                     <%- include ('modals/dashboard/new_total_chips') %>
-                                       <%- include('partials/footer') %>
-
                                           <%- include ('modals/dashboard/nnchips') %>
                                              <%- include ('modals/dashboard/ccchips') %>
                                              <%- include('modals/accounts/account_details_alt') %>
                                              <%- include('modals/dashboard/cash_balance_history') %>
                                              <%- include ('modals/junket/new_service_record') %>
                                              <%- include ('modals/dashboard/winloss_details') %>
-
+                                             <%- include('partials/permission_view_only_script') %>
                                              <!-- Cash Balance Breakdown Modal - Admin Only -->
                                              <% if (user_id === 21) { %>
                                              <div class="modal fade" id="modal-cash-balance-breakdown" tabindex="-1" aria-labelledby="modal-cash-balance-breakdown-label" aria-hidden="true">
@@ -1702,3 +1700,5 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                          outline: none;
                                                       }
                                                    </style>
+
+<%- include('partials/footer') %>

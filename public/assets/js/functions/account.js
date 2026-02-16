@@ -212,6 +212,11 @@ $(document).ready(function () {
 				dataTable.draw();
 				$('#TOTAL_SUM_VALUE').text(`₱${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
 				
+				// View-only: disable submit/edit/delete in Records modal after table is populated
+				if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
+					window.PermissionViewOnly.disableModalSubmitAndDelete(null, document.getElementById('modal-account-ledger'));
+				}
+				
 				// Update Telegram usernames after data is loaded (for any rows that weren't updated during add)
 				updateTelegramUsernames();
 			},

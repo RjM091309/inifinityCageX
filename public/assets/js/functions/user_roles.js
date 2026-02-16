@@ -61,6 +61,10 @@ $(document).ready(function() {
 
             dataTable.row.add([row.ROLE,status,btn]).draw();
           });
+          if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
+            window.PermissionViewOnly.disableForViewOnly('#userRoleTable .btn-alt-danger');
+            window.PermissionViewOnly.disableForViewOnly('#userRoleTable .btn.bg-info-subtle');
+          }
         },
         error: function(xhr, status, error) {
           console.error('Error fetching data:', error);

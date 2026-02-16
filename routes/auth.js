@@ -108,11 +108,15 @@ router.get(["/", "/login"], (req, res) => {
 });
 
 router.get("/user_roles", checkSession, function (req, res) {
-	res.render("user_accounts/user_roles", sessions(req, 'user_roles'));
+	const data = sessions(req, 'user_roles');
+	data.permissions = req.session.permissions;
+	res.render("user_accounts/user_roles", data);
 });
 
 router.get("/manage_users", checkSession, function (req, res) {
-	res.render("user_accounts/manage_users", sessions(req, 'manage_users'));
+	const data = sessions(req, 'manage_users');
+	data.permissions = req.session.permissions;
+	res.render("user_accounts/manage_users", data);
 });
 
 // Login route

@@ -67,6 +67,10 @@ $(document).ready(function () {
 
                     dataTable.row.add([row.CATEGORY, typeLabel, status, btn]).draw();
                 });
+                if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
+                    window.PermissionViewOnly.disableForViewOnly('#expense-category-tbl .btn-alt-danger');
+                    window.PermissionViewOnly.disableForViewOnly('#expense-category-tbl .btn-alt-secondary');
+                }
             },
             error: function (xhr, status, error) {
                 console.error('Error fetching data:', error);

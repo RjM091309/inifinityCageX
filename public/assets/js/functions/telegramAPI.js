@@ -131,6 +131,10 @@ $(document).ready(function () {
                 '<button type="button" class="btn btn-sm btn-alt-danger btn-delete-chat-id" data-user-type="' + userType + '" data-index="' + i + '" title="' + (tr.delete || 'Delete') + '"><i class="fa fa-trash"></i></button>' +
                 '</td></tr>';
         }).join(''));
+        if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
+            window.PermissionViewOnly.disableForViewOnly('.btn-delete-chat-id');
+            window.PermissionViewOnly.disableForViewOnly('.btn-edit-chat-id');
+        }
     }
 
     function escapeHtml(s) {
@@ -444,6 +448,10 @@ $(document).ready(function () {
                 '<button type="button" class="btn btn-sm btn-alt-danger btn-delete-agent-chat-id" data-index="' + i + '" title="Delete"><i class="fa fa-trash"></i></button>' +
                 '</td></tr>';
         }).join(''));
+        if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
+            window.PermissionViewOnly.disableForViewOnly('.btn-delete-agent-chat-id');
+            window.PermissionViewOnly.disableForViewOnly('.btn-edit-agent-chat-id');
+        }
     }
     
     // Agent Chat IDs: Add button handler

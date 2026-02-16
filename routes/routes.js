@@ -1137,6 +1137,7 @@ pageRouter.get("/markerHistory", checkSession, async function (req, res) {
 			pool.execute(sqlChipsReturnMarker)
 		]);
 		const data = sessions(req, 'marker_history');
+		data.permissions = req.session.permissions;
 		data.sqlMarkerIssueGame = [r1[0][0] || { TOTAL_ISSUE_GAME: 0 }];
 		data.sqlMarkerIssueAccount = [r2[0][0] || { TOTAL_ISSUE_RECORD: 0 }];
 		data.sqlNNChipsAccountMarker = [r3[0][0] || { TOTAL_NN_MARKER: 0 }];
@@ -1147,6 +1148,7 @@ pageRouter.get("/markerHistory", checkSession, async function (req, res) {
 	} catch (err) {
 		console.error('markerHistory query error:', err);
 		const data = sessions(req, 'marker_history');
+		data.permissions = req.session.permissions;
 		data.sqlMarkerIssueGame = [{ TOTAL_ISSUE_GAME: 0 }];
 		data.sqlMarkerIssueAccount = [{ TOTAL_ISSUE_RECORD: 0 }];
 		data.sqlNNChipsAccountMarker = [{ TOTAL_NN_MARKER: 0 }];
@@ -1167,15 +1169,21 @@ pageRouter.get("/main_cage", function (req, res) {
 
 //========== USER ACCOUNTS ================
 pageRouter.get("/user_roles", function (req, res) {
-	res.render("user_accounts/user_roles", sessions(req, 'user_roles'));
+	const data = sessions(req, 'user_roles');
+	data.permissions = req.session.permissions;
+	res.render("user_accounts/user_roles", data);
 });
 
 pageRouter.get("/user_roles", checkSession, function (req, res) {
-	res.render("user_accounts/user_roles", sessions(req, 'user_roles'));
+	const data = sessions(req, 'user_roles');
+	data.permissions = req.session.permissions;
+	res.render("user_accounts/user_roles", data);
 });
 
 pageRouter.get("/manage_users", checkSession, function (req, res) {
-	res.render("user_accounts/manage_users", sessions(req, 'manage_users'));
+	const data = sessions(req, 'manage_users');
+	data.permissions = req.session.permissions;
+	res.render("user_accounts/manage_users", data);
 });
 
 // ======================= GAME STATISTICS ==================

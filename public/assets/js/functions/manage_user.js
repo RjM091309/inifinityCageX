@@ -53,6 +53,11 @@ $(document).ready(function () {
 
 					dataTable.row.add([row.LASTNAME, row.FIRSTNAME, row.USERNAME, row.role, status, btn]).draw();
 				});
+				// View-only: disable delete and edit buttons after table is populated
+				if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
+					window.PermissionViewOnly.disableForViewOnly('#usersTable .btn.bg-danger-subtle');
+					window.PermissionViewOnly.disableForViewOnly('#usersTable .btn.bg-info-subtle');
+				}
 			},
 			error: function (xhr, status, error) {
 				console.error('Error fetching data:', error);

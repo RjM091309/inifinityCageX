@@ -44,13 +44,13 @@
 				<div class="row">
 					<div class="col-sm-12">
 						<div class="card">
+							<div id="user-role" data-permissions="<%= permissions %>"></div>
 							<div class="card-header d-flex justify-content-between align-items-center">
 								<h3 class="card-title"><div class="breadcrumb1 flat">
 									<a href="/dashboard" ><span class="fa fa-home"></span></a>
 									<a href="/telegramAPI" class="active"><%= __('telegram_api.telegram_api') %></a>
 								</div></h3>
 							</div>
-							<div id="user-role" data-permissions="<%= permissions %>"></div>
 							<div class="card-body">
 								<div class="text-center mb-4">
 									<h5 class="mb-0 text-muted"><%= __('telegram_api.telegram_title') %></h5>
@@ -302,7 +302,7 @@
 					</div>
 				</div>
 			</div>
-
+			<%- include ('../partials/permission_view_only_script') %>
 			<%- include ('../partials/footer'); -%>
 
 			<script>
