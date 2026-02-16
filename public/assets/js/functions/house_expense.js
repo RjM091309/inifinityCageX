@@ -1193,7 +1193,8 @@ function expense_category() {
         url: '/expense_category_data',
         method: 'GET',
         success: function (response) {
-            var selectOptions = $('#txtCategory');
+            var selectOptions = $('#expense-category-select');
+            if (!selectOptions.length) return;
             selectOptions.empty();
             selectOptions.append($('<option>', {
                 value: '',
@@ -1277,6 +1278,164 @@ $(document).ready(function () {
         var num = $this.val().replace(/,/gi, "");
         var num2 = num.split(/(?=(?:\d{3})+$)/).join(",");
         $this.val(num2);
+    });
+
+    // New house expense modal: bind only when jQuery and DOM are ready (fixes "$ is not defined")
+    var isSubmittingNewExpense = false;
+    $('#modal-new-house-expense').on('shown.bs.modal', function () {
+        expense_category();
+        isSubmittingNewExpense = false;
+        var $btn = $('#btn-save-new-expense');
+        var originalText = $btn.data('original-text') || $btn.html();
+        var isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly && window.PermissionViewOnly.isViewOnly();
+        if (!isViewOnly) $btn.prop('disabled', false).html(originalText);
+        var $form = $('#add_junket_house_expense');
+        if ($form.length) $form[0].reset();
+    });
+    $('#modal-new-house-expense').on('hidden.bs.modal', function () {
+        isSubmittingNewExpense = false;
+        var $btn = $('#btn-save-new-expense');
+        var originalText = $btn.data('original-text') || $btn.html();
+        var isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly && window.PermissionViewOnly.isViewOnly();
+        if (!isViewOnly) $btn.prop('disabled', false).html(originalText);
+    });
+    $('#add_junket_house_expense').on('submit', function (event) {
+        event.preventDefault();
+        if (isSubmittingNewExpense) return false;
+        var isValid = true;
+        $(this).find(':input[required]').each(function () {
+            if ($(this).val() === '') {
+                isValid = false;
+                $(this).addClass('is-invalid');
+            } else {
+                $(this).removeClass('is-invalid');
+            }
+        });
+        if (!isValid) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Inserting Error', text: 'Please fill in all required fields.' });
+            }
+            return false;
+        }
+        isSubmittingNewExpense = true;
+        var $submitBtn = $('#btn-save-new-expense');
+        var originalText = $submitBtn.html();
+        $submitBtn.prop('disabled', true).html('Saving...');
+        var formData = new FormData(this);
+        var $form = $(this);
+        $.ajax({
+            url: '/add_junket_house_expense',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'success', title: 'Added successfully', confirmButtonText: 'OK', showConfirmButton: true }).then(function () {
+                        if (typeof reloadData === 'function') reloadData();
+                        $('#modal-new-house-expense').modal('hide');
+                        window.location.reload();
+                    });
+                } else {
+                    if (typeof reloadData === 'function') reloadData();
+                    $('#modal-new-house-expense').modal('hide');
+                    window.location.reload();
+                }
+            },
+            error: function (xhr, status, error) {
+                isSubmittingNewExpense = false;
+                $submitBtn.prop('disabled', false).html(originalText);
+                var errorMessage = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'An error occurred';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Error', text: errorMessage || 'Failed to save expense. Please try again.' });
+                }
+                console.error('Error saving house expense:', error);
+            }
+        });
+        return false;
+    });
+
+    // New return money modal: bind after jQuery is ready (fixes "$ is not defined" on house_expense page)
+    var isSubmittingReturnMoney = false;
+    $('#modal-new-return-money').on('shown.bs.modal', function () {
+        isSubmittingReturnMoney = false;
+        var $btn = $('#btn-save-new-return-money');
+        var originalText = $btn.data('original-text') || $btn.html();
+        var isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly && window.PermissionViewOnly.isViewOnly();
+        if (!isViewOnly) $btn.prop('disabled', false).html(originalText);
+        var $formEl = document.getElementById('add_return_money');
+        if ($formEl) $formEl.reset();
+    });
+    $('#modal-new-return-money').on('hidden.bs.modal', function () {
+        isSubmittingReturnMoney = false;
+        var $btn = $('#btn-save-new-return-money');
+        var originalText = $btn.data('original-text') || $btn.html();
+        var isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly && window.PermissionViewOnly.isViewOnly();
+        if (!isViewOnly) $btn.prop('disabled', false).html(originalText);
+    });
+    $('#add_return_money').on('submit', function (event) {
+        event.preventDefault();
+        if (isSubmittingReturnMoney) return false;
+        var $form = $(this);
+        var isValid = true;
+        $form.find(':input[required]').each(function () {
+            if ($(this).val() === '' || $(this).val().trim() === '') {
+                isValid = false;
+                $(this).addClass('is-invalid');
+            } else {
+                $(this).removeClass('is-invalid');
+            }
+        });
+        if (!isValid) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Please fill in all required fields.' });
+            }
+            return false;
+        }
+        isSubmittingReturnMoney = true;
+        var $submitBtn = $('#btn-save-new-return-money');
+        var originalText = $submitBtn.html();
+        $submitBtn.prop('disabled', true).html('Saving...');
+        var descriptionValue = $form.find('textarea[name="txtDescription"]').val() || '';
+        var amountValue = $form.find('input[name="txtAmount"]').val() || '';
+        if (amountValue) amountValue = amountValue.toString().replace(/,/g, '').trim();
+        var formData = { txtDescription: descriptionValue.trim(), txtAmount: amountValue };
+        if (!amountValue || amountValue === '' || parseFloat(amountValue) <= 0) {
+            isSubmittingReturnMoney = false;
+            $submitBtn.prop('disabled', false).html(originalText);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Please enter a valid amount.' });
+            }
+            return false;
+        }
+        $.ajax({
+            url: '/add_return_money',
+            type: 'POST',
+            data: formData,
+            success: function (response) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'success', title: 'Added successfully', confirmButtonText: 'OK', showConfirmButton: true }).then(function () {
+                        if (typeof reloadData === 'function') reloadData();
+                        $('#modal-new-return-money').modal('hide');
+                        window.location.reload();
+                    });
+                } else {
+                    if (typeof reloadData === 'function') reloadData();
+                    $('#modal-new-return-money').modal('hide');
+                    window.location.reload();
+                }
+            },
+            error: function (xhr, status, error) {
+                isSubmittingReturnMoney = false;
+                $submitBtn.prop('disabled', false).html(originalText);
+                var errorMessage = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'An error occurred';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Error', text: errorMessage || 'Failed to save return money. Please try again.' });
+                }
+                console.error('Error adding return money:', error);
+            }
+        });
+        return false;
     });
 })
 

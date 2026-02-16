@@ -116,10 +116,15 @@
             disableElement(balanceCheckList[b]);
         }
 
-        // New/Edit House Expense save buttons (e.g. house_expense page modals)
-        var expenseSaveIds = ['btn-save-new-expense', 'btn-save-edit-expense'];
-        for (var x = 0; x < expenseSaveIds.length; x++) {
-            var el = scope.querySelector ? scope.querySelector('#' + expenseSaveIds[x]) : null;
+        // Explicit Save button IDs (house expense, return money, etc.) – ensure disabled when permission = 2
+        var saveButtonIds = [
+            'btn-save-new-expense',
+            'btn-save-edit-expense',
+            'btn-save-new-return-money',
+            'btn-save-edit-return-money'
+        ];
+        for (var x = 0; x < saveButtonIds.length; x++) {
+            var el = scope.querySelector ? scope.querySelector('#' + saveButtonIds[x]) : null;
             if (el) disableElement(el);
         }
     }
@@ -147,6 +152,10 @@
         var modals = document.querySelectorAll('.modal');
         for (var m = 0; m < modals.length; m++) {
             modals[m].addEventListener('show.bs.modal', function () {
+                disableModalSubmitAndDelete(roleSelector, this);
+            });
+            // Re-apply on shown so Save stays disabled even if other scripts re-enable the button
+            modals[m].addEventListener('shown.bs.modal', function () {
                 disableModalSubmitAndDelete(roleSelector, this);
             });
         }
