@@ -449,7 +449,8 @@ $(document).ready(function () {
     // Agent Chat IDs: Add button handler
     $('.btn-add-agent-chat-id').on('click', function () {
         agentChatIdEditIndex = null;
-        $('#modal-agent-chat-id-label').text('Add Agent Chat ID');
+        var t = window.telegramAPITranslations || {};
+        $('#modal-agent-chat-id-label').text(t.add_agent_chat_id || 'Add Agent Chat ID');
         $('#input-agent-chat-id').val('');
         $('#modal-agent-chat-id-index').val('');
         var modalEl = document.getElementById('modal-agent-chat-id');
@@ -462,9 +463,10 @@ $(document).ready(function () {
     
     $('#btn-save-agent-chat-id').on('click', function () {
         const chatId = ($('#input-agent-chat-id').val() || '').trim();
+        var t = window.telegramAPITranslations || {};
         
         if (!chatId) {
-            Swal.fire({ title: 'Error', text: 'Please enter a Chat ID.', icon: 'warning' });
+            Swal.fire({ title: t.error_title || 'Error', text: t.please_enter_chat_id || 'Please enter a Chat ID.', icon: 'warning' });
             return;
         }
         
@@ -472,7 +474,7 @@ $(document).ready(function () {
         if (index === '' || index === null) {
             // Add new
             if (agentChatIds.indexOf(chatId) !== -1) {
-                Swal.fire({ title: 'Error', text: 'This Chat ID already exists.', icon: 'warning' });
+                Swal.fire({ title: t.error_title || 'Error', text: t.chat_id_already_exists || 'This Chat ID already exists.', icon: 'warning' });
                 return;
             }
             agentChatIds.push(chatId);
@@ -482,7 +484,7 @@ $(document).ready(function () {
             if (!isNaN(i) && i >= 0 && i < agentChatIds.length) {
                 const oldChatId = agentChatIds[i];
                 if (oldChatId !== chatId && agentChatIds.indexOf(chatId) !== -1) {
-                    Swal.fire({ title: 'Error', text: 'This Chat ID already exists.', icon: 'warning' });
+                    Swal.fire({ title: t.error_title || 'Error', text: t.chat_id_already_exists || 'This Chat ID already exists.', icon: 'warning' });
                     return;
                 }
                 agentChatIds[i] = chatId;
@@ -505,11 +507,11 @@ $(document).ready(function () {
                 } else {
                     $(modalEl).modal('hide');
                 }
-                Swal.fire({ title: 'Success', text: 'Saved.', icon: 'success' });
+                Swal.fire({ title: t.success || 'Success', text: t.saved || 'Saved.', icon: 'success' });
                 loadAgentChatIds();
             },
             error: function () {
-                Swal.fire({ title: 'Error', text: 'Failed to save.', icon: 'error' });
+                Swal.fire({ title: t.error_title || 'Error', text: t.failed_to_save || 'Failed to save.', icon: 'error' });
             }
         });
     });
@@ -519,9 +521,10 @@ $(document).ready(function () {
         const i = parseInt($(this).data('index'), 10);
         if (isNaN(i) || i < 0 || i >= agentChatIds.length) return;
         
+        var t = window.telegramAPITranslations || {};
         agentChatIdEditIndex = i;
         const chatId = agentChatIds[i];
-        $('#modal-agent-chat-id-label').text('Edit Agent Chat ID');
+        $('#modal-agent-chat-id-label').text(t.edit_agent_chat_id || 'Edit Agent Chat ID');
         $('#input-agent-chat-id').val(chatId);
         $('#modal-agent-chat-id-index').val(i);
         var modalEl = document.getElementById('modal-agent-chat-id');
@@ -537,13 +540,14 @@ $(document).ready(function () {
         const i = parseInt($(this).data('index'), 10);
         if (isNaN(i) || i < 0 || i >= agentChatIds.length) return;
         
+        var t = window.telegramAPITranslations || {};
         Swal.fire({
-            title: 'Delete Agent Chat ID?',
-            text: 'This chat will no longer receive notifications for agents INF501-INF599.',
+            title: t.delete_agent_chat_id || 'Delete Agent Chat ID?',
+            text: t.delete_agent_chat_id_confirm || 'This chat will no longer receive notifications for agents INF501-INF599.',
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonText: 'Delete',
-            cancelButtonText: 'Cancel'
+            confirmButtonText: t.delete || 'Delete',
+            cancelButtonText: t.cancel || 'Cancel'
         }).then(function (result) {
             if (!result.isConfirmed) return;
             const deletedChatId = agentChatIds.splice(i, 1)[0];
@@ -554,11 +558,11 @@ $(document).ready(function () {
                 contentType: 'application/json',
                 data: JSON.stringify({ agentChatIds: agentChatIds }),
                 success: function () {
-                    Swal.fire({ title: 'Success', text: 'Deleted.', icon: 'success' });
+                    Swal.fire({ title: t.success || 'Success', text: t.deleted || 'Deleted.', icon: 'success' });
                     loadAgentChatIds();
                 },
                 error: function () {
-                    Swal.fire({ title: 'Error', text: 'Failed to delete.', icon: 'error' });
+                    Swal.fire({ title: t.error_title || 'Error', text: t.failed_to_delete || 'Failed to delete.', icon: 'error' });
                 }
             });
         });

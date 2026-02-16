@@ -102,7 +102,7 @@
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>
 													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
-													<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
+													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
 													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
 												</tr>
 											</thead>
@@ -115,26 +115,26 @@
 									
 									<!-- Agent Notification Chat IDs -->
 									<div class="d-flex align-items-center justify-content-between mb-2">
-										<h6 class="mb-0">Agent Notification Chat IDs</h6>
+										<h6 class="mb-0"><%= __('telegram_api.agent_notification_chat_ids_title') %></h6>
 										<button type="button" class="btn btn-sm btn-success btn-add-agent-chat-id">
-											<i class="fa fa-plus me-1"></i> Add Agent Chat ID
+											<i class="fa fa-plus me-1"></i> <%= __('telegram_api.add_agent_chat_id') %>
 										</button>
 									</div>
-									<p class="text-muted small mb-3">Messages sent to guests <strong style="color: #000;">INF501-INF599</strong> will also be sent to these agent chat IDs.</p>
+									<p class="text-muted small mb-3"><%= __('telegram_api.agent_chat_ids_hint') %></p>
 									<div class="table-responsive">
 										<table class="table table-bordered table-vcenter" style="table-layout: fixed; width: 100%;">
 											<thead>
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>
-													<th style="width: calc((100% - 200px) / 2);">Chat ID</th>
-													<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
+													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
+													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
 													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
 												</tr>
 											</thead>
 											<tbody class="agent-chat-ids-tbody"></tbody>
 										</table>
 									</div>
-									<div class="agent-chat-ids-empty text-muted text-center py-3" style="display: none;">No agent chat IDs. Click "Add Agent Chat ID" to add one.</div>
+									<div class="agent-chat-ids-empty text-muted text-center py-3" style="display: none;"><%= __('telegram_api.agent_chat_ids_empty') %></div>
 								</div>
 								
 								<!-- MANAGEMENT BOT SECTION -->
@@ -183,7 +183,7 @@
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>
 													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
-													<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
+													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
 													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
 												</tr>
 											</thead>
@@ -239,7 +239,7 @@
 												<tr>
 													<th class="text-center" style="width: 60px;">#</th>
 													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_id') %></th>
-													<th style="width: calc((100% - 200px) / 2);">Chat Name / Username</th>
+													<th style="width: calc((100% - 200px) / 2);"><%= __('telegram_api.chat_name_username') %></th>
 													<th class="text-center" style="width: 140px;"><%= __('telegram_api.actions') %></th>
 												</tr>
 											</thead>
@@ -284,20 +284,20 @@
 				<div class="modal-dialog modal-dialog-centered">
 					<div class="modal-content">
 						<div class="modal-header">
-							<h5 class="modal-title" id="modal-agent-chat-id-label">Add Agent Chat ID</h5>
+							<h5 class="modal-title" id="modal-agent-chat-id-label"><%= __('telegram_api.add_agent_chat_id') %></h5>
 							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 						</div>
 						<div class="modal-body">
 							<input type="hidden" id="modal-agent-chat-id-index">
 							<div class="mb-2">
-								<label for="input-agent-chat-id" class="form-label">Chat ID</label>
-								<input type="text" class="form-control" id="input-agent-chat-id" placeholder="Chat ID">
-								<small class="text-muted">Use <code>/getchatid</code> in Telegram to get the Chat ID</small>
+								<label for="input-agent-chat-id" class="form-label"><%= __('telegram_api.chat_id') %></label>
+								<input type="text" class="form-control" id="input-agent-chat-id" placeholder="<%= __('telegram_api.chat_id') %>">
+								<small class="text-muted"><%= __('telegram_api.agent_modal_getchatid_hint') %></small>
 							</div>
 						</div>
 						<div class="modal-footer">
-							<button type="button" class="btn btn-primary" id="btn-save-agent-chat-id">Save</button>
-							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+							<button type="button" class="btn btn-primary" id="btn-save-agent-chat-id"><%= __('telegram_api.save') %></button>
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('telegram_api.cancel') %></button>
 						</div>
 					</div>
 				</div>
@@ -336,7 +336,19 @@
 					chat_ids_title: "<%= __('telegram_api.chat_ids_title') %>",
 					chat_ids_hint_before: "<%= __('telegram_api.chat_ids_hint_before') %>",
 					chat_ids_hint_after: "<%= __('telegram_api.chat_ids_hint_after') %>",
-					chat_ids_empty: "<%= __('telegram_api.chat_ids_empty') %>"
+					chat_ids_empty: "<%= __('telegram_api.chat_ids_empty') %>",
+					add_agent_chat_id: "<%= __('telegram_api.add_agent_chat_id') %>",
+					edit_agent_chat_id: "<%= __('telegram_api.edit_agent_chat_id') %>",
+					agent_chat_ids_empty: "<%= __('telegram_api.agent_chat_ids_empty') %>",
+					delete_agent_chat_id: "<%= __('telegram_api.delete_agent_chat_id') %>",
+					delete_agent_chat_id_confirm: "<%= __('telegram_api.delete_agent_chat_id_confirm') %>",
+					please_enter_chat_id: "<%= __('telegram_api.please_enter_chat_id') %>",
+					chat_id_already_exists: "<%= __('telegram_api.chat_id_already_exists') %>",
+					failed_to_save: "<%= __('telegram_api.failed_to_save') %>",
+					failed_to_delete: "<%= __('telegram_api.failed_to_delete') %>",
+					success: "<%= __('telegram_api.success') %>",
+					edit: "<%= __('telegram_api.edit') %>",
+					delete: "<%= __('telegram_api.delete') %>"
 				};
 			</script>
 

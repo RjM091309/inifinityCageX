@@ -597,7 +597,20 @@
 		"enter_management_chat_id": "输入管理聊天ID。",
 		"delete_management_chat_id": "删除管理聊天ID？",
 		"delete_management_chat_id_confirm": "此管理聊天将不再接收管理通知。",
-		"telegram_title": "telegram_api.telegram_title"
+		"telegram_title": "telegram_api.telegram_title",
+		"agent_notification_chat_ids_title": "代理通知聊天ID",
+		"add_agent_chat_id": "添加代理聊天ID",
+		"edit_agent_chat_id": "编辑代理聊天ID",
+		"agent_chat_ids_hint": "发送给客人 INF501-INF599 的消息也将发送到这些代理聊天ID。",
+		"chat_name_username": "聊天名称 / 用户名",
+		"agent_chat_ids_empty": "没有代理聊天ID。点击「添加代理聊天ID」以添加。",
+		"delete_agent_chat_id": "删除代理聊天ID？",
+		"delete_agent_chat_id_confirm": "此聊天将不再接收代理 INF501-INF599 的通知。",
+		"agent_modal_getchatid_hint": "在 Telegram 中使用 /getchatid 获取聊天ID。",
+		"please_enter_chat_id": "请输入聊天ID。",
+		"chat_id_already_exists": "此聊天ID已存在。",
+		"failed_to_save": "保存失败。",
+		"failed_to_delete": "删除失败。"
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN 筹码",
@@ -820,6 +833,24 @@
 		"remarks_placeholder": "备注",
 		"save": "保存",
 		"close": "关闭"
+	},
+	"modal_new_announcement": {
+		"new_announcement": "新公告",
+		"message": "消息",
+		"message_placeholder": "在此输入公告内容（可选）...",
+		"message_hint": "仅发送图片时可留空",
+		"picture": "图片",
+		"picture_formats_hint": "支持格式：JPG、PNG、GIF",
+		"remove": "移除",
+		"send_announcement": "发送公告",
+		"close": "关闭",
+		"validation_error": "验证错误",
+		"please_enter_message_or_picture": "请输入消息或上传图片",
+		"sending": "发送中...",
+		"success": "成功！",
+		"error": "错误",
+		"failed_to_send": "发送公告失败",
+		"error_occurred": "发送公告时发生错误"
 	},
 	"modal_edit_agency": {
 		"edit_agency": "编辑代理",

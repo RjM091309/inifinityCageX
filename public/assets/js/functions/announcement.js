@@ -51,19 +51,20 @@ document.addEventListener('DOMContentLoaded', function() {
 			const message = messageInput.value.trim();
 			const hasPicture = pictureInput.files[0];
 			
+			var t = window.announcementModalTranslations || {};
 			// At least one of message or picture must be provided
 			if (!message && !hasPicture) {
 				Swal.fire({
 					icon: 'error',
-					title: 'Validation Error',
-					text: 'Please enter a message or upload a picture'
+					title: t.validation_error || 'Validation Error',
+					text: t.please_enter_message_or_picture || 'Please enter a message or upload a picture'
 				});
 				return;
 			}
 
 			// Disable submit button
 			if (submitBtn) submitBtn.disabled = true;
-			submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Sending...';
+			submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> ' + (t.sending || 'Sending...');
 
 			try {
 				const formData = new FormData();
@@ -80,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 				// Check if response is ok
 				if (!response.ok) {
-					let errorMessage = 'Failed to send announcement';
+					let errorMessage = t.failed_to_send || 'Failed to send announcement';
 					try {
 						const errorData = await response.json();
 						errorMessage = errorData.error || errorMessage;
@@ -95,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
 				if (result.success) {
 					Swal.fire({
 						icon: 'success',
-						title: 'Success!',
+						title: t.success || 'Success!',
 						text: result.message,
 						timer: 3000,
 						showConfirmButton: false
@@ -110,29 +111,29 @@ document.addEventListener('DOMContentLoaded', function() {
 					// Reset button state
 					if (submitBtn) {
 						submitBtn.disabled = false;
-						submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> Send Announcement';
+						submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> ' + (t.send_announcement || 'Send Announcement');
 					}
 				} else {
 					Swal.fire({
 						icon: 'error',
-						title: 'Error',
-						text: result.error || 'Failed to send announcement'
+						title: t.error || 'Error',
+						text: result.error || (t.failed_to_send || 'Failed to send announcement')
 					});
 					if (submitBtn) {
 						submitBtn.disabled = false;
-						submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> Send Announcement';
+						submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> ' + (t.send_announcement || 'Send Announcement');
 					}
 				}
 			} catch (error) {
 				console.error('Error:', error);
 				Swal.fire({
 					icon: 'error',
-					title: 'Error',
-					text: error.message || 'An error occurred while sending the announcement'
+					title: t.error || 'Error',
+					text: error.message || (t.error_occurred || 'An error occurred while sending the announcement')
 				});
 				if (submitBtn) {
 					submitBtn.disabled = false;
-					submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> Send Announcement';
+					submitBtn.innerHTML = '<i class="fa fa-paper-plane"></i> ' + (t.send_announcement || 'Send Announcement');
 				}
 			}
 		});

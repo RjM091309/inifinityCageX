@@ -597,7 +597,20 @@
 		"enter_management_chat_id": "管理チャットIDを入力してください。",
 		"delete_management_chat_id": "管理チャットIDを削除しますか？",
 		"delete_management_chat_id_confirm": "この管理チャットは、管理通知を受信しなくなります。",
-		"telegram_title": "telegram_api.telegram_title"
+		"telegram_title": "telegram_api.telegram_title",
+		"agent_notification_chat_ids_title": "エージェント通知チャットID",
+		"add_agent_chat_id": "エージェントチャットIDを追加",
+		"edit_agent_chat_id": "エージェントチャットIDを編集",
+		"agent_chat_ids_hint": "ゲスト INF501-INF599 に送信されるメッセージは、これらのエージェントチャットIDにも送信されます。",
+		"chat_name_username": "チャット名 / ユーザー名",
+		"agent_chat_ids_empty": "エージェントチャットIDがありません。「エージェントチャットIDを追加」をクリックして追加してください。",
+		"delete_agent_chat_id": "エージェントチャットIDを削除しますか？",
+		"delete_agent_chat_id_confirm": "このチャットは、エージェント INF501-INF599 の通知を受信しなくなります。",
+		"agent_modal_getchatid_hint": "Telegramで /getchatid を使用してチャットIDを取得してください。",
+		"please_enter_chat_id": "チャットIDを入力してください。",
+		"chat_id_already_exists": "このチャットIDは既に存在します。",
+		"failed_to_save": "保存に失敗しました。",
+		"failed_to_delete": "削除に失敗しました。"
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NNチップ",
@@ -820,6 +833,24 @@
 		"remarks_placeholder": "備考",
 		"save": "保存",
 		"close": "閉じる"
+	},
+	"modal_new_announcement": {
+		"new_announcement": "新規お知らせ",
+		"message": "メッセージ",
+		"message_placeholder": "お知らせメッセージを入力してください（任意）...",
+		"message_hint": "画像のみ送る場合は空欄にしてください",
+		"picture": "画像",
+		"picture_formats_hint": "対応形式: JPG, PNG, GIF",
+		"remove": "削除",
+		"send_announcement": "お知らせを送信",
+		"close": "閉じる",
+		"validation_error": "入力エラー",
+		"please_enter_message_or_picture": "メッセージを入力するか画像をアップロードしてください",
+		"sending": "送信中...",
+		"success": "成功!",
+		"error": "エラー",
+		"failed_to_send": "お知らせの送信に失敗しました",
+		"error_occurred": "お知らせ送信中にエラーが発生しました"
 	},
 	"modal_edit_agency": {
 		"edit_agency": "エージェントの編集",

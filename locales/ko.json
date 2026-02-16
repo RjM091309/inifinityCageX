@@ -597,8 +597,20 @@
 		"enter_management_chat_id": "관리 채팅 ID를 입력하세요.",
 		"delete_management_chat_id": "관리 채팅 ID를 삭제하시겠습니까?",
 		"delete_management_chat_id_confirm": "이 관리 채팅은 더 이상 관리 알림을 받지 않습니다.",
-		"telegram_title": "텔레그램 토큰"
-
+		"telegram_title": "텔레그램 토큰",
+		"agent_notification_chat_ids_title": "에이전트 알림 채팅 ID",
+		"add_agent_chat_id": "에이전트 채팅 ID 추가",
+		"edit_agent_chat_id": "에이전트 채팅 ID 편집",
+		"agent_chat_ids_hint": "게스트 INF501-INF599에게 보내는 메시지는 이 에이전트 채팅 ID에도 전송됩니다.",
+		"chat_name_username": "채팅 이름 / 사용자 이름",
+		"agent_chat_ids_empty": "에이전트 채팅 ID가 없습니다. \"에이전트 채팅 ID 추가\"를 클릭하여 추가하세요.",
+		"delete_agent_chat_id": "에이전트 채팅 ID를 삭제하시겠습니까?",
+		"delete_agent_chat_id_confirm": "이 채팅은 더 이상 에이전트 INF501-INF599 알림을 받지 않습니다.",
+		"agent_modal_getchatid_hint": "텔레그램에서 /getchatid 를 사용하여 채팅 ID를 가져오세요.",
+		"please_enter_chat_id": "채팅 ID를 입력하세요.",
+		"chat_id_already_exists": "이 채팅 ID가 이미 존재합니다.",
+		"failed_to_save": "저장에 실패했습니다.",
+		"failed_to_delete": "삭제에 실패했습니다."
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN 칩",
@@ -821,6 +833,24 @@
 		"remarks_placeholder": "발언",
 		"save": "저장",
 		"close": "닫기"
+	},
+	"modal_new_announcement": {
+		"new_announcement": "새 공지사항",
+		"message": "메시지",
+		"message_placeholder": "공지 메시지를 입력하세요 (선택사항)...",
+		"message_hint": "사진만 보내려면 비워두세요",
+		"picture": "사진",
+		"picture_formats_hint": "지원 형식: JPG, PNG, GIF",
+		"remove": "제거",
+		"send_announcement": "공지 보내기",
+		"close": "닫기",
+		"validation_error": "입력 오류",
+		"please_enter_message_or_picture": "메시지를 입력하거나 사진을 업로드하세요",
+		"sending": "전송 중...",
+		"success": "성공!",
+		"error": "오류",
+		"failed_to_send": "공지 전송에 실패했습니다",
+		"error_occurred": "공지 전송 중 오류가 발생했습니다"
 	},
 	"modal_edit_agency": {
 		"edit_agency": "에이전트 편집",

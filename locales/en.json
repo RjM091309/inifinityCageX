@@ -596,7 +596,20 @@
 		"management_chat_ids_empty": "No management chat IDs. Click \"Add Management Chat ID\" to add a management group or channel.",
 		"enter_management_chat_id": "Enter a Management Chat ID.",
 		"delete_management_chat_id": "Delete Management Chat ID?",
-		"delete_management_chat_id_confirm": "This management chat will no longer receive management notifications."
+		"delete_management_chat_id_confirm": "This management chat will no longer receive management notifications.",
+		"agent_notification_chat_ids_title": "Agent Notification Chat IDs",
+		"add_agent_chat_id": "Add Agent Chat ID",
+		"edit_agent_chat_id": "Edit Agent Chat ID",
+		"agent_chat_ids_hint": "Messages sent to guests INF501-INF599 will also be sent to these agent chat IDs.",
+		"chat_name_username": "Chat Name / Username",
+		"agent_chat_ids_empty": "No agent chat IDs. Click \"Add Agent Chat ID\" to add one.",
+		"delete_agent_chat_id": "Delete Agent Chat ID?",
+		"delete_agent_chat_id_confirm": "This chat will no longer receive notifications for agents INF501-INF599.",
+		"agent_modal_getchatid_hint": "Use /getchatid in Telegram to get the Chat ID",
+		"please_enter_chat_id": "Please enter a Chat ID.",
+		"chat_id_already_exists": "This Chat ID already exists.",
+		"failed_to_save": "Failed to save.",
+		"failed_to_delete": "Failed to delete."
 	},
 	"dashboard_total_chips": {
 		"nn_chips": "NN Chips",
@@ -819,6 +832,24 @@
 		"remarks_placeholder": "Remarks",
 		"save": "Save",
 		"close": "Close"
+	},
+	"modal_new_announcement": {
+		"new_announcement": "New Announcement",
+		"message": "Message",
+		"message_placeholder": "Enter your announcement message here (optional)...",
+		"message_hint": "Leave empty if you only want to send a picture",
+		"picture": "Picture",
+		"picture_formats_hint": "Supported formats: JPG, PNG, GIF",
+		"remove": "Remove",
+		"send_announcement": "Send Announcement",
+		"close": "Close",
+		"validation_error": "Validation Error",
+		"please_enter_message_or_picture": "Please enter a message or upload a picture",
+		"sending": "Sending...",
+		"success": "Success!",
+		"error": "Error",
+		"failed_to_send": "Failed to send announcement",
+		"error_occurred": "An error occurred while sending the announcement"
 	},
 	"modal_edit_agency": {
 		"edit_agency": "Edit Agent",

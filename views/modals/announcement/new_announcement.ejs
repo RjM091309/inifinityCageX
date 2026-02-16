@@ -4,7 +4,7 @@
 	<div class="modal-dialog modal-dialog-centered modal-lg" role="document">
 		<div class="modal-content">
 			<div class="modal-header bg-primary">
-				<h5 class="block-title text-white" id="modal-new-announcement-label">New Announcement</h5>
+				<h5 class="block-title text-white" id="modal-new-announcement-label"><%= __('modal_new_announcement.new_announcement') %></h5>
 				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			
@@ -12,20 +12,20 @@
 				<form id="form-new-announcement" enctype="multipart/form-data">
 					<div class="row mb-3">
 						<div class="col-sm-12">
-							<label class="form-label">Message</label>
+							<label class="form-label"><%= __('modal_new_announcement.message') %></label>
 							<textarea 
 								class="form-control" 
 								id="announcement-message" 
 								name="message" 
 								rows="5" 
-								placeholder="Enter your announcement message here (optional)..."></textarea>
-							<small class="form-text text-muted">Leave empty if you only want to send a picture</small>
+								placeholder="<%= __('modal_new_announcement.message_placeholder') %>"></textarea>
+							<small class="form-text text-muted"><%= __('modal_new_announcement.message_hint') %></small>
 						</div>
 					</div>
 					
 					<div class="row mb-3">
 						<div class="col-sm-12">
-							<label class="form-label">Picture</label>
+							<label class="form-label"><%= __('modal_new_announcement.picture') %></label>
 							<div class="mb-2">
 							<input 
 								type="file" 
@@ -33,12 +33,12 @@
 								id="announcement-picture" 
 								name="picture" 
 								accept="image/*">
-							<small class="form-text text-muted">Supported formats: JPG, PNG, GIF</small>
+							<small class="form-text text-muted"><%= __('modal_new_announcement.picture_formats_hint') %></small>
 							</div>
 							<div id="picture-preview-container" class="d-none mt-2">
 								<img id="picture-preview" src="" alt="Preview" class="img-thumbnail" style="max-width: 300px; max-height: 300px;">
 								<button type="button" class="btn btn-sm btn-danger ms-2" id="remove-picture-btn">
-									<i class="fa fa-times"></i> Remove
+									<i class="fa fa-times"></i> <%= __('modal_new_announcement.remove') %>
 								</button>
 							</div>
 						</div>
@@ -46,13 +46,24 @@
 					
 					<div class="modal-footer">
 						<button type="submit" class="btn btn-sm btn-primary" id="submit-announcement-btn">
-							<i class="fa fa-paper-plane"></i> Send Announcement
+							<i class="fa fa-paper-plane"></i> <%= __('modal_new_announcement.send_announcement') %>
 						</button>
-						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_new_announcement.close') %></button>
 					</div>
 				</form>
 			</div>
 		</div>
 	</div>
 </div>
-
+<script>
+window.announcementModalTranslations = {
+	validation_error: "<%= __('modal_new_announcement.validation_error') %>",
+	please_enter_message_or_picture: "<%= __('modal_new_announcement.please_enter_message_or_picture') %>",
+	sending: "<%= __('modal_new_announcement.sending') %>",
+	success: "<%= __('modal_new_announcement.success') %>",
+	error: "<%= __('modal_new_announcement.error') %>",
+	failed_to_send: "<%= __('modal_new_announcement.failed_to_send') %>",
+	error_occurred: "<%= __('modal_new_announcement.error_occurred') %>",
+	send_announcement: "<%= __('modal_new_announcement.send_announcement') %>"
+};
+</script>
