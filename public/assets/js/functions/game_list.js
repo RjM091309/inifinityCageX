@@ -82,9 +82,13 @@ function translateGameSource(source) {
 
 $(document).ready(function () {
 
-
-	  
-
+	// Custom sort for GAME # column: works for both game view (INF500) and account view ("2 games")
+	$.fn.dataTable.ext.type.order['game-list-col2-pre'] = function (d) {
+		if (!d) return 0;
+		var text = (typeof d === 'string' ? d : String(d)).replace(/<[^>]*>/g, '');
+		var m = text.match(/(\d+)/);
+		return m ? parseInt(m[1], 10) : 0;
+	};
 
 	const highlightId = getQueryParam('id');
 
@@ -109,7 +113,7 @@ $(document).ready(function () {
 		],
 	
 		columnDefs: [
-			{ targets: 2, type: 'num', className: 'text-center' },       // GAME # (IDNo): numeric sort, latest first
+			{ targets: 2, type: 'game-list-col2', className: 'text-center' },       // GAME # / game count: custom numeric sort
 			{ targets: 4, className: 'text-center col-buyin' },          // BUY-IN (Blue)
 			{ targets: 7, className: 'text-center col-total-rolling' }, // TOTAL ROLLING (Green)
 			{ targets: 11, className: 'text-center col-winloss' },      // WIN/LOSS (Orange) - Column 11, not 10
@@ -334,12 +338,12 @@ $(document).ready(function () {
                         var match = acctStr.match(/\d+/);
                         var acctNum = match ? parseInt(match[0], 10) : null;
                         if (acctNum === null || acctNum < minNum || acctNum > maxNum) return;
-                        var acct_no_link = '<a href="#" onclick="account_details(' + acc.accountId + ', \'' + (acc.agent_code || '').replace(/'/g, "\\'") + '\', \'' + (acc.agent_name || '').replace(/'/g, "\\'") + '\')">' + (acc.agent_code || '') + ' (' + (acc.agent_name || '') + ')</a>';
-                        var gamesLabel = (acc.gameCount || 0) + ' game' + ((acc.gameCount || 0) !== 1 ? 's' : '');
-                        dataTable.row.add([
-                            '-',
-                            '-',
-                            gamesLabel,
+						var acct_no_link = '<a href="#" onclick="account_details(' + acc.accountId + ', \'' + (acc.agent_code || '').replace(/'/g, "\\'") + '\', \'' + (acc.agent_name || '').replace(/'/g, "\\'") + '\')">' + (acc.agent_code || '') + ' (' + (acc.agent_name || '') + ')</a>';
+						var gamesLabel = (acc.gameCount || 0) + ' game' + ((acc.gameCount || 0) !== 1 ? 's' : '');
+						dataTable.row.add([
+							'-',
+							'-',
+							gamesLabel,
                             acct_no_link,
                             parseFloat(acc.total_amount || 0).toLocaleString(),
                             parseFloat(acc.total_cash_out || 0).toLocaleString(),
