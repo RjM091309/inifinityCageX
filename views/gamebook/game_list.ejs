@@ -596,11 +596,6 @@ table.dataTable tbody tr.highlight-row {
 							font-size: 0.8rem;
 							color: #999;
 						}
-						/* When Account Search active: hide list, show Grand Total only */
-						#game_list-tbl.account-search-only tbody {
-							display: none;
-						}
-
 						@media screen and (max-width: 768px) {
 	.dataTables_wrapper .dataTables_length,
 	.dataTables_wrapper .dataTables_filter {
@@ -967,23 +962,7 @@ table.dataTable tbody tr.highlight-row {
 								return false; // Exclude the row if it doesn't match the filter
 							});
 
-							// Account Search - filter by ACCT No, supports range (e.g. 500-501)
-							$.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-								if (settings.nTable.id !== 'game_list-tbl') return true;
-								var val = ($('#input-account-search').val() || '').trim();
-								if (!val) return true;
-								var acctStr = (data[3] || '').toString();
-								var match = acctStr.match(/\d+/);
-								var acctNum = match ? parseInt(match[0], 10) : null;
-								if (acctNum === null) return false;
-								var parts = val.split(/[\s\-–—]+/).map(function (p) { return p.trim(); }).filter(Boolean);
-								var minNum = parseInt(parts[0], 10);
-								var maxNum = parts.length > 1 ? parseInt(parts[1], 10) : minNum;
-								if (isNaN(minNum)) return true;
-								if (isNaN(maxNum)) maxNum = minNum;
-								if (minNum > maxNum) return false; // invalid range - first must be <= second
-								return acctNum >= minNum && acctNum <= maxNum;
-							});
+							// Account Search is handled in game_list.js: when value is entered, table shows one row per account with totals (not each game)
 
 							// Re-draw the DataTable whenever the date inputs change
 							$('#from-date, #to-date').change(function () {

@@ -634,8 +634,8 @@ router.post('/add_account_details', async (req, res) => {
 				]);
 			}
 
-			if (telegramIdResults.length > 0 && guestAccountNumResults.length > 0 && guestNameResults.length > 0) {
-				const telegramId = telegramIdResults[0].TELEGRAM_ID;
+			if (guestAccountNumResults.length > 0 && guestNameResults.length > 0) {
+				const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
 				const guestAccountNum = guestAccountNumResults[0].AGENT_CODE;
 				const guestName = guestNameResults[0].NAME;
 
@@ -660,18 +660,13 @@ router.post('/add_account_details', async (req, res) => {
 				let telegramError = null;
 
 				if (sendToTelegram) {
-					// Check if TELEGRAM_ID exists and is valid before sending
+					// Send to agent (only when TELEGRAM_ID exists)
 					if (telegramId && telegramId !== null && telegramId !== '') {
 						try {
-							// Send the message to the guest's Telegram ID
 							await sendTelegramMessage(text, telegramId);
-							// Send to all additional chat IDs (groups/channels) — supports comma-separated CHAT_ID
-							await sendTelegramToAdditionalChats(text);
 						} catch (telegramErr) {
-							// Check for specific Telegram error types
 							const errorMsg = telegramErr.message || '';
 							let specificError = '';
-							
 							if (errorMsg.includes('chat not found')) {
 								specificError = `Wrong or Invalid Telegram Chat ID for account: ${guestAccountNum} - ${guestName}. The user may not have started a conversation with the bot. Please ask them to send /start to the bot first.`;
 							} else if (errorMsg.includes('Bad Request')) {
@@ -687,20 +682,26 @@ router.post('/add_account_details', async (req, res) => {
 							} else {
 								specificError = `Failed to send Telegram message to account: ${guestAccountNum} - ${guestName}. Error: ${errorMsg}`;
 							}
-							
 							telegramError = specificError;
 							console.error('Error sending Telegram message (transaction still saved):', telegramErr.message);
 						}
 					} else {
-						telegramError = `Missing or Invalid Telegram ID for account: ${guestAccountNum} - ${guestName}. Please add a valid Telegram Chat ID in the account settings.`;
-						console.warn('Telegram ID is missing or invalid, skipping Telegram notification');
+						console.warn('Telegram ID is missing or invalid for account:', guestAccountNum, '-', guestName);
+					}
+
+					// Send to additional chats - always (even when guest has no TELEGRAM_ID)
+					try {
+						await sendTelegramToAdditionalChats(text);
+					} catch (telegramErr) {
+						telegramError = telegramError || `Failed to send to additional chats: ${telegramErr.message}`;
+						console.error('Error sending to additional chats:', telegramErr.message);
 					}
 				}
 
 				// Return error if Telegram failed, otherwise success
 				if (telegramError) {
-					return res.status(200).json({ 
-						success: true, 
+					return res.status(200).json({
+						success: true,
 						message: 'Transaction completed successfully, but Telegram notification failed.',
 						error: telegramError
 					});
@@ -708,7 +709,7 @@ router.post('/add_account_details', async (req, res) => {
 
 				res.send('Form submitted and message sent successfully!');
 			} else {
-				res.status(404).send('Telegram ID not found.');
+				res.status(404).send('Account or guest info not found.');
 			}
 		} else {
 			res.status(404).send('Transaction not found.');
@@ -735,14 +736,6 @@ router.post('/check_balance/:accountId', async (req, res) => {
 		if (results.length === 0) return res.json({ success: false });
 
 		const { TELEGRAM_ID, AGENT_CODE, NAME } = results[0];
-
-		// Check if TELEGRAM_ID exists and is valid
-		if (!TELEGRAM_ID || TELEGRAM_ID === null || TELEGRAM_ID === '') {
-			return res.status(400).json({ 
-				success: false, 
-				message: 'No Telegram ID found for this account. Please link a Telegram account first.' 
-			});
-		}
 
 		// Calculate balance from ledger entries
 		const [ledgerResults] = await pool.query(`
@@ -773,37 +766,39 @@ router.post('/check_balance/:accountId', async (req, res) => {
 
 		const message = `Infinity Cage\n\n* 잔고 확인 *\n\n계정: ${AGENT_CODE} - ${NAME}\n잔고: ${balanceFormatted}\n\n날짜: ${date_now}\n시간: ${time_now}`;
 
-		try {
-			await sendTelegramMessage(message, TELEGRAM_ID);
-			// Also notify all additional chat IDs (groups/channels)
-			await sendTelegramToAdditionalChats(message);
-			res.json({ success: true });
-		} catch (telegramError) {
-			// Check for specific Telegram error types
-			const errorMsg = telegramError.message || '';
-			let specificError = '';
-			
-			if (errorMsg.includes('chat not found')) {
-				specificError = `Wrong or Invalid Telegram Chat ID for account: ${AGENT_CODE} - ${NAME}. The user may not have started a conversation with the bot. Please ask them to send /start to the bot first.`;
-			} else if (errorMsg.includes('Bad Request')) {
-				specificError = `Wrong Telegram Chat ID format for account: ${AGENT_CODE} - ${NAME}. The Chat ID may be incorrect or invalid.`;
-			} else if (errorMsg.includes('Forbidden')) {
-				specificError = `Telegram message blocked for account: ${AGENT_CODE} - ${NAME}. The user may have blocked the bot.`;
-			} else if (errorMsg.includes('Unauthorized')) {
-				specificError = `Telegram bot authorization failed for account: ${AGENT_CODE} - ${NAME}. Please check bot configuration.`;
-			} else if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
-				specificError = `Telegram connection timeout for account: ${AGENT_CODE} - ${NAME}. Please try again later.`;
-			} else if (errorMsg.includes('network') || errorMsg.includes('ECONN')) {
-				specificError = `Telegram network error for account: ${AGENT_CODE} - ${NAME}. Please check internet connection.`;
-			} else {
-				specificError = `Failed to send Telegram message to account: ${AGENT_CODE} - ${NAME}. Error: ${errorMsg}`;
+		let telegramError = null;
+
+		// Send to agent (only when TELEGRAM_ID exists)
+		if (TELEGRAM_ID && TELEGRAM_ID !== null && TELEGRAM_ID !== '') {
+			try {
+				await sendTelegramMessage(message, TELEGRAM_ID);
+			} catch (err) {
+				const errorMsg = err.message || '';
+				if (errorMsg.includes('chat not found')) {
+					telegramError = `Wrong or Invalid Telegram Chat ID for account: ${AGENT_CODE} - ${NAME}. The user may not have started a conversation with the bot.`;
+				} else if (errorMsg.includes('Bad Request')) {
+					telegramError = `Wrong Telegram Chat ID format for account: ${AGENT_CODE} - ${NAME}.`;
+				} else if (errorMsg.includes('Forbidden')) {
+					telegramError = `Telegram message blocked for account: ${AGENT_CODE} - ${NAME}.`;
+				} else {
+					telegramError = `Failed to send to agent: ${errorMsg}`;
+				}
+				console.error('Check balance - send to agent failed:', err.message);
 			}
-			
-			return res.status(400).json({ 
-				success: false, 
-				message: specificError
-			});
 		}
+
+		// Send to additional chats - always (even when guest has no TELEGRAM_ID)
+		try {
+			await sendTelegramToAdditionalChats(message);
+		} catch (err) {
+			telegramError = telegramError || `Failed to send to additional chats: ${err.message}`;
+			console.error('Check balance - send to additional chats failed:', err.message);
+		}
+
+		if (telegramError) {
+			return res.status(200).json({ success: true, message: 'Balance check sent to additional chats.', error: telegramError });
+		}
+		res.json({ success: true });
 	} catch (err) {
 		console.error('Balance check error:', err);
 		res.status(500).json({ success: false });
@@ -903,106 +898,81 @@ router.post('/add_account_details/transfer', async (req, res) => {
 
 		// Prepare and send messages for the account from which the transfer is made
 		if (telegramIdResultsFrom.length > 0) {
-			for (const resultFrom of telegramIdResultsFrom) {
-				const { TELEGRAM_ID: TELEGRAM_ID_FROM, AGENT_CODE: AGENT_CODE_FROM, NAME: NAME_FROM } = resultFrom;
+			const resultFrom = telegramIdResultsFrom[0];
+			const { TELEGRAM_ID: TELEGRAM_ID_FROM, AGENT_CODE: AGENT_CODE_FROM, NAME: NAME_FROM } = resultFrom;
 
-				// Check if TELEGRAM_ID exists and is valid before sending
-				if (!TELEGRAM_ID_FROM || TELEGRAM_ID_FROM === null || TELEGRAM_ID_FROM === '') {
-					telegramErrors.push(`Missing or Invalid Telegram ID for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. Please add a valid Telegram Chat ID in the account settings.`);
-					console.warn(`Telegram ID missing for sender account ${AGENT_CODE_FROM}, skipping Telegram notification`);
-					continue;
-				}
+			const SenderCurrentBalance = senderBalanceBefore - totalAmount;
+			let time_now = new Date();
+			time_now.setHours(time_now.getHours());
+			let updated_time = time_now.toLocaleTimeString();
+			let date_nowTG = new Date().toLocaleDateString();
 
-				// Recompute based on server-side balance to avoid relying on client values
-				const SenderCurrentBalance = senderBalanceBefore - totalAmount;
+			const textFrom = `Infinity Cage\n\n* 이체 *\n\n계정: ${AGENT_CODE_FROM} - ${NAME_FROM}\n받으신분: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\n금액: -${totalAmount.toLocaleString()}\n잔고: ${SenderCurrentBalance.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
-				let time_now = new Date();
-				time_now.setHours(time_now.getHours());
-				let updated_time = time_now.toLocaleTimeString();
-				let date_nowTG = new Date().toLocaleDateString();
-
-				// Prepare message with "From" account details and "To" account details
-				const textFrom = `Infinity Cage\n\n* 이체 *\n\n계정: ${AGENT_CODE_FROM} - ${NAME_FROM}\n받으신분: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\n금액: -${totalAmount.toLocaleString()}\n잔고: ${SenderCurrentBalance.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-
+			// Send to agent (only when TELEGRAM_ID exists)
+			if (TELEGRAM_ID_FROM && TELEGRAM_ID_FROM !== null && TELEGRAM_ID_FROM !== '') {
 				try {
 					await sendTelegramMessage(textFrom, TELEGRAM_ID_FROM);
-					await sendTelegramToAdditionalChats(textFrom);
 				} catch (telegramError) {
-					// Check for specific Telegram error types
 					const errorMsg = telegramError.message || '';
 					let specificError = '';
-					
-					if (errorMsg.includes('chat not found')) {
-						specificError = `Wrong or Invalid Telegram Chat ID for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. The user may not have started a conversation with the bot. Please ask them to send /start to the bot first.`;
-					} else if (errorMsg.includes('Bad Request')) {
-						specificError = `Wrong Telegram Chat ID format for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. The Chat ID may be incorrect or invalid.`;
-					} else if (errorMsg.includes('Forbidden')) {
-						specificError = `Telegram message blocked for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. The user may have blocked the bot.`;
-					} else if (errorMsg.includes('Unauthorized')) {
-						specificError = `Telegram bot authorization failed for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. Please check bot configuration.`;
-					} else if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
-						specificError = `Telegram connection timeout for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. Please try again later.`;
-					} else if (errorMsg.includes('network') || errorMsg.includes('ECONN')) {
-						specificError = `Telegram network error for sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. Please check internet connection.`;
-					} else {
-						specificError = `Failed to send Telegram message to sender account: ${AGENT_CODE_FROM} - ${NAME_FROM}. Error: ${errorMsg}`;
-					}
-					
+					if (errorMsg.includes('chat not found')) specificError = `Wrong or Invalid Telegram Chat ID for sender: ${AGENT_CODE_FROM} - ${NAME_FROM}.`;
+					else if (errorMsg.includes('Bad Request')) specificError = `Wrong Telegram Chat ID format for sender: ${AGENT_CODE_FROM} - ${NAME_FROM}.`;
+					else if (errorMsg.includes('Forbidden')) specificError = `Telegram blocked for sender: ${AGENT_CODE_FROM} - ${NAME_FROM}.`;
+					else specificError = `Failed to send to sender: ${errorMsg}`;
 					telegramErrors.push(specificError);
-					console.error(`Error sending Telegram message to sender (transfer still saved):`, telegramError.message);
+					console.error('Error sending Telegram to sender:', telegramError.message);
 				}
+			} else {
+				console.warn('Telegram ID missing for sender account', AGENT_CODE_FROM);
+			}
+
+			// Send to additional chats - always (even when sender has no TELEGRAM_ID)
+			try {
+				await sendTelegramToAdditionalChats(textFrom);
+			} catch (telegramError) {
+				telegramErrors.push(`Failed to send sender message to additional chats: ${telegramError.message}`);
+				console.error('Error sending to additional chats (sender):', telegramError.message);
 			}
 		}
 
-		// Prepare and send messages for the account to which the transfer is made																												
+		// Prepare and send messages for the account to which the transfer is made
 		if (telegramIdResultsTo.length > 0) {
-			for (const resultTo of telegramIdResultsTo) {
-				const { TELEGRAM_ID: TELEGRAM_ID_TO, AGENT_CODE: AGENT_CODE_TO, NAME: NAME_TO } = resultTo;
+			const resultTo = telegramIdResultsTo[0];
+			const { TELEGRAM_ID: TELEGRAM_ID_TO, AGENT_CODE: AGENT_CODE_TO, NAME: NAME_TO } = resultTo;
 
-				// Check if TELEGRAM_ID exists and is valid before sending
-				if (!TELEGRAM_ID_TO || TELEGRAM_ID_TO === null || TELEGRAM_ID_TO === '') {
-					telegramErrors.push(`Missing or Invalid Telegram ID for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. Please add a valid Telegram Chat ID in the account settings.`);
-					console.warn(`Telegram ID missing for receiver account ${AGENT_CODE_TO}, skipping Telegram notification`);
-					continue;
-				}
+			const ReceiverCurrentBalance = receiverBalanceBefore + totalAmount;
+			let time_now = new Date();
+			time_now.setHours(time_now.getHours());
+			let updated_time = time_now.toLocaleTimeString();
+			let date_nowTG = new Date().toLocaleDateString();
 
-				const ReceiverCurrentBalance = receiverBalanceBefore + totalAmount;
+			const textTo = `Infinity Cage\n\n* 이체 *\n\n받으신분: ${AGENT_CODE_TO} - ${NAME_TO}\n보내신분: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\n금액: ${totalAmount.toLocaleString()}\n잔고: ${ReceiverCurrentBalance.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
-				let time_now = new Date();
-				time_now.setHours(time_now.getHours());
-				let updated_time = time_now.toLocaleTimeString();
-				let date_nowTG = new Date().toLocaleDateString();
-
-				// Prepare message with "From" account details and "To" account details
-				const textTo = `Infinity Cage\n\n* 이체 *\n\n받으신분: ${AGENT_CODE_TO} - ${NAME_TO}\n보내신분: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\n금액: ${totalAmount.toLocaleString()}\n잔고: ${ReceiverCurrentBalance.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-
+			// Send to agent (only when TELEGRAM_ID exists)
+			if (TELEGRAM_ID_TO && TELEGRAM_ID_TO !== null && TELEGRAM_ID_TO !== '') {
 				try {
 					await sendTelegramMessage(textTo, TELEGRAM_ID_TO);
-					await sendTelegramToAdditionalChats(textTo);
 				} catch (telegramError) {
-					// Check for specific Telegram error types
 					const errorMsg = telegramError.message || '';
 					let specificError = '';
-					
-					if (errorMsg.includes('chat not found')) {
-						specificError = `Wrong or Invalid Telegram Chat ID for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. The user may not have started a conversation with the bot. Please ask them to send /start to the bot first.`;
-					} else if (errorMsg.includes('Bad Request')) {
-						specificError = `Wrong Telegram Chat ID format for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. The Chat ID may be incorrect or invalid.`;
-					} else if (errorMsg.includes('Forbidden')) {
-						specificError = `Telegram message blocked for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. The user may have blocked the bot.`;
-					} else if (errorMsg.includes('Unauthorized')) {
-						specificError = `Telegram bot authorization failed for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. Please check bot configuration.`;
-					} else if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
-						specificError = `Telegram connection timeout for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. Please try again later.`;
-					} else if (errorMsg.includes('network') || errorMsg.includes('ECONN')) {
-						specificError = `Telegram network error for receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. Please check internet connection.`;
-					} else {
-						specificError = `Failed to send Telegram message to receiver account: ${AGENT_CODE_TO} - ${NAME_TO}. Error: ${errorMsg}`;
-					}
-					
+					if (errorMsg.includes('chat not found')) specificError = `Wrong or Invalid Telegram Chat ID for receiver: ${AGENT_CODE_TO} - ${NAME_TO}.`;
+					else if (errorMsg.includes('Bad Request')) specificError = `Wrong Telegram Chat ID format for receiver: ${AGENT_CODE_TO} - ${NAME_TO}.`;
+					else if (errorMsg.includes('Forbidden')) specificError = `Telegram blocked for receiver: ${AGENT_CODE_TO} - ${NAME_TO}.`;
+					else specificError = `Failed to send to receiver: ${errorMsg}`;
 					telegramErrors.push(specificError);
-					console.error(`Error sending Telegram message to receiver (transfer still saved):`, telegramError.message);
+					console.error('Error sending Telegram to receiver:', telegramError.message);
 				}
+			} else {
+				console.warn('Telegram ID missing for receiver account', AGENT_CODE_TO);
+			}
+
+			// Send to additional chats - always (even when receiver has no TELEGRAM_ID)
+			try {
+				await sendTelegramToAdditionalChats(textTo);
+			} catch (telegramError) {
+				telegramErrors.push(`Failed to send receiver message to additional chats: ${telegramError.message}`);
+				console.error('Error sending to additional chats (receiver):', telegramError.message);
 			}
 		}
 

@@ -392,34 +392,29 @@ router.post('/add_game_list', async (req, res) => {
 		managementText = `Infinity Cage\n\n* ${mgmtLabels.gameStart} *\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}\n${mgmtLabels.game} #: ${gameId} - ${gameTypeForMgmt(translatedGameType)}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
 	}
 
-		if (text && telegramIdResults.length > 0 && agentId) {
-			const telegramId = telegramIdResults[0].TELEGRAM_ID;
-			// Only send Telegram message if TELEGRAM_ID is valid (not null/empty)
+		if (text && agentId) {
+			const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
 			if (telegramId) {
 				try {
 					await sendTelegramMessage(text, telegramId);
-					// Send to agent-specific notification chat IDs (e.g., INF500, INF600) - without payment type label
-					await sendToAgentNotifications(agentCode, managementText);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to agent:', telegramError.message);
-					// Continue execution even if Telegram fails
 				}
 			}
-			
-			// Send to additional chats (groups/channels) - also with error handling
+			try {
+				await sendToAgentNotifications(agentCode, managementText);
+			} catch (telegramError) {
+				console.error('Failed to send to agent notifications:', telegramError.message);
+			}
 			try {
 				await sendTelegramToAdditionalChats(text);
 			} catch (telegramError) {
 				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
-				// Continue execution even if Telegram fails
 			}
-			
-			// Send to management chat IDs - without account balance
 			try {
 				await sendTelegramToManagement(managementText);
 			} catch (telegramError) {
 				console.error('Failed to send Telegram message to management:', telegramError.message);
-				// Continue execution even if Telegram fails
 			}
 		}
 
@@ -1452,34 +1447,31 @@ router.post('/add_settlement', async (req, res) => {
 				managementText = `Infinity Cage\n\n* 게임종료 / 정산 End Game *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id_settle}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
 
-			// Send the Telegram message
 			if (telegramId) {
 				try {
 					await sendTelegramMessage(text, telegramId);
-					// Send to agent-specific notification chat IDs (e.g., INF500, INF600) - without payment type label
-					await sendToAgentNotifications(agentCode, managementText);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to agent:', telegramError.message);
-					// Continue execution even if Telegram fails
-				}
-				
-				// Send to additional chats (groups/channels) - also with error handling
-				try {
-					await sendTelegramToAdditionalChats(text);
-				} catch (telegramError) {
-					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
-					// Continue execution even if Telegram fails
-				}
-				
-				// Send to management chat IDs - without account balance
-				try {
-					await sendTelegramToManagement(managementText);
-				} catch (telegramError) {
-					console.error('Failed to send Telegram message to management:', telegramError.message);
-					// Continue execution even if Telegram fails
 				}
 			} else {
 				console.error("No TELEGRAM_ID found for Account ID:", txtAccountIDSettle);
+			}
+			try {
+				await sendToAgentNotifications(agentCode, managementText);
+			} catch (telegramError) {
+				console.error('Failed to send to agent notifications:', telegramError.message);
+			}
+
+			// Send to additional chats and management - always
+			try {
+				await sendTelegramToAdditionalChats(text);
+			} catch (telegramError) {
+				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+			}
+			try {
+				await sendTelegramToManagement(managementText);
+			} catch (telegramError) {
+				console.error('Failed to send Telegram message to management:', telegramError.message);
 			}
 
 			const insertCashEntry = async (category, type, remark) => {
@@ -1646,38 +1638,33 @@ router.post('/game_list/add/buyin', async (req, res) => {
 				managementText = `Infinity Cage\n\n* 추가 바이인 Add Buy-in *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString()}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
 
-			// Send Telegram messages
-		if (text !== '' && telegramIdResults.length > 0) {
-				const telegramId = telegramIdResults[0].TELEGRAM_ID;
-				// Only send Telegram message if TELEGRAM_ID is valid (not null/empty)
+			// Send Telegram messages (when we have agent data)
+		if (text !== '' && agentResults.length > 0) {
+				const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
 				if (telegramId) {
 					try {
-						await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
-						// Send to agent-specific notification chat IDs (e.g., INF500, INF600) - without payment type label
-						await sendToAgentNotifications(agentCode, managementText);
+						await sendTelegramMessage(text, telegramId);
 					} catch (telegramError) {
 						console.error('Failed to send Telegram message to agent:', telegramError.message);
-						// Continue execution even if Telegram fails
 					}
+				} else {
+					console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 				}
-				
-				// Send to additional chats (groups/channels) - also with error handling
+				try {
+					await sendToAgentNotifications(agentCode, managementText);
+				} catch (telegramError) {
+					console.error('Failed to send to agent notifications:', telegramError.message);
+				}
 				try {
 					await sendTelegramToAdditionalChats(text);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
-					// Continue execution even if Telegram fails
 				}
-				
-				// Send to management chat IDs - without account balance
 				try {
 					await sendTelegramToManagement(managementText);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to management:', telegramError.message);
-					// Continue execution even if Telegram fails
 				}
-			} else {
-				console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 			}
 		}
 
@@ -1805,38 +1792,33 @@ router.post('/game_list/add/cashout', async (req, res) => {
 				managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
 
-			// Send Telegram message if TELEGRAM_ID is found
-			if (text !== '' && telegramIdResults.length > 0) {
-				const telegramId = telegramIdResults[0].TELEGRAM_ID;
-				// Only send Telegram message if TELEGRAM_ID is valid (not null/empty)
+			// Send Telegram messages (when we have agent data)
+			if (text !== '' && agentResults.length > 0) {
+				const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
 				if (telegramId) {
 					try {
-						await sendTelegramMessage(text, telegramId); // Send to agent's Telegram ID
-						// Send to agent-specific notification chat IDs (e.g., INF500, INF600) - without payment type label
-						await sendToAgentNotifications(agentCode, managementText);
+						await sendTelegramMessage(text, telegramId);
 					} catch (telegramError) {
 						console.error('Failed to send Telegram message to agent:', telegramError.message);
-						// Continue execution even if Telegram fails
 					}
+				} else {
+					console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 				}
-				
-				// Send to additional chats (groups/channels) - also with error handling
+				try {
+					await sendToAgentNotifications(agentCode, managementText);
+				} catch (telegramError) {
+					console.error('Failed to send to agent notifications:', telegramError.message);
+				}
 				try {
 					await sendTelegramToAdditionalChats(text);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
-					// Continue execution even if Telegram fails
 				}
-				
-				// Send to management chat IDs - without account balance
 				try {
 					await sendTelegramToManagement(managementText);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to management:', telegramError.message);
-					// Continue execution even if Telegram fails
 				}
-			} else {
-				console.error("No TELEGRAM_ID found for Account Code:", txtAccountCode);
 			}
 		}
 

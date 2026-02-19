@@ -1466,23 +1466,22 @@ router.post('/add_marker_settlement', async (req, res) => {
 				text = `Infinity Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n커미션: ${parseFloat(markerReturn).toLocaleString()} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			}
 
+			// Send to agent (only when TELEGRAM_ID exists)
 			if (telegramId) {
 				try {
 					await sendTelegramMessage(text, telegramId);
 				} catch (telegramError) {
 					console.error('Failed to send Telegram message to agent:', telegramError.message);
-					// Continue execution even if Telegram fails
-				}
-				
-				// Send to additional chats (groups/channels) - also with error handling
-				try {
-					await sendTelegramToAdditionalChats(text);
-				} catch (telegramError) {
-					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
-					// Continue execution even if Telegram fails
 				}
 			} else {
-				console.error("No TELEGRAM_ID found for Account ID:", txtAccountMarker);
+				console.warn("No TELEGRAM_ID found for Account ID:", txtAccountMarker);
+			}
+
+			// Send to additional chats - always (even when guest has no TELEGRAM_ID)
+			try {
+				await sendTelegramToAdditionalChats(text);
+			} catch (telegramError) {
+				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
 			}
 		} else {
 			console.error("No AGENT_CODE or NAME found for Account ID:", txtAccountMarker);
