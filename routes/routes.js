@@ -429,7 +429,7 @@ ON
 	let sqlChipsReturnMarker = `
 	  SELECT SUM(NN_CHIPS + CC_CHIPS) AS CHIPS_RETURN_MARKER
 	  FROM game_record 
-	  WHERE CAGE_TYPE = 2 AND TRANSACTION = 4
+	  WHERE CAGE_TYPE = 2 AND TRANSACTION = 4 AND ACTIVE = 1
 	  -- No JOIN needed unless you also need agent/account details
 	`;
 	
@@ -1126,7 +1126,7 @@ pageRouter.get("/markerHistory", checkSession, async function (req, res) {
 	const sqlNNChipsAccountMarker = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_MARKER FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION = 3';
 	const sqlMArkerReturnCash = `SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_CASH FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE = 1 AND account_ledger.TRANSACTION_TYPE = 3 AND account_ledger.TRANSACTION_ID = 11 AND account.ACTIVE = 1 AND agent.ACTIVE = 1`;
 	const sqlMArkerReturnDeposit = `SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE = 1 AND account_ledger.TRANSACTION_TYPE = 3 AND account_ledger.TRANSACTION_ID = 12 AND account.ACTIVE = 1 AND agent.ACTIVE = 1`;
-	const sqlChipsReturnMarker = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS CHIPS_RETURN_MARKER FROM game_record WHERE CAGE_TYPE = 2 AND TRANSACTION = 4`;
+	const sqlChipsReturnMarker = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS CHIPS_RETURN_MARKER FROM game_record WHERE CAGE_TYPE = 2 AND TRANSACTION = 4 AND ACTIVE = 1`;
 	try {
 		const [r1, r2, r3, r4, r5, r6] = await Promise.all([
 			pool.execute(sqlMarkerIssueGame),
