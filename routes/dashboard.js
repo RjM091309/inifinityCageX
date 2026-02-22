@@ -333,7 +333,7 @@ ON
 	let sqlChipsReturnMarker = `
 	  SELECT SUM(NN_CHIPS + CC_CHIPS) AS CHIPS_RETURN_MARKER
 	  FROM game_record 
-	  WHERE CAGE_TYPE = 2 AND TRANSACTION = 4
+	  WHERE CAGE_TYPE = 2 AND TRANSACTION = 4 AND ACTIVE = 1
 	  -- No JOIN needed unless you also need agent/account details
 	`;
 
