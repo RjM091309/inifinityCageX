@@ -173,9 +173,9 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 
 		if (parsedTransactionId === 2 && sourceType === 'GUEST' && parsedAccountId) {
 			await pool.execute(
-				`INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-				 VALUES (?, 2, 2, 'SERVICES', ?, ?, ?)`,
-				[parsedAccountId, amt, encodedBy, now]
+				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
+				[parsedAccountId, resolvedGameId, amt, encodedBy, now]
 			);
 		}
 
@@ -251,23 +251,27 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 		const updatedBy = req.session?.user_id || null;
 		const now = new Date();
 
-		// Delete old cash_transaction if exists
+		// Soft delete old cash_transaction if exists
 		if (existingService.TRANSACTION_ID === 1 || existingService.TRANSACTION_ID === 2) {
 			await pool.execute(
-				`DELETE FROM cash_transaction WHERE TRANSACTION_ID = ? LIMIT 1`,
-				[serviceId]
+				`UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1 LIMIT 1`,
+				[updatedBy, now, serviceId]
 			);
 		}
 
-		// Delete old account_ledger entry if was deposit (use existing account_id if available, otherwise use new one)
+		// Soft delete old account_ledger entry if was deposit (fnb_hotel: GAME_ID always NULL)
 		const accountIdToDelete = existingAccountId || parsedAccountId;
 		if (existingService.TRANSACTION_ID === 2 && accountIdToDelete) {
-			await pool.execute(
-				`DELETE FROM account_ledger 
-				 WHERE ACCOUNT_ID = ? AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ?
-				 ORDER BY IDNo DESC LIMIT 1`,
+			const [ledgerRows] = await pool.execute(
+				`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND GAME_ID IS NULL AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
 				[accountIdToDelete, existingService.AMOUNT]
 			);
+			if (ledgerRows.length > 0) {
+				await pool.execute(
+					'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+					[updatedBy, now, ledgerRows[0].IDNo]
+				);
+			}
 		}
 
 		// Update service
@@ -298,12 +302,12 @@ router.put('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 			]);
 		}
 
-		// Create new account_ledger entry if deposit
+		// Create new account_ledger entry if deposit (fnb_hotel update: no game_id - services without game)
 		if (parsedTransactionId === 2 && sourceType === 'GUEST' && parsedAccountId) {
 			await pool.execute(
-				`INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-				 VALUES (?, 2, 2, 'SERVICES', ?, ?, ?)`,
-				[parsedAccountId, amt, updatedBy, now]
+				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
+				[parsedAccountId, null, amt, updatedBy, now]
 			);
 		}
 
@@ -346,7 +350,7 @@ router.delete('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 			[updatedBy, now, serviceId]
 		);
 
-		// Remove matching account_ledger entry when this was GUEST + deposit (transaction_id 2)
+		// Soft delete matching account_ledger when this was GUEST + deposit (fnb_hotel: GAME_ID always NULL)
 		const transId = parseInt(existingService.TRANSACTION_ID, 10);
 		if (transId === 2 && (existingService.SOURCE_TYPE || '').toUpperCase() === 'GUEST' && existingService.AGENT_ID) {
 			const [accountRows] = await pool.execute(
@@ -355,19 +359,25 @@ router.delete('/fnb-hotel/service/:id', checkSession, async (req, res) => {
 			);
 			const accountId = (Array.isArray(accountRows) && accountRows.length > 0) ? accountRows[0].IDNo : null;
 			if (accountId) {
-				await pool.execute(
-					`DELETE FROM account_ledger
-					 WHERE ACCOUNT_ID = ? AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ?
-					 ORDER BY IDNo DESC
-					 LIMIT 1`,
+				const [ledgerRows] = await pool.execute(
+					`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND GAME_ID IS NULL AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
 					[accountId, existingService.AMOUNT]
 				);
+				if (ledgerRows.length > 0) {
+					await pool.execute(
+						'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+						[updatedBy, now, ledgerRows[0].IDNo]
+					);
+				}
 			}
 		}
 
-		// Remove cash_transaction rows linked to this service (transaction_id 1 or 2 create them)
+		// Soft delete cash_transaction rows linked to this service (transaction_id 1 or 2 create them)
 		if (transId === 1 || transId === 2) {
-			await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ?', [serviceId]);
+			await pool.execute(
+				'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
+				[updatedBy, now, serviceId]
+			);
 		}
 
 		return res.json({ success: true });

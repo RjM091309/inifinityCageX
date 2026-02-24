@@ -288,18 +288,18 @@ router.post('/add_game_list', async (req, res) => {
 			await pool.execute(rollerChipsSQL, [gameId, date_now, 5, 0, 0, 0, rollerNNAmount, rollerCCAmount, 1, encodedBy, date_now]);
 		}
 
-		// 3. Insert into account_ledger
+		// 3. Insert into account_ledger (GAME_ID for direct link)
 		if (transType === 2) {
 			await pool.execute(`
-				INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-				VALUES (?, ?, ?, ?, ?, ?, ?)`,
-				[accountId, 2, transType, 'INITIAL BUY-IN', totalAmount, encodedBy, date_now]
+				INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				[accountId, gameId, 2, transType, 'INITIAL BUY-IN', totalAmount, encodedBy, date_now]
 			);
 		} else if (transType === 3) {
 			await pool.execute(`
-				INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT)
-				VALUES (?, ?, ?, ?, ?, ?)`,
-				[accountId, 10, transType, totalAmount, encodedBy, date_now]
+				INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				[accountId, gameId, 10, transType, totalAmount, encodedBy, date_now]
 			);
 		}
 
@@ -534,9 +534,9 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 
 		if (transactionId === 2 && accountId) {
 			await pool.execute(
-				`INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-				 VALUES (?, 2, 2, 'SERVICES', ?, ?, ?)`,
-				[accountId, amt, encodedBy, now]
+				`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
+				[accountId, gameId, amt, encodedBy, now]
 			);
 		}
 
@@ -600,7 +600,7 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 			[svc, amt, remarks || '', transactionId, updatedBy, now, serviceId]
 		);
 
-		// delete old ledger entry if previous transaction was deposit
+		// delete old ledger entry if previous transaction was deposit (add GAME_ID for precise matching)
 		if (existingService && parseInt(existingService.TRANSACTION_ID, 10) === 2) {
 			const [gameRows] = await pool.execute(
 				`SELECT ACCOUNT_ID FROM game_list WHERE IDNo = ? LIMIT 1`,
@@ -608,13 +608,16 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 			);
 			const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
 			if (accountId) {
-				await pool.execute(
-					`DELETE FROM account_ledger
-					 WHERE ACCOUNT_ID = ? AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ?
-					 ORDER BY IDNo DESC
-					 LIMIT 1`,
-					[accountId, existingService.AMOUNT]
+				const [ledgerRows] = await pool.execute(
+					`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+					[accountId, gameId, existingService.AMOUNT]
 				);
+				if (ledgerRows.length > 0) {
+					await pool.execute(
+						'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+						[updatedBy, now, ledgerRows[0].IDNo]
+					);
+				}
 			}
 		}
 
@@ -627,14 +630,17 @@ router.put('/game_services/:id', checkSession, async (req, res) => {
 			const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
 			if (accountId) {
 				await pool.execute(
-					`INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
-					 VALUES (?, 2, 2, 'SERVICES', ?, ?, ?)`,
-					[accountId, amt, updatedBy, now]
+					`INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+					 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
+					[accountId, gameId, amt, updatedBy, now]
 				);
 			}
 		}
 
-		await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ?', [serviceId]);
+		await pool.execute(
+			'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
+			[updatedBy, now, serviceId]
+		);
 
 		const insertCashTransactions = async (type) => {
 			const remarkText = [`Game - ${gameId}`, remarks ? remarks : ''].filter(Boolean).join(' - ');
@@ -720,13 +726,16 @@ router.delete('/game_services/:id', checkSession, async (req, res) => {
 			);
 			const accountId = (Array.isArray(gameRows) && gameRows.length > 0) ? gameRows[0].ACCOUNT_ID : null;
 			if (accountId) {
-				await pool.execute(
-					`DELETE FROM account_ledger
-					 WHERE ACCOUNT_ID = ? AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ?
-					 ORDER BY IDNo DESC
-					 LIMIT 1`,
-					[accountId, existingService.AMOUNT]
+				const [ledgerRows] = await pool.execute(
+					`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'SERVICES' AND AMOUNT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+					[accountId, existingService.GAME_ID, existingService.AMOUNT]
 				);
+				if (ledgerRows.length > 0) {
+					await pool.execute(
+						'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+						[updatedBy, now, ledgerRows[0].IDNo]
+					);
+				}
 			}
 		}
 
@@ -750,7 +759,10 @@ router.delete('/game_services/:id', checkSession, async (req, res) => {
 			[gameId]
 		);
 
-		await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ?', [serviceId]);
+		await pool.execute(
+			'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
+			[updatedBy, now, serviceId]
+		);
 
 		return res.json(rows);
 	} catch (err) {
@@ -1150,7 +1162,7 @@ router.get('/game_list/:id/record', async (req, res) => {
 
 
 
-// DELETE GAME LIST (Deactivate)
+// DELETE GAME LIST (Deactivate - soft delete)
 router.put('/game_list/remove/:id', async (req, res) => {
     const id = parseInt(req.params.id);
     let date_now = new Date();
@@ -1164,6 +1176,180 @@ router.put('/game_list/remove/:id', async (req, res) => {
         console.error('Error updating GAME LIST:', err);
         res.status(500).send('Error updating GAME LIST');
     }
+});
+
+// DELETE GAME LIST (Super Admin only - SOFT DELETE, excludes game_services & daily_settlement)
+router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
+	const permissions = req.session?.permissions;
+	if (permissions !== 0) {
+		return res.status(403).json({ error: 'Only Super Admin can delete games.' });
+	}
+
+	const gameId = parseInt(req.params.id);
+	if (!gameId || isNaN(gameId)) {
+		return res.status(400).json({ error: 'Invalid game ID' });
+	}
+
+	const date_now = new Date();
+	const editedBy = req.session?.user_id || null;
+
+	const connection = await pool.getConnection();
+	try {
+		await connection.beginTransaction();
+
+		// 1. Get game info (ACCOUNT_ID, ENCODED_DT for account_ledger matching)
+		const [gameRows] = await connection.execute(
+			'SELECT ACCOUNT_ID, FNB, PAYMENT, SETTLED, ENCODED_DT FROM game_list WHERE IDNo = ? AND ACTIVE != 0',
+			[gameId]
+		);
+		if (gameRows.length === 0) {
+			await connection.rollback();
+			return res.status(404).json({ error: 'Game not found' });
+		}
+		const accountId = gameRows[0].ACCOUNT_ID;
+		const gamePayment = gameRows[0].PAYMENT != null ? gameRows[0].PAYMENT : gameRows[0].FNB;
+		const isSettled = gameRows[0].SETTLED === 1;
+		const gameEncodedDt = gameRows[0].ENCODED_DT;
+
+		// 2. Get all game_record IDs (exclude game_services - not touched)
+		const [recordRows] = await connection.execute(
+			'SELECT IDNo FROM game_record WHERE GAME_ID = ? AND ACTIVE != 0',
+			[gameId]
+		);
+		const recordIds = recordRows.map(r => r.IDNo);
+
+		// 3. Soft delete cash_transaction (TRANSACTION_ID = game_record.IDNo or gameId for buy-in)
+		for (const rid of recordIds) {
+			await connection.execute(
+				'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
+				[editedBy, date_now, rid]
+			);
+		}
+		await connection.execute(
+			'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
+			[editedBy, date_now, gameId]
+		);
+		// EXCLUDED: game_services cash_transaction (TRANSACTION_ID = service IDNo)
+
+		// 4. Soft delete account_ledger entries (game_record-related only, EXCLUDE game_services)
+		// 4a. Direct link: soft delete all entries with GAME_ID = gameId (exclude SERVICES)
+		await connection.execute(
+			`UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE GAME_ID = ? AND ACTIVE = 1 AND COALESCE(TRANSACTION_DESC, '') != 'SERVICES'`,
+			[editedBy, date_now, gameId]
+		);
+		// 4b. Backward compat: match old records (GAME_ID NULL) by ACCOUNT_ID, AMOUNT, ENCODED_DT
+		const [allRecords] = await connection.execute(
+			'SELECT IDNo, CAGE_TYPE, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_DT FROM game_record WHERE GAME_ID = ? AND ACTIVE != 0',
+			[gameId]
+		);
+		for (const rec of allRecords) {
+			const nn = rec.NN_CHIPS || 0;
+			const cc = rec.CC_CHIPS || 0;
+			const totalAmt = parseFloat(nn) + parseFloat(cc);
+			const encDt = rec.ENCODED_DT;
+			const trans = rec.TRANSACTION;
+
+			if (rec.CAGE_TYPE === 2) {
+				const [ledgerRows] = await connection.execute(
+					`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND GAME_ID IS NULL AND TRANSACTION_ID = 1 AND TRANSACTION_TYPE = ? AND TRANSACTION_DESC = 'Chips Returned' AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+					[accountId, trans, totalAmt, encDt]
+				);
+				if (ledgerRows.length > 0) {
+					await connection.execute(
+						'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+						[editedBy, date_now, ledgerRows[0].IDNo]
+					);
+				}
+			} else if (rec.CAGE_TYPE === 1 || rec.CAGE_TYPE === 3) {
+				if (trans == 2) {
+					const [ledgerRows] = await connection.execute(
+						`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND GAME_ID IS NULL AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC IN ('INITIAL BUY-IN','ADDITIONAL BUY-IN') AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+						[accountId, totalAmt, encDt]
+					);
+					if (ledgerRows.length > 0) {
+						await connection.execute(
+							'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+							[editedBy, date_now, ledgerRows[0].IDNo]
+						);
+					}
+				} else if (trans == 3) {
+					const [ledgerRows] = await connection.execute(
+						`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND GAME_ID IS NULL AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+						[accountId, totalAmt, encDt]
+					);
+					if (ledgerRows.length > 0) {
+						await connection.execute(
+							'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+							[editedBy, date_now, ledgerRows[0].IDNo]
+						);
+					}
+				}
+			}
+		}
+		// Initial buy-in from add_game_list (match by game ENCODED_DT, old records only)
+		const [initLedger2] = await connection.execute(
+			`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND GAME_ID IS NULL AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE IN (1,2) AND TRANSACTION_DESC = 'INITIAL BUY-IN' AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 2`,
+			[accountId, gameEncodedDt]
+		);
+		for (const row of initLedger2) {
+			await connection.execute(
+				'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+				[editedBy, date_now, row.IDNo]
+			);
+		}
+		const [initLedger10] = await connection.execute(
+			`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND GAME_ID IS NULL AND TRANSACTION_ID = 10 AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+			[accountId, gameEncodedDt]
+		);
+		if (initLedger10.length > 0) {
+			await connection.execute(
+				'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+				[editedBy, date_now, initLedger10[0].IDNo]
+			);
+		}
+		// COMMISSION (settlement) - new records deleted by 4a (GAME_ID). Fallback for old records (GAME_ID NULL)
+		if (isSettled) {
+			const matchAmt = parseFloat(gamePayment) || parseFloat(gameRows[0].FNB || 0);
+			if (matchAmt) {
+				const [commRows] = await connection.execute(
+					`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND GAME_ID IS NULL AND TRANSACTION_TYPE = 5 AND TRANSACTION_DESC = 'COMMISSION' AND ROUND(AMOUNT, 2) = ROUND(?, 2) AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+					[accountId, matchAmt]
+				);
+				if (commRows.length > 0) {
+					await connection.execute(
+						'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+						[editedBy, date_now, commRows[0].IDNo]
+					);
+				}
+			}
+		}
+		// EXCLUDED: account_ledger for game_services (SERVICES)
+
+		// 5. EXCLUDED: daily_settlement_games, daily_settlement
+
+		// 6. Soft delete game_record
+		await connection.execute(
+			'UPDATE game_record SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE GAME_ID = ?',
+			[editedBy, date_now, gameId]
+		);
+
+		// 7. EXCLUDED: game_services
+
+		// 8. Soft delete game_list
+		await connection.execute(
+			'UPDATE game_list SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[editedBy, date_now, gameId]
+		);
+
+		await connection.commit();
+		res.json({ success: true, message: 'Game and related records deleted successfully.' });
+	} catch (err) {
+		await connection.rollback();
+		console.error('Error soft deleting game:', err);
+		res.status(500).json({ error: 'Failed to delete game. ' + (err.message || '') });
+	} finally {
+		connection.release();
+	}
 });
 
 // STATUS GAME LIST (Updated with mysql2/promise)
@@ -1332,13 +1518,13 @@ router.post('/add_settlement', async (req, res) => {
 	let FNBDESC = 'COMMISSION';
 
 	try {
-		// Insert settlement details into account_ledger
-		const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-		await pool.query(insertQuery, [txtAccountIDSettle, txtTransType, 5, FNBDESC, paymentValue, req.session.user_id, date_now]);
+		// Insert settlement details into account_ledger (GAME_ID for direct link)
+		const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+		await pool.execute(insertQuery, [txtAccountIDSettle, game_id_settle, txtTransType, 5, FNBDESC, paymentValue, req.session.user_id, date_now]);
 
-		// Update the settled status and FNB in the game_list table
-		const updateQuery = `UPDATE game_list SET SETTLED = 1, FNB = ? WHERE IDNo = ?`;
-		await pool.query(updateQuery, [fnbValue, game_id_settle]);
+		// Update the settled status, FNB, PAYMENT in game_list
+		const updateQuery = `UPDATE game_list SET SETTLED = 1, FNB = ?, PAYMENT = ? WHERE IDNo = ?`;
+		await pool.execute(updateQuery, [fnbValue, paymentValue, game_id_settle]);
 
 		// Fetch AGENT_CODE, NAME, and TELEGRAM_ID
 		const agentQuery = `
@@ -1578,15 +1764,15 @@ router.post('/game_list/add/buyin', async (req, res) => {
 		let queries = [];
 		let totalAmount = parseFloat(txtNNamount) + parseFloat(txtCCamount);
 
-		// Insert into account_ledger if transaction type is 2 or 3
+		// Insert into account_ledger if transaction type is 2 or 3 (GAME_ID for direct link)
 		if (txtTransType == 2) {
-			const query3 = `INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-			queries.push(pool.execute(query3, [txtAccountCode, 2, txtTransType, AddBuyinDESC, totalAmount, req.session.user_id, date_now]));
+			const query3 = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+			queries.push(pool.execute(query3, [txtAccountCode, game_id, 2, txtTransType, AddBuyinDESC, totalAmount, req.session.user_id, date_now]));
 		}
 
 		if (txtTransType == 3) {
-			const query4 = `INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?)`;
-			queries.push(pool.execute(query4, [txtAccountCode, 10, txtTransType, totalAmount, req.session.user_id, date_now]));
+			const query4 = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+			queries.push(pool.execute(query4, [txtAccountCode, game_id, 10, txtTransType, totalAmount, req.session.user_id, date_now]));
 		}
 
 		// Wait for all queries to finish
@@ -1746,9 +1932,9 @@ router.post('/game_list/add/cashout', async (req, res) => {
 
 		const gameRecordId = result1.insertId;
 
-		// Second insert into account_ledger table
-		const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-		await pool.execute(query2, [txtAccountCode, 1, txtTransType, CashOutDESC, txtNNamount + txtCCamount, req.session.user_id, date_now]);
+		// Second insert into account_ledger table (GAME_ID for direct link)
+		const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+		await pool.execute(query2, [txtAccountCode, game_id, 1, txtTransType, CashOutDESC, txtNNamount + txtCCamount, req.session.user_id, date_now]);
 
 		// Fetch AGENT_CODE and NAME for Telegram
 		const agentQuery = `
@@ -1969,7 +2155,7 @@ router.post('/game_list/add/roller_chips', async (req, res) => {
 
 
 // ADD GAME RECORD
-router.post('/add_game_record', async (req, res) => {
+router.post('/add_game_record', checkSession, async (req, res) => {
     const {
         game_id,
         txtTradingDate,
@@ -1993,7 +2179,7 @@ router.post('/add_game_record', async (req, res) => {
 
 // ======================= GAME RECORD ==================
 
-router.get("/game_record/:id", async (req, res) => {
+router.get("/game_record/:id", checkSession, async (req, res) => {
 	try {
 	  const pageId = parseInt(req.params.id);
 	  const query = `
@@ -2027,7 +2213,7 @@ router.get("/game_record/:id", async (req, res) => {
   });
 
 // GET GAME RECORD
-router.get('/game_record_data/:id', async (req, res) => {
+router.get('/game_record_data/:id', checkSession, async (req, res) => {
 	const id = parseInt(req.params.id);
 	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION
 					FROM game_list 
@@ -2047,12 +2233,12 @@ router.get('/game_record_data/:id', async (req, res) => {
 });
 
 // DELETE GAME RECORD
-router.put('/game_record/remove/:id', async (req, res) => {
+router.put('/game_record/remove/:id', checkSession, async (req, res) => {
 	const id = parseInt(req.params.id);
 	let date_now = new Date();
 
-	// First update the record based on IDNo
-	const query = `UPDATE game_record SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
+		// First update the record based on IDNo
+		const query = `UPDATE game_record SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
 	try {
 		await pool.execute(query, [0, req.session.user_id, date_now, id]);
 
@@ -2083,26 +2269,26 @@ router.put('/game_record/remove/:id', async (req, res) => {
 				const accountId = gameListResult[0].ACCOUNT_ID;
 				const totalAmount = parseFloat(nnChips) + parseFloat(ccChips);
 				
-				// Delete the corresponding account_ledger entry
-				// Matching: ACCOUNT_ID, TRANSACTION_ID=1, TRANSACTION_TYPE, TRANSACTION_DESC='Chips Returned', AMOUNT, ENCODED_DT
-				const ledgerDeleteQuery = `
-					DELETE FROM account_ledger
-					WHERE ACCOUNT_ID = ? 
-					AND TRANSACTION_ID = 1 
-					AND TRANSACTION_TYPE = ? 
-					AND TRANSACTION_DESC = 'Chips Returned' 
-					AND AMOUNT = ?
-					AND ENCODED_DT = ?
-					ORDER BY IDNo DESC
-					LIMIT 1
-				`;
-				
-				await pool.execute(ledgerDeleteQuery, [accountId, transaction, totalAmount, encodedDt]);
+				// Soft delete account_ledger (new: GAME_ID = gameId, old: GAME_ID IS NULL)
+				const [ledgerRows] = await pool.execute(
+					`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 1 AND TRANSACTION_TYPE = ? AND TRANSACTION_DESC = 'Chips Returned' AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+					[accountId, gameId, transaction, totalAmount, encodedDt]
+				);
+				if (ledgerRows.length > 0) {
+					await pool.execute(
+						'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+						[req.session.user_id, date_now, ledgerRows[0].IDNo]
+					);
+				}
 			}
 
-			// Delete from cash_transaction table
+			// Soft delete from cash_transaction table
 			// TRANSACTION_ID in cash_transaction refers to the game_record IDNo
-			await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ?', [id]);
+			await pool.execute(
+				'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
+				[req.session.user_id, new Date(), id]
+			);
+			return res.send('Cash out record deleted successfully');
 		}
 
 		// If CAGE_TYPE = 1 or 3 (Buy-in), delete corresponding account_ledger and cash_transaction entries
@@ -2119,94 +2305,77 @@ router.put('/game_record/remove/:id', async (req, res) => {
 				// Check for both "Game buy-in" (initial) and "Additional buy-in"
 				// TRANSACTION_ID in cash_transaction = game_id (not game_record IDNo for buy-in)
 				if (transaction == 1) {
-					// Try to delete "Game buy-in" first (initial buy-in)
-					const deleteInitial = await pool.execute(
-						`DELETE FROM cash_transaction 
-						WHERE TRANSACTION_ID = ? 
-						AND CATEGORY = 'Game buy-in' 
-						AND TYPE = 1 
-						AND AMOUNT = ?`,
-						[gameId, totalAmount]
+					const softDeleteBy = req.session.user_id;
+					const softDeleteDt = new Date();
+					// Try to soft delete "Game buy-in" first (initial buy-in)
+					const updateInitial = await pool.execute(
+						`UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+						WHERE TRANSACTION_ID = ? AND ACTIVE = 1
+						AND CATEGORY = 'Game buy-in' AND TYPE = 1 AND AMOUNT = ?`,
+						[softDeleteBy, softDeleteDt, gameId, totalAmount]
 					);
-					
 					// If no initial buy-in found, try "Additional buy-in"
-					if (deleteInitial[0].affectedRows === 0) {
+					if (updateInitial[0].affectedRows === 0) {
 						await pool.execute(
-							`DELETE FROM cash_transaction 
-							WHERE TRANSACTION_ID = ? 
-							AND CATEGORY = 'Additional buy-in' 
-							AND TYPE = 1 
-							AND AMOUNT = ?`,
-							[gameId, totalAmount]
+							`UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+							WHERE TRANSACTION_ID = ? AND ACTIVE = 1
+							AND CATEGORY = 'Additional buy-in' AND TYPE = 1 AND AMOUNT = ?`,
+							[softDeleteBy, softDeleteDt, gameId, totalAmount]
 						);
 					}
 				}
 				
-				// If TRANSACTION = 2 (Deposit), delete from account_ledger
-				// Check for both "INITIAL BUY-IN" and "ADDITIONAL BUY-IN"
+				// If TRANSACTION = 2 (Deposit), soft delete account_ledger (new: GAME_ID, old: GAME_ID NULL)
 				if (transaction == 2) {
-					// Try to delete "INITIAL BUY-IN" first
-					const deleteInitial = await pool.execute(
-						`DELETE FROM account_ledger
-						WHERE ACCOUNT_ID = ? 
-						AND TRANSACTION_ID = 2 
-						AND TRANSACTION_TYPE = 2 
-						AND TRANSACTION_DESC = 'INITIAL BUY-IN' 
-						AND AMOUNT = ?
-						AND ENCODED_DT = ?
-						ORDER BY IDNo DESC
-						LIMIT 1`,
-						[accountId, totalAmount, encodedDt]
+					const softDeleteBy = req.session.user_id;
+					const softDeleteDt = date_now;
+					const [initRows] = await pool.execute(
+						`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'INITIAL BUY-IN' AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+						[accountId, gameId, totalAmount, encodedDt]
 					);
-					
-					// If no initial buy-in found, try "ADDITIONAL BUY-IN"
-					if (deleteInitial[0].affectedRows === 0) {
+					if (initRows.length > 0) {
 						await pool.execute(
-							`DELETE FROM account_ledger
-							WHERE ACCOUNT_ID = ? 
-							AND TRANSACTION_ID = 2 
-							AND TRANSACTION_TYPE = 2 
-							AND TRANSACTION_DESC = 'ADDITIONAL BUY-IN' 
-							AND AMOUNT = ?
-							AND ENCODED_DT = ?
-							ORDER BY IDNo DESC
-							LIMIT 1`,
-							[accountId, totalAmount, encodedDt]
+							'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+							[softDeleteBy, softDeleteDt, initRows[0].IDNo]
 						);
+					} else {
+						const [addRows] = await pool.execute(
+							`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'ADDITIONAL BUY-IN' AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+							[accountId, gameId, totalAmount, encodedDt]
+						);
+						if (addRows.length > 0) {
+							await pool.execute(
+								'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+								[softDeleteBy, softDeleteDt, addRows[0].IDNo]
+							);
+						}
 					}
 				}
 				
-				// If TRANSACTION = 3 (IOU), delete from account_ledger
-				// For IOU, both initial and additional use same TRANSACTION_ID=10 and TRANSACTION_TYPE=3
-				// But initial has no TRANSACTION_DESC, additional might have one
+				// If TRANSACTION = 3 (IOU), soft delete account_ledger (new: GAME_ID, old: GAME_ID NULL)
 				if (transaction == 3) {
-					// Try to delete with no TRANSACTION_DESC first (initial buy-in)
-					const deleteInitial = await pool.execute(
-						`DELETE FROM account_ledger
-						WHERE ACCOUNT_ID = ? 
-						AND TRANSACTION_ID = 10 
-						AND TRANSACTION_TYPE = 3 
-						AND (TRANSACTION_DESC IS NULL OR TRANSACTION_DESC = '')
-						AND AMOUNT = ?
-						AND ENCODED_DT = ?
-						ORDER BY IDNo DESC
-						LIMIT 1`,
-						[accountId, totalAmount, encodedDt]
+					const softDeleteBy = req.session.user_id;
+					const softDeleteDt = date_now;
+					const [iouRows] = await pool.execute(
+						`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND (TRANSACTION_DESC IS NULL OR TRANSACTION_DESC = '') AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+						[accountId, gameId, totalAmount, encodedDt]
 					);
-					
-					// If no initial found, try with any TRANSACTION_DESC (shouldn't happen for IOU, but just in case)
-					if (deleteInitial[0].affectedRows === 0) {
+					if (iouRows.length > 0) {
 						await pool.execute(
-							`DELETE FROM account_ledger
-							WHERE ACCOUNT_ID = ? 
-							AND TRANSACTION_ID = 10 
-							AND TRANSACTION_TYPE = 3 
-							AND AMOUNT = ?
-							AND ENCODED_DT = ?
-							ORDER BY IDNo DESC
-							LIMIT 1`,
-							[accountId, totalAmount, encodedDt]
+							'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+							[softDeleteBy, softDeleteDt, iouRows[0].IDNo]
 						);
+					} else {
+						const [iouRows2] = await pool.execute(
+							`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+							[accountId, gameId, totalAmount, encodedDt]
+						);
+						if (iouRows2.length > 0) {
+							await pool.execute(
+								'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+								[softDeleteBy, softDeleteDt, iouRows2[0].IDNo]
+							);
+						}
 					}
 				}
 			}

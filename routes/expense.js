@@ -822,7 +822,7 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		const cashTransactionUpdateQuery = `
 			UPDATE cash_transaction
 			SET AMOUNT = ?, CATEGORY = ?, REMARKS = ?, ENCODED_BY = ?, ENCODED_DT = ?
-			WHERE TRANSACTION_ID = ? AND CATEGORY = 'Expenses'
+			WHERE TRANSACTION_ID = ? AND CATEGORY = 'Expenses' AND ACTIVE = 1
 		`;
 		await pool.execute(cashTransactionUpdateQuery, [editXAmount.toString(), 'Expenses', expenseCategoryName, req.session.user_id, date_now, id]);
 
@@ -897,7 +897,10 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 		`;
 
 		await pool.execute(query, [0, req.session.user_id, date_now, id]);
-		await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ? AND CATEGORY = ?', [id, 'Expenses']);
+		await pool.execute(
+			'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND CATEGORY = ? AND ACTIVE = 1',
+			[req.session.user_id, date_now, id, 'Expenses']
+		);
 
 		// Telegram to Management: expense deleted with details
 		try {

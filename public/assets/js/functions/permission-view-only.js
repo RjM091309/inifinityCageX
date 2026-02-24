@@ -86,8 +86,8 @@
         }
 
         var dangerSel = modalEl
-            ? '.btn-danger, .btn-alt-danger'
-            : '.modal .btn-danger, .modal .btn-alt-danger';
+            ? '.btn-danger, .btn-alt-danger, .btn-danger-subtle'
+            : '.modal .btn-danger, .modal .btn-alt-danger, .modal .btn-danger-subtle';
         var dangerList = scope.querySelectorAll(dangerSel);
         for (var j = 0; j < dangerList.length; j++) {
             disableElement(dangerList[j]);

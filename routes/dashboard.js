@@ -869,7 +869,7 @@ router.get('/account_dashboard', async (req, res) => {
 		JOIN 
 			agency ON agency.IDNo = agent.AGENCY
 		LEFT JOIN 
-			account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID
+			account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID AND account_ledger.ACTIVE = 1
 		WHERE 
 			account.ACTIVE = 1 
 			AND agent.ACTIVE = 1
@@ -1165,6 +1165,7 @@ router.get('/cash_transaction_data', async (req, res) => {
 			LEFT JOIN game_services gs ON gs.IDNo = ct.TRANSACTION_ID AND ct.CATEGORY IN ('fnb', 'hotel', 'delivery')
 			LEFT JOIN game_list gl ON gl.IDNo = gs.GAME_ID
 			WHERE ${conditions.join(' AND ')}
+				AND ct.ACTIVE = 1
 				AND (gs.IDNo IS NULL OR gs.TRANSACTION_ID != 3 OR (gs.TRANSACTION_ID = 3 AND gl.SETTLED = 1))
 			ORDER BY ct.ENCODED_DT DESC
 		`;
@@ -1261,7 +1262,10 @@ router.put('/junket_capital/remove/:id', async (req, res) => {
 		const query2 = `UPDATE junket_total_chips SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
 		await pool.execute(query2, [0, req.session.user_id, date_now, id]);
 
-		await pool.execute('DELETE FROM cash_transaction WHERE TRANSACTION_ID = ?', [id]);
+		await pool.execute(
+			'UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1',
+			[req.session.user_id, date_now, id]
+		);
 
 		res.send('Junket updated successfully');
 	} catch (err) {
@@ -1365,7 +1369,7 @@ router.get('/marker_data_cashout/:id', async (req, res) => {
 		JOIN account ON agent.IDNo = account.AGENT_ID 
 		JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID 
 		WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) 
-		AND agent.ACTIVE = 1 AND account_ledger.ACCOUNT_ID = ? 
+		AND account_ledger.ACTIVE = 1 AND agent.ACTIVE = 1 AND account_ledger.ACCOUNT_ID = ? 
 		GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME 
 		HAVING TOTAL_AMOUNT <> 0`;
 
@@ -1512,8 +1516,8 @@ router.get('/marker_history', async (req, res) => {
 		FROM account_ledger 
 		JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID 
 		JOIN agent ON agent.IDNo = account.AGENT_ID 
-		WHERE account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) 
-		OR account_ledger.TRANSACTION_TYPE = 4`;
+		WHERE account_ledger.ACTIVE = 1 
+		AND (account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) OR account_ledger.TRANSACTION_TYPE = 4)`;
 
 	try {
 		const [results] = await pool.execute(query);

@@ -616,6 +616,14 @@ table.dataTable tbody tr.highlight-row {
 							vertical-align: middle;
 						}
 
+						/* Action column - pantay na gap sa lahat ng buttons */
+						#game_list-tbl td:last-child .action-btn-square {
+							margin-right: 4px;
+						}
+						#game_list-tbl td:last-child .btn-group:last-child .action-btn-square {
+							margin-right: 0;
+						}
+
 						/* Square icon buttons in Action column */
 						.action-btn-square {
 							width: 26px;
@@ -624,7 +632,15 @@ table.dataTable tbody tr.highlight-row {
 							display: inline-flex;
 							align-items: center;
 							justify-content: center;
-							border-radius: 6px;
+							border-radius: 6px !important;
+						}
+						/* Override Bootstrap btn-group - parehas na border-radius sa lahat ng corners */
+						#game_list-tbl td:last-child .btn-group .btn,
+						#game_list-tbl td:last-child .btn-group .action-btn-square,
+						#game_list-tbl td:last-child .btn-group > .btn:first-child,
+						#game_list-tbl td:last-child .btn-group > .btn:last-child,
+						#game_list-tbl td:last-child .btn-group > .btn:not(:first-child):not(:last-child) {
+							border-radius: 6px !important;
 						}
 
 						.grand-total {

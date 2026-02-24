@@ -118,7 +118,7 @@
                             let userPermissions = parseInt($('#user-role').attr('data-permissions'));
 
                             // ✅ Disable input and button if the user lacks permission
-                            if (userPermissions !== 11 && userPermissions !== 1 && userPermissions !== 2) {
+                            if (userPermissions !== 11 && userPermissions !== 1 && userPermissions !== 2 && userPermissions !== 0) {
                                 $('#newGameNumber').prop('disabled', true);
                                 $('#updateGameNumber').prop('disabled', true);
                             }
@@ -202,7 +202,7 @@
                             // ✅ Handle game number update
                             $('#updateGameNumber').click(function () {
                                 // ❌ Restrict unauthorized users
-                                if (userPermissions !== 11 && userPermissions !== 1 && userPermissions !== 2) {
+                                if (userPermissions !== 11 && userPermissions !== 1 && userPermissions !== 2 && userPermissions !== 0) {
                                     Swal.fire({
                                         icon: 'warning',
                                         title: 'No Permission',

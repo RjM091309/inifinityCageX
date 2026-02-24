@@ -402,7 +402,7 @@ $(document).ready(function () {
                         data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status">
                         <i class="fa fa-exchange-alt"></i>
                         </button>
-                        <button type="button" onclick="archive_game_list(${row.game_list_id})" class="btn btn-sm btn-alt-danger action-btn-square js-bs-tooltip-enabled"
+                        <button type="button" onclick="archive_game_list(${row.game_list_id})" class="btn btn-sm btn-danger-subtle action-btn-square js-bs-tooltip-enabled"
                         data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
                         <i class="fa fa-trash-alt"></i>
                         </button>
@@ -587,8 +587,8 @@ $(document).ready(function () {
 	
 							if (row.game_status == 2) {
 								const onGameText = window.gamelistTranslations?.on_game || "ON GAME";
-								if (userPermissions === 11 || userPermissions === 1) { // If manager
-									if (isSettled) {
+								if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) { // If manager or Super admin
+									if (isSettled && userPermissions !== 0) { // Super admin (0) can edit even when settled
 										status = `<button type="button" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
 											data-bs-toggle="tooltip" aria-label="Status" data-bs-original-title="${settledTooltip}"
 											style="font-size:10px !important;" onclick="showSettledAlert(); return false;">${onGameText}</button>`;
@@ -643,10 +643,13 @@ $(document).ready(function () {
 								// }
 
                                 var actionButtons = btn_services;
-                                if (userPermissions === 11 || userPermissions === 1) {
+                                if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) {
                                     actionButtons += btn_his;
                                 }
                                 actionButtons += btn_settle;
+                                if (userPermissions === 0) {
+                                    actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
+                                }
 
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
                                 let rowNode = dataTable.row.add([
@@ -708,9 +711,9 @@ $(document).ready(function () {
 								if (hasAccountSearch) { pendingAccountMode--; if (pendingAccountMode === 0) addAccountRows(); return; }
 								// PENDING STATUS (discrepancy in roller chips return)
 								const pendingText = "PENDING";
-								if (userPermissions === 11 || userPermissions === 1) { // If manager
+								if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) { // If manager or Super admin
 									// PENDING STATUS EDITABLE - pass current status (3) so modal auto-selects END GAME
-									if (isSettled) {
+									if (isSettled && userPermissions !== 0) { // Super admin (0) can edit even when settled
 										status = `<button type="button" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="${settledTooltip}" style="font-size:10px !important;" onclick="showSettledAlert(); return false;">${pendingText}</button>`;
 									} else {
 										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3)" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
@@ -720,10 +723,18 @@ $(document).ready(function () {
 									status = `<button type="button" class="btn btn-sm btn-warning-subtle" style="font-size:10px !important;" onclick="showEndGameAlert()">${pendingText}</button>`;
 								}
 								
-								buyin_td = parseFloat(total_amount).toLocaleString();
-								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
-								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
-								roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
+								// Super admin (0) can edit Buy-in, Cash-out, Rolling even when PENDING
+								if (userPermissions === 0) {
+									buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
+									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
+									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true)">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
+								} else {
+									buyin_td = parseFloat(total_amount).toLocaleString();
+									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
+									cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
+									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
+								}
 								// Use the same action buttons as END GAME to avoid duplicates (History + Settlement icons)
 								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
 								var settleClass = row.SETTLED === 1 ? 'btn-success-subtle' : 'btn-danger-subtle';
@@ -756,6 +767,9 @@ $(document).ready(function () {
 								}
 								
 								var actionButtons = btn_services + btn_settle;
+								if (userPermissions === 0) {
+									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
+								}
 								var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
 
 								let rowNode = dataTable.row.add([
@@ -807,9 +821,9 @@ $(document).ready(function () {
 								}
 								if (hasAccountSearch) { pendingAccountMode--; if (pendingAccountMode === 0) addAccountRows(); return; }
 								// END GAME STATUS (status = 1)
-								if (userPermissions === 11 || userPermissions === 1) { // If manager
+								if (userPermissions === 11 || userPermissions === 1 || userPermissions === 0) { // If manager or Super admin
 									// END GAME STATUS EDITABLE(ON GAME & END GAME)
-									if (isSettled) {
+									if (isSettled && userPermissions !== 0) { // Super admin (0) can edit even when settled
 										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" aria-label="Status" data-bs-toggle="tooltip" data-bs-original-title="${settledTooltip}" onclick="showSettledAlert(); return false;">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
 									} else {
 										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss})">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
@@ -823,14 +837,21 @@ $(document).ready(function () {
 									
 								}
 	
-								buyin_td = parseFloat(total_amount).toLocaleString();
-								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
-								cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
-								// Roller chips: clickable button if END GAME and NOT settled (RETURN only), otherwise just text
-								if (isSettled) {
+								// Super admin (0) can edit Buy-in, Cash-out, Rolling even when END GAME
+								if (userPermissions === 0) {
+									buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
+									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
+									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+								} else {
+									buyin_td = parseFloat(total_amount).toLocaleString();
+									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
+									cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
+								}
+								// Roller chips: clickable button if END GAME and (NOT settled OR Super admin), otherwise just text
+								if (isSettled && userPermissions !== 0) {
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
 								} else {
-									// END GAME but not settled: only allow RETURN transactions
+									// END GAME but not settled (or Super admin): only allow RETURN transactions
 									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true)">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
 								}
 	
@@ -864,6 +885,9 @@ $(document).ready(function () {
 						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
 						   var actionButtons = btn_services + btn_settle;
+						   if (userPermissions === 0) {
+							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
+						   }
 						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
 						   let rowNode = dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`, formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw().node();
 						   
@@ -3003,19 +3027,21 @@ function reloadDataRecord() {
             const mergedData = {};
 
             // Pagsamahin ang data
+            const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
             data.forEach(function (row) {
                 let btn;
-                if (row.game_status == 1) {
-                    // Game has ended, disable the button
+                // Super admin (0) can delete anytime; others: disable when game has ended (game_status == 1)
+                if (row.game_status == 1 && userPermissions !== 0) {
+                    // Game has ended, disable the button (except for Super admin)
                     btn = `<div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-alt-danger" disabled aria-label="Game Ended">
+                        <button type="button" class="btn btn-sm btn-danger-subtle" disabled aria-label="Game Ended">
                             <i class="fa fa-trash-alt"></i>
                         </button>
                     </div>`;
                 } else {
-                    // Game is ongoing, show the button
+                    // Game is ongoing, or Super admin - show active delete button
                     btn = `<div class="btn-group">
-                        <button type="button" onclick="archive_game_record(${row.game_record_id})" class="btn btn-sm btn-alt-danger"
+                        <button type="button" onclick="archive_game_record(${row.game_record_id})" class="btn btn-sm btn-danger-subtle"
                             data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
                             <i class="fa fa-trash-alt"></i>
                         </button>
@@ -3464,8 +3490,9 @@ function openServices(id, guestName, gameStatus, settled, agentId) {
 	const $agentInput = $('#services-agent-id-input');
 	if ($agentInput.length) $agentInput.val(agentId != null ? agentId : '');
 
-	// Hide save form only when already settled
-	const showActions = parseInt(settled || 0, 10) !== 1;
+	// Hide save form only when already settled (Super admin can edit even when settled)
+	const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
+	const showActions = parseInt(settled || 0, 10) !== 1 || userPermissions === 0;
 	$('#services-save-btn').toggle(showActions);
 	$('#services-add-wrap').toggle(showActions);
 
@@ -3509,7 +3536,8 @@ function renderServicesList(list) {
 	if (!$tbody.length) return;
 
 	const data = Array.isArray(list) ? list : [];
-	const isSettled = parseInt(_servicesSettled || 0, 10) === 1;
+	const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
+	const isSettled = parseInt(_servicesSettled || 0, 10) === 1 && userPermissions !== 0; // Super admin can edit even when settled
 
 	if ($.fn.DataTable.isDataTable($table)) {
 		$table.DataTable().clear().destroy();
@@ -3561,7 +3589,7 @@ function renderServicesList(list) {
 					<i class="fa fa-edit"></i>
 				</button>
 				<button type="button"
-					class="btn btn-sm btn-alt-danger action-btn-square service-delete-btn"
+					class="btn btn-sm btn-danger-subtle action-btn-square service-delete-btn"
 					title="Delete"
 					${isSettled ? 'disabled aria-disabled="true"' : ''}
 					data-id="${id}">
@@ -3912,6 +3940,41 @@ function archive_game_list(id) {
 	})
 }
 
+// Delete game (Super Admin only) - soft delete game_list, game_record, account_ledger; excludes game_services & daily_settlement
+function delete_game_list(id) {
+	Swal.fire({
+		title: 'Delete Game?',
+		html: 'This will delete the<strong> Game</strong>  and related records.',
+		icon: 'warning',
+		showCancelButton: true,
+		confirmButtonColor: '#d33',
+		cancelButtonColor: '#6c757d',
+		confirmButtonText: 'Yes, Delete'
+	}).then((result) => {
+		if (result.isConfirmed) {
+			$.ajax({
+				url: '/game_list/delete/' + id,
+				type: 'DELETE',
+				success: function (response) {
+					Swal.fire({
+						icon: 'success',
+						title: 'Deleted',
+						text: response.message || 'Game deleted successfully.'
+					}).then(() => window.location.reload());
+				},
+				error: function (xhr) {
+					const msg = xhr.responseJSON?.error || 'Failed to delete game.';
+					Swal.fire({
+						icon: 'error',
+						title: 'Error',
+						text: msg
+					});
+				}
+			});
+		}
+	});
+}
+
 function archive_game_record(id) {
 	Swal.fire({
 		title: 'Are you sure you want to delete this?',
@@ -4071,7 +4134,7 @@ $(document).ready(function () {
 						data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status">
 						<i class="fa fa-exchange-alt"></i>
 						</button>
-						<button type="button" onclick="archive_game_list(${row.game_list_id})" class="btn btn-sm btn-alt-danger action-btn-square js-bs-tooltip-enabled"
+						<button type="button" onclick="archive_game_list(${row.game_list_id})" class="btn btn-sm btn-danger-subtle action-btn-square js-bs-tooltip-enabled"
 						data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
 						<i class="fa fa-trash-alt"></i>
 						</button>

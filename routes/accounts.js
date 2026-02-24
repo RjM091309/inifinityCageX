@@ -44,7 +44,7 @@ const getCurrentBalance = async (accountId) => {
 		SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
 		FROM account_ledger
 		JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
-		WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3) AND account_ledger.ACCOUNT_ID = ?
+		WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3) AND account_ledger.ACCOUNT_ID = ? AND account_ledger.ACTIVE = 1
 	`;
 	const [rows] = await pool.query(balanceQuery, [accountId]);
 
@@ -452,7 +452,7 @@ router.put('/account/:id', async (req, res) => {
 			SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
 			FROM account_ledger
 			JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
-			WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3) AND account_ledger.ACCOUNT_ID = ?
+			WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3) AND account_ledger.ACCOUNT_ID = ? AND account_ledger.ACTIVE = 1
 		`;
 		const [rows] = await pool.query(balanceQuery, [accountId]);
 
@@ -742,7 +742,7 @@ router.post('/check_balance/:accountId', async (req, res) => {
 			SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
 			FROM account_ledger
 			JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
-			WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3) AND account_ledger.ACCOUNT_ID = ?
+			WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3) AND account_ledger.ACCOUNT_ID = ? AND account_ledger.ACTIVE = 1
 		`, [accountId]);
 
 		let deposit_amount = 0;
@@ -1004,7 +1004,7 @@ router.get('/ledger/:id', async (req, res) => {
 	try {
 	  const ledgerId = parseInt(req.params.id);
 	  const [rows] = await pool.execute(
-		'SELECT ACCOUNT_ID FROM account_ledger WHERE IDNo = ?',
+		'SELECT ACCOUNT_ID FROM account_ledger WHERE IDNo = ? AND ACTIVE = 1',
 		[ledgerId]
 	  );
 	  if (rows.length) {

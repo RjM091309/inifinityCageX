@@ -5182,58 +5182,8 @@ pageRouter.get('/game_record_data/:id', (req, res) => {
 // 		res.send('GAME LIST updated successfully');
 // 	});
 // });
-pageRouter.put('/game_record/remove/:id', (req, res) => {
-	const id = parseInt(req.params.id);
-	let date_now = new Date();
-
-	// Una, i-update ang record batay sa IDNo
-	const query = `UPDATE game_record SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
-	connection.query(query, [0, req.session.user_id, date_now, id], (err, result) => {
-		if (err) {
-			console.error('Error updating GAME LIST:', err);
-			res.status(500).send('Error updating GAME LIST');
-			return;
-		}
-
-		// Ngayon, kunin ang mga detalye ng record na na-update para sa karagdagang query
-		const recordQuery = `SELECT NN_CHIPS, ENCODED_DT FROM game_record WHERE IDNo = ?`;
-		connection.query(recordQuery, [id], (err, recordResult) => {
-			if (err) {
-				console.error('Error fetching record details:', err);
-				return res.status(500).send('Error fetching record details');
-			}
-
-			// Siguraduhing may result ang query
-			if (recordResult.length === 0) {
-				return res.status(404).send('Record not found for additional deletion');
-			}
-
-			const nnChips = recordResult[0].NN_CHIPS;
-			const encodedDt = recordResult[0].ENCODED_DT;
-
-			// I-update ang mga record na may parehong NN_CHIPS at ENCODED_DT para sa CAGE_TYPE 1 at 3
-			const deleteQuery = `
-                UPDATE game_record 
-                SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? 
-                WHERE NN_CHIPS = ? AND ENCODED_DT = ? AND CAGE_TYPE IN (1, 3)
-            `;
-
-			connection.query(deleteQuery, [0, req.session.user_id, date_now, nnChips, encodedDt], (err, deleteResult) => {
-				if (err) {
-					console.error('Error updating GAME LIST for CAGE_TYPE 1 and 3:', err);
-					return res.status(500).send('Error updating GAME LIST for CAGE_TYPE 1 and 3');
-				}
-
-				// I-check kung may rows na na-update
-				if (deleteResult.affectedRows > 0) {
-					res.send('GAME LIST updated successfully for IDNo and matching CAGE_TYPE 1 and 3');
-				} else {
-					res.send('No matching records found for deletion with CAGE_TYPE 1 and 3');
-				}
-			});
-		});
-	});
-});
+// REMOVED: Duplicate of gamebook.js PUT /game_record/remove/:id (gamebook handles it first)
+// pageRouter.put('/game_record/remove/:id', ...) - old logic, no account_ledger/cash_transaction cleanup
 
 //EXPORT ACCOUNT DETAILS
 
@@ -5546,7 +5496,7 @@ WHERE
 //GET MARKER DATA CASHOUT
 pageRouter.get('/marker_data_cashout/:id', (req, res) => {
 	const id = parseInt(req.params.id);
-	const query = `SELECT account.IDNo AS ACCOUNT_ID, SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) - SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT, agent.AGENT_CODE AS AGENT_CODE, agent.NAME AS AGENT_NAME FROM agent JOIN account ON agent.IDNo = account.AGENT_ID JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND agent.ACTIVE = 1 AND account_ledger.ACCOUNT_ID = ? GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME HAVING TOTAL_AMOUNT <> 0`;
+	const query = `SELECT account.IDNo AS ACCOUNT_ID, SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) - SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT, agent.AGENT_CODE AS AGENT_CODE, agent.NAME AS AGENT_NAME FROM agent JOIN account ON agent.IDNo = account.AGENT_ID JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND account_ledger.ACTIVE = 1 AND agent.ACTIVE = 1 AND account_ledger.ACCOUNT_ID = ? GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME HAVING TOTAL_AMOUNT <> 0`;
 
 
 	connection.query(query, [id], (error, results, fields) => {
@@ -5560,7 +5510,7 @@ pageRouter.get('/marker_data_cashout/:id', (req, res) => {
 });
 //GET MARKER DATA
 pageRouter.get('/marker_data', (req, res) => {
-	const query = `SELECT account.IDNo AS ACCOUNT_ID, SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) - SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT, agent.AGENT_CODE AS AGENT_CODE, agent.NAME AS AGENT_NAME FROM agent JOIN account ON agent.IDNo = account.AGENT_ID JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND agent.ACTIVE = 1 GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME HAVING TOTAL_AMOUNT <> 0`;
+	const query = `SELECT account.IDNo AS ACCOUNT_ID, SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) - SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_AMOUNT, agent.AGENT_CODE AS AGENT_CODE, agent.NAME AS AGENT_NAME FROM agent JOIN account ON agent.IDNo = account.AGENT_ID JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND account_ledger.ACTIVE = 1 AND agent.ACTIVE = 1 GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME HAVING TOTAL_AMOUNT <> 0`;
 
 
 	connection.query(query, (error, results, fields) => {
@@ -5674,8 +5624,8 @@ pageRouter.get('/marker_history', (req, res) => {
 		FROM account_ledger 
 		JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID 
 		JOIN agent ON agent.IDNo = account.AGENT_ID 
-		WHERE account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) 
-		OR account_ledger.TRANSACTION_TYPE = 4;
+		WHERE account_ledger.ACTIVE = 1 
+		AND (account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) OR account_ledger.TRANSACTION_TYPE = 4);
 
 
     `;

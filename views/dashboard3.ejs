@@ -433,7 +433,7 @@
 
 													document.getElementById('cash-balance-link').addEventListener('click', function (event) {
 														// Use the permissions to determine if the user can access the feature
-														if (userPermissions !== 11 && userPermissions !== 1 && userPermissions !== 2) { // 11 indicates manager
+														if (userPermissions !== 11 && userPermissions !== 1 && userPermissions !== 2 && userPermissions !== 0) { // 11 indicates manager, 0 = Super admin
 															event.preventDefault(); // Prevent the link's default action (opening the modal)
 
 															Swal.fire({
