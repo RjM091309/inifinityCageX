@@ -4439,6 +4439,7 @@ function settlement_history(record_id, acc_id) {
 
     // Initialize flag for settlement processing
     var isSettled = false;
+    var currentCommissionType = null; // 1=Rolling, 2=Shared, 3=Loosing - used for validation
 
     // Fetch services total and populate FB
     function loadServicesTotal() {
@@ -4499,8 +4500,7 @@ function settlement_history(record_id, acc_id) {
 
                 let RollingRate = data[0].COMMISSION_PERCENTAGE;
                  let CommissionType = data[0].COMMISSION_TYPE;
-
-               
+                 currentCommissionType = CommissionType; // Store for submit validation
 
                 // Populate data if available
                 if (data.length > 0) {
@@ -4752,7 +4752,9 @@ function settlement_history(record_id, acc_id) {
         var servicesValue = parseFloat(services) || 0;
         var settlementValue = parseFloat(rollingSettlement) || 0;
 
-        if (servicesValue > settlementValue) {
+        // Shared Game (COMMISSION_TYPE 2): commission based on WIN/LOSS - can be negative, always allow.
+        // Rolling/Loosing (1, 3): block only when services exceed settlement.
+        if (currentCommissionType != 2 && servicesValue > settlementValue) {
             Swal.fire({
                 icon: 'error',
                 title: 'Invalid!',
