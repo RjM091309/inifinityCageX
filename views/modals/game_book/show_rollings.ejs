@@ -68,3 +68,58 @@
 		border: 1px solid rgba(0,0,0,0.1);
 	}
 </style>
+
+<!-- Edit Game Record Modal (Super Admin only) -->
+<div class="modal fade" id="modal-edit-game-record" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="editGameRecordLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white" id="editGameRecordLabel">Edit Game Record</h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<input type="hidden" id="edit-record-id" />
+				<div id="edit-form-buyin" style="display:none;">
+					<div class="mb-3">
+						<label class="form-label">NN Chips</label>
+						<input type="text" class="form-control" id="edit-buyin-nn" data-type="number" inputmode="numeric" />
+					</div>
+					<div class="mb-3">
+						<label class="form-label">CC Chips</label>
+						<input type="text" class="form-control" id="edit-buyin-cc" data-type="number" inputmode="numeric" />
+					</div>
+				</div>
+				<div id="edit-form-cashout" style="display:none;">
+					<div class="mb-3">
+						<label class="form-label">NN Chips</label>
+						<input type="text" class="form-control" id="edit-cashout-nn" data-type="number" inputmode="numeric" />
+					</div>
+					<div class="mb-3">
+						<label class="form-label">CC Chips</label>
+						<input type="text" class="form-control" id="edit-cashout-cc" data-type="number" inputmode="numeric" />
+					</div>
+				</div>
+				<div id="edit-form-rolling" style="display:none;">
+					<div class="mb-3">
+						<label class="form-label">CC Chips</label>
+						<input type="text" class="form-control" id="edit-rolling-cc" data-type="number" inputmode="numeric" />
+					</div>
+				</div>
+				<div id="edit-form-roller" style="display:none;">
+					<div class="mb-3">
+						<label class="form-label">Roller NN Chips</label>
+						<input type="text" class="form-control" id="edit-roller-nn" data-type="number" inputmode="numeric" />
+					</div>
+					<div class="mb-3">
+						<label class="form-label">Roller CC Chips</label>
+						<input type="text" class="form-control" id="edit-roller-cc" data-type="number" inputmode="numeric" />
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">Cancel</button>
+				<button type="button" class="btn btn-primary" id="btn-save-edit-record">Save</button>
+			</div>
+		</div>
+	</div>
+</div>

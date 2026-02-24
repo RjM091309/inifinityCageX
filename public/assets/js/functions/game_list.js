@@ -723,8 +723,13 @@ $(document).ready(function () {
 									status = `<button type="button" class="btn btn-sm btn-warning-subtle" style="font-size:10px !important;" onclick="showEndGameAlert()">${pendingText}</button>`;
 								}
 								
-								// Super admin (0) can edit Buy-in, Cash-out, Rolling even when PENDING
-								if (userPermissions === 0) {
+								// No add when settled (all users). When not settled, Super admin can add
+								if (isSettled) {
+									buyin_td = parseFloat(total_amount).toLocaleString();
+									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
+									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
+								} else if (userPermissions === 0) {
 									buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
 									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
@@ -732,7 +737,7 @@ $(document).ready(function () {
 								} else {
 									buyin_td = parseFloat(total_amount).toLocaleString();
 									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
-									cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
 								}
 								// Use the same action buttons as END GAME to avoid duplicates (History + Settlement icons)
@@ -837,22 +842,22 @@ $(document).ready(function () {
 									
 								}
 	
-								// Super admin (0) can edit Buy-in, Cash-out, Rolling even when END GAME
-								if (userPermissions === 0) {
+								// No add when settled (all users). When not settled, Super admin can add Buy-in, Cash-out, Rolling
+								if (isSettled) {
+									buyin_td = parseFloat(total_amount).toLocaleString();
+									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
+									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
+								} else if (userPermissions === 0) {
 									buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
 									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true)">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
 								} else {
 									buyin_td = parseFloat(total_amount).toLocaleString();
 									rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();
-									cashout_td = '<span style="font-size:11px;text-decoration: none;" >' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
-								}
-								// Roller chips: clickable button if END GAME and (NOT settled OR Super admin), otherwise just text
-								if (isSettled && userPermissions !== 0) {
+									cashout_td = '<span style="font-size:11px;text-decoration: none;">' + parseFloat(total_cash_out_chips).toLocaleString() + '</span>';
 									roller_chips_td = parseFloat(total_roller_chips).toLocaleString();
-								} else {
-									// END GAME but not settled (or Super admin): only allow RETURN transactions
-									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true)">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
 								}
 	
 								var settleLabel = row.SETTLED === 1 ? 'Settled' : 'Settlement';
@@ -3029,25 +3034,6 @@ function reloadDataRecord() {
             // Pagsamahin ang data
             const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
             data.forEach(function (row) {
-                let btn;
-                // Super admin (0) can delete anytime; others: disable when game has ended (game_status == 1)
-                if (row.game_status == 1 && userPermissions !== 0) {
-                    // Game has ended, disable the button (except for Super admin)
-                    btn = `<div class="btn-group">
-                        <button type="button" class="btn btn-sm btn-danger-subtle" disabled aria-label="Game Ended">
-                            <i class="fa fa-trash-alt"></i>
-                        </button>
-                    </div>`;
-                } else {
-                    // Game is ongoing, or Super admin - show active delete button
-                    btn = `<div class="btn-group">
-                        <button type="button" onclick="archive_game_record(${row.game_record_id})" class="btn btn-sm btn-danger-subtle"
-                            data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
-                            <i class="fa fa-trash-alt"></i>
-                        </button>
-                    </div>`;
-                }
-
                 const dateKey = moment(row.record_date).format('MMM DD, YYYY HH:mm:ss');
 
                 if (!mergedData[dateKey]) {
@@ -3055,7 +3041,7 @@ function reloadDataRecord() {
                         buy_in: 0,
                         buy_in_nn: 0,  // Track NN chips separately for buy-in
                         additional_buyin: 0,
-                        additional_buyin_nn: 0,  // Track NN chips separately for additional buy-in
+                        additional_buyin_nn: 0,  // Record NN chips separately for additional buy-in
                         cash_out: 0,
                         cash_out_nn: 0,
                         real_rolling: 0,
@@ -3069,16 +3055,37 @@ function reloadDataRecord() {
                         roller_cc: 0,
                         remarks: row.REMARKS || '',
                         action: row.game_record_id,
-                        button: btn,
                         timestamp: new Date(row.record_date).getTime(),
                         is_marker: (row.TRANSACTION == 3),  // 3 = Marker
                         is_deposit: (row.TRANSACTION == 2),  // 2 = Deposit
                         buy_in_type: 1,    // 1=Cash, 2=Deposit, 3=Marker (set on first buy-in)
-                        additional_buyin_type: 1
+                        additional_buyin_type: 1,
+                        // Track edit/delete IDs per record type (for New Game + roller chips, we need both)
+                        editBuyinId: null,
+                        editCashoutId: null,
+                        editRollingId: null,
+                        editRollerId: null,
+                        deletePrimaryId: null,
+                        game_status: row.game_status
                     };
                 } else {
                     mergedData[dateKey].is_marker = mergedData[dateKey].is_marker || (row.TRANSACTION == 3);
                     mergedData[dateKey].is_deposit = mergedData[dateKey].is_deposit || (row.TRANSACTION == 2);
+                }
+
+                // Track edit IDs per CAGE_TYPE (Super Admin only) - single edit opens combined modal (buy-in + roller)
+                if (userPermissions === 0) {
+                    if (row.CAGE_TYPE == 1) mergedData[dateKey].editBuyinId = row.game_record_id;
+                    if (row.CAGE_TYPE == 2) mergedData[dateKey].editCashoutId = row.game_record_id;
+                    if (row.CAGE_TYPE == 3 && !mergedData[dateKey].editBuyinId) mergedData[dateKey].editRollingId = row.game_record_id; // Skip if paired with buy-in
+                    if (row.CAGE_TYPE == 4) mergedData[dateKey].editRollingId = row.game_record_id;
+                    if (row.CAGE_TYPE == 5) mergedData[dateKey].editRollerId = row.game_record_id;
+                }
+                // Delete: use CAGE_TYPE 1 id when available (deletes whole buy-in + roller chips), else first record
+                if (row.CAGE_TYPE == 1) {
+                    mergedData[dateKey].deletePrimaryId = row.game_record_id;
+                } else if (!mergedData[dateKey].deletePrimaryId) {
+                    mergedData[dateKey].deletePrimaryId = row.game_record_id;
                 }
 
                 // Process the row based on CAGE_TYPE - same logic as game list
@@ -3239,6 +3246,28 @@ function reloadDataRecord() {
                 if (transType === 3) return '<span class="rolling-cell rolling-cell-marker">' + str + '</span>';
                 return str;
             }
+            function buildActionButtons(rowData) {
+                const gameEnded = rowData.game_status == 1 && userPermissions !== 0;
+                const deleteId = rowData.deletePrimaryId;
+                if (gameEnded) {
+                    return `<div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-danger-subtle" disabled aria-label="Game Ended">
+                            <i class="fa fa-trash-alt"></i>
+                        </button>
+                    </div>`;
+                }
+                const editIds = [];
+                if (rowData.editBuyinId) editIds.push('buyin:' + rowData.editBuyinId);
+                if (rowData.editCashoutId) editIds.push('cashout:' + rowData.editCashoutId);
+                if (rowData.editRollingId) editIds.push('rolling:' + rowData.editRollingId);
+                if (rowData.editRollerId) editIds.push('roller:' + rowData.editRollerId);
+                const editIdsStr = editIds.join(',');
+                const editBtn = (userPermissions === 0 && editIdsStr)
+                    ? `<button type="button" onclick="edit_game_record_row(this)" class="btn btn-sm btn-primary-subtle" data-edit-ids="${editIdsStr}" data-bs-toggle="tooltip" aria-label="Edit" title="Edit"><i class="fa fa-edit"></i></button>`
+                    : '';
+                const deleteBtn = deleteId ? `<button type="button" onclick="archive_game_record(${deleteId})" class="btn btn-sm btn-danger-subtle" data-bs-toggle="tooltip" aria-label="Archive" title="Archive"><i class="fa fa-trash-alt"></i></button>` : '';
+                return `<div class="btn-group">${editBtn}${deleteBtn}</div>`;
+            }
             for (const date of sortedDates) {
                 const rowData = mergedData[date];
                 const rollerChips = (rowData.roller_nn || 0) + (rowData.roller_cc || 0);
@@ -3254,7 +3283,7 @@ function reloadDataRecord() {
                     rowData.nn.toLocaleString(),
                     rowData.cc.toLocaleString(),
                     rollerChips.toLocaleString(),
-                    rowData.button  
+                    buildActionButtons(rowData)
                 ]);
             }
 
@@ -3999,6 +4028,118 @@ function archive_game_record(id) {
 	})
 }
 
+function edit_game_record_row(btnEl) {
+	const editIdsStr = btnEl.getAttribute('data-edit-ids') || '';
+	if (!editIdsStr) return;
+	const parts = editIdsStr.split(',');
+	const editIds = {};
+	parts.forEach(function (p) {
+		const m = p.match(/^(\w+):(\d+)$/);
+		if (m) editIds[m[1]] = parseInt(m[2], 10);
+	});
+	const ids = Object.values(editIds);
+	if (ids.length === 0) return;
+
+	$('#edit-form-buyin').hide();
+	$('#edit-form-cashout').hide();
+	$('#edit-form-rolling').hide();
+	$('#edit-form-roller').hide();
+
+	const results = [];
+	let completed = 0;
+	let hasError = false;
+	ids.forEach(function (id, idx) {
+		$.getJSON('/game_record/single/' + id)
+			.done(function (rec) {
+				results[idx] = rec;
+			})
+			.fail(function (xhr) {
+				hasError = true;
+				const msg = xhr.responseJSON?.error || 'Failed to load record.';
+				Swal.fire({ icon: 'error', title: 'Error', text: msg });
+			})
+			.always(function () {
+				completed++;
+				if (completed === ids.length && !hasError) {
+					results.forEach(function (rec) {
+						if (!rec || (rec.CAGE_TYPE === undefined && rec.cage_type === undefined)) return;
+						const cageType = parseInt(rec.CAGE_TYPE || rec.cage_type, 10);
+						function fmtNum(n) { var x = parseFloat(n) || 0; return isNaN(x) ? '0' : x.toLocaleString(); }
+						if (cageType === 1) {
+							$('#edit-buyin-nn').val(fmtNum(rec.NN_CHIPS || rec.nn_chips));
+							$('#edit-buyin-cc').val(fmtNum(rec.CC_CHIPS || rec.cc_chips));
+							$('#edit-form-buyin').show();
+						} else if (cageType === 2) {
+							$('#edit-cashout-nn').val(fmtNum(rec.NN_CHIPS || rec.nn_chips));
+							$('#edit-cashout-cc').val(fmtNum(rec.CC_CHIPS || rec.cc_chips));
+							$('#edit-form-cashout').show();
+						} else if (cageType === 3 || cageType === 4) {
+							$('#edit-rolling-cc').val(fmtNum(rec.CC_CHIPS || rec.cc_chips));
+							$('#edit-form-rolling').show();
+						} else if (cageType === 5) {
+							$('#edit-roller-nn').val(fmtNum(rec.ROLLER_NN_CHIPS || rec.roller_nn_chips));
+							$('#edit-roller-cc').val(fmtNum(rec.ROLLER_CC_CHIPS || rec.roller_cc_chips));
+							$('#edit-form-roller').show();
+						}
+					});
+					$('#modal-edit-game-record').data('editIds', editIds);
+					$('#modal-edit-game-record').modal('show');
+				}
+			});
+	});
+}
+
+function parseEditNum(val) { return parseFloat(String(val || '').replace(/,/g, '')) || 0; }
+
+$(document).on('click', '#btn-save-edit-record', function () {
+	const editIds = $('#modal-edit-game-record').data('editIds') || {};
+	const updates = [];
+
+	if (editIds.buyin && $('#edit-form-buyin').is(':visible')) {
+		updates.push({ id: editIds.buyin, payload: { nn_chips: parseEditNum($('#edit-buyin-nn').val()), cc_chips: parseEditNum($('#edit-buyin-cc').val()) } });
+	}
+	if (editIds.cashout && $('#edit-form-cashout').is(':visible')) {
+		updates.push({ id: editIds.cashout, payload: { nn_chips: parseEditNum($('#edit-cashout-nn').val()), cc_chips: parseEditNum($('#edit-cashout-cc').val()) } });
+	}
+	if (editIds.rolling && $('#edit-form-rolling').is(':visible')) {
+		updates.push({ id: editIds.rolling, payload: { cc_chips: parseEditNum($('#edit-rolling-cc').val()) } });
+	}
+	if (editIds.roller && $('#edit-form-roller').is(':visible')) {
+		updates.push({
+			id: editIds.roller,
+			payload: {
+				roller_nn_chips: parseEditNum($('#edit-roller-nn').val()),
+				roller_cc_chips: parseEditNum($('#edit-roller-cc').val())
+			}
+		});
+	}
+
+	if (updates.length === 0) {
+		$('#modal-edit-game-record').modal('hide');
+		return;
+	}
+
+	const putPromises = updates.map(function (u) {
+		return $.ajax({
+			url: '/game_record/edit/' + u.id,
+			type: 'PUT',
+			contentType: 'application/json',
+			data: JSON.stringify(u.payload)
+		});
+	});
+	$.when.apply($, putPromises).done(function () {
+		$('#modal-edit-game-record').modal('hide');
+		if (typeof reloadDataRecord === 'function') {
+			reloadDataRecord();
+		} else {
+			window.location.reload();
+		}
+		Swal.fire({ icon: 'success', title: 'Saved', text: 'Game record updated successfully.', timer: 1500, showConfirmButton: false });
+	}).fail(function (xhr) {
+		const msg = xhr.responseJSON?.error || 'Failed to update record.';
+		Swal.fire({ icon: 'error', title: 'Error', text: msg });
+	});
+});
 
 function viewRecord(id) {
 	record_id = id;

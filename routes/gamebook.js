@@ -1742,6 +1742,12 @@ router.post('/game_list/add/buyin', async (req, res) => {
 		txtTotalAmountBuyin
 	} = req.body;
 
+	// Block add when game is settled
+	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
+	if (settledRows.length > 0 && settledRows[0].SETTLED === 1) {
+		return res.status(403).json({ error: 'Cannot add records to a settled game.' });
+	}
+
 	let date_now = new Date();
 
 	// Remove commas from NN and CC
@@ -1890,6 +1896,12 @@ router.post('/game_list/add/cashout', async (req, res) => {
 		txttotal_balance_cashout
 	} = req.body;
 
+	// Block add when game is settled
+	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
+	if (settledRows.length > 0 && settledRows[0].SETTLED === 1) {
+		return res.status(403).json({ error: 'Cannot add records to a settled game.' });
+	}
+
 	let date_now = new Date();
 
 	// Ensure at least one of txtNN or txtCC is provided and not empty
@@ -2037,6 +2049,13 @@ router.post('/game_list/add/cashout', async (req, res) => {
 // ADD GAME RECORD ROLLING
 router.post('/game_list/add/rolling', async (req, res) => {
 	const { game_id, txtNN, txtCC } = req.body;
+
+	// Block add when game is settled
+	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
+	if (settledRows.length > 0 && settledRows[0].SETTLED === 1) {
+		return res.status(403).json({ error: 'Cannot add records to a settled game.' });
+	}
+
 	let date_now = new Date();
 
 	// Remove commas from NN and CC (default to 0 if not provided)
@@ -2115,6 +2134,13 @@ router.post('/game_list/rolling/:id/update', async (req, res) => {
 // ADD GAME RECORD ROLLER CHIPS
 router.post('/game_list/add/roller_chips', async (req, res) => {
 	const { game_id, txtRollerNN, txtRollerCC, txtTransType } = req.body;
+
+	// Block add when game is settled
+	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
+	if (settledRows.length > 0 && settledRows[0].SETTLED === 1) {
+		return res.status(403).json({ error: 'Cannot add records to a settled game.' });
+	}
+
 	let date_now = new Date();
 
 	// Remove commas from NN and CC (default to 0 if not provided)
@@ -2229,6 +2255,184 @@ router.get('/game_record_data/:id', checkSession, async (req, res) => {
 	} catch (error) {
 		console.error('Error fetching data:', error);
 		res.status(500).send('Error fetching data');
+	}
+});
+
+// GET single game_record for edit (Super Admin only)
+router.get('/game_record/single/:id', checkSession, async (req, res) => {
+	const permissions = req.session?.permissions;
+	if (permissions !== 0) {
+		return res.status(403).json({ error: 'Only Super Admin can edit game records.' });
+	}
+	const id = parseInt(req.params.id);
+	if (!id || isNaN(id)) {
+		return res.status(400).json({ error: 'Invalid record ID' });
+	}
+	try {
+		const [rows] = await pool.execute(
+			`SELECT IDNo, GAME_ID, CAGE_TYPE, NN_CHIPS, CC_CHIPS, AMOUNT, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, TRANSACTION FROM game_record WHERE IDNo = ? AND ACTIVE = 1`,
+			[id]
+		);
+		if (rows.length === 0) return res.status(404).json({ error: 'Record not found' });
+		return res.json(rows[0]);
+	} catch (err) {
+		console.error('Error fetching game record:', err);
+		return res.status(500).json({ error: 'Error fetching record' });
+	}
+});
+
+// EDIT GAME RECORD (Super Admin only)
+router.put('/game_record/edit/:id', checkSession, async (req, res) => {
+	const permissions = req.session?.permissions;
+	if (permissions !== 0) {
+		return res.status(403).json({ error: 'Only Super Admin can edit game records.' });
+	}
+
+	const id = parseInt(req.params.id);
+	const { nn_chips, cc_chips, amount, roller_nn_chips, roller_cc_chips } = req.body;
+	const date_now = new Date();
+
+	if (!id || isNaN(id)) {
+		return res.status(400).json({ error: 'Invalid record ID' });
+	}
+
+	try {
+		const [recordRows] = await pool.execute(
+			`SELECT GAME_ID, CAGE_TYPE, NN_CHIPS, CC_CHIPS, AMOUNT, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, TRANSACTION, ENCODED_DT FROM game_record WHERE IDNo = ? AND ACTIVE = 1`,
+			[id]
+		);
+		if (recordRows.length === 0) {
+			return res.status(404).json({ error: 'Record not found' });
+		}
+		const record = recordRows[0];
+		const cageType = record.CAGE_TYPE;
+		const gameId = record.GAME_ID;
+		const oldNn = parseFloat(record.NN_CHIPS) || 0;
+		const oldCc = parseFloat(record.CC_CHIPS) || 0;
+		const oldAmount = parseFloat(record.AMOUNT) || 0;
+		const oldTotal = oldNn + oldCc;
+		const encodedDt = record.ENCODED_DT;
+		const transaction = record.TRANSACTION;
+
+		// CAGE_TYPE 1 (Buy-in) or 2 (Cash Out): nn_chips, cc_chips
+		// CAGE_TYPE 3, 4: nn_chips, cc_chips, amount
+		// CAGE_TYPE 5: roller_nn_chips, roller_cc_chips
+		let newNn = oldNn, newCc = oldCc, newAmount = oldAmount, newRollerNn = record.ROLLER_NN_CHIPS || 0, newRollerCc = record.ROLLER_CC_CHIPS || 0;
+
+		if (cageType === 1 || cageType === 2) {
+			if (nn_chips !== undefined) newNn = parseFloat(nn_chips) || 0;
+			if (cc_chips !== undefined) newCc = parseFloat(cc_chips) || 0;
+		} else if (cageType === 3 || cageType === 4) {
+			if (nn_chips !== undefined) newNn = parseFloat(nn_chips) || 0;
+			if (cc_chips !== undefined) newCc = parseFloat(cc_chips) || 0;
+			if (amount !== undefined) newAmount = parseFloat(amount) || 0;
+		} else if (cageType === 5) {
+			if (roller_nn_chips !== undefined) newRollerNn = parseFloat(roller_nn_chips) || 0;
+			if (roller_cc_chips !== undefined) newRollerCc = parseFloat(roller_cc_chips) || 0;
+		}
+
+		const newTotal = newNn + newCc;
+
+		// 1. Update game_record
+		if (cageType === 1 || cageType === 2) {
+			await pool.execute(
+				`UPDATE game_record SET NN_CHIPS = ?, CC_CHIPS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				[newNn, newCc, req.session.user_id, date_now, id]
+			);
+			// For CAGE_TYPE 1: also update paired CAGE_TYPE 3 (same GAME_ID, NN_CHIPS, CC_CHIPS, ENCODED_DT)
+			if (cageType === 1) {
+				await pool.execute(
+					`UPDATE game_record SET NN_CHIPS = ?, CC_CHIPS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE GAME_ID = ? AND CAGE_TYPE = 3 AND NN_CHIPS = ? AND CC_CHIPS = ? AND ENCODED_DT = ? AND ACTIVE = 1`,
+					[newNn, newCc, req.session.user_id, date_now, gameId, oldNn, oldCc, encodedDt]
+				);
+			}
+		} else if (cageType === 3 || cageType === 4) {
+			await pool.execute(
+				`UPDATE game_record SET NN_CHIPS = ?, CC_CHIPS = ?, AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				[newNn, newCc, newAmount, req.session.user_id, date_now, id]
+			);
+		} else if (cageType === 5) {
+			await pool.execute(
+				`UPDATE game_record SET ROLLER_NN_CHIPS = ?, ROLLER_CC_CHIPS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				[newRollerNn, newRollerCc, req.session.user_id, date_now, id]
+			);
+		}
+
+		// 2. Update account_ledger and cash_transaction for CAGE_TYPE 1 (Buy-in)
+		if (cageType === 1 && oldTotal !== newTotal) {
+			const [gameListRows] = await pool.execute(`SELECT ACCOUNT_ID FROM game_list WHERE IDNo = ? LIMIT 1`, [gameId]);
+			if (gameListRows.length > 0) {
+				const accountId = gameListRows[0].ACCOUNT_ID;
+				if (transaction == 1) {
+					// Cash: update cash_transaction (TRANSACTION_ID = game_id for buy-in) - LIMIT 1 to avoid updating multiple rows
+					await pool.execute(
+						`UPDATE cash_transaction SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1 AND (CATEGORY = 'Game buy-in' OR CATEGORY = 'Additional buy-in') AND TYPE = 1 AND AMOUNT = ? ORDER BY IDNo DESC LIMIT 1`,
+						[newTotal, req.session.user_id, date_now, gameId, oldTotal]
+					);
+				}
+				if (transaction == 2) {
+					// Deposit: update account_ledger
+					const [initRows] = await pool.execute(
+						`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'INITIAL BUY-IN' AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+						[accountId, gameId, oldTotal, encodedDt]
+					);
+					if (initRows.length > 0) {
+						await pool.execute(`UPDATE account_ledger SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`, [newTotal, req.session.user_id, date_now, initRows[0].IDNo]);
+					} else {
+						const [addRows] = await pool.execute(
+							`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 2 AND TRANSACTION_TYPE = 2 AND TRANSACTION_DESC = 'ADDITIONAL BUY-IN' AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+							[accountId, gameId, oldTotal, encodedDt]
+						);
+						if (addRows.length > 0) {
+							await pool.execute(`UPDATE account_ledger SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`, [newTotal, req.session.user_id, date_now, addRows[0].IDNo]);
+						}
+					}
+				}
+				if (transaction == 3) {
+					// Marker: update account_ledger
+					const [iouRows] = await pool.execute(
+						`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND (TRANSACTION_DESC IS NULL OR TRANSACTION_DESC = '') AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+						[accountId, gameId, oldTotal, encodedDt]
+					);
+					if (iouRows.length > 0) {
+						await pool.execute(`UPDATE account_ledger SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`, [newTotal, req.session.user_id, date_now, iouRows[0].IDNo]);
+					} else {
+						const [iouRows2] = await pool.execute(
+							`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+							[accountId, gameId, oldTotal, encodedDt]
+						);
+						if (iouRows2.length > 0) {
+							await pool.execute(`UPDATE account_ledger SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`, [newTotal, req.session.user_id, date_now, iouRows2[0].IDNo]);
+						}
+					}
+				}
+			}
+		}
+
+		// 3. Update account_ledger and cash_transaction for CAGE_TYPE 2 (Cash Out)
+		if (cageType === 2 && oldTotal !== newTotal) {
+			const [gameListRows] = await pool.execute(`SELECT ACCOUNT_ID FROM game_list WHERE IDNo = ? LIMIT 1`, [gameId]);
+			if (gameListRows.length > 0) {
+				const accountId = gameListRows[0].ACCOUNT_ID;
+				const [ledgerRows] = await pool.execute(
+					`SELECT IDNo FROM account_ledger WHERE ACCOUNT_ID = ? AND (GAME_ID = ? OR GAME_ID IS NULL) AND TRANSACTION_ID = 1 AND TRANSACTION_TYPE = ? AND TRANSACTION_DESC = 'Chips Returned' AND AMOUNT = ? AND ENCODED_DT = ? AND ACTIVE = 1 ORDER BY IDNo DESC LIMIT 1`,
+					[accountId, gameId, transaction, oldTotal, encodedDt]
+				);
+				if (ledgerRows.length > 0) {
+					await pool.execute(`UPDATE account_ledger SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`, [newTotal, req.session.user_id, date_now, ledgerRows[0].IDNo]);
+				}
+			}
+			// cash_transaction: TRANSACTION_ID = game_record.IDNo for cash out
+			await pool.execute(
+				`UPDATE cash_transaction SET AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? WHERE TRANSACTION_ID = ? AND ACTIVE = 1`,
+				[newTotal, req.session.user_id, date_now, id]
+			);
+		}
+
+		return res.json({ success: true, message: 'Game record updated successfully' });
+	} catch (err) {
+		console.error('Error editing game record:', err);
+		return res.status(500).json({ error: 'Error updating game record' });
 	}
 });
 
