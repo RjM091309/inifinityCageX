@@ -1432,6 +1432,24 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                                       let currentWeekOffset = 0;
 
+
+                                                      function getWeekNumber(d) {
+                                                         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+                                                         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+                                                         var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+                                                         var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
+                                                         return weekNo;
+                                                      }
+
+                                                      function getStartDateOfRange(offset = 0) {
+                                                         const today = new Date();
+                                                         const day = today.getDay();
+                                                         const diffToMonday = day === 0 ? -6 : 1 - day;
+                                                         const start = new Date(today);
+                                                         start.setDate(start.getDate() + diffToMonday + (offset * 7));
+                                                         return start;
+                                                      }
+
                                                       function loadWinloss(range, label, offset = 0) {
                                                          currentWeekOffset = offset;
 
@@ -1441,16 +1459,25 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                                          // Update week label
                                                          if (range === 'week') {
-                                                            const thisWeekText = "<%= __('dashboard.this_week') %>";
-                                                            const weekText = "<%= __('dashboard.week') %>";
-                                                            const labelText = offset === 0 ? thisWeekText : `${weekText} -${Math.abs(offset)}`;
-                                                            document.getElementById('week-label').textContent = labelText;
+                                                            if (offset === 0) {
+                                                               document.getElementById('week-label').textContent = "<%= __('dashboard.this_week') %>";
+                                                            } else {
+                                                               const startDate = getStartDateOfRange(offset);
+                                                               const weekNum = getWeekNumber(startDate);
+                                                               
+                                                               const weekText = "<%= __('dashboard.week') %>";
+                                                               const labelText = `${weekText} ${weekNum}`;
+                                                               
+                                                               document.getElementById('week-label').textContent = labelText;
+                                                            }
 
                                                             const dateRange = getDateRange(offset);
                                                             document.getElementById('week-date-range').textContent = `(${dateRange})`;
                                                          } else {
+                                                            document.getElementById('week-label').textContent = label;
                                                             document.getElementById('week-date-range').textContent = '';
                                                          }
+
 
 
                                                          // Only update dropdown label if not custom offset
@@ -1524,18 +1551,17 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                       // Arrows
                                                       document.getElementById('prev-week-btn').addEventListener('click', () => {
                                                          currentWeekOffset--;
-                                                         loadWinloss('week', `Week -${Math.abs(currentWeekOffset)}`, currentWeekOffset);
+                                                         loadWinloss('week', '', currentWeekOffset);
                                                       });
                                                       document.getElementById('next-week-btn').addEventListener('click', () => {
-                                                         currentWeekOffset = 0;
-                                                         const thisWeekText = "<%= __('dashboard.this_week') %>";
-                                                         loadWinloss('week', thisWeekText, 0);
+                                                         currentWeekOffset++;
+                                                         if (currentWeekOffset > 0) currentWeekOffset = 0;
+                                                         loadWinloss('week', '', currentWeekOffset);
                                                       });
 
                                                       // Init
                                                       window.addEventListener('DOMContentLoaded', () => {
-                                                         const thisWeekText = "<%= __('dashboard.this_week') %>";
-                                                         loadWinloss('week', thisWeekText, 0);
+                                                         loadWinloss('week', '', 0);
                                                       });
 
 
