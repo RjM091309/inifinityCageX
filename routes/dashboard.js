@@ -1649,31 +1649,31 @@ router.get('/get_winloss', async (req, res) => {
 	let targetYearWeek = '';
 	let unsettledCondition = '';
 
-if (range === 'week') {
-   const targetDate = new Date();
-   targetDate.setDate(targetDate.getDate() + (offset * 7));
-   const isoDate = targetDate.toISOString().slice(0, 10);
-   targetYearWeek = `YEARWEEK('${isoDate}', 1)`;
-   
-   // Previous week
-   const prevDate = new Date(targetDate);
-   prevDate.setDate(prevDate.getDate() - 7);
-   const prevIsoDate = prevDate.toISOString().slice(0, 10);
-   const prevYearWeek = `YEARWEEK('${prevIsoDate}', 1)`;
+	if (range === 'week') {
+		const targetDate = new Date();
+		targetDate.setDate(targetDate.getDate() + (offset * 7));
+		const isoDate = targetDate.toISOString().slice(0, 10);
+		targetYearWeek = `YEARWEEK('${isoDate}', 1)`;
+		
+		// Previous week
+		const prevDate = new Date(targetDate);
+		prevDate.setDate(prevDate.getDate() - 7);
+		const prevIsoDate = prevDate.toISOString().slice(0, 10);
+		const prevYearWeek = `YEARWEEK('${prevIsoDate}', 1)`;
 
-   totalCondition = `AND YEARWEEK(ds.SETTLEMENT_DATE, 1) = ${targetYearWeek}`;
-   groupCondition = totalCondition;
-   prevTotalCondition = `AND YEARWEEK(ds.SETTLEMENT_DATE, 1) = ${prevYearWeek}`;
-   prevGroupCondition = prevTotalCondition;
-   groupBy = "DAYOFWEEK(ds.SETTLEMENT_DATE)";
-   labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-   groupKeys = [2, 3, 4, 5, 6, 7, 1];
-   
-   // Unsettled condition for current week
-   if (isCurrentPeriod) {
-		unsettledCondition = `OR ((game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL) AND YEARWEEK(game_list.ENCODED_DT, 1) = ${targetYearWeek})`;
-   }
-}
+		totalCondition = `AND YEARWEEK(ds.SETTLEMENT_DATE, 1) = ${targetYearWeek}`;
+		groupCondition = totalCondition;
+		prevTotalCondition = `AND YEARWEEK(ds.SETTLEMENT_DATE, 1) = ${prevYearWeek}`;
+		prevGroupCondition = prevTotalCondition;
+		groupBy = "DAYOFWEEK(ds.SETTLEMENT_DATE)";
+		labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+		groupKeys = [2, 3, 4, 5, 6, 7, 1];
+		
+		// Unsettled condition for current week
+		if (isCurrentPeriod) {
+			unsettledCondition = `OR ((game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL) AND dsg.GAME_ID IS NULL)`;
+		}
+	}
  else if (range === 'month') {
 		totalCondition = `AND MONTH(ds.SETTLEMENT_DATE) = ${currentMonth + 1} AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
 		groupCondition = `AND YEAR(ds.SETTLEMENT_DATE) = ${currentYear}`;
@@ -1737,11 +1737,11 @@ if (range === 'week') {
 	let chartGroupBy = groupBy;
 	if (isCurrentPeriod) {
 		if (range === 'week') {
-			chartGroupBy = "COALESCE(DAYOFWEEK(ds.SETTLEMENT_DATE), DAYOFWEEK(game_list.ENCODED_DT))";
+			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, DAYOFWEEK(ds.SETTLEMENT_DATE), DAYOFWEEK(NOW()))";
 		} else if (range === 'month') {
-			chartGroupBy = "COALESCE(MONTH(ds.SETTLEMENT_DATE), MONTH(game_list.ENCODED_DT))";
+			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, MONTH(ds.SETTLEMENT_DATE), MONTH(NOW()))";
 		} else if (range === 'year') {
-			chartGroupBy = "COALESCE(YEAR(ds.SETTLEMENT_DATE), YEAR(game_list.ENCODED_DT))";
+			chartGroupBy = "IF(ds.SETTLEMENT_DATE IS NOT NULL, YEAR(ds.SETTLEMENT_DATE), YEAR(NOW()))";
 		}
 	}
 
