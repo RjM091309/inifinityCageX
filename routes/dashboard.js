@@ -188,6 +188,7 @@ ON
 	let sqlCageRolling = 'SELECT SUM(ROLLING_AMOUNT) AS ROLLING_AMOUNT FROM cage_rolling WHERE ACTIVE =1';
 	let sqlNNChipsAccountMarker = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_MARKER FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION = 3';
 	let sqlCCChipsBuyinGame = 'SELECT SUM(CC_CHIPS) AS TOTAL_CC FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION IN (1 , 2, 3)';
+	let sqlCCChipsBuyinGameReset = 'SELECT SUM(CC_CHIPS) AS TOTAL_CC FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION IN (1 , 2, 3) AND RESET=1';
 	let sqlNNChipsAccountCash = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_CASH FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 1';
 	let sqlCCChipsAccountCash = 'SELECT SUM(CC_CHIPS) AS TOTAL_CC_CASH FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 1';
 	let sqlNNChipsAccountDeposit = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_DEPOSIT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND TRANSACTION = 2';
@@ -468,6 +469,7 @@ let sqlServiceSettle = `
 		const [TotalRollingManualResult] = await pool.execute(sqlTotalRollingManual);
 		const [AccountTransferResult] = await pool.execute(sqlAccountTransfer);
 		const [CChipsBuyinGameResult] = await pool.execute(sqlCCChipsBuyinGame);
+		const [CChipsBuyinGameResetResult] = await pool.execute(sqlCCChipsBuyinGameReset);
 		const [JunketCreditResult] = await pool.execute(sqlJunketCredit);
 		const [JunketExpenseResult] = await pool.execute(sqlJunketExpense);
 		const [JunketExpenseGoodsResult] = await pool.execute(sqlJunketExpenseGoods);
@@ -620,7 +622,7 @@ let sqlServiceSettle = `
 
 					if (!gameId || !RollingRate) continue;
 
-					const recordQuery = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ROLLER_TRANSACTION, ROLLER_CC_CHIPS FROM game_record WHERE ACTIVE != 0 AND GAME_ID = ? ORDER BY IDNo ASC`;
+					const recordQuery = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ROLLER_TRANSACTION, ROLLER_CC_CHIPS FROM game_record WHERE ACTIVE != 0 AND RESET = 1 AND GAME_ID = ? ORDER BY IDNo ASC`;
 					const [records] = await pool.execute(recordQuery, [gameId]);
 
 					if (!records || records.length === 0) continue;
@@ -754,6 +756,7 @@ let sqlServiceSettle = `
 			sqlTotalRollingManual: TotalRollingManualResult,
 
 			sqlCCChipsBuyinGame: CChipsBuyinGameResult,
+			sqlCCChipsBuyinGameReset: CChipsBuyinGameResetResult,
 			sqlJunketCredit: JunketCreditResult,
 			sqlJunketExpense: JunketExpenseResult,
 			sqlJunketExpenseGoods: JunketExpenseGoodsResult,
@@ -1540,11 +1543,13 @@ router.get("/dashboard_history", function (req, res) {
 // Reset Main Cage Balances
 router.post('/reset-main-cage-balance', async (req, res) => {
 	try {
-		await pool.execute(`UPDATE junket_house_expense SET RESET = 0`);
-		await pool.execute(`UPDATE game_record SET RESET = 0`);
-		await pool.execute(`UPDATE junket_total_chips SET RESET = 0`);
-		await pool.execute(`UPDATE winloss SET RESET = 0`);
-		await pool.execute(`UPDATE total_rolling SET RESET = 0`);
+		// Update all tables to mark records as settled (RESET = 0)
+		// Only update active records that are currently unsettled (RESET = 1)
+		// await pool.execute(`UPDATE junket_house_expense SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
+		await pool.execute(`UPDATE game_record SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
+		// await pool.execute(`UPDATE junket_total_chips SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
+		// await pool.execute(`UPDATE winloss SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
+		// await pool.execute(`UPDATE total_rolling SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
 
 		res.json({ success: true });
 	} catch (err) {

@@ -83,7 +83,7 @@
 						"ajax": {
 							"url": "/commission_data",
 							"dataSrc": function (json) {
-								console.log("Data received from server:", json);
+								// console.log("Data received from server:", json);
 								return json.data || []; // Default to empty array if no data
 							}
 						},
@@ -180,7 +180,7 @@
 					var table = $('#commission-tbl').DataTable();
 					table.rows({ search: 'applied' }).every(function() {
 						var data = this.data();
-						console.log("Processing object:", data);
+						// console.log("Processing object:", data);
 
 						// Adjust these indices based on your columns configuration
 						var buyInIndex = 2;

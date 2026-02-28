@@ -8,7 +8,7 @@ $(document).ready(function() {
         dateFormat: "Y-m-d",
         defaultDate: [
             moment().startOf('month').format('YYYY-MM-DD'),
-            moment().format('YYYY-MM-DD')
+            moment().endOf('month').format('YYYY-MM-DD')
         ],
         showMonths: 2, // Display two months side-by-side
         onReady: function (selectedDates, dateStr, instance) {
@@ -16,6 +16,17 @@ $(document).ready(function() {
             const today = new Date();
             instance.changeMonth(-1, true); // Go to the previous month programmatically
         },
+        onChange: function(selectedDates, dateStr, instance) {
+            // When user selects a date, auto-fill the range to be the entire month
+            if (selectedDates.length === 1) {
+                const selectedDate = selectedDates[0];
+                const startOfMonth = moment(selectedDate).startOf('month').toDate();
+                const endOfMonth = moment(selectedDate).endOf('month').toDate();
+                
+                // Set the range to the full month
+                instance.setDate([startOfMonth, endOfMonth], true);
+            }
+        }
     });
 
     // Destroy existing DataTable if already initialized
@@ -73,7 +84,21 @@ $(document).ready(function() {
             return;
         }
 
-        const [start, end] = dateRange.split(' to ');
+        // Split by ' to ' (with spaces)
+        let start, end;
+        if (dateRange.includes(' to ')) {
+            [start, end] = dateRange.split(' to ');
+        } else {
+            // If only one date, use it for both start and end
+            start = dateRange;
+            end = dateRange;
+        }
+        
+        // Ensure both dates are valid
+        if (!start || !end) {
+            alert('Invalid date range. Please select a valid range.');
+            return;
+        }
 
         $.ajax({
             url: '/commission_data', // Endpoint to fetch commission data

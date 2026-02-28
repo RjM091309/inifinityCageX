@@ -303,8 +303,9 @@
                <form id="expense-form" action="/insert-dash-history" method="POST">
                   <input type="hidden" name="EXPENSE_HISTORY"
                      value="<%- (sqlJunketExpenseReset && sqlJunketExpenseReset[0] ? (sqlJunketExpenseReset[0].RESET_EXPENSE || 0) : 0) %>">
+                  
                   <div class="row">
-                     <div class="col-md-12 col-lg-12">
+                        <div class="col-md-12 col-lg-12">
                         <div class="row row-cols-1">
                            <div class="overflow-hidden d-slider1 ">
 
@@ -781,7 +782,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                       </span>
                                                    </a>
                                              </h6>
-                                             <h6 id="comms" class="counter">₱ <%- Math.round(+sqlCommissionSettlement || 0).toLocaleString() %></h6>
+                                             <h6 id="comms" class="counter" data-original-commission="<%- Math.round(+sqlCommissionSettlement || 0) %>">₱ <%- Math.round(+sqlCommissionSettlement || 0).toLocaleString() %></h6>
                                              <input type="hidden" name="COMMISSION_HISTORY"
                                                 value="<%- Math.round(+sqlCommissionSettlement || 0) %>">
                                           </div>
@@ -835,7 +836,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                              </h6>
 
 
-                                             <h6 class="card-title mb-0 counter" id="winloss"> ₱ <%-
+                                             <h6 class="card-title mb-0 counter" id="winloss" data-original-winloss="<%- parseFloat(sqlWinLossReset[0].RESET_CASHIN - sqlTotalCashOutReset[0].CASHOUT_RESET + sqlWinlossManual[0].WINLOSS) %>"> ₱ <%-
                                                    parseFloat(sqlWinLossReset[0].RESET_CASHIN -
                                                    sqlTotalCashOutReset[0].CASHOUT_RESET +
                                                    sqlWinlossManual[0].WINLOSS).toLocaleString() %></h6>
@@ -1281,7 +1282,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
 
                                        <!-- In-update na chart container: -->
                                        <div id="myChart" class="col-md-12 col-lg-12 myChart"
-                                          data-totalrolling="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0) + (+sqlReturnRollerCCChips[0].RETURN_ROLLER_CC || 0) - (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0)) %>"
+                                          data-totalrolling="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0) + (+sqlReturnRollerCCChips[0].RETURN_ROLLER_CC || 0) - (+sqlCCChipsBuyinGameReset[0].TOTAL_CC || 0)) %>"
                                        data-houserolling="<%- (+sqlCCChipsCashoutReset[0].CCResetCashout || 0) %>">
                                           <span id="totalrolling"></span>
                                           <span id="totalhouserolling"></span>
@@ -1289,7 +1290,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                        <input type="hidden" name="HOUSE_ROLLING_HISTORY"
                                        value="<%- (+sqlCCChipsCashoutReset[0].CCResetCashout || 0) %>">
                                        <input type="hidden" name="TOTAL_ROLLING_HISTORY"
-                                          value="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0) + (+sqlReturnRollerCCChips[0].RETURN_ROLLER_CC || 0) - (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0)) %>">
+                                          value="<%- ((+sqlTotalRollingReset[0].RESET_ROLLING || 0) - (+sqlTotalCashOutRollingReset[0].RESET_CASHOUT || 0) + (+sqlTotalRollingManual[0].TOTAL_ROLLING || 0) + (+sqlReturnRollerCCChips[0].RETURN_ROLLER_CC || 0) - (+sqlCCChipsBuyinGameReset[0].TOTAL_CC || 0)) %>">
                                     </div>
                                  </div>
                               </div>
@@ -1557,7 +1558,7 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                                                          currentWeekOffset++;
                                                          if (currentWeekOffset > 0) currentWeekOffset = 0;
                                                          loadWinloss('week', '', currentWeekOffset);
-                                                      });
+                                                     });
 
                                                       // Init
                                                       window.addEventListener('DOMContentLoaded', () => {
