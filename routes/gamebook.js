@@ -978,35 +978,10 @@ router.get('/game_list_data', async (req, res) => {
                     
                     return res.json(rows);
                 }
-                // Past date, no settlement yet: show ALL unsettled games (not just that day)
-                // Since the date hasn't been settled, all unsettled games are still part of that settlement batch
-                const queryPastUnsettled = baseSelect + `
-                    WHERE game_list.ACTIVE != 0 
-                      AND (game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL)
-                    ORDER BY game_list.IDNo ASC
-                `;
-                const [rowsPast] = await pool.execute(queryPastUnsettled);
                 
-                // Add pending flag
-                const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
-                const [latestSettlementPast] = await pool.execute(
-                    `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
-                    [firstOfMonth, todayServer]
-                );
-                
-                if (latestSettlementPast.length > 0) {
-                    const settlementRunTime = latestSettlementPast[0].RUN_AT instanceof Date 
-                        ? latestSettlementPast[0].RUN_AT 
-                        : new Date(latestSettlementPast[0].RUN_AT);
-                    rowsPast.forEach(row => {
-                        const gameCreatedAt = row.ENCODED_DT instanceof Date ? row.ENCODED_DT : new Date(row.ENCODED_DT);
-                        row.is_pending = (gameCreatedAt < settlementRunTime && row.ACTIVE != 1) ? 1 : 0;
-                    });
-                } else {
-                    rowsPast.forEach(row => { row.is_pending = 0; });
-                }
-                
-                return res.json(rowsPast);
+                // Past date with no settlement: return empty array
+                // If a past date hasn't been settled, it means there's no data for that date
+                return res.json([]);
             }
         } catch (err) {
             console.error('[Daily Settlement] Error fetching game list by settlement date:', err);
