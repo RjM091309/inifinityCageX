@@ -606,12 +606,11 @@ let sqlServiceSettle = `
 					game_list.COMMISSION_TYPE,
 					game_list.FNB AS fnb
 				FROM game_list 
-				WHERE game_list.ACTIVE != 0 
+				WHERE game_list.ACTIVE IN (1, 2)
 					AND game_list.SETTLED = 1
-					AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
 				ORDER BY game_list.IDNo ASC`;
 
-			const [games] = await pool.execute(commissionQuery, [startStr, endStr]);
+			const [games] = await pool.execute(commissionQuery);
 
 			if (games && games.length > 0) {
 				for (const row of games) {

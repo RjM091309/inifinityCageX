@@ -1,7 +1,7 @@
 $(document).ready(function() {
 
     // Initialize Flatpickr for date range
-    flatpickr("#daterange", {
+    var flatpickrInstance = flatpickr("#daterange", {
         mode: "range",
         altInput: true,
         altFormat: "M d, Y",
@@ -10,22 +10,10 @@ $(document).ready(function() {
             moment().startOf('month').format('YYYY-MM-DD'),
             moment().endOf('month').format('YYYY-MM-DD')
         ],
-        showMonths: 2, // Display two months side-by-side
+        showMonths: 2,
         onReady: function (selectedDates, dateStr, instance) {
-            // Automatically navigate the calendar to show previous and current month side by side
             const today = new Date();
-            instance.changeMonth(-1, true); // Go to the previous month programmatically
-        },
-        onChange: function(selectedDates, dateStr, instance) {
-            // When user selects a date, auto-fill the range to be the entire month
-            if (selectedDates.length === 1) {
-                const selectedDate = selectedDates[0];
-                const startOfMonth = moment(selectedDate).startOf('month').toDate();
-                const endOfMonth = moment(selectedDate).endOf('month').toDate();
-                
-                // Set the range to the full month
-                instance.setDate([startOfMonth, endOfMonth], true);
-            }
+            instance.changeMonth(-1, true);
         }
     });
 
@@ -241,7 +229,7 @@ $(document).ready(function() {
                                     
                                     
                          var formattedDate = moment.utc(row.GAME_ENDED).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
-                                    // Add row to table with total_amount in a separate column
+                                    // Add row to table with total_amount in a separate column (without drawing yet)
                                     dataTable.row.add([
                                         row.game_list_id,
                                         `${row.agent_code} - ${row.agent_name}`,
@@ -254,7 +242,7 @@ $(document).ready(function() {
                                         fb.toLocaleString(),
                                         paymentValue.toLocaleString(),
                                         formattedDate
-                                    ]).draw();
+                                    ]);
                                 },
                                 error: function(xhr, status, error) {
                                     console.error('Error fetching options:', error);
@@ -262,6 +250,11 @@ $(document).ready(function() {
                             })
                         );
                     }
+                });
+                
+                // Wait for all AJAX calls to complete before drawing the table once
+                $.when.apply($, ajaxCalls).done(function() {
+                    dataTable.draw();
                 });
 
                
@@ -272,9 +265,13 @@ $(document).ready(function() {
         });
     }
 
+    // Load data initially
     reloadData();
 
-    $('#daterange').on('change', function () {
-        reloadData();
+    // Reload data when date range changes (use 'close' event instead of 'change' to avoid multiple triggers)
+    flatpickrInstance.config.onClose.push(function(selectedDates, dateStr, instance) {
+        if (selectedDates.length === 2) {
+            reloadData();
+        }
     });
 });

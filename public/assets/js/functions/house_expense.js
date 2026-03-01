@@ -274,8 +274,8 @@ $(document).ready(function () {
                 } else {
                     var now = new Date();
                     var pad = function(n) { return String(n).padStart(2, '0'); };
-                    var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-                    earliestSettlementDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+                    var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
+                    earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
                 }
                 
                 // Set default range and max date
@@ -322,9 +322,9 @@ $(document).ready(function () {
             var sortedDates = settledDates.slice().sort();
             earliestSettlementDate = sortedDates[0];
         } else {
-            // If no settled dates, use first of month
-            var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            earliestSettlementDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+            // If no settled dates, allow navigation back to January 1 of previous year
+            var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
+            earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
         }
         
         // Default date range: From earliest settlement date to next settlement date
@@ -443,8 +443,8 @@ $(document).ready(function () {
             } else {
                 var now = new Date();
                 var pad = function(n) { return String(n).padStart(2, '0'); };
-                var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-                earliestSettlementDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+                var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
+                earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
             }
             
             settlementDatePicker = flatpickr("#settlement-date-picker", {
@@ -535,8 +535,8 @@ $(document).ready(function () {
         if (settledDates.length === 0) {
             var now = new Date();
             var pad = function(n) { return String(n).padStart(2, '0'); };
-            var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            return firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+            var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
+            return earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
         }
         var sortedDates = settledDates.slice().sort();
         return sortedDates[0];

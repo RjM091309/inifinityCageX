@@ -960,11 +960,11 @@ $(document).ready(function () {
         // Get the earliest settlement date from settledDatesForMonth array
         var settledDates = window.settledDatesForMonth || [];
         if (settledDates.length === 0) {
-            // If no settled dates, use first of current month as fallback
+            // If no settled dates, allow navigation back to January 1 of previous year
             var now = new Date();
             var pad = function(n) { return String(n).padStart(2, '0'); };
-            var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            return firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
+            var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
+            return earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
         }
         
         // Sort dates and get the earliest one

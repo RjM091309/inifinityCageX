@@ -27,20 +27,29 @@ router.get('/commission_data', async (req, res) => {
     }
 
     const query = `
-        SELECT *, 
-            game_list.IDNo AS game_list_id, 
-            game_list.ACTIVE AS game_status, 
-            game_list.FNB AS fnb, 
-            game_list.PAYMENT AS payment,  
-            account.IDNo AS account_no, 
-            agent.AGENT_CODE AS agent_code, 
-            agent.NAME AS agent_name 
+        SELECT DISTINCT
+            game_list.IDNo AS game_list_id,
+            game_list.ACTIVE AS game_status,
+            game_list.FNB AS fnb,
+            game_list.PAYMENT AS payment,
+            game_list.ACCOUNT_ID,
+            game_list.ENCODED_DT,
+            game_list.GAME_ENDED,
+            game_list.SETTLED,
+            game_list.COMMISSION_PERCENTAGE,
+            game_list.COMMISSION_TYPE,
+            account.IDNo AS account_no,
+            agent.IDNo AS agent_id,
+            agent.AGENT_CODE AS agent_code,
+            agent.NAME AS agent_name,
+            agent.AGENCY AS agency_id
         FROM game_list 
         JOIN account ON game_list.ACCOUNT_ID = account.IDNo
         JOIN agent ON agent.IDNo = account.AGENT_ID
         JOIN agency ON agency.IDNo = agent.AGENCY
         WHERE game_list.ACTIVE != 0 
-          AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
+          AND DATE(game_list.ENCODED_DT) >= ? 
+          AND DATE(game_list.ENCODED_DT) <= ?
         ORDER BY game_list.IDNo ASC`;
 
     try {
