@@ -434,18 +434,11 @@ $(document).ready(function () {
             
             window.selectedSettlementDate = defaultDate;
             
-            // Initialize Flatpickr for settlement date picker (same as game_list)
-            var earliestSettlementDate = null;
-            var settledDates = window.settledDatesForMonth || [];
-            if (settledDates.length > 0) {
-                var sortedDates = settledDates.slice().sort();
-                earliestSettlementDate = sortedDates[0];
-            } else {
-                var now = new Date();
-                var pad = function(n) { return String(n).padStart(2, '0'); };
-                var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
-                earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
-            }
+            // Calculate earliest allowed date (January 1 of previous year)
+            var now = new Date();
+            var pad = function(n) { return String(n).padStart(2, '0'); };
+            var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
+            var earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
             
             settlementDatePicker = flatpickr("#settlement-date-picker", {
                 dateFormat: 'Y-m-d',
@@ -459,11 +452,13 @@ $(document).ready(function () {
                     if (!dayElem || !dayElem.dateObj) return;
                     var d = dayElem.dateObj;
                     var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                    var settledDates = window.settledDatesForMonth || [];
                     if (dStr && settledDates.indexOf(dStr) !== -1) dayElem.classList.add('settled-day');
                 },
                 onOpen: function (selectedDates, dateStr, instance) {
                     setTimeout(function () {
                         if (!instance.calendarContainer) return;
+                        var settledDates = window.settledDatesForMonth || [];
                         var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
                         days.forEach(function (el) {
                             el.classList.remove('settled-day');
@@ -483,6 +478,7 @@ $(document).ready(function () {
                 onMonthChange: function (selectedDates, dateStr, instance) {
                     setTimeout(function () {
                         if (!instance.calendarContainer) return;
+                        var settledDates = window.settledDatesForMonth || [];
                         var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
                         days.forEach(function (el) {
                             el.classList.remove('settled-day');
@@ -531,15 +527,12 @@ $(document).ready(function () {
 
     // Previous/Next Date Navigation Functions
     function getEarliestSettlementDate() {
-        var settledDates = window.settledDatesForMonth || [];
-        if (settledDates.length === 0) {
-            var now = new Date();
-            var pad = function(n) { return String(n).padStart(2, '0'); };
-            var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
-            return earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
-        }
-        var sortedDates = settledDates.slice().sort();
-        return sortedDates[0];
+        // Allow navigation back to January 1 of previous year
+        // (no longer restricted by settledDatesForMonth which only contains current month's settled dates)
+        var now = new Date();
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
+        return earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
     }
     
     function getPreviousDate(currentDate) {

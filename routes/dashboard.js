@@ -21,7 +21,7 @@ router.get("/dashboard", checkSession, async (req, res) => {
 	let sqlTotalRollingManual = 'SELECT SUM(AMOUNT) AS TOTAL_ROLLING FROM total_rolling WHERE RESET=1';
 
 	let sqlJunketExpenseReset = 'SELECT SUM(AMOUNT) AS RESET_EXPENSE FROM junket_house_expense WHERE ACTIVE =1 AND RESET=1';
-	let sqlCCChipsCashoutReset = 'SELECT  SUM(CC_CHIPS) AS CCResetCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2 AND RESET=1';
+	let sqlHouseRollingReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS HouseRollingChips FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=3 AND RESET=1';
 
 	let sqlTotalRollingReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_ROLLING FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE IN (3,4) AND RESET=1';
 	let sqlTotalCashOutRollingReset = 'SELECT SUM(NN_CHIPS) AS RESET_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND RESET=1';
@@ -476,7 +476,7 @@ let sqlServiceSettle = `
 		const [JunketExpenseNonGoodsResult] = await pool.execute(sqlJunketExpenseNonGoods);
 		const [ReturnMoneyResult] = await pool.execute(sqlReturnMoney);
 		const [ResetExpenseResult] = await pool.execute(sqlJunketExpenseReset);
-		const [CCResetBuyinCashoutResult] = await pool.execute(sqlCCChipsCashoutReset);
+		const [HouseRollingResetResult] = await pool.execute(sqlHouseRollingReset);
 		const [TotalRollingResetResult] = await pool.execute(sqlTotalRollingReset);
 		const [TotalCashOutResetResult] = await pool.execute(sqlTotalCashOutReset);
 		const [TotalCashOutRollingResetResult] = await pool.execute(sqlTotalCashOutRollingReset);
@@ -780,7 +780,7 @@ let sqlServiceSettle = `
 			sqlCCChipsAccountCash: CCChipsAccountCashResult,
 			sqlNNChipsAccountDeposit: NNChipsAccountDepositResult,
 			sqlCCChipsCashout: CCChipsBuyinCashoutResult,
-			sqlCCChipsCashoutReset: CCResetBuyinCashoutResult,
+			sqlHouseRollingReset: HouseRollingResetResult,
 			sqlCCReturn: CCBuyinReturnResult,
 			sqlNNChipsCashout: NNChipsBuyinCashoutResult,
 			sqlNNReturn: NNBuyinReturnResult,
@@ -1546,7 +1546,7 @@ router.post('/reset-main-cage-balance', async (req, res) => {
 		// Only update active records that are currently unsettled (RESET = 1)
 		// await pool.execute(`UPDATE junket_house_expense SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
 		await pool.execute(`UPDATE game_record SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
-		// await pool.execute(`UPDATE junket_total_chips SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
+		await pool.execute(`UPDATE junket_total_chips SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1 AND TRANSACTION_ID = 3`);
 		// await pool.execute(`UPDATE winloss SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
 		// await pool.execute(`UPDATE total_rolling SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
 

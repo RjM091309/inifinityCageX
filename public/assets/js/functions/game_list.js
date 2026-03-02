@@ -957,19 +957,12 @@ $(document).ready(function () {
 
     // Previous/Next Date Navigation Functions
     function getEarliestSettlementDate() {
-        // Get the earliest settlement date from settledDatesForMonth array
-        var settledDates = window.settledDatesForMonth || [];
-        if (settledDates.length === 0) {
-            // If no settled dates, allow navigation back to January 1 of previous year
-            var now = new Date();
-            var pad = function(n) { return String(n).padStart(2, '0'); };
-            var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
-            return earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
-        }
-        
-        // Sort dates and get the earliest one
-        var sortedDates = settledDates.slice().sort();
-        return sortedDates[0];
+        // Allow navigation back to January 1 of previous year
+        // (no longer restricted by settledDatesForMonth which only contains current month's settled dates)
+        var now = new Date();
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
+        return earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
     }
     
     function getPreviousDate(currentDate) {
@@ -1119,6 +1112,75 @@ $(document).ready(function () {
         }
     });
     
+    // Initialize settlement date picker (single date mode)
+    var settlementDatePicker = null;
+    if (document.getElementById('settlement-date-picker')) {
+        var now = new Date();
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        
+        // Get default settlement date from wrapper
+        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
+        var defaultSettlementDate = null;
+        if (wrapper) {
+            defaultSettlementDate = wrapper.getAttribute('data-default-settlement-date');
+            var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
+            try {
+                var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
+                // Make sure window.settledDatesForMonth is set if not already set
+                if (!window.settledDatesForMonth || window.settledDatesForMonth.length === 0) {
+                    window.settledDatesForMonth = parsedDates;
+                }
+            } catch (e) {
+                console.error('[Settlement Date Picker - Initialization] Error parsing settled dates:', e);
+            }
+        }
+        
+        // Set default date to today or default settlement date
+        var todayStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+        var initialDate = defaultSettlementDate || todayStr;
+        
+        // Initialize window.selectedSettlementDate
+        window.selectedSettlementDate = initialDate;
+        
+        // Initialize flatpickr for settlement date picker
+        settlementDatePicker = flatpickr("#settlement-date-picker", {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'F j, Y',
+            defaultDate: initialDate,
+            maxDate: 'today',
+            onChange: function(selectedDates, dateStr, instance) {
+                if (selectedDates && selectedDates.length > 0) {
+                    window.selectedSettlementDate = dateStr;
+                    
+                    // Update navigation button states
+                    if (typeof window.updateNavigationButtons === 'function') {
+                        window.updateNavigationButtons();
+                    }
+                    
+                    // Update settle button state
+                    if (typeof window.updateSettleButtonState === 'function') {
+                        window.updateSettleButtonState();
+                    }
+                    
+                    // Reload data
+                    if (typeof window.reloadGameListBySettlementDate === 'function') {
+                        window.reloadGameListBySettlementDate();
+                    }
+                }
+            },
+            onDayCreate: function (dayElem) {
+                if (!dayElem || !dayElem.dateObj) return;
+                var d = dayElem.dateObj;
+                var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                var settledDates = window.settledDatesForMonth || [];
+                if (dStr && settledDates.indexOf(dStr) !== -1) {
+                    dayElem.classList.add('settled-day');
+                }
+            }
+        });
+    }
+
     // Initialize date range picker (single input with range mode)
     var dateRangePicker = null;
     if (document.getElementById('daterange-picker')) {
