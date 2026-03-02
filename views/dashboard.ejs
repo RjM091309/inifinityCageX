@@ -186,24 +186,8 @@
                      (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
                      (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0);
                   
-                  // TOTAL CHIPS Balance Calculation
-                  const totalChipsBalance = 
-                     (+sqlTotalChipsBuyin[0].TotalChipsBuyin || 0) -
-                     (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
-                     (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-                     (+sqlAccountNNChips[0].TOTAL_NN || 0) +
-                     (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) +
-                     (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
-                     (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-                     (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + 
-                     (+sqlCCBuyin[0].CCBuyin || 0) - 
-                     (+sqlCCReturn[0].CCReturn || 0) + 
-                     (+sqlNNBuyin[0].NNBuyin || 0) -
-                     (+sqlNNReturn[0].NNReturn || 0) - 
-                     (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
-                     (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
-                     (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
-                     (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0);
+                  // TOTAL CHIPS Balance Calculation (Simplified: NN + CC)
+                  const totalChipsBalance = nnChipsBalance + ccChipsBalance;
                   
                   // Calculate base balance (house operations + guest-related transactions)
                   // Uses CASH-ONLY buyins (TRANSACTION = 1) to avoid double-counting guest account buyins
