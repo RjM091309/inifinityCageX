@@ -37,6 +37,7 @@ router.get("/dashboard", checkSession, async (req, res) => {
 	let sqlWinLossReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND RESET=1';
 
 	let sqlManualBalancing = 'SELECT SUM(AMOUNT) AS MANUAL_BALANCING FROM manual_balancing';
+	let sqlWinlossHistory = 'SELECT SUM(WINLOSS_HISTORY) AS WINLOSS_HISTORY FROM dash_history WHERE ACTIVE = 1';
 
 	let sqlWinLossLive = `SELECT 
     winloss.GAMEId,
@@ -538,6 +539,7 @@ let sqlServiceSettle = `
 		const [totalCommisionRolling] = await pool.execute(sqlCommisionRolling);
 		
 		const [manualBalancingResult] = await pool.execute(sqlManualBalancing);
+		const [winlossHistoryResult] = await pool.execute(sqlWinlossHistory);
 
 		const [totalCommisionCashout] = await pool.execute(sqlCommisionCashout);
 		// totalCommisionRolling ay inasume nang nakuha na (mula sa query ng sqlCommisionRolling)
@@ -843,7 +845,8 @@ let sqlServiceSettle = `
 			sqlServiceSettle: serviceSettleResults,
 			// Dashboard Commission card should show Settlement (NET commission)
 			sqlCommissionSettlement: totalCommissionSettlement || 0,
-			sqlManualBalancing: manualBalancingResult || 0
+			sqlManualBalancing: manualBalancingResult || 0,
+			sqlWinlossHistory: winlossHistoryResult || 0
 		});
 
 	} catch (err) {
