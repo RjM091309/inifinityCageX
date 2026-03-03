@@ -86,7 +86,7 @@
 	"sidebar": {
 		"home": "Home",
 		"dashboard": "Dashboard",
-		"reset_history": "Reset History",
+		"reset_history": "Monthy Settle History",
 		"manage": "Manage",
 		"accounts": "Accounts",
 		"gamebook": "Gamebook",
@@ -130,7 +130,7 @@
 	},
 	"topmenu": {
 		"dashboard": "Dashboard",
-		"reset_history": "Reset History",
+		"reset_history": "Monthy Settle History",
 		"manage": "Manage",
 		"accounts": "Accounts",
 		"gamebook": "Gamebook",
@@ -198,7 +198,7 @@
 		"us": "Us"
 	},
 	"dashboard_history": {
-		"reset_history": "Reset History",
+		"reset_history": "Monthy Settle History",
 		"date": "Date",
 		"expense": "Expense",
 		"commission": "Commission",
@@ -206,7 +206,7 @@
 		"house_rolling": "House Rolling",
 		"win_loss": "Win / Loss",
 		"ngr": "NGR",
-		"reset_by": "Reset By",
+		"reset_by": "Settled By",
 		"search": "Search:",
 		"showing_entries": "Showing _START_ to _END_ of _TOTAL_ entries",
 		"previous": "Previous",

@@ -1544,7 +1544,9 @@ router.get('/marker_history', async (req, res) => {
 //START DASHBOARD RESET AND HISTORY
 
 router.get("/dashboard_history", function (req, res) {
-	res.render("dashboard/dashboard_history", sessions(req, 'dashboard_history'));
+	const data = sessions(req, 'dashboard_history');
+	data.permissions = req.session.permissions;
+	res.render("dashboard/dashboard_history", data);
 });
 
 
@@ -1555,7 +1557,7 @@ router.post('/reset-main-cage-balance', async (req, res) => {
 		// Only update active records that are currently unsettled (RESET = 1)
 		// await pool.execute(`UPDATE junket_house_expense SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
 		await pool.execute(`UPDATE game_record SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
-		await pool.execute(`UPDATE junket_total_chips SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1 AND TRANSACTION_ID = 3`);
+		await pool.execute(`UPDATE junket_total_chips SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
 		// await pool.execute(`UPDATE winloss SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
 		// await pool.execute(`UPDATE total_rolling SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
 
@@ -1574,38 +1576,55 @@ router.post('/insert-dash-history', async (req, res) => {
 		HOUSE_ROLLING_HISTORY,
 		WINLOSS_HISTORY,
 		COMMISSION_HISTORY,
+		NN_CASHOUT,
+		CC_CASHOUT,
 	} = req.body;
 
-	let date_now = new Date();
+	const date_now = new Date();
 	const normalizeNumber = (value) => {
-		if (value === undefined || value === null || value === '') {
-			return 0;
-		}
+		if (value === undefined || value === null || value === '') return 0;
 		const num = Number(value);
 		return Number.isFinite(num) ? num : 0;
 	};
 
+	let connection;
 	try {
-		const query = `
-			INSERT INTO dash_history 
-			(EXPENSE_HISTORY, TOTAL_ROLLING_HISTORY, HOUSE_ROLLING_HISTORY, WINLOSS_HISTORY, COMMISSION_HISTORY, ENCODED_BY, ENCODED_DT) 
-			VALUES (?, ?, ?, ?, ?, ?, ?)
-		`;
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
 
-		await pool.execute(query, [
-			normalizeNumber(EXPENSE_HISTORY),
-			normalizeNumber(TOTAL_ROLLING_HISTORY),
-			normalizeNumber(HOUSE_ROLLING_HISTORY),
-			normalizeNumber(WINLOSS_HISTORY),
-			normalizeNumber(COMMISSION_HISTORY),
-			req.session.user_id,
-			date_now
-		]);
+		// Insert junket_total_chips as Chips Cashout (TRANSACTION_ID=2, RESET=0)
+		const chipsCashoutDesc = '<span class="css-red">Chips Cashout</span>';
+		const nnCashout = normalizeNumber(NN_CASHOUT);
+		const ccCashout = normalizeNumber(CC_CASHOUT);
+		const totalChipsCashout = nnCashout + ccCashout;
+		await connection.execute(
+			'INSERT INTO junket_total_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, RESET, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, 0, ?, ?)',
+			[2, chipsCashoutDesc, nnCashout, ccCashout, totalChipsCashout, req.session.user_id, date_now]
+		);
 
+		// Insert dash_history
+		await connection.execute(
+			`INSERT INTO dash_history (TOTAL_ROLLING_HISTORY, HOUSE_ROLLING_HISTORY, WINLOSS_HISTORY, COMMISSION_HISTORY, NN_CASHOUT, CC_CASHOUT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				normalizeNumber(TOTAL_ROLLING_HISTORY),
+				normalizeNumber(HOUSE_ROLLING_HISTORY),
+				normalizeNumber(WINLOSS_HISTORY),
+				normalizeNumber(COMMISSION_HISTORY),
+				nnCashout,
+				ccCashout,
+				req.session.user_id,
+				date_now
+			]
+		);
+
+		await connection.commit();
 		res.json({ success: true });
 	} catch (err) {
+		if (connection) await connection.rollback();
 		console.error('Error inserting data into dash_history', err);
 		res.status(500).json({ success: false, message: 'Error inserting data into dash_history' });
+	} finally {
+		if (connection) connection.release();
 	}
 });
 

@@ -1123,7 +1123,9 @@ pageRouter.get("/credit", function (req, res) {
 });
 
 pageRouter.get("/commission", function (req, res) {
-	res.render("junket/commission", sessions(req, 'commission'));
+	const data = sessions(req, 'commission');
+	data.permissions = req.session.permissions;
+	res.render("junket/commission", data);
 });
 
 pageRouter.get("/markerHistory", checkSession, async function (req, res) {
@@ -5814,7 +5816,9 @@ pageRouter.put('/remove_booking/:id', (req, res) => {
 //START DASHBOARD RESET AND HISTORY
 
 pageRouter.get("/dashboard_history", function (req, res) {
-	res.render("dashboard/dashboard_history", sessions(req, 'dashboard_history'));
+	const data = sessions(req, 'dashboard_history');
+	data.permissions = req.session.permissions;
+	res.render("dashboard/dashboard_history", data);
 });
 
 

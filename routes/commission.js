@@ -4,7 +4,9 @@ const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 
 router.get("/commission", checkSession, function (req, res) {
-	res.render("junket/commission", sessions(req, 'commission'));
+	const data = sessions(req, 'commission');
+	data.permissions = req.session.permissions;
+	res.render("junket/commission", data);
 });
 
 // GET COMMISSION DATA

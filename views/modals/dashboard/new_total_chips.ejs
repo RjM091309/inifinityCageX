@@ -446,6 +446,7 @@ $(document).ready(function() {
       console.log('Raw CC Chips Data:', ccData);
 
       // Process NN Chips data
+      // Formula: NN Buy-in + CC Buy-in + NN Rolling + CC Rolling (Cashout displayed but excluded from total)
       const nnFiltered = (Array.isArray(nnData) ? nnData : []).filter(row => {
         const chipsBuyIn = row.TRANSACTION_ID == 1 &&
           row.capital_description === '<span class="css-red">Chips Buy-in</span>';
@@ -467,11 +468,13 @@ $(document).ready(function() {
             : (isChipsCashout
                 ? '<span class="badge-cashout">NN Chips Cashout</span>'
                 : '<span class="badge-rolling">NN Chips Rolling</span>');
+        // NN Cashout displayed but excluded from total (amountRaw = 0)
+        const amountRaw = isChipsCashout ? 0 : nnChips;
 
         return {
           encodedBy: row.ENCODED_BY_NAME || 'N/A',
           amount: amount,
-          amountRaw: nnChips, // Store raw numeric value for total calculation
+          amountRaw: amountRaw, // Buy-in and Rolling added; Cashout = 0 (display only)
           type: type,
           remarks: row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
           date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
@@ -480,21 +483,24 @@ $(document).ready(function() {
         };
       });
 
-      // Process CC Chips data
+      // Process CC Chips data - Buy-in, Rolling, and Cashout (display all; Cashout excluded from total)
       const ccFiltered = (Array.isArray(ccData) ? ccData : []).map(function(row) {
         const isChipsBuyIn = row.TRANSACTION_ID == 1;
+        const isChipsCashout = row.TRANSACTION_ID == 2;
         const ccChips = parseFloat(row.CC_CHIPS) || 0;
         const amount = ccChips.toLocaleString();
         const type = isChipsBuyIn
             ? '<span class="badge-cashin">CC Chips Buy-in</span>'
-            : (row.TRANSACTION_ID == 2
+            : (isChipsCashout
                 ? '<span class="badge-cashout">CC Chips Cashout</span>'
                 : '<span class="badge-rolling">CC Chips Rolling</span>');
+        // CC Cashout displayed but not included in total (amountRaw = 0)
+        const amountRaw = isChipsCashout ? 0 : ccChips;
 
         return {
           encodedBy: row.ENCODED_BY_NAME || 'N/A',
           amount: amount,
-          amountRaw: ccChips, // Store raw numeric value for total calculation
+          amountRaw: amountRaw, // Buy-in and Rolling added; Cashout = 0 (display only)
           type: type,
           remarks: '',
           date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),

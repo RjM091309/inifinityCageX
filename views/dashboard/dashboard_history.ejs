@@ -25,12 +25,12 @@
                                     <thead>
                                         <tr>
                                             <th><%= __('dashboard_history.date') %></th>
-                                            <th><%= __('dashboard_history.expense') %></th>
                                             <th><%= __('dashboard_history.commission') %></th>
                                             <th><%= __('dashboard_history.total_rolling') %></th>
                                             <th><%= __('dashboard_history.house_rolling') %></th>
                                             <th><%= __('dashboard_history.win_loss') %></th>
-                                            <!-- <th><%= __('dashboard_history.ngr') %></th> -->
+                                            <th>NN Cashout</th>
+                                            <th>CC Cashout</th>
                                             <th><%= __('dashboard_history.reset_by') %></th>
                                         </tr>
                                     </thead>
@@ -219,12 +219,12 @@
                                         return type === 'sort' ? row.ENCODED_DT_RAW : row.ENCODED_DT;
                                     }
                                 },
-                                { "data": "EXPENSE_HISTORY", "render": data => data ? parseFloat(data).toLocaleString() : '-' },
                                 { "data": "COMMISSION_HISTORY", "render": data => data ? parseFloat(data).toLocaleString() : '-' },
                                 { "data": "TOTAL_ROLLING_HISTORY", "render": data => data ? parseFloat(data).toLocaleString() : '-' },
                                 { "data": "HOUSE_ROLLING_HISTORY", "render": data => data ? parseFloat(data).toLocaleString() : '-' },
                                 { "data": "WINLOSS_HISTORY", "render": data => data ? parseFloat(data).toLocaleString() : '-' },
-                                // { "data": "NGR_HISTORY", "render": data => data ? parseFloat(data).toLocaleString() : '-' },
+                                { "data": "NN_CASHOUT", "render": data => data != null ? parseFloat(data).toLocaleString() : '-' },
+                                { "data": "CC_CASHOUT", "render": data => data != null ? parseFloat(data).toLocaleString() : '-' },
                                 { "data": "FIRSTNAME" }
                             ]
                         });
