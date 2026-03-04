@@ -37,7 +37,6 @@ router.get("/dashboard", checkSession, async (req, res) => {
 	let sqlWinLossReset = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS RESET_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1 AND RESET=1';
 
 	let sqlManualBalancing = 'SELECT SUM(AMOUNT) AS MANUAL_BALANCING FROM manual_balancing';
-	let sqlWinlossHistory = 'SELECT SUM(WINLOSS_HISTORY) AS WINLOSS_HISTORY FROM dash_history WHERE ACTIVE = 1';
 
 	let sqlWinLossLive = `SELECT 
     winloss.GAMEId,
@@ -229,6 +228,8 @@ ON
 	`;
 
 	let sqlTotalChipsBuyin = 'SELECT  SUM(TOTAL_CHIPS) AS TotalChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1';
+	let sqlCCChipsMonthlySettle = 'SELECT SUM(CC_CHIPS) AS CCChipsMonthlySettle FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=4';
+	let sqlNNChipsMonthlySettle = 'SELECT SUM(NN_CHIPS) AS NNChipsMonthlySettle FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=4';
 	let sqlCashDeposit = 'SELECT  SUM(AMOUNT) AS CASH_DEPOSIT FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=1';
 	let sqlCashWithdraw = 'SELECT  SUM(AMOUNT) AS CASH_WITHDRAW FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=2';
 	let sqlAccountDeposit = `
@@ -518,6 +519,8 @@ let sqlServiceSettle = `
 		const [NNChipsBuyinResult] = await pool.execute(sqlNNChipsBuyin);
 		const [NNBuyinResult] = await pool.execute(sqlNNBuyin);
 		const [TotalChipsBuyinResult] = await pool.execute(sqlTotalChipsBuyin);
+		const [CCChipsMonthlySettleResult] = await pool.execute(sqlCCChipsMonthlySettle);
+		const [NNChipsMonthlySettleResult] = await pool.execute(sqlNNChipsMonthlySettle);
 		const [cashDepositResult] = await pool.execute(sqlCashDeposit);
 		const [cashWithdrawResult] = await pool.execute(sqlCashWithdraw);
 		const [accountDepositResult] = await pool.execute(sqlAccountDeposit);
@@ -539,7 +542,6 @@ let sqlServiceSettle = `
 		const [totalCommisionRolling] = await pool.execute(sqlCommisionRolling);
 		
 		const [manualBalancingResult] = await pool.execute(sqlManualBalancing);
-		const [winlossHistoryResult] = await pool.execute(sqlWinlossHistory);
 
 		const [totalCommisionCashout] = await pool.execute(sqlCommisionCashout);
 		// totalCommisionRolling ay inasume nang nakuha na (mula sa query ng sqlCommisionRolling)
@@ -801,6 +803,8 @@ let sqlServiceSettle = `
 			sqlNNChipsBuyin: NNChipsBuyinResult,
 			sqlNNBuyin: NNBuyinResult,
 			sqlTotalChipsBuyin: TotalChipsBuyinResult,
+			sqlCCChipsMonthlySettle: CCChipsMonthlySettleResult,
+			sqlNNChipsMonthlySettle: NNChipsMonthlySettleResult,
 			sqlCashDeposit: cashDepositResult,
 			sqlCashWithdraw: cashWithdrawResult,
 			sqlAccountDeposit: accountDepositResult,
@@ -845,8 +849,7 @@ let sqlServiceSettle = `
 			sqlServiceSettle: serviceSettleResults,
 			// Dashboard Commission card should show Settlement (NET commission)
 			sqlCommissionSettlement: totalCommissionSettlement || 0,
-			sqlManualBalancing: manualBalancingResult || 0,
-			sqlWinlossHistory: winlossHistoryResult || 0
+			sqlManualBalancing: manualBalancingResult || 0
 		});
 
 	} catch (err) {
@@ -1189,6 +1192,43 @@ router.get('/cash_transaction_data', async (req, res) => {
 	}
 });
 
+// GET NN CHIPS HISTORY
+router.get('/nn_chips_history', async (req, res) => {
+	try {
+		const { start_date, end_date } = req.query;
+
+		if (!start_date || !end_date) {
+			return res.status(400).json({ error: 'start_date and end_date are required' });
+		}
+
+		const query = `
+			SELECT 
+				j.IDNo,
+				j.TRANSACTION_ID,
+				j.NN_CHIPS,
+				j.DESCRIPTION AS capital_description,
+				NULL AS REMARKS,
+				NULL AS GAME_ID,
+				j.ENCODED_DT,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM junket_total_chips j
+			LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
+			WHERE j.ACTIVE = 1 
+				AND j.TRANSACTION_ID IN (1, 2, 3, 4)
+				AND j.NN_CHIPS > 0
+				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
+			ORDER BY j.ENCODED_DT DESC
+		`;
+
+		const [results] = await pool.execute(query, [start_date, end_date]);
+
+		res.json(results);
+	} catch (err) {
+		console.error('Error executing NN chips history query:', err);
+		res.status(500).json({ error: 'Database error' });
+	}
+});
+
 // GET CC CHIPS HISTORY
 router.get('/cc_chips_history', async (req, res) => {
 	try {
@@ -1210,7 +1250,7 @@ router.get('/cc_chips_history', async (req, res) => {
 			FROM junket_total_chips j
 			LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
 			WHERE j.ACTIVE = 1 
-				AND j.TRANSACTION_ID IN (1, 2, 3)
+				AND j.TRANSACTION_ID IN (1, 2, 3, 4)
 				AND j.CC_CHIPS > 0
 				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
 			ORDER BY j.ENCODED_DT DESC
@@ -1225,7 +1265,37 @@ router.get('/cc_chips_history', async (req, res) => {
 	}
 });
 
-
+// GET month_settle for selected period (for "less" in Total Chips: subtract only if this period was settled)
+router.get('/month_settle_for_period', async (req, res) => {
+	try {
+		let { start_date, end_date } = req.query;
+		if (!start_date || !end_date) {
+			return res.json({ nn_cashout: 0, cc_cashout: 0 });
+		}
+		// Normalize to YYYY-MM-DD for MySQL (in case of "Mar 31, 2026" etc.)
+		const toYmd = (s) => {
+			const d = new Date(s.trim());
+			if (isNaN(d.getTime())) return null;
+			return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+		};
+		start_date = toYmd(start_date) || start_date;
+		end_date = toYmd(end_date) || end_date;
+		const [rows] = await pool.execute(
+			`SELECT nn_cashout, cc_cashout FROM month_settle
+			 WHERE active = 1 AND period_start <= ? AND period_end >= ?
+			 LIMIT 1`,
+			[end_date, start_date]
+		);
+		const row = rows[0] || {};
+		res.json({
+			nn_cashout: parseFloat(row.nn_cashout) || 0,
+			cc_cashout: parseFloat(row.cc_cashout) || 0
+		});
+	} catch (err) {
+		console.error('Error fetching month_settle for period:', err);
+		res.status(500).json({ error: 'Database error', nn_cashout: 0, cc_cashout: 0 });
+	}
+});
 
 // EDIT JUNKET CAPITAL
 router.put('/junket_capital/:id', async (req, res) => {
@@ -1568,6 +1638,52 @@ router.post('/reset-main-cage-balance', async (req, res) => {
 	}
 });
 
+// Pre-check: can user settle? (for sidebar - show error on click before confirmation)
+router.get('/monthly-settle-check', async (req, res) => {
+	try {
+		const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+		const today = new Date();
+		const todayStr = today.toISOString().slice(0, 10);
+
+		const [lastSettle] = await pool.execute(
+			'SELECT period_end FROM month_settle WHERE active = 1 ORDER BY period_end DESC LIMIT 1'
+		);
+
+		let periodStartStr, periodEndStr, periodLabel;
+		if (!lastSettle || lastSettle.length === 0) {
+			const y = today.getFullYear(), m = today.getMonth();
+			const prevY = m === 0 ? y - 1 : y, prevM = m === 0 ? 11 : m - 1;
+			const lastDay = new Date(prevY, prevM + 1, 0).getDate();
+			periodStartStr = `${prevY}-${String(prevM + 1).padStart(2, '0')}-01`;
+			periodEndStr = `${prevY}-${String(prevM + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+			periodLabel = `${monthNames[prevM]} ${prevY}`;
+		} else {
+			const lastEnd = new Date(lastSettle[0].period_end);
+			const nextY = lastEnd.getFullYear(), nextM = lastEnd.getMonth() + 1;
+			const nextYear = nextM > 11 ? nextY + 1 : nextY, nextMonth = nextM > 11 ? 0 : nextM;
+			const lastDay = new Date(nextYear, nextMonth + 1, 0).getDate();
+			periodStartStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-01`;
+			periodEndStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+			periodLabel = `${monthNames[nextMonth]} ${nextYear}`;
+		}
+
+		if (periodEndStr > todayStr) {
+			return res.json({ canSettle: false, message: `Cannot settle ${periodLabel} yet - month has not ended.` });
+		}
+		const [existing] = await pool.execute(
+			'SELECT id FROM month_settle WHERE active = 1 AND period_start = ? AND period_end = ? LIMIT 1',
+			[periodStartStr, periodEndStr]
+		);
+		if (existing && existing.length > 0) {
+			return res.json({ canSettle: false, message: `${periodLabel} has already been settled.` });
+		}
+		res.json({ canSettle: true, periodLabel });
+	} catch (err) {
+		console.error('monthly-settle-check:', err);
+		res.status(500).json({ canSettle: false, message: 'Unable to check settle status.' });
+	}
+});
+
 // Insert Dashboard History
 router.post('/insert-dash-history', async (req, res) => {
 	const {
@@ -1587,19 +1703,73 @@ router.post('/insert-dash-history', async (req, res) => {
 		return Number.isFinite(num) ? num : 0;
 	};
 
+	// Determine period to settle: month AFTER last settlement (basta check last settlement date)
+	const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+	const today = new Date();
+	const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
+
+	let periodStartStr, periodEndStr, periodLabel;
+
+	const [lastSettle] = await pool.execute(
+		'SELECT period_end FROM month_settle WHERE active = 1 ORDER BY period_end DESC LIMIT 1'
+	);
+
+	if (!lastSettle || lastSettle.length === 0) {
+		// Walang settle pa: settle previous month
+		const y = today.getFullYear();
+		const m = today.getMonth();
+		const prevY = m === 0 ? y - 1 : y;
+		const prevM = m === 0 ? 11 : m - 1;
+		const lastDay = new Date(prevY, prevM + 1, 0).getDate();
+		periodStartStr = `${prevY}-${String(prevM + 1).padStart(2, '0')}-01`;
+		periodEndStr = `${prevY}-${String(prevM + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+		periodLabel = `${monthNames[prevM]} ${prevY}`;
+	} else {
+		// May last settle: next = month after period_end
+		const lastEnd = new Date(lastSettle[0].period_end);
+		const nextY = lastEnd.getFullYear();
+		const nextM = lastEnd.getMonth() + 1; // 0-indexed, so +1 = next month
+		const nextYear = nextM > 11 ? nextY + 1 : nextY;
+		const nextMonth = nextM > 11 ? 0 : nextM;
+		const lastDay = new Date(nextYear, nextMonth + 1, 0).getDate();
+		periodStartStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-01`;
+		periodEndStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+		periodLabel = `${monthNames[nextMonth]} ${nextYear}`;
+	}
+
+	// Hindi pwedeng mag-settle ng future month (period dapat tapos na o current)
+	// if (periodEndStr > todayStr) {
+	// 	return res.status(400).json({
+	// 		success: false,
+	// 		message: `Cannot settle ${periodLabel} yet - month has not ended.`
+	// 	});
+	// }
+
+	// Check kung na-settle na ang period na yan
+	// const [existing] = await pool.execute(
+	// 	'SELECT id FROM month_settle WHERE active = 1 AND period_start = ? AND period_end = ? LIMIT 1',
+	// 	[periodStartStr, periodEndStr]
+	// );
+	// if (existing && existing.length > 0) {
+	// 	return res.status(400).json({
+	// 		success: false,
+	// 		message: `${periodLabel} has already been settled.`
+	// 	});
+	// }
+
 	let connection;
 	try {
 		connection = await pool.getConnection();
 		await connection.beginTransaction();
 
 		// Insert junket_total_chips as Chips Cashout (TRANSACTION_ID=2, RESET=0)
-		const chipsCashoutDesc = '<span class="css-red">Chips Cashout</span>';
+		const chipsCashoutDesc = '<span class="css-red">Monthly Settle</span>';
 		const nnCashout = normalizeNumber(NN_CASHOUT);
 		const ccCashout = normalizeNumber(CC_CASHOUT);
 		const totalChipsCashout = nnCashout + ccCashout;
 		await connection.execute(
 			'INSERT INTO junket_total_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, RESET, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, 0, ?, ?)',
-			[2, chipsCashoutDesc, nnCashout, ccCashout, totalChipsCashout, req.session.user_id, date_now]
+			[4, chipsCashoutDesc, nnCashout, ccCashout, totalChipsCashout, req.session.user_id, date_now]
 		);
 
 		// Insert dash_history
@@ -1612,6 +1782,25 @@ router.post('/insert-dash-history', async (req, res) => {
 				normalizeNumber(COMMISSION_HISTORY),
 				nnCashout,
 				ccCashout,
+				req.session.user_id,
+				date_now
+			]
+		);
+
+		// Insert month_settle (already checked above - period not yet settled)
+		await connection.execute(
+			`INSERT INTO month_settle (period_start, period_end, period_label, nn_cashout, cc_cashout, total_rolling_history, house_rolling_history, winloss_history, commission_history, encoded_by, encoded_dt)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				periodStartStr,
+				periodEndStr,
+				periodLabel,
+				nnCashout,
+				ccCashout,
+				normalizeNumber(TOTAL_ROLLING_HISTORY),
+				normalizeNumber(HOUSE_ROLLING_HISTORY),
+				normalizeNumber(WINLOSS_HISTORY),
+				normalizeNumber(COMMISSION_HISTORY),
 				req.session.user_id,
 				date_now
 			]
@@ -1630,14 +1819,22 @@ router.post('/insert-dash-history', async (req, res) => {
 
 
 
-// Get Dashboard History
+// Get Dashboard History (from month_settle - Monthly Settle data with Period Label)
 router.get('/get-dashboard-history', async (req, res) => {
 	const query = `
-		SELECT dash_history.*, user_info.FIRSTNAME AS FIRSTNAME, dash_history.ACTIVE 
-		FROM dash_history 
-		JOIN user_info ON user_info.IDNo = dash_history.ENCODED_BY 
-		WHERE dash_history.ACTIVE = 1 
-		ORDER BY ENCODED_DT DESC
+		SELECT 
+			ms.period_label AS PERIOD_LABEL,
+			ms.encoded_dt AS ENCODED_DT,
+			ms.commission_history AS COMMISSION_HISTORY,
+			ms.total_rolling_history AS TOTAL_ROLLING_HISTORY,
+			ms.house_rolling_history AS HOUSE_ROLLING_HISTORY,
+			ms.winloss_history AS WINLOSS_HISTORY,
+			ms.nn_cashout AS NN_CASHOUT,
+			ms.cc_cashout AS CC_CASHOUT,
+			user_info.FIRSTNAME AS FIRSTNAME
+		FROM month_settle ms
+		JOIN user_info ON user_info.IDNo = ms.encoded_by
+		ORDER BY ms.encoded_dt DESC
 	`;
 
 	try {

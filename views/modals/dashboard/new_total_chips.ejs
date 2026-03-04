@@ -198,7 +198,36 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
-
+<script>
+  // Ensure moment available for modal (load order can vary)
+  window.ensureMoment = function(fn) {
+    if (typeof moment !== 'undefined') return fn();
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js';
+    s.onload = fn;
+    document.head.appendChild(s);
+  };
+  // Parse date to YYYY-MM-DD (works without moment)
+  window.parseToYmd = function(str) {
+    if (!str || !str.trim()) return '';
+    const d = new Date(str.trim());
+    if (isNaN(d.getTime())) return '';
+    const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+    return y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+  };
+  window.isDateSameOrBefore = function(dateStr, refDate) {
+    const d = new Date(dateStr), r = refDate || new Date();
+    if (isNaN(d.getTime())) return false;
+    d.setHours(0,0,0,0); r.setHours(0,0,0,0);
+    return d.getTime() <= r.getTime();
+  };
+  window.formatEncodedDate = function(dt) {
+    if (!dt) return 'N/A';
+    if (typeof moment !== 'undefined') return moment.utc(dt).utcOffset(8).format('DD MMM, YYYY HH:mm:ss');
+    const d = new Date(dt);
+    return isNaN(d.getTime()) ? 'N/A' : d.toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  };
+</script>
 <style>
   .modal-lg {
     max-width: 90% !important;
@@ -422,54 +451,43 @@ $(document).ready(function() {
       startDate = dateRange;
       endDate = dateRange;
     }
-    console.log('Total Chips History Start Date:', startDate, 'End Date:', endDate);
+    // Normalize to YYYY-MM-DD for API and period check (flatpickr may return altFormat)
+    const startNorm = window.parseToYmd(startDate) || (startDate || '').trim();
+    const endNorm = window.parseToYmd(endDate) || (endDate || '').trim();
+    console.log('Total Chips History Start:', startNorm, 'End:', endNorm);
 
     // Destroy existing DataTable instance if it exists
     if ($.fn.DataTable.isDataTable('#total-chips-history-tbl')) {
       $('#total-chips-history-tbl').DataTable().destroy();
     }
 
-    // Fetch both NN and CC chips data
+    // Fetch NN, CC chips data and month_settle for this period (if any)
     Promise.all([
-      // Fetch NN Chips data
-      $.ajax({
-        url: `/junket_capital_data?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
-        type: "GET"
-      }),
-      // Fetch CC Chips data
-      $.ajax({
-        url: `/cc_chips_history?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
-        type: "GET"
-      })
-    ]).then(function([nnData, ccData]) {
+      $.ajax({ url: `/nn_chips_history?start_date=${startNorm}&end_date=${endNorm}&` + new Date().getTime(), type: "GET" }),
+      $.ajax({ url: `/cc_chips_history?start_date=${startNorm}&end_date=${endNorm}&` + new Date().getTime(), type: "GET" }),
+      $.ajax({ url: `/month_settle_for_period?start_date=${startNorm}&end_date=${endNorm}&` + new Date().getTime(), type: "GET" })
+    ]).then(function([nnData, ccData, periodSettle]) {
       console.log('Raw NN Chips Data:', nnData);
       console.log('Raw CC Chips Data:', ccData);
+      console.log('periodSettle (nn_cashout to less):', periodSettle);
 
-      // Process NN Chips data
-      // Formula: NN Buy-in + CC Buy-in + NN Rolling + CC Rolling (Cashout displayed but excluded from total)
-      const nnFiltered = (Array.isArray(nnData) ? nnData : []).filter(row => {
-        const chipsBuyIn = row.TRANSACTION_ID == 1 &&
-          row.capital_description === '<span class="css-red">Chips Buy-in</span>';
-        const chipsCashout = row.TRANSACTION_ID == 2 &&
-          row.capital_description === '<span class="css-red">Chips Cashout</span>';
-        const chipsRolling = row.TRANSACTION_ID == 3 &&
-          row.capital_description === '<span class="css-red">Chips Rolling</span>';
-        const nnChips = parseFloat(row.NN_CHIPS) || 0;
-        return (chipsBuyIn || chipsCashout || chipsRolling) && nnChips > 0;
-      }).map(function(row) {
-        const isChipsBuyIn = row.TRANSACTION_ID == 1 &&
-          row.capital_description === '<span class="css-red">Chips Buy-in</span>';
-        const isChipsCashout = row.TRANSACTION_ID == 2 &&
-          row.capital_description === '<span class="css-red">Chips Cashout</span>';
+      // Process NN Chips data (from nn_chips_history - only junket_total_chips rows)
+      // Formula: NN Buy-in + NN Rolling (Cashout and Monthly Settle displayed but excluded from total)
+      const nnFiltered = (Array.isArray(nnData) ? nnData : []).map(function(row) {
+        const isChipsBuyIn = row.TRANSACTION_ID == 1;
+        const isChipsCashout = row.TRANSACTION_ID == 2;
+        const isChipsMonthlySettle = row.TRANSACTION_ID == 4;
         const nnChips = parseFloat(row.NN_CHIPS) || 0;
         const amount = nnChips.toLocaleString();
         const type = isChipsBuyIn
             ? '<span class="badge-cashin">NN Chips Buy-in</span>'
             : (isChipsCashout
                 ? '<span class="badge-cashout">NN Chips Cashout</span>'
-                : '<span class="badge-rolling">NN Chips Rolling</span>');
-        // NN Cashout displayed but excluded from total (amountRaw = 0)
-        const amountRaw = isChipsCashout ? 0 : nnChips;
+                : (isChipsMonthlySettle
+                    ? '<span class="badge-cashout">NN Chips Monthly Settle</span>'
+                    : '<span class="badge-rolling">NN Chips Rolling</span>'));
+        // NN Cashout and Monthly Settle displayed but excluded from total (amountRaw = 0)
+        const amountRaw = (isChipsCashout || isChipsMonthlySettle) ? 0 : nnChips;
 
         return {
           encodedBy: row.ENCODED_BY_NAME || 'N/A',
@@ -477,7 +495,7 @@ $(document).ready(function() {
           amountRaw: amountRaw, // Buy-in and Rolling added; Cashout = 0 (display only)
           type: type,
           remarks: row.REMARKS ? row.REMARKS + (row.GAME_ID ? ` GAME-${row.GAME_ID}` : '') : '',
-          date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+          date: window.formatEncodedDate(row.ENCODED_DT),
           action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
           sortDate: new Date(row.ENCODED_DT)
         };
@@ -487,15 +505,18 @@ $(document).ready(function() {
       const ccFiltered = (Array.isArray(ccData) ? ccData : []).map(function(row) {
         const isChipsBuyIn = row.TRANSACTION_ID == 1;
         const isChipsCashout = row.TRANSACTION_ID == 2;
+        const isChipsMonthlySettle = row.TRANSACTION_ID == 4;
         const ccChips = parseFloat(row.CC_CHIPS) || 0;
         const amount = ccChips.toLocaleString();
         const type = isChipsBuyIn
             ? '<span class="badge-cashin">CC Chips Buy-in</span>'
             : (isChipsCashout
                 ? '<span class="badge-cashout">CC Chips Cashout</span>'
-                : '<span class="badge-rolling">CC Chips Rolling</span>');
-        // CC Cashout displayed but not included in total (amountRaw = 0)
-        const amountRaw = isChipsCashout ? 0 : ccChips;
+                : (isChipsMonthlySettle
+                    ? '<span class="badge-cashout">CC Chips Monthly Settle</span>'
+                    : '<span class="badge-rolling">CC Chips Rolling</span>'));
+        // CC Cashout and Monthly Settle displayed but not included in total (amountRaw = 0)
+        const amountRaw = (isChipsCashout || isChipsMonthlySettle) ? 0 : ccChips;
 
         return {
           encodedBy: row.ENCODED_BY_NAME || 'N/A',
@@ -503,7 +524,7 @@ $(document).ready(function() {
           amountRaw: amountRaw, // Buy-in and Rolling added; Cashout = 0 (display only)
           type: type,
           remarks: '',
-          date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+          date: window.formatEncodedDate(row.ENCODED_DT),
           action: (typeof getActionButton === 'function' ? getActionButton(row.IDNo) : ''),
           sortDate: new Date(row.ENCODED_DT)
         };
@@ -552,21 +573,20 @@ $(document).ready(function() {
           $('[data-bs-toggle="tooltip"]').tooltip();
         },
         footerCallback: function(row, data, start, end, display) {
-          // Calculate total of all filtered data
+          // Calculate total of all filtered data (Buy-in + Rolling)
           let total = 0;
           const api = this.api();
-          
-          // Get all filtered rows (respects search/filter)
           api.rows({ search: 'applied' }).every(function() {
             const rowData = this.data();
-            // Access the raw amount stored on the row array
             if (rowData._rawAmount !== undefined) {
               total += parseFloat(rowData._rawAmount) || 0;
             }
           });
-          
-          // Update total in footer
-          $('#total-chips-amount-sum').text(total.toLocaleString());
+          // Ibawas ang nn_cashout kung period tapos na (end <= today) at may month_settle record
+          const isPeriodEnded = endNorm && window.isDateSameOrBefore(endNorm);
+          const nnSettle = parseFloat(periodSettle && periodSettle.nn_cashout) || 0;
+          const netTotal = isPeriodEnded ? Math.max(0, total - nnSettle) : total;
+          $('#total-chips-amount-sum').text(netTotal.toLocaleString());
         }
       });
     }).catch(function(error) {
@@ -579,8 +599,9 @@ $(document).ready(function() {
   $('#modal-new-total-chips').on('shown.bs.modal', function () {
     console.log('Total Chips Modal shown');
     
-    const startOfMonth = moment().startOf('month').format('YYYY-MM-DD');
-    const currentDate = moment().format('YYYY-MM-DD');
+    const now = new Date();
+    const startOfMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01';
+    const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     
     if ($('#total-chips-daterange').length > 0) {
       if (!totalChipsPicker || !$('#total-chips-daterange').hasClass('flatpickr-input')) {
@@ -589,7 +610,7 @@ $(document).ready(function() {
           altInput: true,
           altFormat: "M d, Y",
           dateFormat: "Y-m-d",
-          defaultDate: [startOfMonth, currentDate],
+          defaultDate: [startOfMonth, today],
           showMonths: 2,
           onChange: function(selectedDates, dateStr) {
             console.log('Total Chips History Date changed:', dateStr);

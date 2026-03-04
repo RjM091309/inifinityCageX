@@ -24,14 +24,15 @@
                                 <table id="dashboardhistory-tbl" class="table  nowrap small-text" style="width:100%">
                                     <thead>
                                         <tr>
-                                            <th><%= __('dashboard_history.date') %></th>
+                                            <th>Period</th>
                                             <th><%= __('dashboard_history.commission') %></th>
                                             <th><%= __('dashboard_history.total_rolling') %></th>
                                             <th><%= __('dashboard_history.house_rolling') %></th>
                                             <th><%= __('dashboard_history.win_loss') %></th>
-                                            <th>NN Cashout</th>
-                                            <th>CC Cashout</th>
+                                            <th>NN Chips</th>
+                                            <th>CC Chips</th>
                                             <th><%= __('dashboard_history.reset_by') %></th>
+                                            <th>Date Settled</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -63,8 +64,8 @@
     background: var(--bs-primary-bg-subtle);
     color: var(--bs-primary);
     font-weight: 500;
-    padding: 12px 15px;
-    text-align: left;
+    padding: 14px 20px;
+    text-align: center;
     border: none;
 }
 
@@ -73,10 +74,11 @@
     border-bottom: 1px solid #eee;
 }
 
-/* Cell styles */
+/* Cell styles - centered with improved spacing */
 #dashboardhistory-tbl td {
-    padding: 12px 15px;
+    padding: 14px 20px;
     color: #666;
+    text-align: center;
 }
 
 #dashboardhistory-tbl tbody tr:hover {
@@ -96,9 +98,9 @@
 
 
 #dashboardhistory-tbl tfoot th {
-    padding: 10px;
+    padding: 14px 20px;
     font-weight: 600;
-  
+    text-align: center;
     color: #333;
     background-color: #f4f6fa;
     border-top: 2px solid #dee2e6;
@@ -110,7 +112,7 @@
 
     #dashboardhistory-tbl th,
     #dashboardhistory-tbl td {
-        padding: 5px;
+        padding: 10px 12px;
     }
 }
 							/* Itago ang text na "Show" at "entries" sa DataTables */
@@ -210,22 +212,23 @@
                                 },
                                 "emptyTable": translations.no_data_available || "No data available in table"
                             },
-                            "order": [[0, 'desc']], // Ensure sorting by latest date
+                            "order": [[8, 'desc']], // Sort by Date Settled (last column)
                             "columns": [
-                                {
-                                    "data": "ENCODED_DT",
-                                    "type": "date",
-                                    "render": function (data, type, row) {
-                                        return type === 'sort' ? row.ENCODED_DT_RAW : row.ENCODED_DT;
-                                    }
-                                },
+                                { "data": "PERIOD_LABEL", "defaultContent": "-" },
                                 { "data": "COMMISSION_HISTORY", "render": data => data ? parseFloat(data).toLocaleString() : '-' },
                                 { "data": "TOTAL_ROLLING_HISTORY", "render": data => data ? parseFloat(data).toLocaleString() : '-' },
                                 { "data": "HOUSE_ROLLING_HISTORY", "render": data => data ? parseFloat(data).toLocaleString() : '-' },
                                 { "data": "WINLOSS_HISTORY", "render": data => data ? parseFloat(data).toLocaleString() : '-' },
                                 { "data": "NN_CASHOUT", "render": data => data != null ? parseFloat(data).toLocaleString() : '-' },
                                 { "data": "CC_CASHOUT", "render": data => data != null ? parseFloat(data).toLocaleString() : '-' },
-                                { "data": "FIRSTNAME" }
+                                { "data": "FIRSTNAME" },
+                                {
+                                    "data": "ENCODED_DT",
+                                    "type": "date",
+                                    "render": function (data, type, row) {
+                                        return type === 'sort' ? row.ENCODED_DT_RAW : row.ENCODED_DT;
+                                    }
+                                }
                             ]
                         });
                     });

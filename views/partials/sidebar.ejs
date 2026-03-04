@@ -449,23 +449,35 @@ aside.sidebar .sidebar-footer {
       if (sidebarSettleLink) {
         sidebarSettleLink.addEventListener('click', async function(e) {
           e.preventDefault();
-          
-        //   // Check if within allowed window: last 2 days of month OR first 2 days of month
-        //   const now = new Date();
-        //   const day = now.getDate();
-        //   const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        //   const isLastTwoDays = day >= lastDayOfMonth - 1 && day <= lastDayOfMonth;
-        //   const isFirstTwoDays = day === 1 || day === 2;
-          
-        //   if (!isLastTwoDays && !isFirstTwoDays) {
-        //     Swal.fire({
-        //       icon: 'warning',
-        //       title: 'Monthly Settle',
-        //       text: 'Monthly settle can only be done at end of the month.',
-        //       confirmButtonText: 'OK'
-        //     });
-        //     return;
-        //   }
+
+          // Dapat nasa Dashboard page (kung saan nanggagaling ang Commission, Win/Loss, etc.)
+          const isOnDashboard = window.location.pathname === '/dashboard' || window.location.pathname === '/dashboard/';
+          if (!isOnDashboard) {
+            Swal.fire({
+              icon: 'warning',
+              title: 'Dashboard Required',
+              text: 'You must be on the Dashboard page to perform Monthly Settle.',
+              confirmButtonText: 'OK'
+            });
+            return;
+          }
+
+          // Pre-check: show error immediately if cannot settle (bago pa ang confirmation)
+          // try {
+          //   const checkRes = await fetch('/monthly-settle-check');
+          //   const check = await checkRes.json();
+          //   if (!check.canSettle) {
+          //     Swal.fire({
+          //       icon: 'error',
+          //       title: 'Error',
+          //       text: check.message || 'Cannot settle at this time.',
+          //       confirmButtonText: 'OK'
+          //     });
+          //     return;
+          //   }
+          // } catch (err) {
+          //   console.error('monthly-settle-check failed:', err);
+          // }
           
           // Confirmation dialog
           const confirmSettle = await Swal.fire({
