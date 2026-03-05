@@ -100,6 +100,7 @@
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.transaction_type') %></th>
                         <th class="d-none d-sm-table-cell" style="width: 200px !important;"><%= __('dashboard_marker.date') %></th>
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.remarks') %></th>
+                        <th class="d-none d-sm-table-cell text-center" style="width: 60px;"><%= __('dashboard_marker.action') %></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -223,6 +224,9 @@
 <script>
 window.markerTranslations = window.markerTranslations || {
 	showing_entries: "<%= __('dashboard_marker.showing_entries') %>",
+	delete: "<%= __('dashboard_marker.delete') %>",
+	confirm_delete: "<%= __('dashboard_marker.confirm_delete') %>",
+	yes_delete: "<%= __('dashboard_marker.yes_delete') %>",
 	length_menu: "<%= __('dashboard_marker.length_menu') %>",
 	info_empty: "<%= __('dashboard_marker.info_empty') %>",
 	info_filtered: "<%= __('dashboard_marker.info_filtered') %>",
@@ -255,7 +259,6 @@ window.__markerModalInit = function() {
             selectPlaceholder: '<%= __("dashboard_marker.select_account") %>',
             dropdownParent: '#modal-new-marker',
             onSuccess: function() {
-                $('#modal-new-marker').modal('hide');
                 if (typeof window.reloadData === "function") window.reloadData();
             }
         },

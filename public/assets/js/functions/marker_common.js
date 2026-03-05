@@ -53,6 +53,9 @@
         var orderCol = options.orderCol != null ? options.orderCol : 3;
         var orderDir = options.orderDir || 'desc';
 
+        var perms = parseInt($('#user-role').data('permissions'), 10);
+        var isSuperAdmin = $('#user-role').length && perms === 0;
+
         // Get translations from window object
         var translations = window.markerTranslations || {};
 
@@ -111,7 +114,20 @@
                 },
                 { data: 'TRANSACTION_INFO', render: renderTransactionType },
                 { data: 'ENCODED_DT' },
-                { data: 'REMARKS', defaultContent: '' }
+                { data: 'REMARKS', defaultContent: '' },
+                {
+                    data: 'IDNo',
+                    orderable: false,
+                    render: function (idNo, type, row) {
+                        if (type === 'display') {
+                            var perms = parseInt($('#user-role').data('permissions'), 10);
+                            var canDelete = ($('#user-role').length && perms === 0); // Super Admin only
+                            if (!canDelete) return '';
+                            return '<button type="button" class="btn btn-sm btn-danger-subtle btn-delete-marker" data-id="' + (idNo || '') + '" data-bs-toggle="tooltip" aria-label="Delete" title="Delete"><i class="fa fa-trash-alt"></i></button>';
+                        }
+                        return idNo;
+                    }
+                }
             ],
             columnDefs: [
                 {
@@ -133,8 +149,92 @@
                     render: function (data) {
                         return data || '';
                     }
+                },
+                {
+                    targets: 5,
+                    visible: isSuperAdmin,
+                    className: 'text-center',
+                    createdCell: function (cell) {
+                        $(cell).addClass('text-center');
+                    }
                 }
             ]
+        });
+
+        // Delete button click (delegated)
+        $table.off('click.markerDelete').on('click.markerDelete', '.btn-delete-marker', function (e) {
+            e.preventDefault();
+            var btn = $(this);
+            var id = btn.data('id');
+            if (!id) return;
+            var perms = parseInt($('#user-role').data('permissions'), 10);
+            if ($('#user-role').length && perms !== 0) return; // Super Admin only
+
+            var confirmMsg = (window.markerTranslations && window.markerTranslations.confirm_delete) || 'Are you sure you want to delete this record?';
+            var confirmTitle = (window.markerTranslations && window.markerTranslations.delete) || 'Delete';
+
+            if (window.Swal) {
+                window.Swal.fire({
+                    icon: 'warning',
+                    title: confirmTitle,
+                    text: confirmMsg,
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: (window.markerTranslations && window.markerTranslations.yes_delete) || 'Yes, delete'
+                }).then(function (result) {
+                    if (result.isConfirmed) {
+                        btn.prop('disabled', true);
+                        $.ajax({
+                            url: '/marker_record/' + id,
+                            method: 'DELETE',
+                            success: function (res) {
+                                if (res.success) {
+                                    if (table && table.ajax) table.ajax.reload();
+                                    $.getJSON('/marker_total_credits_issue', function (data) {
+                                        var total = (data && data.total != null) ? data.total : 0;
+                                        var numStr = Number(total).toLocaleString();
+                                        $('#txtTotalMarkerIssue').val(numStr);
+                                        $('#dashboard-credit-value').html('₱ ' + numStr);
+                                    });
+                                    var formApi = $table.data('markerFormApi');
+                                    if (formApi && formApi.populateAccounts) formApi.populateAccounts();
+                                }
+                                if (window.Swal) window.Swal.fire({ icon: 'success', title: 'Success', text: res.message || 'Record deleted.' });
+                                if (typeof window.reloadData === 'function') window.reloadData();
+                            },
+                            error: function (xhr) {
+                                var msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Error deleting record.';
+                                if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                            },
+                            complete: function () { btn.prop('disabled', false); }
+                        });
+                    }
+                });
+            } else {
+                if (confirm(confirmMsg)) {
+                    btn.prop('disabled', true);
+                    $.ajax({
+                        url: '/marker_record/' + id,
+                        method: 'DELETE',
+                        success: function (res) {
+                            if (res.success) {
+                                if (table && table.ajax) table.ajax.reload();
+                                $.getJSON('/marker_total_credits_issue', function (data) {
+                                    var total = (data && data.total != null) ? data.total : 0;
+                                    var numStr = Number(total).toLocaleString();
+                                    $('#txtTotalMarkerIssue').val(numStr);
+                                    $('#dashboard-credit-value').html('₱ ' + numStr);
+                                });
+                                var formApi = $table.data('markerFormApi');
+                                if (formApi && formApi.populateAccounts) formApi.populateAccounts();
+                            }
+                            if (typeof window.reloadData === 'function') window.reloadData();
+                        },
+                        complete: function () { btn.prop('disabled', false); }
+                    });
+                }
+            }
         });
 
         return table;
@@ -328,6 +428,12 @@
                         if (response.success) {
                             $form[0].reset();
                             if (table && table.ajax) table.ajax.reload();
+                            $.getJSON('/marker_total_credits_issue', function (data) {
+                                var total = (data && data.total != null) ? data.total : 0;
+                                var numStr = Number(total).toLocaleString();
+                                $('#txtTotalMarkerIssue').val(numStr);
+                                $('#dashboard-credit-value').html('₱ ' + numStr);
+                            });
                             // Reload account list and refresh balance for current account so UI updates without page refresh
                             populateAccounts(function (accounts) {
                                 if (savedAccountId) {
@@ -420,6 +526,7 @@
             var formOpts = options.formOptions || {};
             formOpts.populateAccountsOnInit = !options.modalSelector;
             formApi = initForm(table, formOpts);
+            $(tableSelector).data('markerFormApi', formApi);
         }
 
         if (options.disableSaveExportByPermission) {

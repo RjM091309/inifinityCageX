@@ -97,6 +97,7 @@
 								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.transaction_type_col') %></th>
 								<th class="d-none d-sm-table-cell" style="width: 200px;"><%= __('dashboard_marker.date') %></th>
 								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.remarks') %></th>
+								<th class="d-none d-sm-table-cell text-center" style="width: 60px;"><%= __('dashboard_marker.action') %></th>
 							</tr>
 						</thead>
 						<tbody></tbody>
@@ -113,6 +114,9 @@
 	// Pass translations to JavaScript
 	window.markerTranslations = {
 		showing_entries: "<%= __('dashboard_marker.showing_entries') %>",
+		delete: "<%= __('dashboard_marker.delete') %>",
+		confirm_delete: "<%= __('dashboard_marker.confirm_delete') %>",
+		yes_delete: "<%= __('dashboard_marker.yes_delete') %>",
 		previous: "<%= __('dashboard_marker.previous') %>",
 		next: "<%= __('dashboard_marker.next') %>",
 		search: "<%= __('dashboard_marker.search') %>",

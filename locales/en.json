@@ -788,7 +788,12 @@
 		"previous": "Previous",
 		"next": "Next",
 		"search": "Search:",
-		"no_data_available": "No data available in table"
+		"no_data_available": "No data available in table",
+		"delete": "Delete",
+		"confirm_delete": "Are you sure you want to delete this record?",
+		"yes_delete": "Yes, delete",
+		"action": "Action",
+		"Action": "dashboard_marker.Action"
 	},
 	"modal_new_agent": {
 		"new_guest": "New Guest",
@@ -881,7 +886,7 @@
 		"category": "--- Category ---",
 		"category_placeholder": "Category",
 		"receipt_photo": "Receipt Photo",
-		"receipt_no_placeholder": "Description",		
+		"receipt_no_placeholder": "Description",
 		"description_placeholder": "In-Charge",
 		"date_and_time_placeholder": "Date and Time",
 		"amount_placeholder": "Amount",

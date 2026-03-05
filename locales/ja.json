@@ -789,7 +789,12 @@
 		"previous": "前へ",
 		"next": "次へ",
 		"search": "検索:",
-		"no_data_available": "テーブルにデータがありません"
+		"no_data_available": "テーブルにデータがありません",
+		"delete": "dashboard_marker.delete",
+		"confirm_delete": "dashboard_marker.confirm_delete",
+		"yes_delete": "dashboard_marker.yes_delete",
+		"Action": "dashboard_marker.Action",
+		"action": "dashboard_marker.action"
 	},
 	"modal_new_agent": {
 		"new_guest": "新規ゲスト",

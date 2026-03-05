@@ -1474,6 +1474,8 @@ router.get('/marker_data', async (req, res) => {
 		JOIN account ON agent.IDNo = account.AGENT_ID 
 		JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID 
 		WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) 
+		AND account_ledger.ACTIVE = 1 
+		AND account.ACTIVE = 1 
 		AND agent.ACTIVE = 1 
 		GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME 
 		HAVING TOTAL_AMOUNT <> 0`;
@@ -1584,6 +1586,100 @@ router.post('/add_marker_settlement', async (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?, ?)`;
 
 		await pool.execute(insertQuery, [txtAccountMarker, optTransType, 3, markerReturn, req.session.user_id, date_now, remarks || null]);
+	}
+});
+
+// GET MARKER TOTAL CREDITS ISSUE (for AJAX refresh after delete)
+router.get('/marker_total_credits_issue', async (req, res) => {
+	const sqlMarkerIssueGame = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_ISSUE_GAME FROM game_record WHERE ACTIVE=1 AND TRANSACTION=3 AND CAGE_TYPE=1';
+	const sqlMarkerIssueAccount = `SELECT SUM(account_ledger.AMOUNT) AS TOTAL_ISSUE_RECORD FROM account_ledger JOIN account ON account.IDNo=account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo=account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=3 AND account.ACTIVE=1 AND agent.ACTIVE=1`;
+	const sqlNNChipsAccountMarker = 'SELECT SUM(NN_CHIPS) AS TOTAL_NN_MARKER FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=2 AND TRANSACTION=3';
+	const sqlMArkerReturnCash = `SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_CASH FROM account_ledger JOIN account ON account.IDNo=account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo=account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=3 AND account_ledger.TRANSACTION_ID=11 AND account.ACTIVE=1 AND agent.ACTIVE=1`;
+	const sqlMArkerReturnDeposit = `SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_DEPOSIT FROM account_ledger JOIN account ON account.IDNo=account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo=account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=3 AND account_ledger.TRANSACTION_ID=12 AND account.ACTIVE=1 AND agent.ACTIVE=1`;
+	const sqlChipsReturnMarker = `SELECT SUM(NN_CHIPS + CC_CHIPS) AS CHIPS_RETURN_MARKER FROM game_record WHERE CAGE_TYPE=2 AND TRANSACTION=4 AND ACTIVE=1`;
+
+	try {
+		const [[r1], [r2], [r3], [r4], [r5], [r6]] = await Promise.all([
+			pool.execute(sqlMarkerIssueGame),
+			pool.execute(sqlMarkerIssueAccount),
+			pool.execute(sqlNNChipsAccountMarker),
+			pool.execute(sqlMArkerReturnCash),
+			pool.execute(sqlMArkerReturnDeposit),
+			pool.execute(sqlChipsReturnMarker)
+		]);
+		const total = (parseFloat((r1[0] || {}).TOTAL_ISSUE_GAME) || 0) +
+			(parseFloat((r2[0] || {}).TOTAL_ISSUE_RECORD) || 0) -
+			(parseFloat((r3[0] || {}).TOTAL_NN_MARKER) || 0) -
+			(parseFloat((r4[0] || {}).MARKER_RETURN_CASH) || 0) -
+			(parseFloat((r5[0] || {}).MARKER_RETURN_DEPOSIT) || 0) -
+			(parseFloat((r6[0] || {}).CHIPS_RETURN_MARKER) || 0);
+		res.json({ total });
+	} catch (err) {
+		console.error('Error fetching marker total:', err);
+		res.status(500).json({ total: 0 });
+	}
+});
+
+// DELETE MARKER RECORD (soft delete) - Super Admin only
+router.delete('/marker_record/:id', async (req, res) => {
+	const permissions = req.session?.permissions;
+	if (permissions !== 0) {
+		return res.status(403).json({ success: false, message: 'Only Super Admin can delete marker records.' });
+	}
+
+	const id = parseInt(req.params.id);
+	const date_now = new Date();
+
+	try {
+		const [rows] = await pool.execute(
+			`SELECT IDNo, ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_DT 
+			 FROM account_ledger 
+			 WHERE IDNo = ? AND ACTIVE = 1 
+			 AND (TRANSACTION_ID IN (3, 10, 11, 12) OR TRANSACTION_TYPE = 4)`,
+			[id]
+		);
+
+		if (rows.length === 0) {
+			return res.status(404).json({ success: false, message: 'Record not found or already deleted.' });
+		}
+
+		const rec = rows[0];
+		const transId = parseInt(rec.TRANSACTION_ID, 10);
+		const transType = parseInt(rec.TRANSACTION_TYPE, 10);
+		const gameId = rec.GAME_ID;
+		const accountId = rec.ACCOUNT_ID;
+		const amount = parseFloat(rec.AMOUNT) || 0;
+		const encodedDt = rec.ENCODED_DT;
+
+		// 1. Always soft delete account_ledger
+		await pool.execute(
+			'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[req.session.user_id, date_now, id]
+		);
+
+		// 2. For Buy-in (TRANSACTION_ID 10): soft delete game_record (CAGE_TYPE 1 and 3)
+		if (transId === 10 && gameId) {
+			await pool.execute(
+				`UPDATE game_record SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? 
+				 WHERE GAME_ID = ? AND (NN_CHIPS + CC_CHIPS) = ? AND ENCODED_DT = ? AND CAGE_TYPE IN (1, 3) AND TRANSACTION = 3`,
+				[req.session.user_id, date_now, gameId, amount, encodedDt]
+			);
+		}
+
+		// 3. For Chips Return (TRANSACTION_TYPE 4): soft delete game_record (CAGE_TYPE 2, TRANSACTION 4)
+		if (transType === 4 && transId === 1 && gameId) {
+			await pool.execute(
+				`UPDATE game_record SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? 
+				 WHERE GAME_ID = ? AND (NN_CHIPS + CC_CHIPS) = ? AND CAGE_TYPE = 2 AND TRANSACTION = 4`,
+				[req.session.user_id, date_now, gameId, amount, encodedDt]
+			);
+		}
+		// If GAME_ID is NULL for chips return (legacy), only account_ledger is deleted
+
+		res.json({ success: true, message: 'Record deleted successfully.' });
+	} catch (err) {
+		console.error('Error deleting marker record:', err);
+		res.status(500).json({ success: false, message: 'Error deleting record.' });
 	}
 });
 
