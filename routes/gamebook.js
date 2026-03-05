@@ -297,9 +297,9 @@ router.post('/add_game_list', async (req, res) => {
 			);
 		} else if (transType === 3) {
 			await pool.execute(`
-				INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT)
-				VALUES (?, ?, ?, ?, ?, ?, ?)`,
-				[accountId, gameId, 10, transType, totalAmount, encodedBy, date_now]
+				INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				[accountId, gameId, 10, transType, totalAmount, `Buy-in Game: ${gameId}`, encodedBy, date_now]
 			);
 		}
 
@@ -1752,8 +1752,8 @@ router.post('/game_list/add/buyin', async (req, res) => {
 		}
 
 		if (txtTransType == 3) {
-			const query4 = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-			queries.push(pool.execute(query4, [txtAccountCode, game_id, 10, txtTransType, totalAmount, req.session.user_id, date_now]));
+			const query4 = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+			queries.push(pool.execute(query4, [txtAccountCode, game_id, 10, txtTransType, totalAmount, `Add Buy-in Game: ${game_id}`, req.session.user_id, date_now]));
 		}
 
 		// Wait for all queries to finish
