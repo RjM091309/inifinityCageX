@@ -463,21 +463,21 @@ aside.sidebar .sidebar-footer {
           }
 
           // Pre-check: show error immediately if cannot settle (bago pa ang confirmation)
-          // try {
-          //   const checkRes = await fetch('/monthly-settle-check');
-          //   const check = await checkRes.json();
-          //   if (!check.canSettle) {
-          //     Swal.fire({
-          //       icon: 'error',
-          //       title: 'Error',
-          //       text: check.message || 'Cannot settle at this time.',
-          //       confirmButtonText: 'OK'
-          //     });
-          //     return;
-          //   }
-          // } catch (err) {
-          //   console.error('monthly-settle-check failed:', err);
-          // }
+          try {
+            const checkRes = await fetch('/monthly-settle-check');
+            const check = await checkRes.json();
+            if (!check.canSettle) {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: check.message || 'Cannot settle at this time.',
+                confirmButtonText: 'OK'
+              });
+              return;
+            }
+          } catch (err) {
+            console.error('monthly-settle-check failed:', err);
+          }
           
           // Confirmation dialog
           const confirmSettle = await Swal.fire({

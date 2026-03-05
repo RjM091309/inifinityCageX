@@ -1834,24 +1834,24 @@ router.post('/insert-dash-history', async (req, res) => {
 	}
 
 	// Hindi pwedeng mag-settle ng future month (period dapat tapos na o current)
-	// if (periodEndStr > todayStr) {
-	// 	return res.status(400).json({
-	// 		success: false,
-	// 		message: `Cannot settle ${periodLabel} yet - month has not ended.`
-	// 	});
-	// }
+	if (periodEndStr > todayStr) {
+		return res.status(400).json({
+			success: false,
+			message: `Cannot settle ${periodLabel} yet - month has not ended.`
+		});
+	}
 
 	// Check kung na-settle na ang period na yan
-	// const [existing] = await pool.execute(
-	// 	'SELECT id FROM month_settle WHERE active = 1 AND period_start = ? AND period_end = ? LIMIT 1',
-	// 	[periodStartStr, periodEndStr]
-	// );
-	// if (existing && existing.length > 0) {
-	// 	return res.status(400).json({
-	// 		success: false,
-	// 		message: `${periodLabel} has already been settled.`
-	// 	});
-	// }
+	const [existing] = await pool.execute(
+		'SELECT id FROM month_settle WHERE active = 1 AND period_start = ? AND period_end = ? LIMIT 1',
+		[periodStartStr, periodEndStr]
+	);
+	if (existing && existing.length > 0) {
+		return res.status(400).json({
+			success: false,
+			message: `${periodLabel} has already been settled.`
+		});
+	}
 
 	let connection;
 	try {
