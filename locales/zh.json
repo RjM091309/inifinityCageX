@@ -793,8 +793,7 @@
 		"delete": "dashboard_marker.delete",
 		"confirm_delete": "dashboard_marker.confirm_delete",
 		"yes_delete": "dashboard_marker.yes_delete",
-		"Action": "dashboard_marker.Action",
-		"action": "dashboard_marker.action"
+		"action": "Action"
 	},
 	"modal_new_agent": {
 		"new_guest": "新客人",
