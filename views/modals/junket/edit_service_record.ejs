@@ -218,7 +218,7 @@
 
 				let deposit_amount = 0;
 				let withdraw_amount = 0;
-				let marker_issue_amount = 0;
+				let marker_deposit_amount = 0;
 				let marker_return = 0;
 
 				data.forEach(row => {
@@ -227,14 +227,14 @@
 						deposit_amount += amount;
 					} else if (row.TRANSACTION === 'WITHDRAW') {
 						withdraw_amount += amount;
-					} else if (row.TRANSACTION === 'Credit Cash') {
-						marker_issue_amount += amount;
-					} else if (row.TRANSACTION === 'Credit Returned thru Deposit') {
+					} else if (row.TRANSACTION === 'MARKER REDEEM') {
+						marker_deposit_amount += amount;
+					} else if (row.TRANSACTION === 'IOU RETURN DEPOSIT' || row.TRANSACTION === 'Credit Returned thru Deposit') {
 						marker_return += amount;
 					}
 				});
 
-				depositBalance = deposit_amount + marker_issue_amount - withdraw_amount - marker_return;
+				depositBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
 			} catch (err) {
 				console.error('Error loading deposit balance', err);
 				depositBalance = 0;

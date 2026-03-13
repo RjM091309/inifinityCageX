@@ -38,7 +38,7 @@ const getTransactionName = async (transactionId) => {
 	}
 };
 
-// Compute balance from ledger (shared)
+// Compute balance from ledger (shared) — excludes Credit/IOU (IOU CASH / CREDIT CASH)
 const getCurrentBalance = async (accountId) => {
 	const balanceQuery = `
 		SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
@@ -50,18 +50,33 @@ const getCurrentBalance = async (accountId) => {
 
 	let deposit_amount = 0;
 	let withdraw_amount = 0;
-	let marker_issue_amount = 0;
+	let marker_redeem_amount = 0;
 	let marker_return_deposit = 0;
 
 	rows.forEach((row) => {
 		const amount = parseFloat(row.AMOUNT) || 0;
 		if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
 		if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
-		if (row.TRANSACTION === 'IOU CASH') marker_issue_amount += amount;
+		if (row.TRANSACTION === 'MARKER REDEEM') marker_redeem_amount += amount;
 		if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
 	});
 
-	return deposit_amount + marker_issue_amount - withdraw_amount - marker_return_deposit;
+	return deposit_amount + marker_redeem_amount - withdraw_amount - marker_return_deposit;
+};
+
+// Credit/IOU balance: TRANSACTION_ID (3,10) - (11,12,1), TRANSACTION_TYPE (3,4)
+const getCreditBalance = async (accountId) => {
+	const query = `
+		SELECT 
+			SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) -
+			SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS credit_balance
+		FROM account_ledger
+		WHERE account_ledger.ACTIVE = 1
+		  AND account_ledger.TRANSACTION_TYPE IN (3, 4)
+		  AND account_ledger.ACCOUNT_ID = ?
+	`;
+	const [[row]] = await pool.execute(query, [accountId]);
+	return parseFloat(row?.credit_balance) || 0;
 };
 
 const recordHistory = async ({
@@ -355,7 +370,7 @@ router.get('/account_data', async (req, res) => {
 				al.ACCOUNT_ID,
 				SUM(
 					CASE
-						WHEN tt.TRANSACTION IN ('DEPOSIT', 'IOU CASH') THEN al.AMOUNT
+						WHEN tt.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN al.AMOUNT
 						WHEN tt.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN -al.AMOUNT
 						ELSE 0
 					END
@@ -365,6 +380,17 @@ router.get('/account_data', async (req, res) => {
 			WHERE al.ACTIVE = 1
 			  AND al.TRANSACTION_TYPE IN (2, 3, 5)
 			GROUP BY al.ACCOUNT_ID
+		`;
+
+		const creditBalanceSubquery = `
+			SELECT 
+				account_ledger.ACCOUNT_ID,
+				SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS credit_balance
+			FROM account_ledger
+			WHERE account_ledger.ACTIVE = 1
+			  AND account_ledger.TRANSACTION_TYPE IN (3, 4)
+			GROUP BY account_ledger.ACCOUNT_ID
 		`;
 
 		const latestGameSubquery = `
@@ -390,11 +416,13 @@ router.get('/account_data', async (req, res) => {
 				agency.IDNo AS agency_id,
 				COALESCE(led.total_balance, 0) AS total_balance,
 				COALESCE(led.total_balance, 0) AS total_ledger_amount,
+				COALESCE(cred.credit_balance, 0) AS credit_balance,
 				lg.LATEST_GAME_DATE
 			FROM account acc
 			JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			JOIN agency ON agency.IDNo = ag.AGENCY
 			LEFT JOIN (${ledgerTotalsSubquery}) AS led ON led.ACCOUNT_ID = acc.IDNo
+			LEFT JOIN (${creditBalanceSubquery}) AS cred ON cred.ACCOUNT_ID = acc.IDNo
 			LEFT JOIN (${latestGameSubquery}) AS lg ON lg.ACCOUNT_ID = acc.IDNo
 			WHERE acc.ACTIVE = 1
 			  AND ag.ACTIVE = 1
@@ -446,7 +474,7 @@ router.put('/account/:id', async (req, res) => {
 	const { txtGuestNo, txtMembershipNo } = req.body;
 	const date_now = new Date();
 
-	// Helper: compute current balance from ledger
+	// Helper: compute current balance from ledger (excludes Credit/IOU)
 	const getCurrentBalance = async (accountId) => {
 		const balanceQuery = `
 			SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
@@ -458,18 +486,18 @@ router.put('/account/:id', async (req, res) => {
 
 		let deposit_amount = 0;
 		let withdraw_amount = 0;
-		let marker_issue_amount = 0;
+		let marker_redeem_amount = 0;
 		let marker_return_deposit = 0;
 
 		rows.forEach((row) => {
 			const amount = parseFloat(row.AMOUNT) || 0;
 			if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
 			if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
-			if (row.TRANSACTION === 'IOU CASH') marker_issue_amount += amount;
+			if (row.TRANSACTION === 'MARKER REDEEM') marker_redeem_amount += amount;
 			if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
 		});
 
-		return deposit_amount + marker_issue_amount - withdraw_amount - marker_return_deposit;
+		return deposit_amount + marker_redeem_amount - withdraw_amount - marker_return_deposit;
 	};
 
 	const query = `UPDATE account SET GUESTNo = ?, MEMBERSHIPNo = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
@@ -597,14 +625,18 @@ router.post('/add_account_details', async (req, res) => {
 			let totalBalanceGuest = parseFloat(req.body.totalBalanceGuest.replace(/,/g, '')) || 0; // Ensure it's a number
 			
 
-			// Determine totalBalance based on transaction type
+			// Determine balance for display based on transaction type
 			let totalBalance;
+			let amountForTelegram;
 			if (txtTrans === '1') { // Deposit
 				totalBalance = totalBalanceGuest + amountNumber;
+				amountForTelegram = totalBalance;
 			} else if (txtTrans === '2') { // Withdraw
 				totalBalance = totalBalanceGuest - amountNumber;
-			} else if (txtTrans === '3') { // Other
-				totalBalance = totalBalanceGuest + amountNumber;
+				amountForTelegram = totalBalance;
+			} else if (txtTrans === '3') { // Credit: use total credit (not total balance)
+				amountForTelegram = await getCreditBalance(txtAccountId);
+				totalBalance = amountForTelegram;
 			}
 
 			// Adjust for display
@@ -642,11 +674,11 @@ router.post('/add_account_details', async (req, res) => {
 				// Reformat the amount with commas
 				const formattedAmount = amountNumber.toLocaleString();
 
-				// Translate transaction type to Korean
+				// Translate transaction type to Korean (DB: IOU CASH or CREDIT CASH for Credit)
 				const translateTransaction = (trans) => {
 					if (trans === 'DEPOSIT') return '어카운트 입금';
 					if (trans === 'WITHDRAW') return '어카운트 출금';
-					if (trans === 'CREDIT') return '크레딧';
+					if (trans === 'CREDIT' || trans === 'IOU CASH' || trans === 'CREDIT CASH') return '크레딧';
 					return trans;
 				};
 
@@ -655,7 +687,8 @@ router.post('/add_account_details', async (req, res) => {
 				// Build remarks line if remarks exist
 				const remarksLine = txtRemarks ? `비고: ${txtRemarks}\n` : '';
 
-				const text = `Infinity Cage\n\n* ${translatedTransaction} *\n\n계정: ${guestAccountNum} - ${guestName}\n금액: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString()}\n잔고: ${parseFloat(totalBalance).toLocaleString()}\n${remarksLine}\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				const balanceLabel = (txtTrans === '3') ? '총 크레딧' : '잔고';
+				const text = `Infinity Cage\n\n* ${translatedTransaction} *\n\n계정: ${guestAccountNum} - ${guestName}\n금액: ${parseFloat(Math.abs(displayWithdraw)).toLocaleString()}\n${balanceLabel}: ${parseFloat(amountForTelegram).toLocaleString()}\n${remarksLine}\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
 				let telegramError = null;
 
@@ -737,7 +770,7 @@ router.post('/check_balance/:accountId', async (req, res) => {
 
 		const { TELEGRAM_ID, AGENT_CODE, NAME } = results[0];
 
-		// Calculate balance from ledger entries
+		// Calculate balance from ledger entries (excludes Credit/IOU)
 		const [ledgerResults] = await pool.query(`
 			SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
 			FROM account_ledger
@@ -747,18 +780,18 @@ router.post('/check_balance/:accountId', async (req, res) => {
 
 		let deposit_amount = 0;
 		let withdraw_amount = 0;
-		let marker_issue_amount = 0;
+		let marker_redeem_amount = 0;
 		let marker_return_deposit = 0;
 
 		ledgerResults.forEach(row => {
 			const amount = parseFloat(row.AMOUNT) || 0;
 			if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
 			if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
-			if (row.TRANSACTION === 'IOU CASH') marker_issue_amount += amount;
+			if (row.TRANSACTION === 'MARKER REDEEM') marker_redeem_amount += amount;
 			if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
 		});
 
-		const currentBalance = deposit_amount + marker_issue_amount - withdraw_amount - marker_return_deposit;
+		const currentBalance = deposit_amount + marker_redeem_amount - withdraw_amount - marker_return_deposit;
 		const balanceFormatted = currentBalance.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 		let date_now = new Date().toLocaleDateString();
@@ -1106,7 +1139,29 @@ router.get('/account_details_data_deposit/:id', async (req, res) => {
 	  res.status(500).send('Error fetching data');
 	}
   });
-  
+
+// GET ACCOUNT CREDIT/IOU BALANCE (formula: TRANSACTION_ID 3,10 minus 11,12,1; TRANSACTION_TYPE 3,4)
+router.get('/account_credit_balance/:id', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id);
+		const query = `
+			SELECT 
+				SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END) AS credit_balance
+			FROM account_ledger
+			WHERE account_ledger.ACTIVE = 1
+			  AND account_ledger.TRANSACTION_TYPE IN (3, 4)
+			  AND account_ledger.ACCOUNT_ID = ?
+		`;
+		const [[row]] = await pool.execute(query, [id]);
+		const credit_balance = parseFloat(row?.credit_balance) || 0;
+		res.json({ credit_balance });
+	} catch (error) {
+		console.error('Error fetching account credit balance:', error);
+		res.status(500).json({ credit_balance: 0 });
+	}
+});
+
 // GET ACCOUNT GAME HISTORY
 router.get('/account_game_history/:id', async (req, res) => {
 	try {

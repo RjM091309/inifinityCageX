@@ -21,6 +21,32 @@
                         (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0) ).toLocaleString() %>" readonly/>    
                     </div>
                 </div>
+                <div class="row mb-1">
+                    <div class="col-sm-6">
+                        <label class="form-label text-muted small mb-1 text-center">Total Junket Credit</label>
+                        <input type="text" class="form-control text-center" id="txtTotalJunketCredit" readonly />
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label text-muted small mb-1 text-center">Total Game Credit</label>
+                        <input type="text" class="form-control text-center" id="txtTotalGameCredit" readonly />
+                    </div>
+                </div>
+
+                <div class="row d-flex justify-content-center mb-2">
+                    
+                    <div class="col-sm-3 d-flex justify-content-center">
+                        <div class="form-check">
+                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="return-source-credit" name="optReturnSource" value="credit">
+                            <label class="form-check-label" for="return-source-credit"><%= __('dashboard_marker.tab_credit') %></label>
+                        </div>
+                    </div>
+                    <div class="col-sm-3 d-flex justify-content-center">
+                        <div class="form-check">
+                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="return-source-buyin" name="optReturnSource" value="buyin">
+                            <label class="form-check-label" for="return-source-buyin"><%= __('dashboard_marker.tab_buyin') %></label>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Account # -->
                 <div class="row justify-content-center mb-2">
@@ -74,25 +100,41 @@
                             <label class="form-check-label" for="deposit"><%= __('dashboard_marker.deposit') %></label>
                         </div>
                     </div>
-                    
                 </div>
-                
-           
 
-            <hr style="border: none; border-top: 0.2rem solid black;">
-            
-            <!-- EXPORT -->
-                    <div class="dataTables_wrapper">
-                        <div class="row mb-2">
-                            <div class="col-sm-4">
-                                <div>
-                                    <button type="button" id="export-excel" class="btn btn-sm btn-success-subtle"><%= __('dashboard_marker.export') %></button>
-                                    </div>
-                            </div>
-                        </div>
+                <!-- Save / Close buttons positioned near the form -->
+                <div class="row d-flex justify-content-end mt-3 mb-2">
+                    <div class="col-auto">
+                        <button id="submit_marker_settlement" type="submit" class="btn btn-sm btn-primary">
+                            <%= __('dashboard_marker.save') %>
+                        </button>
                     </div>
-            
-            <table id="marker-tbl" class="table table-bordered table-responsive" style=" width: 100%; ">
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+                            <%= __('dashboard_marker.close') %>
+                        </button>
+                    </div>
+                </div>
+            <hr style="border: none; border-top: 0.2rem solid black;">
+
+            <!-- 3 Tabs: Marker History, Junket Credit, Game Credit -->
+            <ul class="nav nav-tabs marker-balance-tabs mb-2" id="marker-balance-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="tab-marker-history" data-tab="marker-history" type="button" role="tab"><%= __('dashboard_marker.marker_history') %></button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-credit-balance" data-tab="credit" type="button" role="tab"><%= __('dashboard_marker.tab_credit') %></button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-buyin-balance" data-tab="buyin" type="button" role="tab"><%= __('dashboard_marker.tab_buyin') %></button>
+                </li>
+            </ul>
+
+            <div id="marker-history-wrapper" class="marker-tab-panel mb-3" data-panel="marker-history">
+                <div class="d-flex justify-content-end align-items-center mb-2">
+                    <button type="button" id="export-excel" class="btn btn-sm btn-success-subtle"><%= __('dashboard_marker.export') %></button>
+                </div>
+                <table id="marker-tbl" class="table table-bordered table-responsive" style="width: 100%;">
                 <thead>
                     <tr>
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.account_name') %></th>
@@ -105,12 +147,38 @@
                 </thead>
                 <tbody>
                 </tbody>
-            </table>
-        </div>
-        <div class="modal-footer">
-            <button id="submit_marker_settlement" type="submit" class="btn btn-sm btn-primary"><%= __('dashboard_marker.save') %></button>
-                    <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('dashboard_marker.close') %></button>
-        </div>
+                </table>
+            </div>
+
+            <div id="marker-accounts-credit-wrapper" class="marker-tab-panel mb-3" data-panel="credit" style="display: none;">
+                <div class="table-responsive">
+                    <table id="marker-accounts-credit-tbl" class="table table-bordered marker-balance-tbl" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th><%= __('dashboard_marker.account_name') %></th>
+                                <th class="text-end"><%= __('dashboard_marker.balance') %></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot><tr><th></th><th class="text-end"></th></tr></tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div id="marker-accounts-buyin-wrapper" class="marker-tab-panel mb-3" data-panel="buyin" style="display: none;">
+                <div class="table-responsive">
+                    <table id="marker-accounts-buyin-tbl" class="table table-bordered marker-balance-tbl" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th><%= __('dashboard_marker.account_name') %></th>
+                                <th class="text-end"><%= __('dashboard_marker.balance') %></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot><tr><th></th><th class="text-end"></th></tr></tfoot>
+                    </table>
+                </div>
+            </div>
         </div>
         </form>
     </div>
@@ -153,7 +221,51 @@
   background-color: #f5f5f5 !important;
 }
 
-
+#modal-new-marker .marker-balance-tabs .nav-link {
+  font-size: 0.875rem;
+  color: #8a92a6;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.5rem 0.75rem;
+}
+#modal-new-marker .marker-balance-tabs .nav-link:hover { color: var(--bs-primary); }
+#modal-new-marker .marker-balance-tabs .nav-link.active {
+  color: var(--bs-primary);
+  font-weight: 500;
+  border-bottom-color: var(--bs-primary);
+  background: transparent;
+}
+#modal-new-marker .marker-balance-tbl {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+  border: 1px solid #dee2e6;
+}
+#modal-new-marker .marker-balance-tbl thead tr th { border-bottom: 1px solid #dee2e6; }
+#modal-new-marker .marker-balance-tbl tbody tr:last-child td,
+#modal-new-marker .marker-balance-tbl tbody td.dataTables_empty { border-bottom: 1px solid #dee2e6; }
+#modal-new-marker .marker-balance-tbl tfoot tr th { border-bottom: 1px solid #dee2e6; }
+#modal-new-marker .marker-balance-tbl thead th {
+  background: var(--bs-primary-bg-subtle);
+  color: var(--bs-primary);
+  font-weight: 500;
+  padding: 12px 15px;
+  text-align: left;
+  border: none;
+}
+#modal-new-marker .marker-balance-tbl tbody tr { border-bottom: 1px solid #eee; }
+#modal-new-marker .marker-balance-tbl td { padding: 12px 15px; color: #666; }
+#modal-new-marker .marker-balance-tbl tbody tr:hover { background-color: #f5f5f5 !important; }
+#modal-new-marker .marker-balance-tbl tr.marker-balance-total-row td {
+	border-top: 2px solid #dee2e6;
+	background-color: #f4f6fa;
+	padding: 10px 15px;
+}
+#modal-new-marker .marker-balance-tbl tfoot tr th {
+	border-top: 2px solid #dee2e6;
+	background-color: #f4f6fa;
+	padding: 10px 15px;
+}
 
 /* Balance column */
 #marker-tbl td:last-child {
@@ -235,7 +347,8 @@ window.markerTranslations = window.markerTranslations || {
 	previous: "<%= __('dashboard_marker.previous') %>",
 	next: "<%= __('dashboard_marker.next') %>",
 	search: "<%= __('dashboard_marker.search') %>",
-	no_data_available: "<%= __('dashboard_marker.no_data_available') %>"
+	no_data_available: "<%= __('dashboard_marker.no_data_available') %>",
+	total: "<%= __('dashboard_marker.total') %>"
 };
 </script>
 <!-- Marker init runs from footer (after jQuery + marker_common.js) -->
@@ -256,6 +369,7 @@ window.__markerModalInit = function() {
             submitBtnSelector: '#submit_marker_settlement',
             agentBalanceSelector: '#AgentBalance',
             optTransTypeName: 'optTransType',
+            optReturnSourceName: 'optReturnSource',
             selectPlaceholder: '<%= __("dashboard_marker.select_account") %>',
             dropdownParent: '#modal-new-marker',
             onSuccess: function() {
@@ -268,3 +382,5 @@ window.__markerModalInit = function() {
     });
 };
 </script>
+
+

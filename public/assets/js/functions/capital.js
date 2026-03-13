@@ -133,7 +133,7 @@ function reloadData() {
                 } else if (comms > 0) { // Show PAYMENT if it's greater than 0
                     combinedChipsText = `Cash Out :<span style="color: red;">-${parseFloat(comms).toLocaleString()}</span>`;
                 } else if (IOU > 0) { // Show IOU only if it's greater than 0
-                    combinedChipsText = `IOU Cash :\n${IOU.toLocaleString()}`;
+                    combinedChipsText = `Credit Cash :\n${IOU.toLocaleString()}`;
                 } else if (row.CATEGORY_ID > 0 && row.capital_amount != null && row.capital_amount !== 0) { // Junket expense: AMOUNT column shows "Junket Expense"; TYPE column shows category (Supplies, Others, Car, etc.)
                     const absAmount = Math.abs(parseFloat(row.capital_amount));
                     combinedChipsText = `Junket Expense :<span style="color: red;">-${absAmount.toLocaleString()}</span>`;

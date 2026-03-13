@@ -770,7 +770,7 @@
 		"transaction_type": "交易类型",
 		"cash": "现金",
 		"deposit": "存款",
-		"marker_history": "信用记录",
+		"marker_history": "历史",
 		"export": "导出",
 		"loading": "加载中...",
 		"account_name": "账户名称",
@@ -793,7 +793,16 @@
 		"delete": "dashboard_marker.delete",
 		"confirm_delete": "dashboard_marker.confirm_delete",
 		"yes_delete": "dashboard_marker.yes_delete",
-		"action": "Action"
+		"action": "Action",
+		"tab_all": "全部",
+		"tab_credit": "局信用",
+		"tab_buyin": "游戏信用",
+		"show_balance_section": "显示信用账户余额",
+		"hide_balance_section": "隐藏信用账户余额",
+		"accounts_with_credit": "有信用账户余额",
+		"balance_from_credit": "信用(3)",
+		"balance_from_buyin": "买进(10)",
+		"total": "合计"
 	},
 	"modal_new_agent": {
 		"new_guest": "新客人",
@@ -984,6 +993,7 @@
 	"modal_account_details": {
 		"account_details": "账户详情",
 		"total_balance": "总余额",
+		"credit_iou": "信用",
 		"deposit": "存款",
 		"withdraw": "取款",
 		"credit": "信用",

@@ -20,7 +20,7 @@
             case 11: return 'Marker Returned Cash';
             case 12: return 'Marker Returned Deposit';
             case 10: return 'Buy-in thru Marker';
-            case 3: return 'Credit Cash';
+            case 3: return 'Junket Credit';
             default: return 'Chips Return thru Credit';
         }
     }
@@ -31,7 +31,7 @@
         var transactionId = parseInt(parts[0], 10);
         var transactionType = parseInt(parts[1], 10);
         switch (transactionId) {
-            case 3: return 'Credit Cash';
+            case 3: return 'Junket Credit';
             case 11: return 'Credit Returned thru Cash';
             case 12: return 'Credit Returned thru Deposit';
             case 10: return 'Buy-in thru Credit';
@@ -79,7 +79,7 @@
             ajax: {
                 url: options.ajaxUrl || '/marker_history',
                 dataSrc: function (json) {
-                    var data = Array.isArray(json) ? json : (json && Array.isArray(json.data) ? json.data : []);
+                    var data = Array.isArray(json) ? json : (json && json.data && Array.isArray(json.data) ? json.data : []);
                     if (!data.length) return data;
                     if (window.moment) {
                         try {
@@ -281,10 +281,12 @@
         var submitBtnSelector = opts.submitBtnSelector || '#submit_marker_settlement';
         var agentBalanceSelector = opts.agentBalanceSelector || '#AgentBalance';
         var optTransTypeName = opts.optTransTypeName || 'optTransType';
+        var optReturnSourceName = opts.optReturnSourceName || 'optReturnSource';
         var selectPlaceholder = opts.selectPlaceholder || 'Select account';
         var dropdownParent = opts.dropdownParent || 'body';
         var isSubmitting = false;
         var markerData = [];
+        var markerBreakdownData = [];
 
         var $form = $(formSelector);
         var $accountSelect = $(accountSelectSelector);
@@ -304,30 +306,89 @@
             });
         }
 
-        // Populate accounts (call this on modal show or page load). Optional callback(accounts) runs after data is loaded.
-        function populateAccounts(callback) {
+        function getSelectedReturnSource() {
+            return $('input[name="' + optReturnSourceName + '"]:checked').val();
+        }
+
+        function findBreakdownAccount(accountId) {
+            return (markerBreakdownData || []).filter(function (a) { return String(a.ACCOUNT_ID) === String(accountId); })[0];
+        }
+
+        function getSourceAmountByRow(row, source) {
+            if (!row) return 0;
+            if (source === 'credit') return row.BALANCE_CREDIT != null ? Number(row.BALANCE_CREDIT) : 0;
+            if (source === 'buyin') return row.BALANCE_BUYIN != null ? Number(row.BALANCE_BUYIN) : 0;
+            return row.TOTAL_AMOUNT != null ? Number(row.TOTAL_AMOUNT) : 0;
+        }
+
+        function refreshAccountOptionsBySource() {
+            var selectedSource = getSelectedReturnSource();
             if ($accountSelect.data('select2')) {
                 try { $accountSelect.select2('destroy'); } catch (e) {}
             }
             $accountSelect.empty().append('<option value="">' + selectPlaceholder + '</option>');
-            $.ajax({
-                url: '/marker_data',
-                method: 'GET',
-                success: function (data) {
-                    markerData = data || [];
-                    markerData.forEach(function (account) {
-                        $accountSelect.append(
-                            $('<option></option>').val(account.ACCOUNT_ID).text((account.AGENT_CODE || '') + ' - ' + (account.AGENT_NAME || ''))
-                        );
-                    });
-                    initAccountSelect2();
-                    if (typeof callback === 'function') callback(markerData);
-                },
-                error: function (err) {
-                    console.error('Error fetching marker data:', err);
-                    initAccountSelect2();
-                    if (typeof callback === 'function') callback([]);
-                }
+
+            var sourceList = [];
+            if (selectedSource) {
+                sourceList = (markerBreakdownData || []).filter(function (row) {
+                    return getSourceAmountByRow(row, selectedSource) > 0;
+                }).map(function (row) {
+                    return {
+                        ACCOUNT_ID: row.ACCOUNT_ID,
+                        AGENT_CODE: row.AGENT_CODE,
+                        AGENT_NAME: row.AGENT_NAME
+                    };
+                });
+            } else {
+                sourceList = [];
+            }
+
+            sourceList.forEach(function (account) {
+                $accountSelect.append(
+                    $('<option></option>').val(account.ACCOUNT_ID).text((account.AGENT_CODE || '') + ' - ' + (account.AGENT_NAME || ''))
+                );
+            });
+            initAccountSelect2();
+        }
+
+        function updateIssueAndBalanceBySelectedAccount() {
+            var selectedAccountId = $accountSelect.val();
+            if (!selectedAccountId) {
+                $(markerIssueSelector).val('');
+                $(markerBalanceSelector).val('');
+                return;
+            }
+            var selectedSource = getSelectedReturnSource();
+            if (selectedSource) {
+                var breakdownAcc = findBreakdownAccount(selectedAccountId);
+                var sourceAmount = getSourceAmountByRow(breakdownAcc, selectedSource);
+                $(markerIssueSelector).val(formatWithCommas(sourceAmount));
+                $(markerBalanceSelector).val(formatWithCommas(sourceAmount));
+                return;
+            }
+            var selectedAccount = (markerData || []).filter(function (a) { return String(a.ACCOUNT_ID) === String(selectedAccountId); })[0];
+            var totalIssue = selectedAccount ? (selectedAccount.TOTAL_AMOUNT || 0) : 0;
+            $(markerIssueSelector).val(formatWithCommas(totalIssue));
+            $(markerBalanceSelector).val(formatWithCommas(totalIssue));
+        }
+
+        // Populate accounts (call this on modal show or page load). Optional callback(accounts) runs after data is loaded.
+        function populateAccounts(callback) {
+            $.when(
+                $.ajax({ url: '/marker_data', method: 'GET' }),
+                $.ajax({ url: '/marker_data_breakdown', method: 'GET' })
+            ).done(function (markerRes, breakdownRes) {
+                markerData = markerRes && markerRes[0] ? markerRes[0] : [];
+                markerBreakdownData = breakdownRes && breakdownRes[0] ? breakdownRes[0] : [];
+                refreshAccountOptionsBySource();
+                updateIssueAndBalanceBySelectedAccount();
+                if (typeof callback === 'function') callback(markerData);
+            }).fail(function (err) {
+                console.error('Error fetching marker data:', err);
+                markerData = [];
+                markerBreakdownData = [];
+                refreshAccountOptionsBySource();
+                if (typeof callback === 'function') callback([]);
             });
         }
 
@@ -336,12 +397,18 @@
         }
 
         $accountSelect.off('change.markerForm').on('change.markerForm', function () {
-            var selectedAccountId = $(this).val();
-            var selectedAccount = markerData.filter(function (a) { return a.ACCOUNT_ID == selectedAccountId; })[0];
-            if (selectedAccount) {
-                var totalIssue = selectedAccount.TOTAL_AMOUNT || 0;
-                $(markerIssueSelector).val(formatWithCommas(totalIssue));
-                $(markerBalanceSelector).val(formatWithCommas(totalIssue));
+            updateIssueAndBalanceBySelectedAccount();
+        });
+
+        $(document).off('change.markerReturnSource', 'input[name="' + optReturnSourceName + '"]').on('change.markerReturnSource', 'input[name="' + optReturnSourceName + '"]', function () {
+            var currentAccount = $accountSelect.val();
+            refreshAccountOptionsBySource();
+            if (currentAccount && $accountSelect.find('option[value="' + currentAccount + '"]').length) {
+                $accountSelect.val(currentAccount).trigger('change');
+            } else {
+                $accountSelect.val('').trigger('change');
+                $(markerIssueSelector).val('');
+                $(markerBalanceSelector).val('');
             }
         });
 
@@ -353,15 +420,15 @@
                 url: '/account_details_data_deposit/' + accountId,
                 method: 'GET',
                 success: function (data) {
-                    var deposit_amount = 0, withdraw_amount = 0, marker_issue_amount = 0, marker_return = 0;
+                    var deposit_amount = 0, withdraw_amount = 0, marker_deposit_amount = 0, marker_return = 0;
                     (data || []).forEach(function (row) {
                         var amount = parseFloat(row.AMOUNT) || 0;
                         if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
                         else if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
-                        else if (row.TRANSACTION === 'IOU CASH') marker_issue_amount += amount;
+                        else if (row.TRANSACTION === 'MARKER REDEEM') marker_deposit_amount += amount;
                         else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return += amount;
                     });
-                    var totalBalance = deposit_amount - withdraw_amount + marker_issue_amount - marker_return;
+                    var totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
                     $(agentBalanceSelector).val(totalBalance);
                 }
             });
@@ -393,6 +460,7 @@
             var markerIssue = parseFloat($(markerIssueSelector).val().replace(/,/g, '')) || 0;
             var markerReturnRaw = $(markerReturnSelector).val().replace(/,/g, '');
             var markerReturn = parseFloat(markerReturnRaw) || 0;
+            var selectedReturnSource = $('input[name="' + optReturnSourceName + '"]:checked').val();
 
             if (!selectedAccount) {
                 if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select an account.' });
@@ -402,90 +470,171 @@
                 if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select a transaction type (Cash or Deposit).' });
                 return;
             }
+            if (!selectedReturnSource) {
+                if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select where to deduct the return (Junket Credit or Game Credit).' });
+                return;
+            }
             if (!markerReturnRaw || markerReturn <= 0) {
-                if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Amount', text: 'Marker Return must be greater than zero.' });
+                if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Amount', text: 'Credit Return must be greater than zero.' });
                 return;
             }
             if (markerReturn > markerIssue) {
-                if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Return', text: 'Marker Return cannot be greater than Marker Issue!' });
+                if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Return', text: 'Credit Return cannot be greater than Credit Issue!' });
                 return;
             }
 
             var accountMarker = $accountSelect.find('option:selected').text();
             var markerReturnFormatted = $(markerReturnSelector).val();
             var transTypeLabel = $('input[name="' + optTransTypeName + '"]:checked').next('label').text();
+            var returnSourceLabel = $('input[name="' + optReturnSourceName + '"]:checked').next('label').text();
 
-            var doSubmit = function () {
-                var savedAccountId = $accountSelect.val();
-                isSubmitting = true;
-                var origHtml = $submitBtn.html();
-                $submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Loading...');
-                $.ajax({
-                    url: '/add_marker_settlement',
-                    method: 'POST',
-                    data: $form.serialize(),
-                    success: function (response) {
-                        if (response.success) {
-                            $form[0].reset();
-                            if (table && table.ajax) table.ajax.reload();
-                            $.getJSON('/marker_total_credits_issue', function (data) {
-                                var total = (data && data.total != null) ? data.total : 0;
-                                var numStr = Number(total).toLocaleString();
-                                $('#txtTotalMarkerIssue').val(numStr);
-                                $('#dashboard-credit-value').html('₱ ' + numStr);
-                            });
-                            // Reload account list and refresh balance for current account so UI updates without page refresh
-                            populateAccounts(function (accounts) {
-                                if (savedAccountId) {
-                                    $accountSelect.val(savedAccountId).trigger('change');
-                                    var acc = (accounts || []).filter(function (a) { return a.ACCOUNT_ID == savedAccountId; })[0];
-                                    if (acc) {
-                                        var totalIssue = acc.TOTAL_AMOUNT || 0;
-                                        $(markerIssueSelector).val(formatWithCommas(totalIssue));
-                                        $(markerBalanceSelector).val(formatWithCommas(totalIssue));
+            var proceedSubmitFlow = function () {
+                var showConfirmAndSubmit = function () {
+                    var savedAccountId = $accountSelect.val();
+                    isSubmitting = true;
+                    var origHtml = $submitBtn.html();
+                    $submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Loading...');
+                    $.ajax({
+                        url: '/add_marker_settlement',
+                        method: 'POST',
+                        data: $form.serialize(),
+                        success: function (response) {
+                            if (response.success) {
+                                $form[0].reset();
+                                if (table && table.ajax) table.ajax.reload();
+                                $.getJSON('/marker_total_credits_issue', function (data) {
+                                    var total = (data && data.total != null) ? data.total : 0;
+                                    var numStr = Number(total).toLocaleString();
+                                    $('#txtTotalMarkerIssue').val(numStr);
+                                    $('#dashboard-credit-value').html('₱ ' + numStr);
+                                });
+                                // Reload account list and refresh balance for current account so UI updates without page refresh
+                                populateAccounts(function (accounts) {
+                                    if (savedAccountId) {
+                                        $accountSelect.val(savedAccountId).trigger('change');
+                                        var acc = (accounts || []).filter(function (a) { return a.ACCOUNT_ID == savedAccountId; })[0];
+                                        if (acc) {
+                                            var totalIssue = acc.TOTAL_AMOUNT || 0;
+                                            $(markerIssueSelector).val(formatWithCommas(totalIssue));
+                                            $(markerBalanceSelector).val(formatWithCommas(totalIssue));
+                                        }
                                     }
+                                });
+                                if (window.Swal) {
+                                    Swal.fire({ icon: 'success', title: 'Success', text: 'Marker Return Successfully!' });
                                 }
-                            });
-                            if (window.Swal) {
-                                Swal.fire({ icon: 'success', title: 'Success', text: 'Marker Return Successfully!' });
+                                if (opts.onSuccess) opts.onSuccess();
+                            } else if (response.error === 'Insufficient balance for this deposit transaction.') {
+                                if (window.Swal) Swal.fire({ icon: 'error', title: 'Insufficient Balance', text: response.error });
+                            } else {
+                                if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'Error processing your request.' });
                             }
-                            if (opts.onSuccess) opts.onSuccess();
-                        } else if (response.error === 'Insufficient balance for this deposit transaction.') {
-                            if (window.Swal) Swal.fire({ icon: 'error', title: 'Insufficient Balance', text: response.error });
-                        } else {
-                            if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: response.message || 'Error processing your request.' });
+                        },
+                        error: function () {
+                            if (window.Swal) Swal.fire({ icon: 'error', title: 'Insufficient Balance', text: 'Insufficient balance for this deposit transaction.' });
+                        },
+                        complete: function () {
+                            isSubmitting = false;
+                            $submitBtn.prop('disabled', false).html(origHtml);
                         }
-                    },
-                    error: function () {
-                        if (window.Swal) Swal.fire({ icon: 'error', title: 'Insufficient Balance', text: 'Insufficient balance for this deposit transaction.' });
-                    },
-                    complete: function () {
-                        isSubmitting = false;
-                        $submitBtn.prop('disabled', false).html(origHtml);
+                    });
+                };
+
+                // Deposit (12): check balance BEFORE showing confirm; insufficient = show error immediately
+                if (selectedTransType === '12') {
+                    $.ajax({
+                        url: '/account_details_data_deposit/' + selectedAccount,
+                        method: 'GET',
+                        success: function (data) {
+                            var deposit_amount = 0, withdraw_amount = 0, marker_deposit_amount = 0, marker_return = 0;
+                            (data || []).forEach(function (row) {
+                                var amount = parseFloat(row.AMOUNT) || 0;
+                                if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
+                                else if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
+                                else if (row.TRANSACTION === 'MARKER REDEEM') marker_deposit_amount += amount;
+                                else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return += amount;
+                            });
+                            var totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
+                            if (totalBalance < markerReturn) {
+                                if (window.Swal) Swal.fire({ icon: 'error', title: 'Insufficient Balance', text: 'Insufficient balance for this deposit transaction.' });
+                                return;
+                            }
+                            if (window.Swal) {
+                                Swal.fire({
+                                    icon: 'question',
+                                    title: 'Confirm Marker Return',
+                                    html: '<div style="text-align:center;margin-bottom:20px">' +
+                                        '<table style="margin:0 auto"><tr><td style="padding:8px 4px 8px 0;font-weight:bold">Account:</td><td style="padding:8px 0 8px 4px">' + (accountMarker || 'N/A') + '</td></tr>' +
+                                        '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Amount:</td><td style="padding:8px 0 8px 4px">' + (markerReturnFormatted || '0') + '</td></tr>' +
+                                        '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Transaction:</td><td style="padding:8px 0 8px 4px">' + (transTypeLabel || 'N/A') + '</td></tr>' +
+                                        '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Deduct From:</td><td style="padding:8px 0 8px 4px">' + (returnSourceLabel || 'N/A') + '</td></tr></table>' +
+                                        '<p style="margin-top:15px">Are you sure you want to proceed with this marker return?</p></div>',
+                                    showCancelButton: true,
+                                    confirmButtonColor: '#3085d6',
+                                    cancelButtonColor: '#d33',
+                                    confirmButtonText: 'Yes, Save',
+                                    cancelButtonText: 'Cancel'
+                                }).then(function (result) {
+                                    if (result.isConfirmed) showConfirmAndSubmit();
+                                });
+                            } else {
+                                showConfirmAndSubmit();
+                            }
+                        },
+                        error: function () {
+                            if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to check balance.' });
+                        }
+                    });
+                } else {
+                    if (window.Swal) {
+                        Swal.fire({
+                            icon: 'question',
+                            title: 'Confirm Credit Return',
+                            html: '<div style="text-align:center;margin-bottom:20px">' +
+                                '<table style="margin:0 auto"><tr><td style="padding:8px 4px 8px 0;font-weight:bold">Account:</td><td style="padding:8px 0 8px 4px">' + (accountMarker || 'N/A') + '</td></tr>' +
+                                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Amount:</td><td style="padding:8px 0 8px 4px">' + (markerReturnFormatted || '0') + '</td></tr>' +
+                                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Transaction:</td><td style="padding:8px 0 8px 4px">' + (transTypeLabel || 'N/A') + '</td></tr>' +
+                                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Deduct From:</td><td style="padding:8px 0 8px 4px">' + (returnSourceLabel || 'N/A') + '</td></tr></table>' +
+                                '<p style="margin-top:15px">Are you sure you want to proceed with this credit return?</p></div>',
+                            showCancelButton: true,
+                            confirmButtonColor: '#3085d6',
+                            cancelButtonColor: '#d33',
+                            confirmButtonText: 'Yes, Save',
+                            cancelButtonText: 'Cancel'
+                        }).then(function (result) {
+                            if (result.isConfirmed) showConfirmAndSubmit();
+                        });
+                    } else {
+                        showConfirmAndSubmit();
                     }
-                });
+                }
             };
 
-            if (window.Swal) {
-                Swal.fire({
-                    icon: 'question',
-                    title: 'Confirm Marker Return',
-                    html: '<div style="text-align:center;margin-bottom:20px">' +
-                        '<table style="margin:0 auto"><tr><td style="padding:8px 4px 8px 0;font-weight:bold">Account:</td><td style="padding:8px 0 8px 4px">' + (accountMarker || 'N/A') + '</td></tr>' +
-                        '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Amount:</td><td style="padding:8px 0 8px 4px">' + (markerReturnFormatted || '0') + '</td></tr>' +
-                        '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Transaction:</td><td style="padding:8px 0 8px 4px">' + (transTypeLabel || 'N/A') + '</td></tr></table>' +
-                        '<p style="margin-top:15px">Are you sure you want to proceed with this marker return?</p></div>',
-                    showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#d33',
-                    confirmButtonText: 'Yes, Save',
-                    cancelButtonText: 'Cancel'
-                }).then(function (result) {
-                    if (result.isConfirmed) doSubmit();
-                });
-            } else {
-                doSubmit();
-            }
+            $.ajax({
+                url: '/marker_data_breakdown',
+                method: 'GET',
+                success: function (rows) {
+                    var list = Array.isArray(rows) ? rows : [];
+                    var sourceRow = list.filter(function (r) { return String(r.ACCOUNT_ID) === String(selectedAccount); })[0];
+                    var sourceBalance = 0;
+                    if (sourceRow) {
+                        sourceBalance = selectedReturnSource === 'credit'
+                            ? (sourceRow.BALANCE_CREDIT != null ? Number(sourceRow.BALANCE_CREDIT) : 0)
+                            : (sourceRow.BALANCE_BUYIN != null ? Number(sourceRow.BALANCE_BUYIN) : 0);
+                    }
+                    if (markerReturn > sourceBalance) {
+                        var sourceBalanceLabel = selectedReturnSource === 'credit' ? 'Junket Credit Balance' : 'Game Credit Balance';
+                        var sourceBalanceMsg = 'Return amount exceeded the ' + sourceBalanceLabel + '.';
+                        if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Amount', text: sourceBalanceMsg });
+                        else alert(sourceBalanceMsg);
+                        return;
+                    }
+                    proceedSubmitFlow();
+                },
+                error: function () {
+                    if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Unable to validate source balance.' });
+                }
+            });
         });
 
         return {
@@ -519,12 +668,128 @@
         var table = initHistoryTable(tableSelector, options.tableOptions || {});
         if (!table) return null;
 
+        function updateAccountsBalanceTable() {
+            var $creditTbl = $('#marker-accounts-credit-tbl');
+            var $buyinTbl = $('#marker-accounts-buyin-tbl');
+            if (!$creditTbl.length || !$buyinTbl.length) return;
+            if ($.fn.DataTable.isDataTable('#marker-accounts-credit-tbl')) {
+                $('#marker-accounts-credit-tbl').DataTable().destroy();
+                $creditTbl.find('tbody').empty();
+                $creditTbl.find('tfoot th').first().text('');
+                $creditTbl.find('tfoot th').last().text('');
+            }
+            if ($.fn.DataTable.isDataTable('#marker-accounts-buyin-tbl')) {
+                $('#marker-accounts-buyin-tbl').DataTable().destroy();
+                $buyinTbl.find('tbody').empty();
+                $buyinTbl.find('tfoot th').first().text('');
+                $buyinTbl.find('tfoot th').last().text('');
+            }
+            var $creditTbody = $creditTbl.find('tbody');
+            var $buyinTbody = $buyinTbl.find('tbody');
+            $creditTbody.empty();
+            $buyinTbody.empty();
+            $.ajax({
+                url: '/marker_data_breakdown',
+                method: 'GET',
+                success: function (data) {
+                    var list = Array.isArray(data) ? data : [];
+                    var creditRows = [];
+                    var buyinRows = [];
+                    var totalCredit = 0;
+                    var totalBuyin = 0;
+                    list.forEach(function (row) {
+                        var name = (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')';
+                        var credit = row.BALANCE_CREDIT != null ? Number(row.BALANCE_CREDIT) : 0;
+                        var buyin = row.BALANCE_BUYIN != null ? Number(row.BALANCE_BUYIN) : 0;
+                        if (credit !== 0) { creditRows.push({ name: name, amount: credit }); totalCredit += credit; }
+                        if (buyin !== 0) { buyinRows.push({ name: name, amount: buyin }); totalBuyin += buyin; }
+                    });
+                    var t = window.markerTranslations || {};
+                    var totalLabel = t.total || 'Total';
+                    creditRows.forEach(function (r) {
+                        $creditTbody.append('<tr><td>' + r.name + '</td><td class="text-end">' + formatWithCommas(r.amount) + '</td></tr>');
+                    });
+                    if (creditRows.length > 0) {
+                        $creditTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
+                        $creditTbl.find('tfoot th').last().addClass('fw-semibold text-end').text(formatWithCommas(totalCredit));
+                        $creditTbl.find('tfoot').show();
+                    } else {
+                        $creditTbl.find('tfoot').hide();
+                    }
+                    buyinRows.forEach(function (r) {
+                        $buyinTbody.append('<tr><td>' + r.name + '</td><td class="text-end">' + formatWithCommas(r.amount) + '</td></tr>');
+                    });
+                    if (buyinRows.length > 0) {
+                        $buyinTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
+                        $buyinTbl.find('tfoot th').last().addClass('fw-semibold text-end').text(formatWithCommas(totalBuyin));
+                        $buyinTbl.find('tfoot').show();
+                    } else {
+                        $buyinTbl.find('tfoot').hide();
+                    }
+                    $('#txtTotalJunketCredit').val(formatWithCommas(totalCredit));
+                    $('#txtTotalGameCredit').val(formatWithCommas(totalBuyin));
+                    if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
+                },
+                error: function () {
+                    $creditTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-end">—</td></tr>');
+                    $buyinTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-end">—</td></tr>');
+                    $('#txtTotalJunketCredit').val('0');
+                    $('#txtTotalGameCredit').val('0');
+                    if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
+                }
+            });
+        }
+
+        function initBalanceDataTables() {
+            if (typeof $.fn.DataTable === 'undefined') return;
+            var t = window.markerTranslations || {};
+            var baseLang = {
+                info: t.showing_entries || 'Showing _START_ to _END_ of _TOTAL_ entries',
+                infoEmpty: t.info_empty || 'Showing 0 to 0 of 0 entries',
+                infoFiltered: t.info_filtered || '(filtered from _MAX_ total entries)',
+                lengthMenu: t.length_menu || 'Show _MENU_ entries',
+                search: t.search || 'Search:',
+                paginate: { first: t.first || 'First', last: t.last || 'Last', previous: t.previous || 'Previous', next: t.next || 'Next' },
+                zeroRecords: t.no_data_available || 'No matching records found'
+            };
+            var creditLang = Object.assign({}, baseLang, { emptyTable: 'No accounts with credit.' });
+            var buyinLang = Object.assign({}, baseLang, { emptyTable: 'No accounts with credit.' });
+            var dtOpts = {
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+                order: [[1, 'desc']],
+                searching: true,
+                paging: true,
+                info: true,
+                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip'
+            };
+            $('#marker-accounts-credit-tbl').DataTable(Object.assign({}, dtOpts, { language: creditLang }));
+            $('#marker-accounts-buyin-tbl').DataTable(Object.assign({}, dtOpts, { language: buyinLang }));
+        }
+
+        $(document).off('click.markerBalanceTabs', '#marker-balance-tabs .nav-link').on('click.markerBalanceTabs', '#marker-balance-tabs .nav-link', function () {
+            var tab = $(this).data('tab');
+            if (!tab) return;
+            $('#marker-balance-tabs .nav-link').removeClass('active');
+            $(this).addClass('active');
+            $('.marker-tab-panel').hide();
+            var $target = tab === 'marker-history' ? $('#marker-history-wrapper') : $('#marker-accounts-' + tab + '-wrapper');
+            if ($target.length) $target.show();
+        });
+
+        updateAccountsBalanceTable();
+
         initExport(table, exportBtnSelector, options.exportOptions || {});
 
         var formApi = null;
         if (options.withForm !== false) {
             var formOpts = options.formOptions || {};
             formOpts.populateAccountsOnInit = !options.modalSelector;
+            var origOnSuccess = formOpts.onSuccess;
+            formOpts.onSuccess = function () {
+                if (typeof origOnSuccess === 'function') origOnSuccess();
+                updateAccountsBalanceTable();
+            };
             formApi = initForm(table, formOpts);
             $(tableSelector).data('markerFormApi', formApi);
         }
@@ -536,6 +801,7 @@
         if (options.modalSelector && formApi && formApi.populateAccounts) {
             $(options.modalSelector).off('show.bs.modal.markerCommon').on('show.bs.modal.markerCommon', function () {
                 formApi.populateAccounts();
+                updateAccountsBalanceTable();
             });
         }
 

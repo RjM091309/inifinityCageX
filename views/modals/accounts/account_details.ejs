@@ -52,7 +52,22 @@
                                             </tbody>
                                         </table>
                                     </div>
-                                    
+                                    <div class="form-group d-none" id="credit-iou-card">
+                                        <table class="table table-vcenter table-hover" style="background-color: #f9f9f9; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                                            <thead>
+                                                <tr>
+                                                    <th class="text-center text-white" style="width: 100%; font-size: 12px; padding: 10px 0; background-color: #1e3a5f;"><%= __('modal_account_details.credit_iou') %></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td class="fw-bold text-center" style="font-size: 24px; color: #333;">
+                                                        <span class="credit_balance"></span>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                     <div class="form-group">
                                         <div class="form-check">
                                             <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash_trans" name="txtTrans">
@@ -66,12 +81,12 @@
                                                 <span class="d-flex align-items-center"><%= __('modal_account_details.withdraw') %></span>
                                             </label>
                                         </div>
-                                        <!-- <div class="form-check">
+                                        <div class="form-check">
                                             <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="issue_trans" name="txtTrans">
                                             <label class="form-check-label" for="issue_trans">
                                                 <span class="d-flex align-items-center"><%= __('modal_account_details.credit') %></span>
                                             </label>
-                                        </div> -->
+                                        </div>
                                     </div>
                                     
                                     <div class="form-group">

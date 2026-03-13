@@ -2125,7 +2125,11 @@ pageRouter.get('/account_dashboard', (req, res) => {
         agent.TELEGRAM_ID AS agent_telegram,
         agent.REMARKS AS agent_remarks,
         agent.IDNo AS agent_id,
-        IFNULL(SUM(account_ledger.AMOUNT), 0) AS total_balance
+        IFNULL(SUM(CASE
+            WHEN tt.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN al.AMOUNT
+            WHEN tt.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN -al.AMOUNT
+            ELSE 0
+        END), 0) AS total_balance
     FROM 
         account 
     JOIN 
@@ -2133,7 +2137,9 @@ pageRouter.get('/account_dashboard', (req, res) => {
     JOIN 
         agency ON agency.IDNo = agent.AGENCY
     LEFT JOIN 
-        account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID
+        account_ledger al ON account.IDNo = al.ACCOUNT_ID AND al.ACTIVE = 1 AND al.TRANSACTION_TYPE IN (2, 5, 3)
+    LEFT JOIN 
+        transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
     WHERE 
         account.ACTIVE = 1 
         AND agent.ACTIVE = 1
@@ -2183,7 +2189,11 @@ pageRouter.get('/account_data', (req, res) => {
 			agent.TELEGRAM_ID AS agent_telegram,
 			agent.REMARKS AS agent_remarks,
 			agent.IDNo AS agent_id,
-			SUM(account_ledger.AMOUNT) AS total_ledger_amount
+			IFNULL(SUM(CASE
+				WHEN tt.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN al.AMOUNT
+				WHEN tt.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN -al.AMOUNT
+				ELSE 0
+			END), 0) AS total_ledger_amount
 		FROM 
 			account 
 		JOIN 
@@ -2191,7 +2201,9 @@ pageRouter.get('/account_data', (req, res) => {
 		JOIN 
 			agency ON agency.IDNo = agent.AGENCY
 		LEFT JOIN 
-			account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID
+			account_ledger al ON account.IDNo = al.ACCOUNT_ID AND al.ACTIVE = 1 AND al.TRANSACTION_TYPE IN (2, 5, 3)
+		LEFT JOIN 
+			transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
 		WHERE 
 			account.ACTIVE = 1 AND agent.ACTIVE = 1
 	`;
@@ -5531,9 +5543,65 @@ pageRouter.get('/marker_data', (req, res) => {
 	});
 });
 
+// GET MARKER DATA WITH BREAKDOWN (Credit 3-3 vs Buy-in 10-3 per account, minus returns 11,12,1)
+pageRouter.get('/marker_data_breakdown', async (req, res) => {
+	const query = `
+		SELECT inner_sub.ACCOUNT_ID, inner_sub.AGENT_CODE, inner_sub.AGENT_NAME,
+			inner_sub.BALANCE_CREDIT,
+			inner_sub.TOTAL_AMOUNT - inner_sub.BALANCE_CREDIT AS BALANCE_BUYIN,
+			inner_sub.TOTAL_AMOUNT
+		FROM (
+			SELECT sub.ACCOUNT_ID, sub.AGENT_CODE, sub.AGENT_NAME,
+				ROUND(
+					GREATEST(
+						0,
+						sub.CREDIT_ISSUED -
+						sub.RETURNS_TAGGED_CREDIT -
+						COALESCE(sub.RETURNS_UNTAGGED * sub.CREDIT_ISSUED / NULLIF(sub.TOTAL_ISSUED, 0), 0)
+					),
+					0
+				) AS BALANCE_CREDIT,
+				ROUND(
+					sub.TOTAL_ISSUED - sub.RETURNS_TAGGED_CREDIT - sub.RETURNS_TAGGED_BUYIN - sub.RETURNS_UNTAGGED,
+					0
+				) AS TOTAL_AMOUNT
+			FROM (
+				SELECT account.IDNo AS ACCOUNT_ID, agent.AGENT_CODE, agent.NAME AS AGENT_NAME,
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 3 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS CREDIT_ISSUED,
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 10 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS BUYIN_ISSUED,
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:CREDIT' THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_CREDIT,
+					SUM(CASE WHEN (account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:BUYIN') OR (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4) THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_BUYIN,
+					SUM(CASE 
+						WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1)
+							AND NOT (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4)
+							AND (account_ledger.TRANSACTION_DESC IS NULL OR account_ledger.TRANSACTION_DESC NOT IN ('RETURN_SOURCE:CREDIT', 'RETURN_SOURCE:BUYIN'))
+						THEN account_ledger.AMOUNT 
+						ELSE 0 
+					END) AS RETURNS_UNTAGGED,
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) AS TOTAL_ISSUED
+				FROM agent
+				JOIN account ON agent.IDNo = account.AGENT_ID
+				JOIN account_ledger ON account.IDNo = account_ledger.ACCOUNT_ID
+				WHERE account_ledger.TRANSACTION_TYPE IN (3, 4) AND account_ledger.ACTIVE = 1 AND account.ACTIVE = 1 AND agent.ACTIVE = 1
+				GROUP BY account.IDNo, agent.AGENT_CODE, agent.NAME
+				HAVING (
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (3, 10) THEN account_ledger.AMOUNT ELSE 0 END) -
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) THEN account_ledger.AMOUNT ELSE 0 END)
+				) <> 0
+			) sub
+		) inner_sub`;
+	try {
+		const [results] = await pool.execute(query);
+		res.json(results);
+	} catch (error) {
+		console.error('Error fetching marker data breakdown:', error);
+		res.status(500).send('Error fetching data');
+	}
+});
+
 // ADD MARKER RETURN
 pageRouter.post('/add_marker_settlement', async (req, res) => {
-	const { txtAccountMarker, txtMarkerReturn, optTransType, AgentBalance } = req.body;
+	const { txtAccountMarker, txtMarkerReturn, optTransType, optReturnSource, AgentBalance, remarks } = req.body;
 
 	let date_now = new Date();
 	let time_now = new Date();
@@ -5543,16 +5611,15 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 	let markerReturn = parseFloat(txtMarkerReturn.replace(/,/g, '')) || 0;
 
 	try {
+		if (!['credit', 'buyin'].includes(String(optReturnSource || ''))) {
+			return res.status(400).json({ error: 'Please select where to deduct the return.' });
+		}
 		if (optTransType === '12') {
-			// Use the same balance calculation logic as frontend
-			// Filter by TRANSACTION_TYPE IN (2, 5, 3) to match account_details_data_deposit endpoint
+			// Total balance excludes Credit/IOU (IOU CASH / CREDIT CASH)
 			const checkBalanceQuery = `
                 SELECT 
-                    SUM(CASE WHEN transaction_type.TRANSACTION = 'DEPOSIT' THEN account_ledger.AMOUNT ELSE 0 END) +
-                    SUM(CASE WHEN transaction_type.TRANSACTION = 'IOU CASH' THEN account_ledger.AMOUNT ELSE 0 END) +
-                    SUM(CASE WHEN transaction_type.TRANSACTION = 'MARKER REDEEM' THEN account_ledger.AMOUNT ELSE 0 END) -
-                    SUM(CASE WHEN transaction_type.TRANSACTION = 'WITHDRAW' THEN account_ledger.AMOUNT ELSE 0 END) -
-                    SUM(CASE WHEN transaction_type.TRANSACTION = 'IOU RETURN DEPOSIT' THEN account_ledger.AMOUNT ELSE 0 END)
+                    SUM(CASE WHEN transaction_type.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN account_ledger.AMOUNT ELSE 0 END) -
+                    SUM(CASE WHEN transaction_type.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN account_ledger.AMOUNT ELSE 0 END)
                 AS balance 
                 FROM account_ledger 
                 JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
@@ -5614,12 +5681,13 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 	}
 
 	async function insertSettlementRecord() {
+		const returnSourceDesc = optReturnSource === 'credit' ? 'RETURN_SOURCE:CREDIT' : 'RETURN_SOURCE:BUYIN';
 		const insertQuery = `
-            INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT) 
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT, REMARKS, TRANSACTION_DESC) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
-		await pool.query(insertQuery, [txtAccountMarker, optTransType, 3, markerReturn, req.session.user_id, date_now]);
+		await pool.query(insertQuery, [txtAccountMarker, optTransType, 3, markerReturn, req.session.user_id, date_now, remarks || null, returnSourceDesc]);
 	}
 });
 
@@ -5710,7 +5778,7 @@ pageRouter.delete('/marker_record/:id', async (req, res) => {
 	}
 });
 
-pageRouter.get('/marker_history', (req, res) => {
+pageRouter.get('/marker_history', async (req, res) => {
 	const query = `
         SELECT account_ledger.*, 
        agent.NAME AS AGENT_NAME, 
@@ -5720,19 +5788,14 @@ pageRouter.get('/marker_history', (req, res) => {
 		JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID 
 		JOIN agent ON agent.IDNo = account.AGENT_ID 
 		WHERE account_ledger.ACTIVE = 1 
-		AND (account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) OR account_ledger.TRANSACTION_TYPE = 4);
-
-
-    `;
-
-	connection.query(query, (err, results) => {
-		if (err) {
-			console.error('Error fetching marker history:', err);
-			return res.status(500).json({ success: false, message: 'Error fetching marker history' });
-		}
-
+		AND (account_ledger.TRANSACTION_ID IN (3, 10, 11, 12) OR account_ledger.TRANSACTION_TYPE = 4)`;
+	try {
+		const [results] = await pool.execute(query);
 		res.json(results);
-	});
+	} catch (err) {
+		console.error('Error fetching marker history:', err);
+		return res.status(500).json({ success: false, message: 'Error fetching marker history' });
+	}
 });
 
 

@@ -610,15 +610,16 @@ function account_details(account_id_data, agent_code, account_name) {
 function reloadDataDetails() {
 	if (!accountDetailsDataTable || !currentAccountDetailsId) return;
 
+	const accountId = currentAccountDetailsId;
+
 	$.ajax({
-		url: '/account_details_data_deposit/' + currentAccountDetailsId,
+		url: '/account_details_data_deposit/' + accountId,
 		method: 'GET',
 		success: function (data) {
 			accountDetailsDataTable.clear();
 
 			let deposit_amount = 0;
 			let withdraw_amount = 0;
-			let marker_issue_amount = 0;
 			let marker_deposit_amount = 0;
 			let marker_return_deposit = 0;
 
@@ -630,7 +631,6 @@ function reloadDataDetails() {
 
 					if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
 					if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
-					if (row.TRANSACTION === 'IOU CASH') marker_issue_amount += amount;
 					if (row.TRANSACTION === 'MARKER REDEEM') marker_deposit_amount += amount;
 					if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
 
@@ -672,9 +672,28 @@ function reloadDataDetails() {
 							}
 						});
 					} else {
+						let displayTransaction = row.TRANSACTION;
+						let displayDesc = transactionDesc;
+
+						// Friendly label for IOU return tagged as CREDIT
+						if (row.TRANSACTION === 'IOU RETURN DEPOSIT' && transactionDesc === 'RETURN_SOURCE:CREDIT') {
+							displayTransaction = 'JUNKET CREDIT RETURN THRU DEPOSIT';
+							displayDesc = '';
+						}
+
+						// Friendly label for IOU return tagged as BUYIN (Game)
+						if (row.TRANSACTION === 'IOU RETURN DEPOSIT' && transactionDesc === 'RETURN_SOURCE:BUYIN') {
+							displayTransaction = 'GAME CREDIT RETURN THRU DEPOSIT';
+							displayDesc = '';
+						}
+
+						const transactionCell = displayDesc
+							? `${displayTransaction} - <strong>${displayDesc}</strong>`
+							: displayTransaction;
+
 						rowsToAdd.push([
 							dateFormat,
-							`${row.TRANSACTION} - <strong>${transactionDesc}</strong>`,
+							transactionCell,
 							`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
 							row.REMARKS
 						]);
@@ -686,7 +705,8 @@ function reloadDataDetails() {
 			Promise.all(requests).then(() => {
 				accountDetailsDataTable.rows.add(rowsToAdd).draw();
 
-				const totalAmount = deposit_amount + marker_issue_amount - withdraw_amount - marker_return_deposit;
+				// Total balance excludes Credit/IOU
+				const totalAmount = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return_deposit;
 
 				$('.total_deposit').text(`₱${deposit_amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
 				$('.total_withdraw').text(`₱${withdraw_amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
@@ -694,6 +714,23 @@ function reloadDataDetails() {
 				$('#total_balanceGuest').val(totalAmount);
 				currentAccountBalance = totalAmount;
 			});
+
+			// CREDIT/IOU from backend formula: TRANSACTION_ID (3,10) - (11,12,1), TRANSACTION_TYPE (3,4)
+			$.get('/account_credit_balance/' + accountId)
+				.done(function (res) {
+					const creditAmount = parseFloat(res.credit_balance) || 0;
+					if (creditAmount > 0) {
+						$('#credit-iou-card').removeClass('d-none');
+						$('.credit_balance').text(`₱${creditAmount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
+					} else {
+						$('#credit-iou-card').addClass('d-none');
+						$('.credit_balance').text('');
+					}
+				})
+				.fail(function () {
+					$('#credit-iou-card').addClass('d-none');
+					$('.credit_balance').text('');
+				});
 		},
 		error: function (xhr, status, error) {
 			console.error('Error fetching data:', error);
@@ -988,7 +1025,7 @@ function transfer_account() {
             var deposit_amount = 0;
             var withdraw_amount = 0;
             var marker_return = 0;
-			var marker_issue_amount = 0;
+            var marker_deposit_amount = 0;
 
             data.forEach(function (row) {
 				const amount = parseFloat(row.AMOUNT);
@@ -998,14 +1035,13 @@ function transfer_account() {
                     withdraw_amount += amount;
                 } else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
                     marker_return += amount;
+                } else if (row.TRANSACTION === 'MARKER REDEEM') {
+                    marker_deposit_amount += amount;
                 }
-				else if (row.TRANSACTION === 'IOU CASH') {
-					marker_issue_amount += amount;
-				}
             });
 
-            // Calculate and show the total balance
-            var totalBalance = deposit_amount + marker_issue_amount - withdraw_amount - marker_return;
+            // Total balance excludes Credit/IOU
+            var totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
             $('#TransferFromBalance').val(totalBalance); // Display formatted balance
             
             // Optionally, display the account name if you have it in the data
@@ -1173,7 +1209,6 @@ $('#txtAccount').on('change', function () {
                 // Initialize amounts
                 var deposit_amount = 0;
                 var withdraw_amount = 0;
-                var marker_issue_amount = 0;
                 var marker_deposit_amount = 0;
                 var marker_return = 0;
 
@@ -1184,17 +1219,15 @@ $('#txtAccount').on('change', function () {
                         deposit_amount += amount;
                     } else if (row.TRANSACTION === 'WITHDRAW') {
                         withdraw_amount += amount;
-                    } else if (row.TRANSACTION === 'IOU CASH') {
-                        marker_issue_amount += amount;
                     } else if (row.TRANSACTION === 'MARKER REDEEM') {
                         marker_deposit_amount += amount;
                     } else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
-                    marker_return += amount;
-                }
+                        marker_return += amount;
+                    }
                 });
 
-                // Optionally set the total balance to a hidden input field
-                var totalBalance = deposit_amount + marker_issue_amount - withdraw_amount - marker_return;
+                // Total balance excludes Credit/IOU
+                var totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
                 $('#TransferToBalance').val(totalBalance);
             },
             error: function (xhr, status, error) {

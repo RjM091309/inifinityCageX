@@ -189,44 +189,6 @@
                   // TOTAL CHIPS Balance Calculation (Simplified: NN + CC)
                   const totalChipsBalance = nnChipsBalance + ccChipsBalance;
                   
-                  // Calculate base balance (house operations + guest-related transactions)
-                  // Uses CASH-ONLY buyins (TRANSACTION = 1) to avoid double-counting guest account buyins
-                  // Guest account buyins (TRANSACTION = 2) are handled separately via ACCOUNT_DEDUCT
-                  // NOTE: Account Transfer is NOT included because transfers don't affect actual cash
-                  // const baseBalance = 
-                     // (+sqlCashDeposit[0].CASH_DEPOSIT || 0) +
-                     // (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
-                     // (+sqlCashWithdraw[0].CASH_WITHDRAW || 0) +
-                     // // (+sqlTotalChipsCashout[0].TotalChipsCashout || 0) +
-                     // (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
-                     // (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) +
-                     // (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
-                     // (+sqlAccountMarkerReturn[0].MARKER_RETURN || 0) -
-                     // (+sqlJunketExpense[0].JUNKET_EXPENSE || 0) +
-                     // (+sqlNNChipsBuyinCashOnly[0].NN_CHIPS_BUYIN_CASH_ONLY || 0) +
-                     // (+sqlCCChipsBuyinCashOnly[0].CC_CHIPS_BUYIN_CASH_ONLY || 0) -
-                     // (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0)  
-                     // - (+sqlNNChipsAccountDeposit[0].TOTAL_NN_DEPOSIT || 0) 
-                     // - (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
-                     // (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) -
-                     // (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
-                     // (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) - (+sqlNNChipsAccountCash[0].TOTAL_NN_CASH || 0) - (+sqlCCChipsAccountCash[0].TOTAL_CC_CASH || 0) -
-                  // //   (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
-                     // (+sqlServiceCashGuest[0].TOTAL || 0) + (+sqlServiceDepositGuest[0].TOTAL || 0) -
-                     // (+sqlServiceCashJunket[0].TOTAL || 0) - (+sqlServiceDepositJunket[0].TOTAL || 0);
-                  
-                  // House Balance = Base Balance + Guest Account Deposits
-                  // Guest account buyins (TRANSACTION = 2) are already handled:
-                  // - They are NOT in baseBalance (we use cash-only buyins)
-                  // - They are subtracted via ACCOUNT_DEDUCT in baseBalance
-                  // - So when guest deposits and uses it for buyin, net effect is 0 (correct!)
-                  // Account Transfer is NOT included because transfers are internal movements
-                  // const houseBalance = baseBalance +
-                  //                      (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) +
-                  //                      (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
-                  //                      (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0);
-                 
-                  
                   // Cash Balance = Pure Cash In/Out ONLY
                   // Only includes transactions from junket_capital and junket_house_expense tables
                   // NO chips, NO guest transactions, NO buy-ins, NO returns - just pure cash movement
@@ -241,6 +203,7 @@
                      (+sqlTotalCashOut[0].TOTAL_CASHOUT || 0) - (+sqlAccountSettlement[0].ACCOUNT_SETTLEMENT || 0) -
                      (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
                      (+sqlServiceCashGuest[0].TOTAL || 0) + (+sqlServiceDepositGuest[0].TOTAL || 0) -
+                     (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
                      (+sqlServiceCashJunket[0].TOTAL || 0) - (+sqlServiceDepositJunket[0].TOTAL || 0) - (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) + (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) + (+sqlReturnMoney[0].RETURN_MONEY || 0) - (+sqlManualBalancing[0].MANUAL_BALANCING || 0);
                   
                   const guestBalance = Math.round(
@@ -248,8 +211,7 @@
                      (+sqlSettlementDepositAmount[0].SETTLEMENT_DEPOSIT || 0) -
                      (+sqlAccountWithdraw[0].ACCOUNT_WITHDRAW || 0) -
                      (+sqlAccountDeduct[0].ACCOUNT_DEDUCT || 0) -
-                     (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0) +
-                     (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
+                     (+sqlAccountServicesDeduct[0].ACCOUNT_DEDUCT_SERVICES || 0)  -
                      (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0)
                   );
 
@@ -1142,57 +1104,6 @@ m1882 -1858 c99 -47 165 -122 213 -240 9 -21 15 -74 16 -135 1 -91 -2 -105
                         </div>
 
 
-                        <!-- <div class="col-lg-4">
-
-
-                           <div class="card" data-aos="fade-up" data-aos-delay="500">
-                              <div class="text-center card-body d-flex justify-content-around">
-                                 <div>
-                                    <h6 class="mb-2 ">
-                                       <%= __('dashboard.expenses') %>
-                                    </h6>
-                                    <h4 class="counter mb-0" id="expense">₱ <%-
-                                          parseFloat(sqlJunketExpenseReset[0].RESET_EXPENSE || 0).toLocaleString() %>
-                                          <input type="hidden" name="EXPENSE_HISTORY"
-                                             value="<%- sqlJunketExpenseReset[0].RESET_EXPENSE || 0 %>">
-                                    </h4>
-
-                                 </div>
-                                 <hr class="hr-vertial">
-                                 <div>
-                                    <a href="/house_expense" target="_blank" class="mt-4 btn btn-primary-subtle
-                            d-block rounded">
-                                       <%= __('dashboard.details') %>
-                                    </a>
-                                 </div>
-                              </div>
-                           </div>
-
-
-
-                              <div class="text-center card-body d-flex justify-content-around">
-                                 <div>
-                                    <h6 class="mb-2 ">
-                                       <%= __('dashboard.guest_credit') %>
-                                    </h6>
-                                    <h4 class="counter mb-0">₱ <%- ( (+sqlMarkerIssueGame[0].TOTAL_ISSUE_GAME || 0) +
-                                          (+sqlMarkerIssueAccount[0].TOTAL_ISSUE_RECORD || 0) -
-                                          (+sqlNNChipsAccountMarker[0].TOTAL_NN_MARKER || 0) -
-                                          (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) -
-                                          (+sqlMArkerReturnDeposit[0].MARKER_RETURN_DEPOSIT || 0) -
-                                          (+sqlChipsReturnMarker[0].CHIPS_RETURN_MARKER || 0) ).toLocaleString() %>
-                                    </h4>
-
-                                 </div>
-                                 <hr class="hr-vertial">
-                                 <div>
-                                    <a href="#" class="mt-4 btn btn-primary-subtle
-                               d-block rounded" data-bs-toggle="modal" data-bs-target="#modal-new-marker">
-                                       <%= __('dashboard.details') %>
-                                    </a>
-                                 </div>
-                              </div>
-                           </div> -->
                              <!-- ON GAME -->
                         <div class="col-lg-6">
                            <div class="overflow-hidden card" data-aos="fade-up" data-aos-delay="600">

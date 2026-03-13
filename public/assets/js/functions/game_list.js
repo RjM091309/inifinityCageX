@@ -2588,10 +2588,10 @@ function addBuyin(id, account) {
 			let deposit_amount = 0;
 			let withdraw_amount = 0;
 			let marker_return = 0;
-			let marker_issue_amount = 0;
+			let marker_deposit_amount = 0;
 	
 			data.forEach(function (row) {
-				const amount = parseFloat(row.AMOUNT) || 0; // Ensure numeric
+				const amount = parseFloat(row.AMOUNT) || 0;
 	
 				if (row.TRANSACTION === 'DEPOSIT') {
                     deposit_amount += amount;
@@ -2599,12 +2599,12 @@ function addBuyin(id, account) {
                     withdraw_amount += amount;
                 } else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
                     marker_return += amount;
-                } else if (row.TRANSACTION === 'IOU CASH') {
-					marker_issue_amount += amount;
+                } else if (row.TRANSACTION === 'MARKER REDEEM') {
+					marker_deposit_amount += amount;
 				}
 			});
 	
-			const totalBalance = deposit_amount - withdraw_amount - marker_return + marker_issue_amount;
+			const totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
 	
 			// Set raw numeric value safely
 			$('#total_balanceGuest2').val(totalBalance);
@@ -2907,10 +2907,10 @@ function addCashout(id, account, total_rolling_chips) {
 			let deposit_amount = 0;
 			let withdraw_amount = 0;
 			let marker_return = 0;
-			let marker_issue_amount = 0;
+			let marker_deposit_amount = 0;
 	
 			data.forEach(function (row) {
-				const amount = parseFloat(row.AMOUNT) || 0; // ✅ Ensure it's numeric
+				const amount = parseFloat(row.AMOUNT) || 0;
 	
 				if (row.TRANSACTION === 'DEPOSIT') {
                     deposit_amount += amount;
@@ -2918,12 +2918,12 @@ function addCashout(id, account, total_rolling_chips) {
                     withdraw_amount += amount;
                 } else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
                     marker_return += amount;
-                } else if (row.TRANSACTION === 'IOU CASH') {
-					marker_issue_amount += amount;
+                } else if (row.TRANSACTION === 'MARKER REDEEM') {
+					marker_deposit_amount += amount;
 				}
 			});
 	
-			const totalBalance = deposit_amount - withdraw_amount - marker_return + marker_issue_amount;
+			const totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
 
 	
 			// ✅ Set it safely
@@ -4961,10 +4961,10 @@ function settlement_history(record_id, acc_id) {
 				var deposit_amount = 0;
 				var withdraw_amount = 0;
 				var marker_return = 0;
-				var marker_issue_amount = 0;
+				var marker_deposit_amount = 0;
 	
 				data.forEach(function (row) {
-					const amount = parseFloat(row.AMOUNT) || 0; // Safely parse AMOUNT to ensure it is a number
+					const amount = parseFloat(row.AMOUNT) || 0;
 		
 					if (row.TRANSACTION === 'DEPOSIT') {
 						deposit_amount += amount;
@@ -4972,13 +4972,12 @@ function settlement_history(record_id, acc_id) {
 						withdraw_amount += amount;
 					} else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
 						marker_return += amount;
-					} else if (row.TRANSACTION === 'IOU CASH') {
-						marker_issue_amount += amount;
+					} else if (row.TRANSACTION === 'MARKER REDEEM') {
+						marker_deposit_amount += amount;
 					}
 				});
 	
-				 // Calculate total balance
-				 const totalBalance = deposit_amount - withdraw_amount - marker_return + marker_issue_amount;
+				 const totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
 
 
 				 // Set total balance value
@@ -5164,31 +5163,26 @@ $('#txtTrans').on('change', function () {
             url: '/account_details_data_deposit/' + account_id,  // Pass the selected account ID
             method: 'GET',
             success: function (data) {
-                // Initialize amounts
                 var deposit_amount = 0;
                 var withdraw_amount = 0;
-                var marker_issue_amount = 0;
                 var marker_deposit_amount = 0;
                 var marker_return = 0;
 
-                   // Iterate through data and calculate totals
 				   data.forEach(function (row) {
-					const amount = parseFloat(row.AMOUNT) || 0; // Ensure numeric
+					const amount = parseFloat(row.AMOUNT) || 0;
 		
 					if (row.TRANSACTION === 'DEPOSIT') {
                         deposit_amount += amount;
                     } else if (row.TRANSACTION === 'WITHDRAW') {
                         withdraw_amount += amount;
-                    } else if (row.TRANSACTION === 'IOU CASH') {
-                        marker_issue_amount += amount;
                     } else if (row.TRANSACTION === 'MARKER REDEEM') {
                         marker_deposit_amount += amount;
                     } else if (row.TRANSACTION === 'IOU RETURN DEPOSIT') {
-                    marker_return += amount;
+                        marker_return += amount;
                		}
 				});
 		
-				const totalBalance = deposit_amount - withdraw_amount - marker_return + marker_issue_amount;
+				const totalBalance = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return;
 		
 					// Set raw numeric value safely
 					$('#total_balanceGuest1').val(totalBalance);

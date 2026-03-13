@@ -770,7 +770,7 @@
 		"transaction_type": "取引タイプ",
 		"cash": "キャッシュ",
 		"deposit": "デポジット",
-		"marker_history": "クレジット履歴",
+		"marker_history": "履歴",
 		"export": "エクスポート",
 		"loading": "読み込み中...",
 		"account_name": "アカウント名",
@@ -793,7 +793,16 @@
 		"delete": "dashboard_marker.delete",
 		"confirm_delete": "dashboard_marker.confirm_delete",
 		"yes_delete": "dashboard_marker.yes_delete",
-		"action": "Action"
+		"action": "Action",
+		"tab_all": "すべて",
+		"tab_credit": "ジャンケットクレジット",
+		"tab_buyin": "ゲームクレジット",
+		"show_balance_section": "クレジット残高を表示",
+		"hide_balance_section": "クレジット残高を非表示",
+		"accounts_with_credit": "クレジット残高（残高のある口座）",
+		"balance_from_credit": "クレジット(3)",
+		"balance_from_buyin": "バイイン(10)",
+		"total": "合計"
 	},
 	"modal_new_agent": {
 		"new_guest": "新規ゲスト",
@@ -984,6 +993,7 @@
 	"modal_account_details": {
 		"account_details": "アカウント詳細",
 		"total_balance": "合計残高",
+		"credit_iou": "クレジット",
 		"deposit": "デポジット",
 		"withdraw": "キャッシュアウト",
 		"credit": "クレジット",

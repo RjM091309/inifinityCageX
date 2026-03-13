@@ -770,7 +770,7 @@
 		"transaction_type": "거래 유형",
 		"cash": "현금",
 		"deposit": "입금",
-		"marker_history": "마커 내역",
+		"marker_history": "내역",
 		"export": "내보내기",
 		"loading": "로딩중...",
 		"account_name": "계정 이름",
@@ -793,7 +793,16 @@
 		"delete": "dashboard_marker.delete",
 		"confirm_delete": "dashboard_marker.confirm_delete",
 		"yes_delete": "dashboard_marker.yes_delete",
-		"action": "Action"
+		"action": "Action",
+		"tab_all": "전체",
+		"tab_credit": "준켓 크레딧",
+		"tab_buyin": "게임 크레딧",
+		"show_balance_section": "크레딧 잔액 표시",
+		"hide_balance_section": "크레딧 잔액 숨기기",
+		"accounts_with_credit": "크레딧 보유 계정 잔액",
+		"balance_from_credit": "크레딧(3)",
+		"balance_from_buyin": "바이인(10)",
+		"total": "합계"
 	},
 	"modal_new_agent": {
 		"new_guest": "새 게스트",
@@ -984,6 +993,7 @@
 	"modal_account_details": {
 		"account_details": "계정 세부 정보",
 		"total_balance": "총 잔액",
+		"credit_iou": "크레딧",
 		"deposit": "입금",
 		"withdraw": "출금",
 		"credit": "크레딧",

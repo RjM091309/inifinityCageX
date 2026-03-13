@@ -424,16 +424,16 @@ async function startGuestBot() {
         AND account_ledger.ACCOUNT_ID = ?
       `, [ACCOUNT_ID]);
 
-      let deposit = 0, withdraw = 0, iouCash = 0, iouReturn = 0;
+      let deposit = 0, withdraw = 0, markerRedeem = 0, iouReturn = 0;
       ledgerResults.forEach(row => {
         const amt = parseFloat(row.AMOUNT) || 0;
         if (row.TRANSACTION === 'DEPOSIT') deposit += amt;
         if (row.TRANSACTION === 'WITHDRAW') withdraw += amt;
-        if (row.TRANSACTION === 'IOU CASH') iouCash += amt;
+        if (row.TRANSACTION === 'MARKER REDEEM') markerRedeem += amt;
         if (row.TRANSACTION === 'IOU RETURN DEPOSIT') iouReturn += amt;
       });
 
-      const balance = deposit + iouCash - withdraw - iouReturn;
+      const balance = deposit + markerRedeem - withdraw - iouReturn;
 
       const date_now = new Date().toLocaleDateString();
       const time_now = new Date().toLocaleTimeString();
