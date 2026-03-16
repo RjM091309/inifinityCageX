@@ -171,3 +171,5 @@ app.use('/ReceiptUpload', express.static(path.join(__dirname, 'ReceiptUpload')))
 app.listen(app.get('port'), function () {
   console.log('Server started on port ' + app.get('port'));
 });
+// Idagdag ito sa app.js ng CageX (bago ang routes)
+app.use('/scanner', express.static(path.join(__dirname, 'passport-scanner')));
