@@ -76,6 +76,8 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+// Passport scanner face-api models (served for web + mobile clients)
+app.use('/models', express.static(path.join(__dirname, 'passport-scanner-dist/models')));
 
 // MySQL Session Store configuration
 const sessionStore = new MySQLStore({
