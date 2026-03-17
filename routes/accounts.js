@@ -254,7 +254,18 @@ router.post('/add_agent', uploadPassportImg.fields([{ name: 'photo', maxCount: 1
 		const insertAgentQuery = `
 			INSERT INTO agent (AGENCY, AGENT_CODE, NAME, CONTACTNo, TELEGRAM_ID, REMARKS, PHOTO, ENCODED_BY, ENCODED_DT)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-		const agentParams = [txtAgencyLine, txtAgenctCode, txtName, txtContact, txtTelegram, txtRemarks, photoPath, req.session.user_id, date_now];
+		const encodedBy = req.session?.user_id ?? 1; // 1 = fallback when no session (e.g. passport scanner from mobile)
+		const agentParams = [
+			txtAgencyLine ?? '',
+			txtAgenctCode ?? '',
+			txtName ?? '',
+			txtContact ?? '',
+			txtTelegram ?? '',
+			txtRemarks ?? '',
+			photoPath ?? null,
+			encodedBy,
+			date_now
+		];
 
 		const [agentResult] = await pool.execute(insertAgentQuery, agentParams);
 		const agent_id = agentResult.insertId;
@@ -262,7 +273,7 @@ router.post('/add_agent', uploadPassportImg.fields([{ name: 'photo', maxCount: 1
 		const insertAccountQuery = `
 			INSERT INTO account (AGENT_ID, GUESTNo, MEMBERSHIPNo, ENCODED_BY, ENCODED_DT)
 			VALUES (?, ?, ?, ?, ?)`;
-		await pool.execute(insertAccountQuery, [agent_id, '', '', req.session.user_id, date_now]);
+		await pool.execute(insertAccountQuery, [agent_id, '', '', encodedBy, date_now]);
 
 		// Insert passport details only when coming from passport scanner (has passport image or passport number)
 		const hasPassportData = passportImagePath || (txtPassportNo && String(txtPassportNo).trim());
@@ -273,7 +284,7 @@ router.post('/add_agent', uploadPassportImg.fields([{ name: 'photo', maxCount: 1
 				await pool.execute(
 					`INSERT INTO agent_passport (AGENT_ID, DOCUMENT_TYPE, COUNTRY_CODE, PASSPORT_NO, FULL_NAME, NATIONALITY, DATE_OF_BIRTH, EXPIRY_DATE, GENDER, MRZ_LINE, PASSPORT_IMAGE, ENCODED_BY, ENCODED_DT)
 					 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-					[agent_id, txtDocumentType || null, txtCountryCode || null, txtPassportNo || null, txtName || null, txtNationality || null, dobVal, expiryVal, txtGender || null, txtMrzLine || null, passportImagePath, req.session.user_id, date_now]
+					[agent_id, txtDocumentType ?? null, txtCountryCode ?? null, txtPassportNo ?? null, txtName ?? null, txtNationality ?? null, dobVal, expiryVal, txtGender ?? null, txtMrzLine ?? null, passportImagePath ?? null, encodedBy, date_now]
 				);
 			} catch (passportErr) {
 				console.warn('⚠ agent_passport insert skipped (table may not exist):', passportErr.message);
