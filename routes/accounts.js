@@ -243,6 +243,21 @@ router.put('/agency/remove/:id', async (req, res) => {
 
 // ADD AGENT
 router.post('/add_agent', uploadPassportImg.fields([{ name: 'photo', maxCount: 1 }, { name: 'passportImage', maxCount: 1 }]), async (req, res) => {
+	// API key check for Passport Scanner app (no session)
+	const apiKey = req.headers['x-api-key'];
+	const validApiKey = process.env.SCANNER_API_KEY;
+	const hasValidApiKey = validApiKey && apiKey === validApiKey;
+
+	// DEBUG - tanggalin pagkatapos ng test
+	console.log('🔑 API Key received:', apiKey);
+	console.log('🔑 Expected:', validApiKey);
+	console.log('👤 Session user:', req.session?.user_id);
+	console.log('✅ Has valid key:', hasValidApiKey);
+  
+	if (!req.session?.user_id && !hasValidApiKey) {
+	  return res.status(401).json({ error: 'Unauthorized' });
+	}
+  
 	try {
 		const { txtAgencyLine, txtAgenctCode, txtName, txtRemarks, txtTelegram, txtContact, txtDocumentType, txtCountryCode, txtPassportNo, txtNationality, txtDateOfBirth, txtExpiryDate, txtGender, txtMrzLine } = req.body;
 		const date_now = new Date();
@@ -291,10 +306,14 @@ router.post('/add_agent', uploadPassportImg.fields([{ name: 'photo', maxCount: 1
 			}
 		}
 
+		const isApiRequest = req.headers['x-api-key'] || req.headers['content-type']?.includes('multipart/form-data') && !req.session?.user_id;
+		if (isApiRequest && !req.session?.user_id) {
+		  return res.status(200).json({ success: true, agent_id });
+		}
 		res.redirect('/agent');
-	} catch (error) {
-		console.error('❌ Error in /add_agent:', error);
-		res.status(500).json({ error: 'Internal Server Error' });
+	} catch (err) {
+		console.error('Error adding agent:', err);
+		res.status(500).send('Error adding agent');
 	}
 });
 

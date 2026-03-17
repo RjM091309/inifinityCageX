@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const routes = require('./routes');
@@ -9,7 +10,7 @@ const MySQLStore = require('express-mysql-session')(session);
 const db = require('./config/db');
 const flash = require('connect-flash');
 const i18n = require('i18n');
-require('dotenv').config();
+
 
 const { startTelegramBot } = require('./utils/telegram');
 startTelegramBot(); // run once when server starts
@@ -54,15 +55,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS: allow Flutter web (and other dev origins) to call /api
-app.use('/api', (req, res, next) => {
+// CORS: allow all local origins, Capacitor app, and PWA
+// CORS: allow all local origins, Capacitor app, and PWA
+app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const allow = origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+  const allow = origin && /^(https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?|capacitor:\/\/localhost|ionic:\/\/localhost)$/.test(origin)
     ? origin
-    : '*';
-  res.setHeader('Access-Control-Allow-Origin', allow);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    : null;
+  if (allow) {
+    res.setHeader('Access-Control-Allow-Origin', allow);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
