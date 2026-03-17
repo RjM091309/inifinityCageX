@@ -242,11 +242,14 @@ router.put('/agency/remove/:id', async (req, res) => {
 
 
 // ADD AGENT
-router.post('/add_agent', uploadPassportImg.single('photo'), async (req, res) => {
+router.post('/add_agent', uploadPassportImg.fields([{ name: 'photo', maxCount: 1 }, { name: 'passportImage', maxCount: 1 }]), async (req, res) => {
 	try {
-		const { txtAgencyLine, txtAgenctCode, txtName, txtRemarks, txtTelegram, txtContact } = req.body;
+		const { txtAgencyLine, txtAgenctCode, txtName, txtRemarks, txtTelegram, txtContact, txtDocumentType, txtCountryCode, txtPassportNo, txtNationality, txtDateOfBirth, txtExpiryDate, txtGender, txtMrzLine } = req.body;
 		const date_now = new Date();
-		const photoPath = req.file ? req.file.filename : null;
+		const faceFile = req.files?.photo?.[0];
+		const passportFile = req.files?.passportImage?.[0];
+		const photoPath = faceFile ? faceFile.filename : null;
+		const passportImagePath = passportFile ? passportFile.filename : (faceFile ? faceFile.filename : null);
 
 		const insertAgentQuery = `
 			INSERT INTO agent (AGENCY, AGENT_CODE, NAME, CONTACTNo, TELEGRAM_ID, REMARKS, PHOTO, ENCODED_BY, ENCODED_DT)
@@ -260,6 +263,22 @@ router.post('/add_agent', uploadPassportImg.single('photo'), async (req, res) =>
 			INSERT INTO account (AGENT_ID, GUESTNo, MEMBERSHIPNo, ENCODED_BY, ENCODED_DT)
 			VALUES (?, ?, ?, ?, ?)`;
 		await pool.execute(insertAccountQuery, [agent_id, '', '', req.session.user_id, date_now]);
+
+		// Insert passport details only when coming from passport scanner (has passport image or passport number)
+		const hasPassportData = passportImagePath || (txtPassportNo && String(txtPassportNo).trim());
+		if (hasPassportData) {
+			const dobVal = txtDateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(String(txtDateOfBirth).trim()) ? txtDateOfBirth.trim() : null;
+			const expiryVal = txtExpiryDate && /^\d{4}-\d{2}-\d{2}$/.test(String(txtExpiryDate).trim()) ? txtExpiryDate.trim() : null;
+			try {
+				await pool.execute(
+					`INSERT INTO agent_passport (AGENT_ID, DOCUMENT_TYPE, COUNTRY_CODE, PASSPORT_NO, FULL_NAME, NATIONALITY, DATE_OF_BIRTH, EXPIRY_DATE, GENDER, MRZ_LINE, PASSPORT_IMAGE, ENCODED_BY, ENCODED_DT)
+					 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					[agent_id, txtDocumentType || null, txtCountryCode || null, txtPassportNo || null, txtName || null, txtNationality || null, dobVal, expiryVal, txtGender || null, txtMrzLine || null, passportImagePath, req.session.user_id, date_now]
+				);
+			} catch (passportErr) {
+				console.warn('⚠ agent_passport insert skipped (table may not exist):', passportErr.message);
+			}
+		}
 
 		res.redirect('/agent');
 	} catch (error) {
@@ -1295,6 +1314,32 @@ router.get('/account_game_history/:id', async (req, res) => {
 });
 
 
+
+// GET AGENT PASSPORT DETAILS (agent_passport table) by account_id
+router.get('/account_passport_details/:account_id', async (req, res) => {
+	try {
+		const accountId = req.params.account_id;
+		const [accountRows] = await pool.execute(
+			'SELECT AGENT_ID FROM account WHERE IDNo = ?',
+			[accountId]
+		);
+		if (!accountRows || accountRows.length === 0) {
+			return res.status(404).json({ error: 'Account not found' });
+		}
+		const agentId = accountRows[0].AGENT_ID;
+		if (!agentId) {
+			return res.json(null);
+		}
+		const [rows] = await pool.execute(
+			'SELECT * FROM agent_passport WHERE AGENT_ID = ? ORDER BY ENCODED_DT DESC LIMIT 1',
+			[agentId]
+		);
+		res.json(rows && rows.length > 0 ? rows[0] : null);
+	} catch (error) {
+		console.error('Error fetching passport details:', error);
+		res.status(500).json({ error: 'Error fetching passport details' });
+	}
+});
 
 // GET ACCOUNT DETAILS PASSPORTPHOTO
 

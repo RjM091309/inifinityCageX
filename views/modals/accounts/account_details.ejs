@@ -128,9 +128,11 @@
                             </div>
                             <div class="card-body">
                                 <div class="text-end mb-4">
+                                    <button class="btn btn-sm btn-secondary" id="btn-passport-details">Passport Details</button>
                                     <button class="btn btn-sm btn-primary" onclick="game_history($('#account_id').val() || $('#account_id_add').val())">Game History</button>
                                     <button class="btn btn-sm btn-info" onclick="transfer_account()"><%= __('modal_account_details.transfer_account') %></button>                       
                                     <button class="btn btn-sm btn-success" onclick="export_data()"><%= __('modal_account_details.export') %></button>
+                                   
                                 </div>
                                 <input type="hidden" id="account_id">
                                 <table id="accountDetails" class="table table-bordered nowrap table-responsive" style="width: 100%;">
@@ -152,6 +154,59 @@
                     <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
                         <%= __('modal_account_details.close') %>
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Passport Details Modal -->
+<div class="modal fade" id="modal-passport-details" tabindex="-1" aria-labelledby="modalPassportDetailsLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content passport-details-modal-content border-0 shadow-lg overflow-hidden">
+            <div class="modal-header passport-details-header py-3 px-4">
+                <h5 class="modal-title d-flex align-items-center gap-2 fw-semibold" id="modalPassportDetailsLabel">
+                    <i class="fa fa-id-card"></i> Passport Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 bg-white">
+                <div id="passport-details-loading" class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"><span class="visually-hidden">Loading...</span></div>
+                    <p class="text-muted mb-0">Loading passport details...</p>
+                </div>
+                <div id="passport-details-empty" class="text-center py-5 d-none">
+                    <div class="passport-empty-icon mb-3">
+                        <i class="fa fa-id-card-o text-secondary"></i>
+                    </div>
+                    <p class="text-muted mb-0">No passport details available for this agent.</p>
+                </div>
+                <div id="passport-details-content" class="d-none">
+                    <div class="row g-4 align-items-stretch">
+                        <div class="col-12 col-md-5 d-flex">
+                            <div class="passport-image-wrapper rounded-3 overflow-hidden position-relative w-100 d-flex align-items-center justify-content-center">
+                                <img id="passport-detail-image" src="" alt="Passport" class="passport-detail-img w-100">
+                                <div class="passport-hover-hint"><i class="fa fa-search-plus me-1"></i>Hover to enlarge</div>
+                                <img id="passport-zoomed-image" src="" alt="Passport zoomed" class="passport-zoomed">
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-7 d-flex">
+                            <div class="passport-details-card rounded-3 overflow-hidden w-100">
+                                <table class="table table-borderless passport-details-table mb-0">
+                                    <tbody>
+                                        <tr><th>Type</th><td id="p-doc-type">—</td></tr>
+                                        <tr><th>Country Code</th><td id="p-country">—</td></tr>
+                                        <tr><th>Passport No</th><td id="p-passport-no">—</td></tr>
+                                        <tr><th>Full Name</th><td id="p-full-name">—</td></tr>
+                                        <tr><th>Nationality</th><td id="p-nationality">—</td></tr>
+                                        <tr><th>Date of Birth</th><td id="p-dob">—</td></tr>
+                                        <tr><th>Expiry Date</th><td id="p-expiry">—</td></tr>
+                                        <tr><th>Gender</th><td id="p-gender">—</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -258,6 +313,90 @@
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Increase shadow on hover */
 }
 
+/* Passport Details modal – improved styling */
+.passport-details-modal-content { border-radius: 12px; }
+.passport-details-header {
+    background: #4155FF;
+    color: #fff;
+}
+.passport-details-header .modal-title,
+.passport-details-header .modal-title i {
+    color: #fff !important;
+}
+.passport-empty-icon { font-size: 4rem; opacity: 0.5; }
+.passport-image-wrapper {
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    padding: 12px;
+    min-height: 280px;
+}
+.passport-detail-img {
+    max-height: 300px;
+    object-fit: contain;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: box-shadow 0.25s ease, transform 0.2s ease;
+}
+.passport-detail-img:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+.passport-hover-hint {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+.passport-image-wrapper:hover .passport-hover-hint { opacity: 1; }
+.passport-details-card {
+    background: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+}
+.passport-details-table th {
+    width: 130px;
+    padding: 12px 16px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    background: #f8fafc;
+}
+.passport-details-table td {
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    color: #1e293b;
+}
+.passport-details-table tr { border-bottom: 1px solid #e2e8f0; }
+.passport-details-table tr:last-child { border-bottom: none; }
+.passport-zoomed {
+    display: none;
+    position: fixed;
+    z-index: 1100;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    max-width: 90vw;
+    max-height: 85vh;
+    width: auto;
+    height: auto;
+    border-radius: 8px;
+    object-fit: contain;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+.passport-zoomed.show {
+    display: block;
+    opacity: 1;
+}
 
 #accountDetails {
     width: 100%;
@@ -349,6 +488,75 @@
     accountPhoto.addEventListener('mouseout', function () {
         zoomedImage.classList.remove('show');
     });
+
+    // Passport Details button
+    var btnPassportDetails = document.getElementById('btn-passport-details');
+    var modalPassportDetails = document.getElementById('modal-passport-details');
+    if (btnPassportDetails && modalPassportDetails) {
+        btnPassportDetails.addEventListener('click', function () {
+            var accountId = document.getElementById('account_id_add') && document.getElementById('account_id_add').value;
+            if (!accountId) {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'No account', text: 'Please open an account first.' });
+                else alert('Please open an account first.');
+                return;
+            }
+            var Modal = typeof bootstrap !== 'undefined' ? bootstrap.Modal : (typeof Bootstrap !== 'undefined' ? Bootstrap.Modal : null);
+            if (Modal) Modal.getOrCreateInstance(modalPassportDetails).show();
+            else $(modalPassportDetails).modal('show');
+            document.getElementById('passport-details-loading').classList.remove('d-none');
+            document.getElementById('passport-details-empty').classList.add('d-none');
+            document.getElementById('passport-details-content').classList.add('d-none');
+            fetch('/account_passport_details/' + accountId)
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    document.getElementById('passport-details-loading').classList.add('d-none');
+                    if (!data || (typeof data === 'object' && data.error)) {
+                        document.getElementById('passport-details-empty').classList.remove('d-none');
+                        return;
+                    }
+                    document.getElementById('passport-details-content').classList.remove('d-none');
+                    document.getElementById('p-doc-type').textContent = data.DOCUMENT_TYPE || '—';
+                    document.getElementById('p-country').textContent = data.COUNTRY_CODE || '—';
+                    document.getElementById('p-passport-no').textContent = data.PASSPORT_NO || '—';
+                    document.getElementById('p-full-name').textContent = data.FULL_NAME || '—';
+                    document.getElementById('p-nationality').textContent = data.NATIONALITY || '—';
+                    document.getElementById('p-dob').textContent = data.DATE_OF_BIRTH ? new Date(data.DATE_OF_BIRTH).toLocaleDateString() : '—';
+                    document.getElementById('p-expiry').textContent = data.EXPIRY_DATE ? new Date(data.EXPIRY_DATE).toLocaleDateString() : '—';
+                    document.getElementById('p-gender').textContent = data.GENDER || '—';
+                    var img = document.getElementById('passport-detail-image');
+                    if (data.PASSPORT_IMAGE) {
+                        img.src = '/PassportUpload/' + data.PASSPORT_IMAGE;
+                        img.style.display = '';
+                    } else {
+                        img.style.display = 'none';
+                    }
+                })
+                .catch(function () {
+                    document.getElementById('passport-details-loading').classList.add('d-none');
+                    document.getElementById('passport-details-empty').classList.remove('d-none');
+                });
+        });
+    }
+
+    // Passport image zoom on hover (like Guest Portal face)
+    var passportDetailImg = document.getElementById('passport-detail-image');
+    var passportZoomed = document.getElementById('passport-zoomed-image');
+    if (passportDetailImg && passportZoomed) {
+        passportDetailImg.addEventListener('mouseover', function () {
+            if (passportDetailImg.src && !passportDetailImg.src.endsWith('undefined')) {
+                passportZoomed.src = passportDetailImg.src;
+                passportZoomed.classList.add('show');
+            }
+        });
+        passportDetailImg.addEventListener('mouseout', function () {
+            passportZoomed.classList.remove('show');
+        });
+    }
+    if (modalPassportDetails && passportZoomed) {
+        modalPassportDetails.addEventListener('hidden.bs.modal', function () {
+            passportZoomed.classList.remove('show');
+        });
+    }
 
     // Open change-photo modal when edit icon is clicked (JS so modal shows even when nested/sibling)
     var btnOpenChangePhoto = document.getElementById('btn-open-change-photo');
