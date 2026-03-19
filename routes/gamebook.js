@@ -545,6 +545,38 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
 				[accountId, gameId, amt, encodedBy, now]
 			);
+
+			try {
+				const [accountRows] = await pool.execute(
+					`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+					 FROM account
+					 JOIN agent ON agent.IDNo = account.AGENT_ID
+					 WHERE account.ACTIVE = 1 AND account.IDNo = ?
+					 LIMIT 1`,
+					[accountId]
+				);
+
+				if (Array.isArray(accountRows) && accountRows.length > 0) {
+					const { AGENT_CODE, NAME, TELEGRAM_ID } = accountRows[0];
+
+					if (TELEGRAM_ID && TELEGRAM_ID !== '') {
+						const formattedAmount = amt.toLocaleString('en-US');
+						const serviceLabel = svc.toUpperCase();
+						const date_nowTG = now.toLocaleDateString();
+						const updated_time = now.toLocaleTimeString();
+						const remarksText = (remarks || '').trim();
+						const serviceLine = remarksText
+							? `서비스: ${serviceLabel} - ${remarksText}`
+							: `서비스: ${serviceLabel}`;
+
+						const text = `Infinity Cage\n\n* 서비스 결제 *\n\n계정: ${AGENT_CODE} - ${NAME}\n${serviceLine}\n금액: ${formattedAmount} - 계좌출금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+
+						await sendTelegramMessage(text, TELEGRAM_ID);
+					}
+				}
+			} catch (telegramErr) {
+				console.error('Failed to send Telegram message for game service deposit:', telegramErr.message || telegramErr);
+			}
 		}
 
 		// Return the refreshed list

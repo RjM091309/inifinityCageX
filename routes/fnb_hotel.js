@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
+const { sendTelegramMessage, sendTelegramToEmployees } = require('../utils/telegram');
 
 const validServiceTypes = ['fnb', 'hotel', 'delivery'];
 const validTransactionIds = [1, 2, 3];
@@ -177,6 +178,59 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 				 VALUES (?, ?, 2, 2, 'SERVICES', ?, ?, ?)`,
 				[parsedAccountId, resolvedGameId, amt, encodedBy, now]
 			);
+
+			try {
+				const [accountRows] = await pool.execute(
+					`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+					 FROM account
+					 JOIN agent ON agent.IDNo = account.AGENT_ID
+					 WHERE account.ACTIVE = 1 AND account.IDNo = ?
+					 LIMIT 1`,
+					[parsedAccountId]
+				);
+
+				if (Array.isArray(accountRows) && accountRows.length > 0) {
+					const { AGENT_CODE, NAME, TELEGRAM_ID } = accountRows[0];
+
+					if (TELEGRAM_ID && TELEGRAM_ID !== '') {
+						const formattedAmount = amt.toLocaleString('en-US');
+						const serviceLabel = svc.toUpperCase();
+						const date_nowTG = now.toLocaleDateString();
+						const updated_time = now.toLocaleTimeString();
+						const remarksText = (remarks || '').trim();
+						const serviceLine = remarksText
+							? `서비스: ${serviceLabel} - ${remarksText}`
+							: `서비스: ${serviceLabel}`;
+
+						const text = `Infinity Cage\n\n* 서비스 결제 *\n\n계정: ${AGENT_CODE} - ${NAME}\n${serviceLine}\n금액: ${formattedAmount} - 계좌출금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+
+						await sendTelegramMessage(text, TELEGRAM_ID);
+					}
+				}
+			} catch (telegramErr) {
+				console.error('Failed to send Telegram message for F&B / Hotel service deposit:', telegramErr.message || telegramErr);
+			}
+		}
+
+		// JUNKET: notify employees (EMPLOYEE bot) for any junket service
+		if (sourceType === 'JUNKET') {
+			try {
+				const formattedAmount = amt.toLocaleString('en-US');
+				const serviceLabel = svc.toUpperCase();
+				const date_nowTG = now.toLocaleDateString();
+				const updated_time = now.toLocaleTimeString();
+				const remarksText = (remarks || '').trim();
+				const serviceLine = remarksText
+					? `서비스: ${serviceLabel} - ${remarksText}`
+					: `서비스: ${serviceLabel}`;
+				const gameLine = resolvedGameId ? `게임번호: ${resolvedGameId}\n` : '';
+
+				const text = `Infinity Cage\n\n* 서비스 결제 (정켓) *\n\n${gameLine}${serviceLine}\n금액: ${formattedAmount}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+
+				await sendTelegramToEmployees(text);
+			} catch (telegramErr) {
+				console.error('Failed to send Telegram message for F&B / Hotel junket service:', telegramErr.message || telegramErr);
+			}
 		}
 
 		return res.json({ success: true });
