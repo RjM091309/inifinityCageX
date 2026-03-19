@@ -897,7 +897,7 @@ router.get('/game_list_data', async (req, res) => {
         }
     }
 
-    // Date range mode: Filter by ENCODED_DT date range
+    // Date range mode: Filter by settlement date range
     if (fromDate && toDate) {
         const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
         if (!isValidDate(fromDate) || !isValidDate(toDate)) {
@@ -906,38 +906,18 @@ router.get('/game_list_data', async (req, res) => {
         }
 
         const query = baseSelect + `
+            JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
+            JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
             WHERE game_list.ACTIVE != 0 
-              AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
+              AND ds.SETTLEMENT_DATE BETWEEN ? AND ?
             ORDER BY game_list.IDNo ASC
         `;
 
         try {
             const [rows] = await pool.execute(query, [fromDate, toDate]);
-            
-            // Add pending flag for games that were created before latest settlement run but are still ON GAME
-            const todayStr = new Date().toISOString().slice(0, 10);
-            const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
-            
-            const [latestSettlement] = await pool.execute(
-                `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
-                [firstOfMonth, todayStr]
-            );
-            
-            if (latestSettlement.length > 0) {
-                const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date 
-                    ? latestSettlement[0].RUN_AT 
-                    : new Date(latestSettlement[0].RUN_AT);
-                
-                rows.forEach(row => {
-                    const gameCreatedAt = row.ENCODED_DT instanceof Date 
-                        ? row.ENCODED_DT 
-                        : new Date(row.ENCODED_DT);
-                    
-                    row.is_pending = (gameCreatedAt < settlementRunTime && row.ACTIVE != 1) ? 1 : 0;
-                });
-            } else {
-                rows.forEach(row => { row.is_pending = 0; });
-            }
+
+            // Settled games (have settlement date) don't need pending flag
+            rows.forEach(row => { row.is_pending = 0; });
             
             return res.json(rows);
         } catch (error) {
