@@ -488,8 +488,9 @@ opacity: 0.95;
 	font-size: 12px;
 	line-height: 36px;
 	color: var(--bs-white);
-	/*need more margin on the left of links to accomodate the numbers*/
-	padding: 0 10px 0 60px;
+	/* center label inside each breadcrumb step */
+	text-align: center;
+	padding: 0 36px;
 	background: var(--bs-primary-bg-subtle);
 	position: relative;
 }
@@ -557,6 +558,33 @@ opacity: 0.95;
 
 .flat a:active, .flat a:active:after {
     background: var(--bs-primary-active-bg);
+}
+
+/* Undo Settle breadcrumb (same chevron style, danger color) */
+.breadcrumb1 a.breadcrumb-undo-settle,
+.breadcrumb1 a.breadcrumb-undo-settle:after {
+  background: var(--bs-danger-bg-subtle);
+  color: var(--bs-danger);
+}
+
+.breadcrumb1 a.breadcrumb-undo-settle:hover,
+.breadcrumb1 a.breadcrumb-undo-settle:hover:after {
+  background: var(--bs-danger);
+  color: var(--bs-white);
+}
+
+/* Settled breadcrumb state (disabled Settle) - use same subtle success color as totals */
+.breadcrumb1 a.breadcrumb-settled,
+.breadcrumb1 a.breadcrumb-settled:after {
+  background: var(--bs-success-bg-subtle);
+  color: var(--bs-success);
+}
+
+/* Settled breadcrumb state (disabled Settle) */
+.breadcrumb1 a.breadcrumb-settled,
+.breadcrumb1 a.breadcrumb-settled:after {
+  background: #d1ecdd;
+  color: #0f5132;
 }
 
 /* Color Picker Styles */

@@ -1126,6 +1126,89 @@ router.post('/game_list/daily_settlement/run', async (req, res) => {
     }
 });
 
+// POST undo daily settlement (per settlement date: revert games and delete settlement)
+router.post('/game_list/daily_settlement/undo', async (req, res) => {
+    const encodedBy = req.session?.user_id;
+    if (!encodedBy) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const settlementDate = (req.body && req.body.settlement_date)
+        ? req.body.settlement_date
+        : null;
+
+    const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+    if (!settlementDate || !isValidDate(settlementDate)) {
+        return res.status(400).json({ error: 'Valid settlement_date (YYYY-MM-DD) is required' });
+    }
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        // Find and lock the active settlement for this date
+        const [settlements] = await connection.execute(
+            `SELECT IDNo, ACTIVE
+             FROM daily_settlement
+             WHERE SETTLEMENT_DATE = ?
+               AND ACTIVE = 1
+             FOR UPDATE`,
+            [settlementDate]
+        );
+
+        if (settlements.length === 0) {
+            await connection.rollback();
+            connection.release();
+            return res.status(404).json({ error: 'No active settlement found for this date' });
+        }
+
+        const settlementId = settlements[0].IDNo;
+
+        const [gameRows] = await connection.execute(
+            `SELECT GAME_ID
+             FROM daily_settlement_games
+             WHERE DAILY_SETTLEMENT_ID = ?`,
+            [settlementId]
+        );
+
+        const gameIds = gameRows.map(row => row.GAME_ID);
+
+        if (gameIds.length > 0) {
+            const placeholders = gameIds.map(() => '?').join(',');
+            await connection.execute(
+                `UPDATE game_list
+                 SET DAILY_SETTLEMENT = 1
+                 WHERE IDNo IN (${placeholders})
+                   AND DAILY_SETTLEMENT = 2`,
+                gameIds
+            );
+        }
+
+        await connection.execute(
+            'DELETE FROM daily_settlement WHERE IDNo = ?',
+            [settlementId]
+        );
+
+        await connection.commit();
+        connection.release();
+
+        res.json({
+            success: true,
+            settlement_date: settlementDate,
+            settlement_id: settlementId,
+            reverted_game_count: gameIds.length
+        });
+    } catch (err) {
+        if (connection) {
+            try { await connection.rollback(); } catch (_) {}
+            connection.release();
+        }
+        console.error('Error undoing daily settlement:', err);
+        res.status(500).json({ error: 'Error undoing daily settlement' });
+    }
+});
+
 // GET GAME RECORD FOR A SPECIFIC GAME
 router.get('/game_list/:id/record', async (req, res) => {
     const id = parseInt(req.params.id);

@@ -930,28 +930,89 @@ $(document).ready(function () {
     window.updateSettleButtonState = function (recordCount) {
         // Only update if in settlement mode
         var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+        var $btn = $('#btn-daily-settle');
+        var $undoBtn = $('#btn-daily-settle-undo');
+
         if (filterMode !== 'settlement') {
-            // Hide settle button in date range mode
-            $('#btn-daily-settle').addClass('disabled').css('pointer-events', 'none').css('opacity', '0.5');
+            // Hide settle/undo buttons in date range mode
+            $btn.addClass('disabled').css('pointer-events', 'none').css('opacity', '0.5');
+            $undoBtn.addClass('disabled').hide();
             return;
         }
         
         var date = window.selectedSettlementDate;
         var todayStr = $('#settlement-date-wrapper .input-group').attr('data-today') || new Date().toISOString().slice(0, 10);
         if (!date) {
-            $('#btn-daily-settle').addClass('disabled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
+            $btn.addClass('disabled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
+            $undoBtn.addClass('disabled').hide();
             return;
         }
         var settled = (window.settledDatesForMonth || []).indexOf(date) !== -1;
         var isPastDate = date < todayStr;
         var noRecordsForPastDate = (recordCount !== undefined && recordCount === 0 && isPastDate);
-        var $btn = $('#btn-daily-settle');
         if (settled) {
             $btn.addClass('disabled').text(settledBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
+            $undoBtn.removeClass('disabled').css('pointer-events', 'auto').css('opacity', '1').show();
         } else if (noRecordsForPastDate) {
             $btn.addClass('disabled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
+            $undoBtn.addClass('disabled').hide();
         } else {
             $btn.removeClass('disabled').text(settleBtnLabel).css('pointer-events', 'auto').css('opacity', '1');
+            $undoBtn.addClass('disabled').hide();
+        }
+    };
+
+    // Override to only allow Undo on latest settled date
+    window.updateSettleButtonState = function (recordCount) {
+        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+        var $btn = $('#btn-daily-settle');
+        var $undoBtn = $('#btn-daily-settle-undo');
+
+        if (filterMode !== 'settlement') {
+            $btn.addClass('disabled').removeClass('breadcrumb-settled').css('pointer-events', 'none').css('opacity', '0.5');
+            $undoBtn.addClass('disabled').hide();
+            return;
+        }
+
+        var date = window.selectedSettlementDate;
+        var todayStr = $('#settlement-date-wrapper .input-group').attr('data-today') || new Date().toISOString().slice(0, 10);
+        if (!date) {
+            $btn.addClass('disabled').removeClass('breadcrumb-settled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
+            $undoBtn.addClass('disabled').hide();
+            return;
+        }
+
+        var settledDates = window.settledDatesForMonth || [];
+        var settled = settledDates.indexOf(date) !== -1;
+
+        var latestSettledDate = null;
+        if (settledDates.length > 0) {
+            var sortedDates = settledDates.slice().sort();
+            latestSettledDate = sortedDates[sortedDates.length - 1];
+        }
+        var isLatestSettled = settled && latestSettledDate && date === latestSettledDate;
+
+        var isPastDate = date < todayStr;
+        var noRecordsForPastDate = (recordCount !== undefined && recordCount === 0 && isPastDate);
+
+        if (settled) {
+            // Settled state: change label + color
+            $btn.addClass('disabled breadcrumb-settled')
+                .text(settledBtnLabel)
+                .css('pointer-events', 'none')
+                .css('opacity', '1');
+
+            if (isLatestSettled) {
+                $undoBtn.removeClass('disabled').css('pointer-events', 'auto').css('opacity', '1').show();
+            } else {
+                $undoBtn.addClass('disabled').hide();
+            }
+        } else if (noRecordsForPastDate) {
+            $btn.addClass('disabled').removeClass('breadcrumb-settled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
+            $undoBtn.addClass('disabled').hide();
+        } else {
+            $btn.removeClass('disabled breadcrumb-settled').text(settleBtnLabel).css('pointer-events', 'auto').css('opacity', '1');
+            $undoBtn.addClass('disabled').hide();
         }
     };
 
@@ -1492,6 +1553,60 @@ $(document).ready(function () {
                     });
                 });
             }
+        });
+    });
+
+    // Undo daily settlement for selected date (Super/Admin flow – adjust as needed)
+    $('#btn-daily-settle-undo').on('click', function () {
+        if ($(this).prop('disabled')) return;
+        var settlementDate = window.selectedSettlementDate || new Date().toISOString().slice(0, 10);
+        var formattedDate = settlementDate ? new Date(settlementDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : settlementDate;
+
+        Swal.fire({
+            title: 'Undo Settlement',
+            text: 'Undo daily settlement for ' + formattedDate + '?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Undo',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+
+            $.ajax({
+                url: '/game_list/daily_settlement/undo',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ settlement_date: settlementDate }),
+                success: function (res) {
+                    var revertedCount = (res && typeof res.reverted_game_count === 'number') ? res.reverted_game_count : 0;
+                    var msg = 'Settlement for ' + formattedDate + ' has been undone.';
+                    if (revertedCount > 0) {
+                        msg += ' ' + revertedCount + ' game(s) were reverted.';
+                    }
+                    Swal.fire({
+                        title: 'Undone',
+                        text: msg,
+                        icon: 'success',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#0d6efd'
+                    }).then(function () {
+                        window.location.reload();
+                    });
+                },
+                error: function (xhr) {
+                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to undo settlement';
+                    console.error('[Daily Settlement] Undo error:', err, xhr);
+                    Swal.fire({
+                        title: 'Error',
+                        text: err,
+                        icon: 'error',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                }
+            });
         });
     });
 

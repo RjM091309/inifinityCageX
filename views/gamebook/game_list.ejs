@@ -16,7 +16,11 @@
 										<a href="/dashboard"><span class="fa fa-home"></span></a>
 										<a href="/game_list" class="active"><%= __('gamelist.game_book') %></a>
 										<a href="#"  onclick="addGameList()"><span class="fa fa-plus me-2"></span><%= __('gamelist.new_game') %></a>
-										<a href="#"  id="btn-daily-settle"><%= __('gamelist.settle') || 'Settle' %></a>
+										<a href="#" id="btn-daily-settle"><%= __('gamelist.settle') || 'Settle' %></a>
+										<% if (permissions == 0) { %>
+											<% const undoLabel = __('gamelist.settle_undo'); %>
+											<a href="#" id="btn-daily-settle-undo" class="breadcrumb-undo-settle" style="display:none;"><%= undoLabel !== 'gamelist.settle_undo' ? undoLabel : 'Undo Settle' %></a>
+										<% } %>
 									  </div>								 
 									</div>
 																  
