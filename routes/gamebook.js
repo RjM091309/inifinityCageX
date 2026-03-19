@@ -2013,7 +2013,7 @@ router.post('/game_list/add/cashout', async (req, res) => {
 		const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 		await pool.execute(query2, [txtAccountCode, game_id, 1, txtTransType, CashOutDESC, txtNNamount + txtCCamount, req.session.user_id, date_now]);
 
-		// Fetch AGENT_CODE and NAME for Telegram
+		// Fetch agent info (also used for cash_transaction)
 		const agentQuery = `
 			SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
 			FROM agent
@@ -2025,6 +2025,7 @@ router.post('/game_list/add/cashout', async (req, res) => {
 		if (agentResults.length > 0) {
 			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
 
+			/* Telegram-only data for cash-out temporarily disabled
 			// Fetch TELEGRAM_ID for the agent
 			const telegramIdQuery = `
 				SELECT agent.TELEGRAM_ID 
@@ -2037,7 +2038,9 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			let time_now = new Date();
 			let updated_time = time_now.toLocaleTimeString();
 			let date_nowTG = new Date().toLocaleDateString();
+			*/
 
+			/* Telegram message content for cash-out temporarily disabled
 			// Prepare Telegram message
 			let text = '';
 			let managementText = ''; // Message for management (without account balance)
@@ -2054,7 +2057,9 @@ router.post('/game_list/add/cashout', async (req, res) => {
 				// Management/agent message: bilingual labels, no payment type
 				managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
+			*/
 
+			/* Telegram sending for cash-out temporarily disabled
 			// Send Telegram messages (when we have agent data)
 			if (text !== '' && agentResults.length > 0) {
 				const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
@@ -2083,6 +2088,7 @@ router.post('/game_list/add/cashout', async (req, res) => {
 					console.error('Failed to send Telegram message to management:', telegramError.message);
 				}
 			}
+			*/
 		}
 
 		if (txtTransType == 1 && agentResults.length > 0 && agentResults[0].agent_id) {

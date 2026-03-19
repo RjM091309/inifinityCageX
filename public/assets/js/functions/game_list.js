@@ -3245,6 +3245,7 @@ function reloadDataRecord() {
                         additional_buyin_nn: 0,  // Record NN chips separately for additional buy-in
                         cash_out: 0,
                         cash_out_nn: 0,
+                        cash_out_type: 1, // 1=Cash, 2=Deposit, 3=Marker (set on cash out)
                         real_rolling: 0,
                         total_rolling: 0,
                         total_rolling_for_calc: 0,  // CAGE_TYPE 3: AMOUNT + NN only (no CC)
@@ -3319,6 +3320,9 @@ function reloadDataRecord() {
                     // Track NN and CC chips for CASH OUT transactions
                     mergedData[dateKey].nn += (row.NN_CHIPS || 0);
                     mergedData[dateKey].cc += (row.CC_CHIPS || 0);
+                    // Track transaction type for CASH OUT (1=Cash, 2=Deposit, 3=Marker)
+                    var cashTrans = parseInt(row.TRANSACTION, 10) || 1;
+                    mergedData[dateKey].cash_out_type = cashTrans;
                 }
                 if (row.CAGE_TYPE == 3) { // TOTAL ROLLING
                     const rollingAmount = (row.AMOUNT || 0) + (row.NN_CHIPS || 0) + (row.CC_CHIPS || 0);
@@ -3438,13 +3442,15 @@ function reloadDataRecord() {
                 ''  // Empty for action column
             ]);
 
-            // Add individual records (color buy-in / additional_buyin only when value > 0 and deposit/marker)
+            // Add individual records (color buy-in / additional_buyin / cash_out only when value > 0 and deposit/marker/credit)
             function formatBuyinCell(val, transType) {
                 var num = parseFloat(val) || 0;
                 var str = num.toLocaleString();
                 if (num === 0) return str;
                 if (transType === 2) return '<span class="rolling-cell rolling-cell-deposit">' + str + '</span>';
                 if (transType === 3) return '<span class="rolling-cell rolling-cell-marker">' + str + '</span>';
+                // For cash-out via credit (TRANSACTION = 4), also use blue marker style
+                if (transType === 4) return '<span class="rolling-cell rolling-cell-marker">' + str + '</span>';
                 return str;
             }
             function buildActionButtons(rowData) {
@@ -3474,11 +3480,12 @@ function reloadDataRecord() {
                 const rollerChips = (rowData.roller_nn || 0) + (rowData.roller_cc || 0);
                 var buyInType = parseInt(rowData.buy_in_type, 10) || 1;
                 var addBuyinType = parseInt(rowData.additional_buyin_type, 10) || 1;
+                var cashOutType = parseInt(rowData.cash_out_type, 10) || 1;
                 allRows.push([
                     date,
                     formatBuyinCell(rowData.buy_in, buyInType),
                     formatBuyinCell(rowData.additional_buyin, addBuyinType),
-                    rowData.cash_out.toLocaleString(),
+                    formatBuyinCell(rowData.cash_out, cashOutType),
                     rowData.real_rolling.toLocaleString(),
                     (rowData.total_rolling_actual || 0).toLocaleString(),
                     rowData.nn.toLocaleString(),
