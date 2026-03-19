@@ -24,6 +24,9 @@
                 data-type="number"
                 autocomplete="off" 
               />
+              <div id="nnChipsError" class="invalid-feedback">
+                NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).
+              </div>
             </div>
           </div>
 
@@ -335,6 +338,16 @@ $(document).ready(function() {
     const ccbalance = parseFloat(($('#ccbalance').val()  || '0').toString().replace(/,/g, '')) || 0;
     const houseBal  = parseFloat(($('#housebal').val()   || '0').toString().replace(/,/g, '')) || 0;
 
+    // NN Chips must be in thousands (multiples of 1,000)
+    if (nnChips % 1000 !== 0) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid NN Chips amount',
+        text: 'NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
+      });
+      return false;
+    }
+
     // BUY-IN
     if (selected === "1") {
       // NN Chips must not exceed House Balance
@@ -386,7 +399,28 @@ $(document).ready(function() {
     $('#totalChips').val(totalChips.toLocaleString());
   }
 
-  $('#nnChips').on('input', calculateTotalChips);
+  // Live validation for NN Chips (thousands only)
+  function validateNnChipsThousandsInline() {
+    const $input = $('#nnChips');
+    const raw = ($input.val() || '').toString().replace(/,/g, '');
+    const value = parseFloat(raw) || 0;
+
+    if (!raw) {
+      $input.removeClass('is-invalid');
+      return;
+    }
+
+    if (value % 1000 !== 0) {
+      $input.addClass('is-invalid');
+    } else {
+      $input.removeClass('is-invalid');
+    }
+  }
+
+  $('#nnChips').on('input', function() {
+    calculateTotalChips();
+    validateNnChipsThousandsInline();
+  });
   $('#ccChips').on('input', calculateTotalChips);
 
   // 7) Spinner logic on form submit
