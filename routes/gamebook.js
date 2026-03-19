@@ -382,21 +382,34 @@ router.post('/add_game_list', async (req, res) => {
 	};
 	const gameTypeForMgmt = (val) => (val === '라이브' ? '라이브 Live' : val === '텔레벳' ? '텔레벳 Telebet' : val);
 
+	// Commission type labels for Telegram (1 = none, 2 = Share, 3 = Losing)
+	const commissionType = parseInt(txtCommisionType, 10) || null;
+	const commissionTextLabel =
+		commissionType === 2 ? '게임타입 : 셰어' :
+		commissionType === 3 ? '게임타입 : 루징' :
+		'';
+	const commissionMgmtLabel =
+		commissionType === 2 ? '게임타입 GameType : 셰어 Share' :
+		commissionType === 3 ? '게임타입 GameType : 루징 Losing' :
+		'';
+	const commissionTextLine = commissionTextLabel ? `\n${commissionTextLabel}` : '';
+	const commissionMgmtLine = commissionMgmtLabel ? `\n${commissionMgmtLabel}` : '';
+
 	let managementText = ''; // Message for management (without account balance)
 	
 	if (transType === 2) {
 		const newTotalBalance = totalBalanceGuest - totalAmount;
-		text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${result.insertId} - ${translatedTxtGameType}\n${labels.buyIn}: ${parseFloat(totalAmount).toLocaleString()} - ${labels.deposit}\n${labels.accountBalance}: ${parseFloat(newTotalBalance).toLocaleString()}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
+		text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${result.insertId} - ${translatedTxtGameType}${commissionTextLine}\n${labels.buyIn}: ${parseFloat(totalAmount).toLocaleString()} - ${labels.deposit}\n${labels.accountBalance}: ${parseFloat(newTotalBalance).toLocaleString()}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
 		// Management/agent message: bilingual labels, no payment type
-		managementText = `Infinity Cage\n\n* ${mgmtLabels.gameStart} *\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}\n${mgmtLabels.game} #: ${result.insertId} - ${gameTypeForMgmt(translatedTxtGameType)}\n${mgmtLabels.buyIn} : ${parseFloat(totalAmount).toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
+		managementText = `Infinity Cage\n\n* ${mgmtLabels.gameStart} *\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}\n${mgmtLabels.game} #: ${result.insertId} - ${gameTypeForMgmt(translatedTxtGameType)}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${parseFloat(totalAmount).toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
 	} else if (transType === 1) {
-		text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${gameId} - ${translatedGameType}\n${labels.buyIn}: ${totalAmount.toLocaleString()} - ${labels.cash}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
+		text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${gameId} - ${translatedGameType}${commissionTextLine}\n${labels.buyIn}: ${totalAmount.toLocaleString()} - ${labels.cash}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
 		// Management/agent message: bilingual labels, no payment type
-		managementText = `Infinity Cage\n\n* ${mgmtLabels.gameStart} *\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}\n${mgmtLabels.game} #: ${gameId} - ${gameTypeForMgmt(translatedGameType)}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
+		managementText = `Infinity Cage\n\n* ${mgmtLabels.gameStart} *\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}\n${mgmtLabels.game} #: ${gameId} - ${gameTypeForMgmt(translatedGameType)}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
 	} else if (transType === 3) {
-		text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${gameId} - ${translatedGameType}\n${labels.buyIn}: ${totalAmount.toLocaleString()} - ${labels.credit}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
+		text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${gameId} - ${translatedGameType}${commissionTextLine}\n${labels.buyIn}: ${totalAmount.toLocaleString()} - ${labels.credit}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
 		// Management/agent message: bilingual labels, no payment type
-		managementText = `Infinity Cage\n\n* ${mgmtLabels.gameStart} *\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}\n${mgmtLabels.game} #: ${gameId} - ${gameTypeForMgmt(translatedGameType)}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
+		managementText = `Infinity Cage\n\n* ${mgmtLabels.gameStart} *\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}\n${mgmtLabels.game} #: ${gameId} - ${gameTypeForMgmt(translatedGameType)}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
 	}
 
 		if (text && agentId) {
@@ -1716,18 +1729,40 @@ router.post('/add_settlement', async (req, res) => {
 			const totalRollingCCWithReturns = total_roller_return_cc;  // Only include roller return CC, exclude CC from CAGE_TYPE == 3
 			const total_rolling = total_rolling_nn + totalRollingCCWithReturns + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
 
+			// Get commission type from game_list for Telegram labels
+			let commissionTextLine = '';
+			let commissionMgmtLine = '';
+			try {
+				const [gameInfoRows] = await pool.execute(
+					'SELECT COMMISSION_TYPE FROM game_list WHERE IDNo = ? LIMIT 1',
+					[game_id_settle]
+				);
+				if (Array.isArray(gameInfoRows) && gameInfoRows.length > 0) {
+					const commissionType = parseInt(gameInfoRows[0].COMMISSION_TYPE, 10) || null;
+					if (commissionType === 2) {
+						commissionTextLine = '\n게임타입 : 셰어';
+						commissionMgmtLine = '\n게임타입 GameType : 셰어 Share';
+					} else if (commissionType === 3) {
+						commissionTextLine = '\n게임타입 : 루징';
+						commissionMgmtLine = '\n게임타입 GameType : 루징 Losing';
+					}
+				}
+			} catch (commissionErr) {
+				console.error('Failed to load commission type for settlement:', commissionErr.message || commissionErr);
+			}
+
 			// Prepare the Telegram message
 			let text;
 			let managementText; // Message for management (without account balance)
 			if (txtTransType == 1) {
 				const currentBalance = parseFloat(txtSettlementBalance.replace(/,/g, '')) + parseFloat(paymentValue);
-				text = `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id_settle}\n커미션: ${parseFloat(paymentValue).toLocaleString()} - 계좌입금\n잔고: ${parseFloat(currentBalance).toLocaleString()}\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				text = `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id_settle}${commissionTextLine}\n커미션: ${parseFloat(paymentValue).toLocaleString()} - 계좌입금\n잔고: ${parseFloat(currentBalance).toLocaleString()}\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				// Management/agent message: bilingual labels, no payment type
-				managementText = `Infinity Cage\n\n* 게임종료 / 정산 End Game *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id_settle}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				managementText = `Infinity Cage\n\n* 게임종료 / 정산 End Game *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id_settle}${commissionMgmtLine}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			} else {
-				text = `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id_settle}\n커미션: ${parseFloat(paymentValue).toLocaleString()} - 현금\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				text = `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id_settle}${commissionTextLine}\n커미션: ${parseFloat(paymentValue).toLocaleString()} - 현금\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				// Management/agent message: bilingual labels, no payment type
-				managementText = `Infinity Cage\n\n* 게임종료 / 정산 End Game *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id_settle}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				managementText = `Infinity Cage\n\n* 게임종료 / 정산 End Game *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id_settle}${commissionMgmtLine}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
 
 			if (telegramId) {

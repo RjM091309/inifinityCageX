@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Set default commission rates
     let defaultRollingGameRate = 1.45;  // Default for Rolling Game (CASH/DEPOSIT)
-    let defaultSharedGameRate = 45;    // Default for Shared Game (CASH/DEPOSIT and Marker)
+    let defaultSharedGameRate = 50;    // Default for Shared Game (CASH/DEPOSIT and Marker)
     let defaultMarkerRollingRate = 1.45;  // Default for Rolling Game (Marker)
 
     // Initialize commission rate based on selected commission type
@@ -233,8 +233,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         } else if (commissionType.value === "2") { // Shared Game
             commissionRate.setAttribute("step", "0.1"); // Shared keeps its own increment (keydown 2.5)
-            commissionRate.value = defaultSharedGameRate; // Default 45% for both CASH/DEPOSIT and Marker
-            commissionRate.setAttribute("min", "45"); // Minimum 45% for Shared Game
+            commissionRate.value = defaultSharedGameRate; // Default 50% for both CASH/DEPOSIT and Marker
+            commissionRate.setAttribute("min", "50"); // Minimum 50% for Shared Game
         }
     };
 
