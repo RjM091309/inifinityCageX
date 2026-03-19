@@ -247,12 +247,6 @@ router.post('/add_agent', uploadPassportImg.fields([{ name: 'photo', maxCount: 1
 	const apiKey = req.headers['x-api-key'];
 	const validApiKey = process.env.SCANNER_API_KEY;
 	const hasValidApiKey = validApiKey && apiKey === validApiKey;
-
-	// DEBUG - tanggalin pagkatapos ng test
-	console.log('🔑 API Key received:', apiKey);
-	console.log('🔑 Expected:', validApiKey);
-	console.log('👤 Session user:', req.session?.user_id);
-	console.log('✅ Has valid key:', hasValidApiKey);
   
 	if (!req.session?.user_id && !hasValidApiKey) {
 	  return res.status(401).json({ error: 'Unauthorized' });

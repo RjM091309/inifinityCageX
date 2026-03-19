@@ -130,14 +130,19 @@ router.get("/game_list", checkSession, async function (req, res) {
 	  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 	  const firstOfMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
 	  let defaultSettlementDate = todayStr;
+	  let lastSettlementDateStr = null;
 	  try {
+	    // Allow chaining settlements forward without being limited by today's date.
+	    // Example: today is 19, but if 18 and 19 and 20 are already settled,
+	    // the next default will be 21.
 	    const [rows] = await pool.execute(
-	      'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ?',
-	      [firstOfMonth, todayStr]
+	      'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE >= ?',
+	      [firstOfMonth]
 	    );
 	    const lastSettlement = rows[0] && rows[0].last_settlement;
 	    if (lastSettlement) {
 	      const last = lastSettlement instanceof Date ? lastSettlement : new Date(String(lastSettlement).slice(0, 10) + 'T12:00:00Z');
+	      lastSettlementDateStr = `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`;
 	      const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
 	      defaultSettlementDate = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(nextDate.getDate())}`;
 	    }
@@ -157,14 +162,16 @@ router.get("/game_list", checkSession, async function (req, res) {
 	  }
 	  const maxSettlementDate = defaultSettlementDate; // For picker max (allow navigating up to today/next)
 
-	  // Settled dates this month (for disabling Settle button when date already settled)
+	  // Settled dates in the last year (for disabling Settle button when date already settled)
 	  let settledDatesForMonth = [];
 	  try {
-	    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-	    const lastDayStr = `${lastDayOfMonth.getFullYear()}-${pad(lastDayOfMonth.getMonth() + 1)}-${pad(lastDayOfMonth.getDate())}`;
+	    const earliestAllowed = new Date(now.getFullYear() - 1, 0, 1); // January 1 of previous year
+	    const earliestStr = `${earliestAllowed.getFullYear()}-${pad(earliestAllowed.getMonth() + 1)}-${pad(earliestAllowed.getDate())}`;
+	    // Include all settled dates up to the latest settlement date (which can be in the future relative to today)
+	    const upperBoundStr = lastSettlementDateStr && lastSettlementDateStr > todayStr ? lastSettlementDateStr : todayStr;
 	    const [settledRows] = await pool.execute(
 	      'SELECT DISTINCT SETTLEMENT_DATE FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE',
-	      [firstOfMonth, lastDayStr]
+	      [earliestStr, upperBoundStr]
 	    );
 	    settledDatesForMonth = (settledRows || []).map(r => {
 	      const d = r.SETTLEMENT_DATE;

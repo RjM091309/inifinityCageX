@@ -996,9 +996,13 @@ $(document).ready(function () {
         var pad = function(n) { return String(n).padStart(2, '0'); };
         var nextDateStr = next.getFullYear() + '-' + pad(next.getMonth() + 1) + '-' + pad(next.getDate());
         
-        // Don't go beyond today
-        var todayStr = $('.day-selector-wrapper').attr('data-today') || new Date().toISOString().slice(0, 10);
-        if (nextDateStr > todayStr) {
+        // Don't go beyond the maximum allowed settlement date (server-calculated),
+        // falling back to "today" if it is not provided.
+        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
+        var maxAllowedStr = (wrapper && wrapper.getAttribute('data-max-settlement-date')) ||
+                            (wrapper && wrapper.getAttribute('data-today')) ||
+                            new Date().toISOString().slice(0, 10);
+        if (nextDateStr > maxAllowedStr) {
             return null;
         }
         
@@ -1118,11 +1122,13 @@ $(document).ready(function () {
         var now = new Date();
         var pad = function(n) { return String(n).padStart(2, '0'); };
         
-        // Get default settlement date from wrapper
+        // Get default and max settlement dates from wrapper
         var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
         var defaultSettlementDate = null;
+        var maxSettlementDate = null;
         if (wrapper) {
             defaultSettlementDate = wrapper.getAttribute('data-default-settlement-date');
+            maxSettlementDate = wrapper.getAttribute('data-max-settlement-date');
             var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
             try {
                 var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
@@ -1138,6 +1144,7 @@ $(document).ready(function () {
         // Set default date to today or default settlement date
         var todayStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
         var initialDate = defaultSettlementDate || todayStr;
+        var maxDateStr = maxSettlementDate || todayStr;
         
         // Initialize window.selectedSettlementDate
         window.selectedSettlementDate = initialDate;
@@ -1148,7 +1155,7 @@ $(document).ready(function () {
             altInput: true,
             altFormat: 'F j, Y',
             defaultDate: initialDate,
-            maxDate: 'today',
+            maxDate: maxDateStr,
             onChange: function(selectedDates, dateStr, instance) {
                 if (selectedDates && selectedDates.length > 0) {
                     window.selectedSettlementDate = dateStr;
@@ -1204,24 +1211,41 @@ $(document).ready(function () {
             }
         }
         
-        // Default date range: First settlement date to next day after last settlement (or next settlement date)
+        // Default date range: All settlements for the current month.
+        // If walang settlement this month, fallback to previous behavior.
         var settledDates = window.settledDatesForMonth || [];
         var defaultFromDate;
         var defaultToDate;
         
         if (settledDates.length > 0) {
-            // From Date: First settlement date (earliest)
-            var sortedDates = settledDates.slice().sort();
+            var currentYear = now.getFullYear();
+            var currentMonth = now.getMonth() + 1; // 1-12
+            
+            // Filter settled dates to current month/year
+            var settledDatesThisMonth = settledDates.filter(function (d) {
+                if (typeof d !== 'string' || d.length < 7) return false;
+                var parts = d.split('-');
+                if (parts.length < 2) return false;
+                var y = parseInt(parts[0], 10);
+                var m = parseInt(parts[1], 10);
+                if (isNaN(y) || isNaN(m)) return false;
+                return y === currentYear && m === currentMonth;
+            });
+            
+            var datesToUse = settledDatesThisMonth.length > 0 ? settledDatesThisMonth : settledDates;
+            var sortedDates = datesToUse.slice().sort();
+            
+            // From Date: First settlement date in the chosen set
             defaultFromDate = sortedDates[0];
             
-            // To Date: Next day after last settlement date OR next settlement date (defaultSettlementDate)
+            // To Date: Next settlement date (defaultSettlementDate) if available,
+            // otherwise next day after last settlement in the chosen set.
             var lastSettlementDate = sortedDates[sortedDates.length - 1];
             var lastDate = new Date(lastSettlementDate + 'T12:00:00');
             var nextDayAfterLast = new Date(lastDate);
             nextDayAfterLast.setDate(nextDayAfterLast.getDate() + 1);
             var nextDayAfterLastStr = nextDayAfterLast.getFullYear() + '-' + pad(nextDayAfterLast.getMonth() + 1) + '-' + pad(nextDayAfterLast.getDate());
             
-            // Use defaultSettlementDate (next settlement date) if available, otherwise use next day after last settlement
             defaultToDate = defaultSettlementDate || nextDayAfterLastStr;
         } else {
             // Fallback: First of current month to today (or default settlement date)
