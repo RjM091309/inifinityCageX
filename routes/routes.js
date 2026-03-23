@@ -1175,6 +1175,13 @@ pageRouter.get("/main_cage", function (req, res) {
 	res.render("junket/main_cage", sessions(req, 'main_cage'));
 });
 
+// ========== OTHERS PAGE ==========
+pageRouter.get("/others", checkSession, function (req, res) {
+	const data = sessions(req, 'others');
+	data.permissions = req.session.permissions;
+	res.render("others/others", data);
+});
+
 //========== USER ACCOUNTS ================
 pageRouter.get("/user_roles", function (req, res) {
 	const data = sessions(req, 'user_roles');
