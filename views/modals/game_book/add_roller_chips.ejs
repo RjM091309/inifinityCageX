@@ -80,3 +80,43 @@
 	</form>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+	const nnInput = document.querySelector('#modal-add-roller-chips .txtRollerNN');
+	const transRadios = document.querySelectorAll('#modal-add-roller-chips input[name="txtTransType"]');
+
+	if (!nnInput) return;
+
+	function validateInline() {
+		// Check selected transaction type
+		const selected = document.querySelector('#modal-add-roller-chips input[name="txtTransType"]:checked');
+		const transType = selected ? selected.value : null;
+
+		const raw = (nnInput.value || '').toString().replace(/,/g, '');
+		const trimmed = raw.trim();
+
+		// For RETURN (value != '1'): always clear error
+		if (transType !== '1') {
+			nnInput.classList.remove('is-invalid');
+			return;
+		}
+
+		// For ADD: allow empty while typing
+		if (!trimmed) {
+			nnInput.classList.remove('is-invalid');
+			return;
+		}
+
+		const value = Number(trimmed);
+
+		if (!Number.isFinite(value) || value <= 0 || value % 1000 !== 0) {
+			nnInput.classList.add('is-invalid');
+		} else {
+			nnInput.classList.remove('is-invalid');
+		}
+	}
+
+	nnInput.addEventListener('input', validateInline);
+	transRadios.forEach(r => r.addEventListener('change', validateInline));
+});
+</script>

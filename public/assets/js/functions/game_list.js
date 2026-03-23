@@ -1641,7 +1641,21 @@ $('#add_game_list').submit(function (event) {
     var txtNNamount = parseFloat(nnChips.replace(/,/g, '')) || 0; // Convert NN Chips to number
     var txtCCamount = parseFloat(ccChips.replace(/,/g, '')) || 0; // Convert CC Chips to number
     var totalBalanceGuest1 = $('#total_balanceGuest1').val().replace(/,/g, '').trim();
-   
+
+    // Enforce NN Chips as positive thousands (1,000 / 2,000 / 3,000 ...) when provided
+    var nnDigits = nnChips.replace(/,/g, '');
+    var nnTrimmed = nnDigits.trim();
+    if (nnTrimmed !== '' && (txtNNamount <= 0 || txtNNamount % 1000 !== 0)) {
+        Swal.fire({
+            title: 'Invalid NN Chips amount',
+            text: 'NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+
+        $btn.prop('disabled', false).text('Submit'); // Re-enable button
+        return;
+    }
 
     // Check if the required fields are filled
     if ((nnChips === '' && ccChips === '') || !transType || !commissionTypeSelected) {
@@ -1681,19 +1695,34 @@ $('#add_game_list').submit(function (event) {
         var gameType = $('input[name="txtGameType"]:checked').val() || '';
         var accountCode = $('#txtTrans').val() || '';
         var accountText = $('#txtTrans option:selected').text() || accountCode;
-        var rollerNN = $('#txtRollerNN').val().trim().replace(/,/g, '') || '0';
-        var rollerCC = $('#txtRollerCC').val().trim().replace(/,/g, '') || '0';
-        var rollerNNAmount = parseFloat(rollerNN) || 0;
-        var rollerCCAmount = parseFloat(rollerCC) || 0;
+        var rollerNN = $('#txtRollerNN').val().trim();
+        var rollerCC = $('#txtRollerCC').val().trim();
+        var rollerNNAmount = parseFloat(rollerNN.replace(/,/g, '')) || 0;
+        var rollerCCAmount = parseFloat(rollerCC.replace(/,/g, '')) || 0;
         var commissionType = $('#commissionType').val() || '';
         var commissionTypeText = $('#commissionType option:selected').text() || '';
         var commissionRate = $('#commissionRate').val() || '0';
-        
+
+        // Enforce Roller NN Chips as positive thousands when provided
+        var rollerNNDigits = rollerNN.replace(/,/g, '');
+        var rollerNNTrimmed = rollerNNDigits.trim();
+        if (rollerNNTrimmed !== '' && (rollerNNAmount <= 0 || rollerNNAmount % 1000 !== 0)) {
+            Swal.fire({
+                title: 'Invalid Roller NN Chips amount',
+                text: 'Roller NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+
+            $btn.prop('disabled', false).text('Submit'); // Re-enable button
+            return;
+        }
+
         var transTypeText = '';
         if (transType == '1') transTypeText = 'Cash';
         else if (transType == '2') transTypeText = 'Deposit';
         else if (transType == '3') transTypeText = 'Credit';
-        
+
         var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
         var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
         var buildRow = function (label, value) {
@@ -1735,9 +1764,9 @@ $('#add_game_list').submit(function (event) {
                 </table>
             </div>
         `;
-        
+
         var $form = $(this); // Store form reference
-        
+
         Swal.fire({
             icon: 'question',
             title: 'Confirm New Game',
@@ -1757,7 +1786,7 @@ $('#add_game_list').submit(function (event) {
                     <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                     Loading...
                 `);
-                
+
                 var formData = $form.serialize();
 
                 $.ajax({
@@ -1824,6 +1853,24 @@ $('#add_buyin').submit(function (event) {
 	const txtNNamount = parseFloat(nnChips.replace(/,/g, '')) || 0;
 	const txtCCamount = parseFloat(ccChips.replace(/,/g, '')) || 0;
 	const totalEnteredAmount = txtNNamount + txtCCamount;
+
+	// Enforce NN Chips as positive thousands (1,000 / 2,000 / 3,000 ...) when provided
+	const $nnInput = $('.txtNN');
+	$nnInput.removeClass('is-invalid'); // reset state on each submit
+	const nnDigits = nnChips.replace(/,/g, '');
+	const nnTrimmed = nnDigits.trim();
+	if (nnTrimmed !== '' && (txtNNamount <= 0 || txtNNamount % 1000 !== 0)) {
+		$nnInput.addClass('is-invalid');
+		Swal.fire({
+			title: 'Invalid NN Chips amount',
+			text: 'NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).',
+			icon: 'error',
+			confirmButtonText: 'OK'
+		});
+
+		$btn.prop('disabled', false).text('Submit'); // Re-enable button
+		return;
+	}
 
 	// Validation
 	if (!nnChips && !ccChips && !transTypeSelected) {
@@ -1970,6 +2017,22 @@ $('#add_buyin').submit(function (event) {
 		var txtCC = parseFloat(($('#txtCCCashout').val() || '0').replace(/,/g, '')); 
 		var markerChipsReturn = parseFloat(($('#MarkerChipsReturn').val() || '0').replace(/,/g, '')); 
 		var txtTransType = $('input[name="txtTransType"]:checked').val(); 
+
+		// Thousands-only validation for NN Cashout (positive multiples of 1,000)
+		var nnRaw = ($('#txtNNCashout').val() || '').toString().replace(/,/g, '');
+		var nnTrimmed = nnRaw.trim();
+		var $nnInput = $('#txtNNCashout');
+		$nnInput.removeClass('is-invalid');
+		if (nnTrimmed !== '' && (txtNN <= 0 || txtNN % 1000 !== 0)) {
+			$nnInput.addClass('is-invalid');
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid NN Chips amount',
+				text: 'NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
 	
 		if (txtNN > txtTotalRolling) {
 			Swal.fire({
@@ -2220,6 +2283,20 @@ $('#add_buyin').submit(function (event) {
 		var nnAmount = parseFloat(nnChips) || 0;
 		var ccAmount = parseFloat(ccChips) || 0;
 		
+		// Thousands-only validation for NN when ADD (transType == 1). RETURN (2) can be any amount.
+		var $nnInput = $('#modal-add-roller-chips .txtRollerNN');
+		$nnInput.removeClass('is-invalid');
+		if (transType == 1 && nnChips !== '' && (nnAmount <= 0 || nnAmount % 1000 !== 0)) {
+			$nnInput.addClass('is-invalid');
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid NN Chips amount',
+				text: 'For ADD, NN Chips must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
+			});
+			$btn.prop('disabled', false).text('Save');
+			return;
+		}
+
 		// Validation
 		if (!nnChips && !ccChips) {
 			Swal.fire({

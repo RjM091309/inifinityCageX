@@ -20,10 +20,10 @@
 						</div>
 
 							<div class="row mb-4">
-								<div class="col-sm-6">
-									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
-										class="form-control text-center txtNN" placeholder="NN Chips" name="txtNN">
-								</div>
+							<div class="col-sm-6">
+								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+									class="form-control text-center txtNN" placeholder="NN Chips" name="txtNN">
+							</div>
 
 								<div class="col-sm-6">
 									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
@@ -60,10 +60,36 @@
 												Credit
 											</span>
 										</label>
-									</div>
-								</div>
-							</div>
-					</div>
+		</div>
+	</div>
+</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+	const nnInput = document.querySelector('#modal-add-buyin .txtNN');
+	if (!nnInput) return;
+
+	nnInput.addEventListener('input', function () {
+		const raw = (this.value || '').toString().replace(/,/g, '');
+		const trimmed = raw.trim();
+
+		// Allow empty while typing
+		if (!trimmed) {
+			this.classList.remove('is-invalid');
+			return;
+		}
+
+		const value = Number(trimmed);
+
+		if (!Number.isFinite(value) || value <= 0 || value % 1000 !== 0) {
+			this.classList.add('is-invalid');
+		} else {
+			this.classList.remove('is-invalid');
+		}
+	});
+});
+</script>
 					<div class="modal-footer">
 						<button type="submit" id="submit-buyin-btn" class="btn btn-sm btn-primary" >
 							Save

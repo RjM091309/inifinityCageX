@@ -146,6 +146,7 @@
 
 document.addEventListener("DOMContentLoaded", function () {
     const txtNN = document.getElementById("txtNN");
+    const txtRollerNN = document.getElementById("txtRollerNN");
     const availableNN = document.getElementById("availableNN");
 
     function getAvailableChips() {
@@ -154,22 +155,60 @@ document.addEventListener("DOMContentLoaded", function () {
         return parseFloat(raw) || 0;
     }
 
-    txtNN.addEventListener("input", function () {
-        const inputVal = parseFloat(this.value.replace(/,/g, "")) || 0;
-        const available = getAvailableChips();
+    // Live validation: NN values must be positive thousands (1,000 / 2,000 / 3,000 ...)
+    function validateNnThousandsInline(inputEl) {
+        if (!inputEl) return true;
 
-        if (inputVal > available) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Exceeds Available NN Chips',
-                text: `You only have ${available.toLocaleString()} Chips available.`,
-                confirmButtonColor: '#3a57e8'
-            });
+        const raw = (inputEl.value || '').toString().replace(/,/g, '');
+        const trimmed = raw.trim();
 
-            this.value = ""; // clear input
-            this.focus();
+        // Allow empty field (validated later depending on context)
+        if (!trimmed) {
+            inputEl.classList.remove('is-invalid');
+            return true;
         }
-    });
+
+        const value = parseFloat(trimmed) || 0;
+
+        if (value <= 0 || value % 1000 !== 0) {
+            inputEl.classList.add('is-invalid');
+            return false;
+        }
+
+        inputEl.classList.remove('is-invalid');
+        return true;
+    }
+
+    if (txtNN) {
+        txtNN.addEventListener("input", function () {
+            // Thousands-only validation first
+            const isValidThousands = validateNnThousandsInline(this);
+            if (!isValidThousands) return;
+
+            // Then enforce available NN Chips limit
+            const inputVal = parseFloat(this.value.replace(/,/g, "")) || 0;
+            const available = getAvailableChips();
+
+            if (inputVal > available) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Exceeds Available NN Chips',
+                    text: `You only have ${available.toLocaleString()} Chips available.`,
+                    confirmButtonColor: '#3a57e8'
+                });
+
+                this.value = ""; // clear input
+                this.classList.remove('is-invalid');
+                this.focus();
+            }
+        });
+    }
+
+    if (txtRollerNN) {
+        txtRollerNN.addEventListener("input", function () {
+            validateNnThousandsInline(this);
+        });
+    }
 });
 
 document.addEventListener("DOMContentLoaded", function () {

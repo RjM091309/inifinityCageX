@@ -24,9 +24,6 @@
                 data-type="number"
                 autocomplete="off" 
               />
-              <div id="nnChipsError" class="invalid-feedback">
-                NN Chips amount must be in thousands (e.g. 1,000 / 2,000 / 3,000).
-              </div>
             </div>
           </div>
 
@@ -332,14 +329,17 @@ $(document).ready(function() {
   window.validateChips = function() {
     const selected = $('input[name="optBuyinReturn"]:checked').val(); // "1" buy-in, "2" return
 
-    const nnChips   = parseFloat(($('#nnChips').val()    || '0').toString().replace(/,/g, '')) || 0;
-    const ccChips   = parseFloat(($('#ccChips').val()    || '0').toString().replace(/,/g, '')) || 0;
-    const nnbalance = parseFloat(($('#nnbalance').val()  || '0').toString().replace(/,/g, '')) || 0;
-    const ccbalance = parseFloat(($('#ccbalance').val()  || '0').toString().replace(/,/g, '')) || 0;
-    const houseBal  = parseFloat(($('#housebal').val()   || '0').toString().replace(/,/g, '')) || 0;
+    const nnChipsRaw = (($('#nnChips').val() || '') + '').replace(/,/g, '');
+    const nnChips    = parseFloat(nnChipsRaw || '0') || 0;
+    const ccChips    = parseFloat(($('#ccChips').val()    || '0').toString().replace(/,/g, '')) || 0;
+    const nnbalance  = parseFloat(($('#nnbalance').val()  || '0').toString().replace(/,/g, '')) || 0;
+    const ccbalance  = parseFloat(($('#ccbalance').val()  || '0').toString().replace(/,/g, '')) || 0;
+    const houseBal   = parseFloat(($('#housebal').val()   || '0').toString().replace(/,/g, '')) || 0;
 
-    // NN Chips must be in thousands (multiples of 1,000)
-    if (nnChips % 1000 !== 0) {
+    const nnTrimmed = nnChipsRaw.trim();
+
+    // NN Chips must be positive thousands (multiples of 1,000)
+    if (nnTrimmed && (nnChips <= 0 || nnChips % 1000 !== 0)) {
       Swal.fire({
         icon: 'error',
         title: 'Invalid NN Chips amount',
@@ -402,15 +402,17 @@ $(document).ready(function() {
   // Live validation for NN Chips (thousands only)
   function validateNnChipsThousandsInline() {
     const $input = $('#nnChips');
-    const raw = ($input.val() || '').toString().replace(/,/g, '');
-    const value = parseFloat(raw) || 0;
+    const raw = (($input.val() || '') + '').replace(/,/g, '');
+    const trimmed = raw.trim();
 
-    if (!raw) {
+    if (!trimmed) {
       $input.removeClass('is-invalid');
       return;
     }
 
-    if (value % 1000 !== 0) {
+    const value = parseFloat(trimmed) || 0;
+
+    if (value <= 0 || value % 1000 !== 0) {
       $input.addClass('is-invalid');
     } else {
       $input.removeClass('is-invalid');
