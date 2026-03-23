@@ -88,20 +88,10 @@ document.addEventListener('DOMContentLoaded', function () {
 	if (!nnInput) return;
 
 	function validateInline() {
-		// Check selected transaction type
-		const selected = document.querySelector('#modal-add-roller-chips input[name="txtTransType"]:checked');
-		const transType = selected ? selected.value : null;
-
 		const raw = (nnInput.value || '').toString().replace(/,/g, '');
 		const trimmed = raw.trim();
 
-		// For RETURN (value != '1'): always clear error
-		if (transType !== '1') {
-			nnInput.classList.remove('is-invalid');
-			return;
-		}
-
-		// For ADD: allow empty while typing
+		// Allow empty while typing for both ADD and RETURN
 		if (!trimmed) {
 			nnInput.classList.remove('is-invalid');
 			return;

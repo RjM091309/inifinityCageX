@@ -88,3 +88,31 @@
 	</div>
 	</form>
 	</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+	var nnInput = document.querySelector('#modal-change_status .txtReturnRollerNN');
+	if (!nnInput) return;
+
+	function validateReturnNNInline() {
+		var raw = (nnInput.value || '').toString().replace(/,/g, '');
+		var trimmed = raw.trim();
+
+		// Allow empty while typing
+		if (!trimmed) {
+			nnInput.classList.remove('is-invalid');
+			return;
+		}
+
+		var value = Number(trimmed);
+
+		if (!Number.isFinite(value) || value <= 0 || value % 1000 !== 0) {
+			nnInput.classList.add('is-invalid');
+		} else {
+			nnInput.classList.remove('is-invalid');
+		}
+	}
+
+	nnInput.addEventListener('input', validateReturnNNInline);
+});
+</script>

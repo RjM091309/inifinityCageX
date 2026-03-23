@@ -2283,15 +2283,15 @@ $('#add_buyin').submit(function (event) {
 		var nnAmount = parseFloat(nnChips) || 0;
 		var ccAmount = parseFloat(ccChips) || 0;
 		
-		// Thousands-only validation for NN when ADD (transType == 1). RETURN (2) can be any amount.
+		// Thousands-only validation for NN for both ADD and RETURN.
 		var $nnInput = $('#modal-add-roller-chips .txtRollerNN');
 		$nnInput.removeClass('is-invalid');
-		if (transType == 1 && nnChips !== '' && (nnAmount <= 0 || nnAmount % 1000 !== 0)) {
+		if (nnChips !== '' && (nnAmount <= 0 || nnAmount % 1000 !== 0)) {
 			$nnInput.addClass('is-invalid');
 			Swal.fire({
 				icon: 'error',
 				title: 'Invalid NN Chips amount',
-				text: 'For ADD, NN Chips must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
+				text: 'NN Chips must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
 			});
 			$btn.prop('disabled', false).text('Save');
 			return;
@@ -2593,6 +2593,20 @@ $('#edit_status').submit(function (event) {
 			var returnNNAmount = parseFloat(returnNN) || 0;
 			var returnCCAmount = parseFloat(returnCC) || 0;
 			var returnTotal = returnNNAmount + returnCCAmount;
+
+			// Thousands-only validation for Return NN (NN Chips)
+			var $returnNNInput = $('#txtReturnRollerNN');
+			$returnNNInput.removeClass('is-invalid');
+			if (returnNN !== '' && (returnNNAmount <= 0 || returnNNAmount % 1000 !== 0)) {
+				$returnNNInput.addClass('is-invalid');
+				Swal.fire({
+					icon: 'error',
+					title: 'Invalid NN Chips amount',
+					text: 'Return NN Chips must be in thousands (e.g. 1,000 / 2,000 / 3,000).'
+				});
+				$btn.prop('disabled', false).html('Save');
+				return;
+			}
 			
 			// Validate combined total matches required (NN/CC mix allowed)
 			var totalsMatch = true;
