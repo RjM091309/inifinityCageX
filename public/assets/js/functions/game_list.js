@@ -975,7 +975,13 @@ $(document).ready(function () {
         }
 
         var date = window.selectedSettlementDate;
-        var todayStr = $('#settlement-date-wrapper .input-group').attr('data-today') || new Date().toISOString().slice(0, 10);
+        // Use the "next settlement date" (data-default-settlement-date) as the boundary
+        // for deciding which old dates with no records should disable the Settle button.
+        var baseDateStr =
+            $('#settlement-date-wrapper .input-group').attr('data-default-settlement-date') ||
+            $('#settlement-date-wrapper .input-group').attr('data-today') ||
+            new Date().toISOString().slice(0, 10);
+
         if (!date) {
             $btn.addClass('disabled').removeClass('breadcrumb-settled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
             $undoBtn.addClass('disabled').hide();
@@ -992,8 +998,12 @@ $(document).ready(function () {
         }
         var isLatestSettled = settled && latestSettledDate && date === latestSettledDate;
 
-        var isPastDate = date < todayStr;
-        var noRecordsForPastDate = (recordCount !== undefined && recordCount === 0 && isPastDate);
+        // Only treat a date as "past with no records" if it is BEFORE the first
+        // open settlement date exposed by the backend (baseDateStr). This allows
+        // settling a missed day (e.g. yesterday) even when it has zero rows.
+        var isBeforeFirstOpenSettlementDate = date < baseDateStr;
+        var noRecordsForOldUnsettledDate =
+            recordCount !== undefined && recordCount === 0 && isBeforeFirstOpenSettlementDate;
 
         if (settled) {
             // Settled state: change label + color
@@ -1007,7 +1017,7 @@ $(document).ready(function () {
             } else {
                 $undoBtn.addClass('disabled').hide();
             }
-        } else if (noRecordsForPastDate) {
+        } else if (noRecordsForOldUnsettledDate) {
             $btn.addClass('disabled').removeClass('breadcrumb-settled').text(settleBtnLabel).css('pointer-events', 'none').css('opacity', '0.5');
             $undoBtn.addClass('disabled').hide();
         } else {

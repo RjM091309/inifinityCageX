@@ -966,6 +966,8 @@ router.get('/game_list_data', async (req, res) => {
                     'SELECT IDNo FROM daily_settlement WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1 LIMIT 1',
                     [date]
                 );
+
+                // If this date already has a settlement, always show those games.
                 if (hasSettlement.length > 0) {
                     const query = baseSelect + `
                         JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
@@ -981,7 +983,39 @@ router.get('/game_list_data', async (req, res) => {
                     
                     return res.json(rows);
                 }
-                if (date >= todayServer) {
+
+                // Compute the "next settlement date" (first day AFTER the latest settlement this month),
+                // falling back to today when there is no settlement yet. This matches the logic used
+                // when rendering the Game Book page and ensures the frontend and backend agree on
+                // which date is the next eligible day to settle.
+                let defaultSettlementDate = todayServer;
+                try {
+                    const nowServer = new Date();
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const firstOfMonthDefault = `${nowServer.getFullYear()}-${pad(nowServer.getMonth() + 1)}-01`;
+                    const [lastRows] = await pool.execute(
+                        'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE >= ?',
+                        [firstOfMonthDefault]
+                    );
+                    const lastSettlement = lastRows[0] && lastRows[0].last_settlement;
+                    if (lastSettlement) {
+                        const last =
+                            lastSettlement instanceof Date
+                                ? lastSettlement
+                                : new Date(String(lastSettlement).slice(0, 10) + 'T12:00:00Z');
+                        const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
+                        defaultSettlementDate = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(
+                            nextDate.getDate()
+                        )}`;
+                    }
+                } catch (e) {
+                    // Keep defaultSettlementDate = todayServer if anything goes wrong
+                }
+
+                // For dates at or after the next settlement date, show the current unsettled games.
+                // This allows running a missed settlement (e.g., settling the previous day on the
+                // following day) as long as the date is the next logical settlement date.
+                if (date >= defaultSettlementDate) {
                     const query = baseSelect + `
                         WHERE game_list.ACTIVE != 0 
                           AND (game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL)
@@ -1011,8 +1045,8 @@ router.get('/game_list_data', async (req, res) => {
                     return res.json(rows);
                 }
                 
-                // Past date with no settlement: return empty array
-                // If a past date hasn't been settled, it means there's no data for that date
+                // Past date *before* the next settlement date with no settlement record:
+                // there is no defined data set for that date, so return an empty list.
                 return res.json([]);
             }
         } catch (err) {
