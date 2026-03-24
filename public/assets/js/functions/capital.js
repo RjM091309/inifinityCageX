@@ -466,18 +466,19 @@ function loadCashInData() {
     $('#cash-in-tbl').DataTable({
         "processing": false,
         "serverSide": false,
+        "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
         "order": [[5, 'desc']],
-       "ajax": {
-            "url": `/cash_transaction_data?start_date=${startDate}&end_date=${endDate}&type=1&` + new Date().getTime(),
+        "ajax": {
+            "url": `/cash_in_details?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
             "type": "GET",
             "dataSrc": function(json) {
-            console.log('Raw Data:', json);
+                console.log('Raw Cash-In Data (source tables):', json);
 
-            if (!Array.isArray(json)) {
-                console.error('Expected array but got:', json);
-                return [];
-            }
-            
+                if (!Array.isArray(json)) {
+                    console.error('Expected array but got:', json);
+                    return [];
+                }
+                
                 const filterValue = getCashInFilterValue();
                 const filterConfig = {
                     all: null,
@@ -490,7 +491,10 @@ function loadCashInData() {
                 const config = filterConfig[filterValue];
 
                 return json
-                    .filter(row => parseInt(row.TYPE, 10) === 1)
+                    .filter(row => {
+                        // All rows in this endpoint are cash-in (TYPE = 1)
+                        return parseInt(row.TYPE, 10) === 1;
+                    })
                     .filter(row => {
                         if (!config) {
                             return true;
@@ -515,15 +519,15 @@ function loadCashInData() {
                         return [
                             typeText,
                             accountName,
-                    amount,
+                            amount,
                             remarks,
                             encodedBy,
                             formattedDate,
                             serviceTransactionId
-                ];
-            });
-        }
-    },
+                        ];
+                    });
+            }
+        },
         "columns": [
             { "className": "text-center" },
             { "className": "text-start" },
@@ -572,17 +576,18 @@ function loadCashOutData() {
     $('#cash-out-tbl').DataTable({
         "processing": false,
         "serverSide": false,
+        "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
         "order": [[5, 'desc']],
-       "ajax": {
-            "url": `/cash_transaction_data?start_date=${startDate}&end_date=${endDate}&type=2&` + new Date().getTime(),
-        "type": "GET",
+        "ajax": {
+            "url": `/cash_out_details?start_date=${startDate}&end_date=${endDate}&` + new Date().getTime(),
+            "type": "GET",
             "dataSrc": function(json) {
-            console.log('Raw Cash-Out Data:', json);
+                console.log('Raw Cash-Out Data (source tables):', json);
 
-            if (!Array.isArray(json)) {
-                console.error('Expected array but got:', json);
-                return [];
-            }
+                if (!Array.isArray(json)) {
+                    console.error('Expected array but got:', json);
+                    return [];
+                }
             
                 const filterValue = getCashOutFilterValue();
                 const filterConfig = {
@@ -626,8 +631,8 @@ function loadCashOutData() {
                             formattedDate
                         ];
                     });
-        }
-    },
+            }
+        },
         "columns": [
             { "className": "text-center" },
             { "className": "text-start" },
@@ -673,26 +678,29 @@ function chipsTransactionComputation() {
         url: `/junket_capital_data?start_date=${startOfMonth}&end_date=${currentDate}&` + new Date().getTime(),
         type: "GET",
         success: function (data) {
-            let totalChipsBuyIn  = 0;
-            let totalChipsReturn = 0;
+            let totalChipsBuyIn   = 0;
+            let totalChipsReturn  = 0;
+            let totalChipsRolling = 0;
             
             data.forEach(row => {
-                // Chips Buy-in: TRANSACTION_ID must equal 1 and capital_description must exactly match "<span class="css-red">Chips Buy-in</span>"
+                // Chips Buy-in: TRANSACTION_ID must equal 1 and capital_description must exactly match "<span class=\"css-red\">Chips Buy-in</span>"
                 const isChipsBuyIn = row.TRANSACTION_ID == 1 && row.capital_description === '<span class="css-red">Chips Buy-in</span>';
-                // Chips Return: TRANSACTION_ID must equal 2 and capital_description must exactly match "<span class="css-red">Chips Return</span>"
+                // Chips Return: TRANSACTION_ID must equal 2 and capital_description must exactly match "<span class=\"css-red\">Chips Return</span>"
                 const isChipsReturn = row.TRANSACTION_ID == 2 && row.capital_description === '<span class="css-red">Chips Return</span>';
+                // Chips Rolling: TRANSACTION_ID must equal 3 and capital_description must exactly match "<span class=\"css-red\">Chips Rolling</span>"
+                const isChipsRolling = row.TRANSACTION_ID == 3 && row.capital_description === '<span class="css-red">Chips Rolling</span>';
                 
                 // Use row.NN_CHIPS exclusively.
-                if (isChipsBuyIn) {
-                    totalChipsBuyIn += parseFloat(row.NN_CHIPS || 0);
-                }
-                if (isChipsReturn) {
-                    totalChipsReturn += parseFloat(row.NN_CHIPS || 0);
-                }
+                const nnValue = parseFloat(row.NN_CHIPS || 0);
+                if (!nnValue) return;
+
+                if (isChipsBuyIn)   totalChipsBuyIn   += nnValue;
+                if (isChipsReturn)  totalChipsReturn  += nnValue;
+                if (isChipsRolling) totalChipsRolling += nnValue;
             });
             
-            // Net chips = totalChipsBuyIn - totalChipsReturn
-            const netChips = totalChipsBuyIn - totalChipsReturn;
+            // Net chips = Buy-in + Rolling - Return
+            const netChips = totalChipsBuyIn + totalChipsRolling - totalChipsReturn;
             $('#chips-transaction-total').text(`₱${netChips.toLocaleString()}`);
             // console.log('Updated net chips (Buy-in minus Return):', netChips);
             loadedTotalsCount++;
@@ -810,26 +818,32 @@ function loadChipsTransaction() {
                     return [];
                 }
                 
-                // Filter for Chips Buy-in or Chips Return and only those with NN_CHIPS > 0.
+                // Filter for Chips Buy-in, Chips Return, or Chips Rolling and only those with NN_CHIPS > 0.
                 const filteredData = json.filter(row => {
                     const chipsBuyIn = row.TRANSACTION_ID == 1 &&
                         row.capital_description === '<span class="css-red">Chips Buy-in</span>';
                     const chipsReturn = row.TRANSACTION_ID == 2 &&
                         row.capital_description === '<span class="css-red">Chips Return</span>';
+                    const chipsRolling = row.TRANSACTION_ID == 3 &&
+                        row.capital_description === '<span class="css-red">Chips Rolling</span>';
                     
                     // Use only NN_CHIPS value. Exclude if NN_CHIPS is not greater than 0.
                     const nnChips = parseFloat(row.NN_CHIPS) || 0;
-                    return (chipsBuyIn || chipsReturn) && nnChips > 0;
+                    return (chipsBuyIn || chipsReturn || chipsRolling) && nnChips > 0;
                 }).map(function(row) {
                     const isChipsBuyIn = row.TRANSACTION_ID == 1 &&
                         row.capital_description === '<span class="css-red">Chips Buy-in</span>';
+                    const isChipsRolling = row.TRANSACTION_ID == 3 &&
+                        row.capital_description === '<span class="css-red">Chips Rolling</span>';
 
                     // Use NN_CHIPS exclusively.
                     const nnChips = parseFloat(row.NN_CHIPS) || 0;
                     const amount = nnChips.toLocaleString();
                     const type = isChipsBuyIn
                         ? '<span class="css-red">Chips Buy-in</span>'
-                        : '<span class="css-blue">Chips Return</span>';
+                        : (isChipsRolling
+                            ? '<span class="badge-rolling">Chips Rolling</span>'
+                            : '<span class="css-blue">Chips Return</span>');
 
                     return [
                         row.ENCODED_BY_NAME || 'N/A',

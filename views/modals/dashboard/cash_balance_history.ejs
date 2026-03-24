@@ -125,23 +125,61 @@ $(document).ready(function() {
       processing: false,
       serverSide: false,
       order: [[4, 'desc']],
-      ajax: {
-        url: `/cash_transaction_data?start_date=${start}&end_date=${end}${type && type !== 'all' ? `&type=${type}` : ''}&` + new Date().getTime(),
-        dataSrc: function(json) {
-          if (!Array.isArray(json)) return [];
-          return json.map(row => ({
-            typeText: row.CATEGORY || (row.TYPE == 1 ? 'Cash-in' : 'Cash-out'),
-            rawCategory: row.CATEGORY || '',
-            amount: formatAmount(row.AMOUNT),
-            remarks: row.REMARKS || '',
-            encodedBy: row.ENCODED_BY_NAME || 'N/A',
-            date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
-            typeValue: parseInt(row.TYPE, 10),
-            serviceTransactionId: row.SERVICE_TRANSACTION_ID != null
-              ? parseInt(row.SERVICE_TRANSACTION_ID, 10)
-              : null
-          }));
+      ajax: function(data, callback) {
+        const urls = [];
+        const ts = new Date().getTime();
+
+        if (type === 'all' || type === '1') {
+          urls.push(`/cash_in_details?start_date=${start}&end_date=${end}&${ts}`);
         }
+        if (type === 'all' || type === '2') {
+          urls.push(`/cash_out_details?start_date=${start}&end_date=${end}&${ts}`);
+        }
+
+        if (urls.length === 0) {
+          callback({ data: [] });
+          return;
+        }
+
+        const requests = urls.map(url =>
+          $.getJSON(url).catch(err => {
+            console.error('Failed to load cash details from', url, err);
+            return [];
+          })
+        );
+
+        Promise.all(requests)
+          .then(results => {
+            let combined = [];
+            results.forEach(arr => {
+              if (Array.isArray(arr)) combined = combined.concat(arr);
+            });
+
+            combined.sort((a, b) => {
+              const aTime = a.ENCODED_DT ? new Date(a.ENCODED_DT).getTime() : 0;
+              const bTime = b.ENCODED_DT ? new Date(b.ENCODED_DT).getTime() : 0;
+              return bTime - aTime;
+            });
+
+            const mapped = combined.map(row => ({
+              typeText: row.CATEGORY || (row.TYPE == 1 ? 'Cash-in' : 'Cash-out'),
+              rawCategory: row.CATEGORY || '',
+              amount: formatAmount(row.AMOUNT),
+              remarks: row.REMARKS || '',
+              encodedBy: row.ENCODED_BY_NAME || 'N/A',
+              date: moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM, YYYY HH:mm:ss'),
+              typeValue: parseInt(row.TYPE, 10),
+              serviceTransactionId: row.SERVICE_TRANSACTION_ID != null
+                ? parseInt(row.SERVICE_TRANSACTION_ID, 10)
+                : null
+            }));
+
+            callback({ data: mapped });
+          })
+          .catch(err => {
+            console.error('Error loading cash balance history:', err);
+            callback({ data: [] });
+          });
       },
       columns: [
         { data: 'typeText', className: 'text-center' },

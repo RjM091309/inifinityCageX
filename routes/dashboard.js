@@ -1212,6 +1212,685 @@ router.get('/cash_transaction_data', async (req, res) => {
 	}
 });
 
+// Detailed CASH-IN breakdown built directly from source tables
+router.get('/cash_in_details', async (req, res) => {
+	try {
+		const { start_date, end_date } = req.query;
+
+		if (!start_date || !end_date) {
+			return res.status(400).json({ error: 'start_date and end_date are required' });
+		}
+
+		const dateParams = [start_date, end_date];
+
+		// 1. Capital In (junket_capital)
+		const [capitalRowsRaw] = await pool.execute(
+			`
+			SELECT 
+				jc.IDNo,
+				jc.AMOUNT,
+				jc.FULLNAME AS AGENT_NAME,
+				jc.REMARKS,
+				jc.ENCODED_BY,
+				jc.ENCODED_DT,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM junket_capital jc
+			LEFT JOIN user_info u ON jc.ENCODED_BY = u.IDNo
+			WHERE jc.ACTIVE = 1
+				AND jc.TRANSACTION_ID = 1
+				AND DATE(jc.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const capitalRows = capitalRowsRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Capital In',
+			TYPE: 1,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 2. Account deposits (ACCOUNT_DEPOSIT)
+		const [accountDepositRaw] = await pool.execute(
+			`
+			SELECT
+				al.IDNo,
+				al.AMOUNT,
+				al.REMARKS,
+				al.ENCODED_BY,
+				al.ENCODED_DT,
+				al.TRANSACTION_ID,
+				al.TRANSACTION_TYPE,
+				al.TRANSACTION_DESC,
+				ag.NAME AS AGENT_NAME,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM account_ledger al
+			JOIN account acc ON acc.IDNo = al.ACCOUNT_ID
+			JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo
+			WHERE al.ACTIVE = 1
+				AND al.TRANSACTION_TYPE = 2
+				AND al.TRANSACTION_ID = 1
+				AND acc.ACTIVE = 1
+				AND ag.ACTIVE = 1
+				AND DATE(al.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const accountDepositRows = accountDepositRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Account Deposit',
+			TYPE: 1,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 3. Settlement deposits (SETTLEMENT_DEPOSIT -> Commission Deposit)
+		const [settlementDepositRaw] = await pool.execute(
+			`
+			SELECT
+				al.IDNo,
+				al.AMOUNT,
+				al.REMARKS,
+				al.ENCODED_BY,
+				al.ENCODED_DT,
+				ag.NAME AS AGENT_NAME,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM account_ledger al
+			JOIN account acc ON acc.IDNo = al.ACCOUNT_ID
+			JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo
+			WHERE al.ACTIVE = 1
+				AND al.TRANSACTION_TYPE = 5
+				AND al.TRANSACTION_ID = 1
+				AND acc.ACTIVE = 1
+				AND ag.ACTIVE = 1
+				AND DATE(al.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const settlementDepositRows = settlementDepositRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Commission Deposit',
+			TYPE: 1,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 4. Chips cash-out to casino (TotalChipsCashout)
+		const [chipsCashoutRaw] = await pool.execute(
+			`
+			SELECT
+				j.IDNo,
+				j.TOTAL_CHIPS AS AMOUNT,
+				j.DESCRIPTION AS REMARKS,
+				j.ENCODED_BY,
+				j.ENCODED_DT,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM junket_total_chips j
+			LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
+			WHERE j.ACTIVE = 1
+				AND j.TRANSACTION_ID = 2
+				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const chipsCashoutRows = chipsCashoutRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Chips Cash-out to Casino',
+			TYPE: 1,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 5. Game cash buy-ins (NN/CC cash-only)
+		const [gameBuyinRaw] = await pool.execute(
+			`
+			SELECT
+				gr.IDNo,
+				gr.GAME_ID,
+				(COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0)) AS AMOUNT,
+				gr.ENCODED_BY,
+				gr.ENCODED_DT,
+				ag.NAME AS AGENT_NAME,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM game_record gr
+			JOIN game_list gl ON gl.IDNo = gr.GAME_ID
+			JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+			JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo
+			WHERE gr.ACTIVE = 1
+				AND gr.CAGE_TYPE = 1
+				AND gr.TRANSACTION = 1
+				AND DATE(gr.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const gameBuyinRows = gameBuyinRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.GAME_ID,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Game buy-in',
+			TYPE: 1,
+			REMARKS: row.GAME_ID ? `Game - ${row.GAME_ID}` : '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 6. Guest services (ServiceCashGuest + ServiceDepositGuest)
+		const [guestServicesRaw] = await pool.execute(
+			`
+			SELECT
+				gs.IDNo,
+				gs.AMOUNT,
+				gs.SERVICE_TYPE,
+				gs.REMARKS,
+				gs.ENCODED_BY,
+				gs.ENCODED_DT,
+				gs.TRANSACTION_ID AS SERVICE_TRANSACTION_ID,
+				gs.SOURCE_TYPE AS SERVICE_SOURCE_TYPE,
+				COALESCE(ag.NAME, '-') AS AGENT_NAME,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM game_services gs
+			LEFT JOIN agent ag ON gs.AGENT_ID = ag.IDNo
+			LEFT JOIN user_info u ON gs.ENCODED_BY = u.IDNo
+			WHERE gs.ACTIVE = 1
+				AND gs.SOURCE_TYPE = 'GUEST'
+				AND gs.TRANSACTION_ID IN (1, 2)
+				AND DATE(gs.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const guestServiceRows = guestServicesRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: row.SERVICE_TYPE || '',
+			TYPE: 1,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: row.SERVICE_TRANSACTION_ID,
+			SERVICE_SOURCE_TYPE: row.SERVICE_SOURCE_TYPE
+		}));
+
+		// 7. Marker return cash (MARKER_RETURN_CASH)
+		const [markerReturnRaw] = await pool.execute(
+			`
+			SELECT
+				al.IDNo,
+				al.AMOUNT,
+				al.REMARKS,
+				al.ENCODED_BY,
+				al.ENCODED_DT,
+				ag.NAME AS AGENT_NAME,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM account_ledger al
+			JOIN account acc ON acc.IDNo = al.ACCOUNT_ID
+			JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo
+			WHERE al.ACTIVE = 1
+				AND al.TRANSACTION_TYPE = 3
+				AND al.TRANSACTION_ID = 11
+				AND acc.ACTIVE = 1
+				AND ag.ACTIVE = 1
+				AND DATE(al.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const markerReturnRows = markerReturnRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Marker Return Cash',
+			TYPE: 1,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 8. Return money (RETURN_MONEY)
+		const [returnMoneyRaw] = await pool.execute(
+			`
+			SELECT
+				rm.IDNo,
+				rm.AMOUNT,
+				rm.DESCRIPTION AS REMARKS,
+				rm.ENCODED_BY,
+				rm.ENCODED_DT,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM junket_return_money rm
+			LEFT JOIN user_info u ON rm.ENCODED_BY = u.IDNo
+			WHERE rm.ACTIVE = 1
+				AND DATE(rm.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const returnMoneyRows = returnMoneyRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Return Money',
+			TYPE: 1,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		const allRows = [
+			...capitalRows,
+			...accountDepositRows,
+			...settlementDepositRows,
+			...chipsCashoutRows,
+			...gameBuyinRows,
+			...guestServiceRows,
+			...markerReturnRows,
+			...returnMoneyRows
+		];
+
+		allRows.sort((a, b) => {
+			const aTime = a.ENCODED_DT ? new Date(a.ENCODED_DT).getTime() : 0;
+			const bTime = b.ENCODED_DT ? new Date(b.ENCODED_DT).getTime() : 0;
+			return bTime - aTime;
+		});
+
+		res.json(allRows);
+	} catch (error) {
+		console.error('Error fetching cash-in details:', error);
+		res.status(500).json({ error: 'Database error' });
+	}
+});
+
+// Detailed CASH-OUT breakdown built directly from source tables
+router.get('/cash_out_details', async (req, res) => {
+	try {
+		const { start_date, end_date } = req.query;
+
+		if (!start_date || !end_date) {
+			return res.status(400).json({ error: 'start_date and end_date are required' });
+		}
+
+		const dateParams = [start_date, end_date];
+
+		// 1. Capital Out (junket_capital)
+		const [capitalOutRaw] = await pool.execute(
+			`
+			SELECT 
+				jc.IDNo,
+				jc.AMOUNT,
+				jc.FULLNAME AS AGENT_NAME,
+				jc.REMARKS,
+				jc.ENCODED_BY,
+				jc.ENCODED_DT,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM junket_capital jc
+			LEFT JOIN user_info u ON jc.ENCODED_BY = u.IDNo
+			WHERE jc.ACTIVE = 1
+				AND jc.TRANSACTION_ID = 2
+				AND DATE(jc.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const capitalOutRows = capitalOutRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Capital Out',
+			TYPE: 2,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 2. Chips Buy-in (junket_total_chips, TRANSACTION_ID = 1)
+		const [chipsBuyinRaw] = await pool.execute(
+			`
+			SELECT
+				j.IDNo,
+				j.TOTAL_CHIPS AS AMOUNT,
+				j.DESCRIPTION AS REMARKS,
+				j.ENCODED_BY,
+				j.ENCODED_DT,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM junket_total_chips j
+			LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
+			WHERE j.ACTIVE = 1
+				AND j.TRANSACTION_ID = 1
+				AND DATE(j.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const chipsBuyinRows = chipsBuyinRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Chips Buy-in',
+			TYPE: 2,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 3. Game Cash-out (game_record, CAGE_TYPE = 2)
+		const [gameCashoutRaw] = await pool.execute(
+			`
+			SELECT
+				gr.IDNo,
+				gr.GAME_ID,
+				(COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0)) AS AMOUNT,
+				gr.ENCODED_BY,
+				gr.ENCODED_DT,
+				ag.NAME AS AGENT_NAME,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM game_record gr
+			JOIN game_list gl ON gl.IDNo = gr.GAME_ID
+			JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
+			JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo
+			WHERE gr.ACTIVE = 1
+				AND gr.CAGE_TYPE = 2
+				AND gr.TRANSACTION != 4
+				AND DATE(gr.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const gameCashoutRows = gameCashoutRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.GAME_ID,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Game Cash-out',
+			TYPE: 2,
+			REMARKS: row.GAME_ID ? `Game - ${row.GAME_ID}` : '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 4. Account Withdraw (ACCOUNT_WITHDRAW)
+		const [accountWithdrawRaw] = await pool.execute(
+			`
+			SELECT
+				al.IDNo,
+				al.AMOUNT,
+				al.REMARKS,
+				al.ENCODED_BY,
+				al.ENCODED_DT,
+				ag.NAME AS AGENT_NAME,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM account_ledger al
+			JOIN account acc ON acc.IDNo = al.ACCOUNT_ID
+			JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo
+			WHERE al.ACTIVE = 1
+				AND al.TRANSACTION_ID = 2
+				AND al.TRANSACTION_DESC = 'ACCOUNT DETAILS'
+				AND acc.ACTIVE = 1
+				AND ag.ACTIVE = 1
+				AND DATE(al.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const accountWithdrawRows = accountWithdrawRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Account Withdraw',
+			TYPE: 2,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 5. Account Credit (ACCOUNT_CREDIT from account_ledger)
+		const [accountCreditRaw] = await pool.execute(
+			`
+			SELECT
+				al.IDNo,
+				al.AMOUNT,
+				al.REMARKS,
+				al.ENCODED_BY,
+				al.ENCODED_DT,
+				ag.NAME AS AGENT_NAME,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM account_ledger al
+			JOIN account acc ON acc.IDNo = al.ACCOUNT_ID
+			JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo
+			WHERE al.ACTIVE = 1
+				AND al.TRANSACTION_TYPE = 3
+				AND al.TRANSACTION_ID = 3
+				AND acc.ACTIVE = 1
+				AND ag.ACTIVE = 1
+				AND DATE(al.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const accountCreditRows = accountCreditRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Account Credit',
+			TYPE: 2,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 6. Commission Cash-out (ACCOUNT_SETTLEMENT, TRANSACTION_TYPE = 5, TRANSACTION_ID = 5)
+		const [commissionCashoutRaw] = await pool.execute(
+			`
+			SELECT
+				al.IDNo,
+				al.AMOUNT,
+				al.REMARKS,
+				al.ENCODED_BY,
+				al.ENCODED_DT,
+				ag.NAME AS AGENT_NAME,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM account_ledger al
+			JOIN account acc ON acc.IDNo = al.ACCOUNT_ID
+			JOIN agent ag ON ag.IDNo = acc.AGENT_ID
+			LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo
+			WHERE al.ACTIVE = 1
+				AND al.TRANSACTION_TYPE = 5
+				AND al.TRANSACTION_ID = 5
+				AND acc.ACTIVE = 1
+				AND ag.ACTIVE = 1
+				AND DATE(al.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const commissionCashoutRows = commissionCashoutRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Commission Cash-out',
+			TYPE: 2,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		// 7. Junket services (ServiceCashJunket + ServiceDepositJunket)
+		const [junketServicesRaw] = await pool.execute(
+			`
+			SELECT
+				gs.IDNo,
+				gs.AMOUNT,
+				gs.SERVICE_TYPE,
+				gs.REMARKS,
+				gs.ENCODED_BY,
+				gs.ENCODED_DT,
+				gs.TRANSACTION_ID AS SERVICE_TRANSACTION_ID,
+				gs.SOURCE_TYPE AS SERVICE_SOURCE_TYPE,
+				COALESCE(ag.NAME, '-') AS AGENT_NAME,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM game_services gs
+			LEFT JOIN agent ag ON gs.AGENT_ID = ag.IDNo
+			LEFT JOIN user_info u ON gs.ENCODED_BY = u.IDNo
+			WHERE gs.ACTIVE = 1
+				AND gs.SOURCE_TYPE = 'JUNKET'
+				AND gs.TRANSACTION_ID IN (1, 2)
+				AND DATE(gs.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const junketServiceRows = junketServicesRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: row.SERVICE_TYPE || '',
+			TYPE: 2,
+			REMARKS: row.REMARKS || '',
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: row.AGENT_NAME || '-',
+			SERVICE_TRANSACTION_ID: row.SERVICE_TRANSACTION_ID,
+			SERVICE_SOURCE_TYPE: row.SERVICE_SOURCE_TYPE
+		}));
+
+		// 8. Expenses (junket_house_expense)
+		const [expensesRaw] = await pool.execute(
+			`
+			SELECT
+				jhe.IDNo,
+				jhe.AMOUNT,
+				jhe.DESCRIPTION AS REMARKS,
+				jhe.ENCODED_BY,
+				jhe.ENCODED_DT,
+				COALESCE(ec.CATEGORY, '-') AS EXPENSE_CATEGORY,
+				COALESCE(u.FIRSTNAME, 'N/A') AS ENCODED_BY_NAME
+			FROM junket_house_expense jhe
+			LEFT JOIN expense_category ec ON ec.IDNo = jhe.CATEGORY_ID
+			LEFT JOIN user_info u ON jhe.ENCODED_BY = u.IDNo
+			WHERE jhe.ACTIVE = 1
+				AND DATE(jhe.ENCODED_DT) BETWEEN ? AND ?
+			`,
+			dateParams
+		);
+
+		const expenseRows = expensesRaw.map((row) => ({
+			IDNo: row.IDNo,
+			TRANSACTION_ID: row.IDNo,
+			AMOUNT: row.AMOUNT,
+			CATEGORY: 'Expenses',
+			TYPE: 2,
+			REMARKS: row.EXPENSE_CATEGORY
+				? `${row.EXPENSE_CATEGORY}${row.REMARKS ? ' - ' + row.REMARKS : ''}`
+				: (row.REMARKS || ''),
+			ENCODED_BY: row.ENCODED_BY,
+			ENCODED_DT: row.ENCODED_DT,
+			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
+			AGENT_NAME: '-',
+			SERVICE_TRANSACTION_ID: null,
+			SERVICE_SOURCE_TYPE: null
+		}));
+
+		const allRows = [
+			...capitalOutRows,
+			...chipsBuyinRows,
+			...gameCashoutRows,
+			...accountWithdrawRows,
+			...accountCreditRows,
+			...commissionCashoutRows,
+			...junketServiceRows,
+			...expenseRows
+		];
+
+		allRows.sort((a, b) => {
+			const aTime = a.ENCODED_DT ? new Date(a.ENCODED_DT).getTime() : 0;
+			const bTime = b.ENCODED_DT ? new Date(b.ENCODED_DT).getTime() : 0;
+			return bTime - aTime;
+		});
+
+		res.json(allRows);
+	} catch (error) {
+		console.error('Error fetching cash-out details:', error);
+		res.status(500).json({ error: 'Database error' });
+	}
+});
+
 // GET NN CHIPS HISTORY
 router.get('/nn_chips_history', async (req, res) => {
 	try {
