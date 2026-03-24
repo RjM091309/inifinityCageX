@@ -94,17 +94,28 @@ function reloadData() {
                 // Join the descriptions with a separator
                 combinedDescription = combinedDescription.filter(Boolean).join(' | ');
 
+                // Determine if this row represents a Cash Balance entry
+                const cbal = row.capital_amount !== null ? row.capital_amount : 0;
+                const isCashBalance =
+                    cbal > 0 &&
+                    (row.capital_description === '<span class="css-blue">Cash-in</span>' ||
+                     row.capital_description === '<span class="css-blue">Cash-out</span>');
+
+                // Show delete button ONLY for Cash Balance rows (and if permissions allow)
+                let btn = '';
                 const permissions = parseInt($('#user-role').data('permissions'));
-                if (permissions !== 2) {
-                    btn = `<button type="button" onclick="archive_capital(${row.IDNo})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
-                                    data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
-                                    <i class="fa fa-trash-alt"></i>
-                              </button>`;
-                } else {
-                    btn = `<button type="button" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled" disabled
-                                    data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
-                                    <i class="fa fa-trash-alt"></i>
-                              </button>`;
+                if (isCashBalance) {
+                    if (permissions !== 2) {
+                        btn = `<button type="button" onclick="archive_capital(${row.IDNo})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
+                                        data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
+                                        <i class="fa fa-trash-alt"></i>
+                                  </button>`;
+                    } else {
+                        btn = `<button type="button" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled" disabled
+                                        data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
+                                        <i class="fa fa-trash-alt"></i>
+                                  </button>`;
+                    }
                 }
 
                 var formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
@@ -120,7 +131,6 @@ function reloadData() {
                 var nnChips = row.NN_CHIPS !== null ? row.NN_CHIPS : 0;
                 var comms = row.TRANSACTION_ID === 5 ? (row.ledger_amount !== null ? row.ledger_amount : 0) : 0; // Payment for TRANSACTION_ID 5
                 var IOU = row.TRANSACTION_ID === 11 ? (row.ledger_amount !== null ? row.ledger_amount : 0) : 0;  // Cash IOU for TRANSACTION_ID 11
-                var cbal = row.capital_amount !== null ? row.capital_amount : 0; // Cash Balance
 
                 // Determine which value to display in combinedChipsText with labels
                 if (nnChips > 0 && row.capital_description == '<span class="css-red">Chips Buy-in</span>') { // Show NN-Chips if it's greater than 0
