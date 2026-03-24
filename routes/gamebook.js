@@ -584,7 +584,10 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 
 						const text = `Infinity Cage\n\n* 서비스 결제 *\n\n계정: ${AGENT_CODE} - ${NAME}\n${serviceLine}\n금액: ${formattedAmount} - 계좌출금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
+						// Send to individual guest
 						await sendTelegramMessage(text, TELEGRAM_ID);
+						// Also broadcast to additional guest chats/channels
+						await sendTelegramToAdditionalChats(text);
 					}
 				}
 			} catch (telegramErr) {

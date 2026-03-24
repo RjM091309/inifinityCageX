@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
-const { sendTelegramMessage, sendTelegramToEmployees } = require('../utils/telegram');
+const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
 
 const validServiceTypes = ['fnb', 'hotel', 'delivery'];
 const validTransactionIds = [1, 2, 3];
@@ -204,7 +204,10 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 
 						const text = `Infinity Cage\n\n* 서비스 결제 *\n\n계정: ${AGENT_CODE} - ${NAME}\n${serviceLine}\n금액: ${formattedAmount} - 계좌출금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
+						// Send to individual guest
 						await sendTelegramMessage(text, TELEGRAM_ID);
+						// Also broadcast to additional guest chats/channels
+						await sendTelegramToAdditionalChats(text);
 					}
 				}
 			} catch (telegramErr) {
@@ -212,7 +215,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 			}
 		}
 
-		// JUNKET: notify employees (EMPLOYEE bot) for any junket service
+		// JUNKET: notify additional chats (GUEST bot groups/channels) for any junket service
 		if (sourceType === 'JUNKET') {
 			try {
 				const formattedAmount = amt.toLocaleString('en-US');
@@ -227,7 +230,7 @@ router.post('/fnb-hotel/service', checkSession, async (req, res) => {
 
 				const text = `Infinity Cage\n\n* 서비스 결제 (정켓) *\n\n${gameLine}${serviceLine}\n금액: ${formattedAmount}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
-				await sendTelegramToEmployees(text);
+				await sendTelegramToAdditionalChats(text);
 			} catch (telegramErr) {
 				console.error('Failed to send Telegram message for F&B / Hotel junket service:', telegramErr.message || telegramErr);
 			}
