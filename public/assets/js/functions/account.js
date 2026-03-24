@@ -296,49 +296,20 @@ $(document).ready(function () {
             type: 'POST',
             data: formData,
             success: function (response) {
-                // Check if response is JSON (new format) or redirect (old format)
-                if (typeof response === 'object' && response.success) {
-                    // Check if there are Telegram errors
-                    if (response.errors && response.errors.length > 0) {
-                        // Show warning with Telegram errors
-                        var errorList = response.errors.map(function(err) {
-                            return '• ' + err;
-                        }).join('<br>');
-                        
-                        Swal.fire({
-                            title: 'Transfer Saved!',
-                            html: '<strong>Transfer was successful, but Telegram notifications failed:</strong><br><br>' + errorList,
-                            icon: 'warning',
-                            confirmButtonText: 'OK',
-                            confirmButtonColor: '#3085d6'
-                        }).then(() => {
-                            $('#modal-transfer_account').modal('hide');
-                            window.location.reload();
-                        });
-                    } else {
-                        // Success without errors
-                        Swal.fire({
-                            title: 'Success!',
-                            text: response.message || 'Transfer was successful.',
-                            icon: 'success',
-                            confirmButtonText: 'OK'
-                        }).then(() => {
-                            $('#modal-transfer_account').modal('hide');
-                            window.location.reload();
-                        });
-                    }
-                } else {
-                    // Old format - redirect response
-                    Swal.fire({
-                        title: 'Success!',
-                        text: 'Transfer was successful.',
-                        icon: 'success',
-                        confirmButtonText: 'OK'
-                    }).then(() => {
-                        $('#modal-transfer_account').modal('hide');
-                        window.location.reload();
-                    });
-                }
+                const message =
+                    (typeof response === 'object' && response.message)
+                        ? response.message
+                        : 'Transfer was successful.';
+
+                Swal.fire({
+                    title: 'Success!',
+                    text: message,
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                }).then(() => {
+                    $('#modal-transfer_account').modal('hide');
+                    window.location.reload();
+                });
             },
             error: function (xhr, status, error) {
                 var errorMessage = xhr.responseJSON ? (xhr.responseJSON.error || xhr.responseJSON.message) : 'Something went wrong!';
@@ -1131,6 +1102,10 @@ function get_account() {
 				value: ''
 			}));
 			response.forEach(function (option) {
+				// Huwag isama sa listahan ang kasalukuyang account na magta-transfer
+				if (account_id && String(option.account_id) === String(account_id)) {
+					return;
+				}
 
 				selectOptions.append($('<option>', {
 					value: option.account_id,

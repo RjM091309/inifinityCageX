@@ -907,14 +907,20 @@ router.post('/add_account_details/transfer', async (req, res) => {
 
 	const query = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, TRANSFER, TRANSFER_AGENT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
+	let connection;
+
 	try {
+		// Use a DB transaction so withdraw + deposit are all-or-nothing
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
 		// Fetch live balances to use in Telegram messages
 		const senderBalanceBefore = await getCurrentBalance(txtAccountId);
 		const receiverBalanceBefore = await getCurrentBalance(txtAccount);
 
-		// Insert transaction details for both accounts
-		const [withdrawResult] = await pool.query(query, [txtAccountId, 2, 2, totalAmount, 1, txtAccount, req.session.user_id, date_now]);
-		const [depositResult] = await pool.query(query, [txtAccount, 1, 2, totalAmount, 1, txtAccountId, req.session.user_id, date_now]);
+		// Insert transaction details for both accounts within the transaction
+		const [withdrawResult] = await connection.execute(query, [txtAccountId, 2, 2, totalAmount, 1, txtAccount, req.session.user_id, date_now]);
+		const [depositResult] = await connection.execute(query, [txtAccount, 1, 2, totalAmount, 1, txtAccountId, req.session.user_id, date_now]);
 
 		const transactionNameWithdraw = await getTransactionName(2);
 		const transactionNameDeposit = await getTransactionName(1);
@@ -958,7 +964,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
             JOIN account ON account.AGENT_ID = agent.IDNo
             WHERE account.IDNo = ?
         `;
-		const [telegramIdResultsFrom] = await pool.query(telegramIdQueryFrom, [txtAccountId]);
+		const [telegramIdResultsFrom] = await connection.execute(telegramIdQueryFrom, [txtAccountId]);
 
 		// Fetch Telegram IDs, AGENT_CODE, and NAME for the account to which the transfer is made
 		const telegramIdQueryTo = `
@@ -967,7 +973,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
             JOIN account ON account.AGENT_ID = agent.IDNo
             WHERE account.IDNo = ?
         `;
-		const [telegramIdResultsTo] = await pool.query(telegramIdQueryTo, [txtAccount]);
+		const [telegramIdResultsTo] = await connection.execute(telegramIdQueryTo, [txtAccount]);
 
 		// Collect Telegram errors
 		const telegramErrors = [];
@@ -1052,10 +1058,13 @@ router.post('/add_account_details/transfer', async (req, res) => {
 			}
 		}
 
+		// Commit DB changes after all operations succeed
+		await connection.commit();
+
 		// Return JSON response (frontend will handle redirect)
 		if (telegramErrors.length > 0) {
-			return res.status(200).json({ 
-				success: true, 
+			return res.status(200).json({
+				success: true,
 				message: 'Transfer completed successfully, but there were Telegram notification errors.',
 				errors: telegramErrors,
 				redirect: '/account_ledger'
@@ -1063,14 +1072,30 @@ router.post('/add_account_details/transfer', async (req, res) => {
 		}
 
 		// Return success JSON (frontend will handle redirect)
-		return res.status(200).json({ 
-			success: true, 
+		return res.status(200).json({
+			success: true,
 			message: 'Transfer completed successfully.',
 			redirect: '/account_ledger'
 		});
 	} catch (error) {
+		if (connection) {
+			try {
+				await connection.rollback();
+			} catch (rollbackError) {
+				console.error('Error during rollback in transfer route:', rollbackError);
+			}
+		}
+
 		console.error('Error inserting details or sending message:', error);
-		res.status(500).send('Error processing request.');
+		return res.status(500).json({
+			success: false,
+			message: 'Error processing transfer.',
+			error: error.message || String(error)
+		});
+	} finally {
+		if (connection) {
+			connection.release();
+		}
 	}
 });
 
