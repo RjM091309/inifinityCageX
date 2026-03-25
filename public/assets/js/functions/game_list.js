@@ -2010,6 +2010,234 @@ $('#add_buyin').submit(function (event) {
 			<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
 			Loading...
 		`);
+
+		var splitEnabled = $('#enableSplitCashout').is(':checked');
+		if (splitEnabled) {
+			var txtTotalRollingSplit = parseFloat($('#TotalRollingCashout').val()) || 0;
+			var $nnCashInput = $('#nnCashAmount');
+			var $nnDepInput = $('#nnDepositAmount');
+			var $ccCashInput = $('#ccCashAmount');
+			var $ccDepInput = $('#ccDepositAmount');
+			$nnCashInput.removeClass('is-invalid');
+			$nnDepInput.removeClass('is-invalid');
+			$ccCashInput.removeClass('is-invalid');
+			$ccDepInput.removeClass('is-invalid');
+			var parseSplitNum = function ($el) {
+				var v = ($el.val() || '').toString().replace(/,/g, '').trim();
+				return v === '' ? 0 : parseFloat(v);
+			};
+			var nnCash = parseSplitNum($nnCashInput);
+			var nnDep = parseSplitNum($nnDepInput);
+			var ccCash = parseSplitNum($ccCashInput);
+			var ccDep = parseSplitNum($ccDepInput);
+
+			if (!Number.isFinite(nnCash) || !Number.isFinite(nnDep) || !Number.isFinite(ccCash) || !Number.isFinite(ccDep)) {
+				Swal.fire({ icon: 'error', title: 'Invalid Input', text: 'Please enter valid numbers for all split fields.' });
+				$btn.prop('disabled', false).html('Save');
+				return;
+			}
+			if (nnCash < 0 || nnDep < 0 || ccCash < 0 || ccDep < 0) {
+				Swal.fire({ icon: 'error', title: 'Invalid Input', text: 'Amounts cannot be negative.' });
+				$btn.prop('disabled', false).html('Save');
+				return;
+			}
+
+			var totalNN = nnCash + nnDep;
+			var totalCC = ccCash + ccDep;
+			var totalChips = totalNN + totalCC;
+			if (totalChips <= 0) {
+				Swal.fire({ icon: 'warning', title: 'Invalid Input', text: 'Enter at least one Cash or Deposit amount for NN or CC chips.' });
+				$btn.prop('disabled', false).html('Save');
+				return;
+			}
+
+			var checkNnThousands = function (label, n, $input) {
+				if (n > 0 && (n % 1000 !== 0)) {
+					if ($input && $input.length) {
+						$input.addClass('is-invalid');
+					}
+					Swal.fire({
+						icon: 'error',
+						title: 'Invalid NN Chips amount',
+						text: label + ' must be in thousands (e.g. 1,000 / 2,000).'
+					});
+					return false;
+				}
+				return true;
+			};
+			if (!checkNnThousands('NN Cash', nnCash, $nnCashInput) || !checkNnThousands('NN Deposit', nnDep, $nnDepInput)) {
+				$btn.prop('disabled', false).html('Save');
+				return;
+			}
+
+			if (totalNN > txtTotalRollingSplit) {
+				Swal.fire({
+					icon: 'warning',
+					title: 'Invalid Input',
+					text: 'Total NN (Cash + Deposit) cannot exceed Total Rolling: ' + formatNumberWithCommas(txtTotalRollingSplit)
+				});
+				$btn.prop('disabled', false).html('Save');
+				return;
+			}
+
+			var cashLeg = nnCash + ccCash;
+			var depLeg = nnDep + ccDep;
+			if (cashLeg <= 0 || depLeg <= 0) {
+				Swal.fire({
+					icon: 'warning',
+					title: 'Split requires both',
+					text: 'Enter amounts for both Cash and Deposit.'
+				});
+				$btn.prop('disabled', false).html('Save');
+				return;
+			}
+
+			var tableCell = 'padding:4px 8px;';
+			var legTitleCell = tableCell + 'font-weight:600;text-align:center;vertical-align:middle;white-space:nowrap;';
+			var rowLabelCell = tableCell + 'font-weight:600;white-space:nowrap;';
+			var rowValueCell = tableCell + 'text-align:right;white-space:nowrap;';
+			var totalTitleCell = tableCell + 'font-weight:700;text-align:center;vertical-align:middle;white-space:nowrap;';
+			var totalMidCell = tableCell;
+			var totalValueCell = tableCell + 'font-weight:700;text-align:right;white-space:nowrap;';
+
+			var buildLegRows = function (legName, nnValue, ccValue) {
+				var parts = [];
+				if (nnValue > 0) parts.push({ label: 'NN', value: nnValue });
+				if (ccValue > 0) parts.push({ label: 'CC', value: ccValue });
+				if (parts.length === 0) return '';
+
+				if (parts.length === 1) {
+					return '<tr>' +
+						'<td style="' + legTitleCell + '">' + legName + '</td>' +
+						'<td style="' + rowLabelCell + '">' + parts[0].label + ':<\/td>' +
+						'<td style="' + rowValueCell + '">' + parts[0].value.toLocaleString() + '<\/td>' +
+						'<\/tr>';
+				}
+
+				var rows = '<tr>' +
+					'<td rowspan="' + parts.length + '" style="' + legTitleCell + '">' + legName + '<\/td>' +
+					'<td style="' + rowLabelCell + '">' + parts[0].label + ':<\/td>' +
+					'<td style="' + rowValueCell + '">' + parts[0].value.toLocaleString() + '<\/td>' +
+					'<\/tr>';
+
+				for (var i = 1; i < parts.length; i++) {
+					rows += '<tr>' +
+						'<td style="' + rowLabelCell + '">' + parts[i].label + ':<\/td>' +
+						'<td style="' + rowValueCell + '">' + parts[i].value.toLocaleString() + '<\/td>' +
+						'<\/tr>';
+				}
+
+				return rows;
+			};
+
+			var splitRows = '';
+			splitRows += buildLegRows('Cash', nnCash, ccCash);
+			splitRows += buildLegRows('Deposit', nnDep, ccDep);
+			splitRows += '<tr>' +
+				'<td style="' + totalTitleCell + '">Total:<\/td>' +
+				'<td style="' + totalMidCell + '"><\/td>' +
+				'<td style="' + totalValueCell + '">' + totalChips.toLocaleString() + '<\/td>' +
+				'<\/tr>';
+
+			var splitConfirmHtml =
+				'<div style="max-width:420px;margin:0 auto;text-align:left;">' +
+				'<div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm cash-out transaction:</div>' +
+				'<table style="margin:0 auto;border-collapse:collapse;min-width:300px;">' + splitRows + '</table></div>';
+
+			var $formSplit = $(this);
+			var commonPayload = {
+				game_id: $formSplit.find('.game_list_id').val(),
+				txtAccountCode: $formSplit.find('.txtAccountCode').val(),
+				txttotal_balance_cashout: $('#total_balance_cashout').val(),
+				txtMarkerChipsReturn: $('#MarkerChipsReturn').val(),
+				txtTotalRolling: $('#TotalRollingCashout').val()
+			};
+
+			Swal.fire({
+				icon: 'question',
+				title: 'Confirm Transaction',
+				html: splitConfirmHtml + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
+				showCancelButton: true,
+				confirmButtonText: 'Yes, Confirm',
+				cancelButtonText: 'Cancel',
+				confirmButtonColor: '#3085d6',
+				cancelButtonColor: '#d33',
+				allowOutsideClick: false,
+				allowEscapeKey: false
+			}).then(function (result) {
+				if (!result.isConfirmed) {
+					$btn.prop('disabled', false).html('Save');
+					return;
+				}
+				$btn.prop('disabled', true).html(
+					'<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
+				);
+
+				var fmt = function (n) {
+					return n === 0 ? '' : String(Math.round(n));
+				};
+
+				var postLeg = function (payload, done, fail) {
+					$.ajax({
+						url: '/game_list/add/cashout',
+						type: 'POST',
+						data: payload,
+						success: done,
+						error: fail
+					});
+				};
+
+				var payloadCash = $.extend({}, commonPayload, {
+					txtNN: fmt(nnCash),
+					txtCC: fmt(ccCash),
+					txtTransType: '1',
+					skip_telegram: '1'
+				});
+				var payloadDep = $.extend({}, commonPayload, {
+					txtNN: fmt(nnDep),
+					txtCC: fmt(ccDep),
+					txtTransType: '2',
+					split_telegram_combined: '1',
+					split_cash_nn: fmt(nnCash),
+					split_cash_cc: fmt(ccCash)
+				});
+
+				postLeg(
+					payloadCash,
+					function () {
+						postLeg(
+							payloadDep,
+							function () {
+								Swal.fire({
+									icon: 'success',
+									title: 'Success!',
+									text: 'Cash-out completed.'
+								}).then(function () {
+									reloadData();
+									$('#modal-add-cashout').modal('hide');
+									$btn.prop('disabled', false).html('Save');
+								});
+							},
+							function (xhr) {
+								var errorMessage = xhr.responseJSON && xhr.responseJSON.error
+									? xhr.responseJSON.error
+									: 'Deposit leg failed after Cash was saved. Check records and try again.';
+								Swal.fire({ icon: 'error', title: 'Error!', text: errorMessage });
+								$btn.prop('disabled', false).html('Save');
+							}
+						);
+					},
+					function (xhr) {
+						var errorMessage = xhr.responseJSON && xhr.responseJSON.error
+							? xhr.responseJSON.error
+							: 'Something went wrong. Please try again.';
+						Swal.fire({ icon: 'error', title: 'Error!', text: errorMessage });
+						$btn.prop('disabled', false).html('Save');
+					}
+				);
+			});
+			return;
+		}
 	
 		// Get the values of txtNN and txtTotalRolling
 		var txtTotalRolling = parseFloat($('#TotalRollingCashout').val()); 
@@ -2132,7 +2360,7 @@ $('#add_buyin').submit(function (event) {
 						Swal.fire({
 							icon: 'success',
 							title: 'Success!',
-							text: 'Chips return process completed!'
+							text: 'Cash-out completed!'
 						}).then(() => {
 							reloadData();
 							$('#modal-add-cashout').modal('hide');
@@ -3136,6 +3364,27 @@ function addCashout(id, account, total_rolling_chips) {
 
 	$('.form-check-input').prop('checked', false);
 
+	// Reset split UI state every time modal opens
+	var splitToggle   = document.getElementById('enableSplitCashout');
+	var splitRow      = document.getElementById('split-cashout-row');
+	var transTypeRow  = document.getElementById('trans-type-row');
+	var nnCcRow       = document.getElementById('nn-cc-row');
+
+	if (splitToggle) {
+		splitToggle.checked = false;
+	}
+	if (splitRow) {
+		splitRow.style.display = 'none';
+	}
+	if (transTypeRow) {
+		transTypeRow.style.display = '';
+	}
+	if (nnCcRow) {
+		nnCcRow.style.display = '';
+	}
+
+	$('#nnCashAmount, #nnDepositAmount, #ccCashAmount, #ccDepositAmount').val('');
+
 	$('.game_list_id').val(id);
 	$('.txtAccountCode').val(account);
 	$('#TotalRollingCashout').val(total_rolling_chips);
@@ -3337,9 +3586,11 @@ function reloadDataRecord() {
             const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
             data.forEach(function (row) {
                 const dateKey = moment(row.record_date).format('MMM DD, YYYY HH:mm:ss');
+                // Split cash-out: two POSTs often share the same second — merge key must be per game_record row or they collapse into one line
+                const mergeKey = row.CAGE_TYPE == 2 ? dateKey + '|co|' + row.game_record_id : dateKey;
 
-                if (!mergedData[dateKey]) {
-                    mergedData[dateKey] = {
+                if (!mergedData[mergeKey]) {
+                    mergedData[mergeKey] = {
                         buy_in: 0,
                         buy_in_nn: 0,  // Track NN chips separately for buy-in
                         additional_buyin: 0,
@@ -3359,6 +3610,8 @@ function reloadDataRecord() {
                         remarks: row.REMARKS || '',
                         action: row.game_record_id,
                         timestamp: new Date(row.record_date).getTime(),
+                        sortId: row.game_record_id || 0,
+                        displayDate: dateKey,
                         is_marker: (row.TRANSACTION == 3),  // 3 = Marker
                         is_deposit: (row.TRANSACTION == 2),  // 2 = Deposit
                         buy_in_type: 1,    // 1=Cash, 2=Deposit, 3=Marker (set on first buy-in)
@@ -3372,23 +3625,23 @@ function reloadDataRecord() {
                         game_status: row.game_status
                     };
                 } else {
-                    mergedData[dateKey].is_marker = mergedData[dateKey].is_marker || (row.TRANSACTION == 3);
-                    mergedData[dateKey].is_deposit = mergedData[dateKey].is_deposit || (row.TRANSACTION == 2);
+                    mergedData[mergeKey].is_marker = mergedData[mergeKey].is_marker || (row.TRANSACTION == 3);
+                    mergedData[mergeKey].is_deposit = mergedData[mergeKey].is_deposit || (row.TRANSACTION == 2);
                 }
 
                 // Track edit IDs per CAGE_TYPE (Super Admin only) - single edit opens combined modal (buy-in + roller)
                 if (userPermissions === 0) {
-                    if (row.CAGE_TYPE == 1) mergedData[dateKey].editBuyinId = row.game_record_id;
-                    if (row.CAGE_TYPE == 2) mergedData[dateKey].editCashoutId = row.game_record_id;
-                    if (row.CAGE_TYPE == 3 && !mergedData[dateKey].editBuyinId) mergedData[dateKey].editRollingId = row.game_record_id; // Skip if paired with buy-in
-                    if (row.CAGE_TYPE == 4) mergedData[dateKey].editRollingId = row.game_record_id;
-                    if (row.CAGE_TYPE == 5) mergedData[dateKey].editRollerId = row.game_record_id;
+                    if (row.CAGE_TYPE == 1) mergedData[mergeKey].editBuyinId = row.game_record_id;
+                    if (row.CAGE_TYPE == 2) mergedData[mergeKey].editCashoutId = row.game_record_id;
+                    if (row.CAGE_TYPE == 3 && !mergedData[mergeKey].editBuyinId) mergedData[mergeKey].editRollingId = row.game_record_id; // Skip if paired with buy-in
+                    if (row.CAGE_TYPE == 4) mergedData[mergeKey].editRollingId = row.game_record_id;
+                    if (row.CAGE_TYPE == 5) mergedData[mergeKey].editRollerId = row.game_record_id;
                 }
                 // Delete: use CAGE_TYPE 1 id when available (deletes whole buy-in + roller chips), else first record
                 if (row.CAGE_TYPE == 1) {
-                    mergedData[dateKey].deletePrimaryId = row.game_record_id;
-                } else if (!mergedData[dateKey].deletePrimaryId) {
-                    mergedData[dateKey].deletePrimaryId = row.game_record_id;
+                    mergedData[mergeKey].deletePrimaryId = row.game_record_id;
+                } else if (!mergedData[mergeKey].deletePrimaryId) {
+                    mergedData[mergeKey].deletePrimaryId = row.game_record_id;
                 }
 
                 // Process the row based on CAGE_TYPE - same logic as game list
@@ -3397,16 +3650,16 @@ function reloadDataRecord() {
                     var trans = parseInt(row.TRANSACTION, 10) || 1;
                     if (hasInitialBuyIn) {
                         // This is an additional buy-in
-                        mergedData[dateKey].additional_buyin += buyInAmount;
-                        mergedData[dateKey].additional_buyin_nn += (row.NN_CHIPS || 0);  // Track NN separately
-                        mergedData[dateKey].additional_buyin_type = trans;
+                        mergedData[mergeKey].additional_buyin += buyInAmount;
+                        mergedData[mergeKey].additional_buyin_nn += (row.NN_CHIPS || 0);  // Track NN separately
+                        mergedData[mergeKey].additional_buyin_type = trans;
                         total_nn += (row.NN_CHIPS || 0);
                         total_cc += (row.CC_CHIPS || 0);
                     } else {
                         // This is the initial buy-in
-                        mergedData[dateKey].buy_in += buyInAmount;
-                        mergedData[dateKey].buy_in_nn += (row.NN_CHIPS || 0);  // Track NN separately
-                        mergedData[dateKey].buy_in_type = trans;
+                        mergedData[mergeKey].buy_in += buyInAmount;
+                        mergedData[mergeKey].buy_in_nn += (row.NN_CHIPS || 0);  // Track NN separately
+                        mergedData[mergeKey].buy_in_type = trans;
                         total_nn_init += (row.NN_CHIPS || 0);
                         total_cc_init += (row.CC_CHIPS || 0);
                         hasInitialBuyIn = true;
@@ -3414,57 +3667,57 @@ function reloadDataRecord() {
                 }
                 if (row.CAGE_TYPE == 2) { // CASH OUT
                     const cashOutAmount = (row.CC_CHIPS || 0) + (row.NN_CHIPS || 0);
-                    mergedData[dateKey].cash_out += cashOutAmount;
-                    mergedData[dateKey].cash_out_nn += (row.NN_CHIPS || 0);
+                    mergedData[mergeKey].cash_out += cashOutAmount;
+                    mergedData[mergeKey].cash_out_nn += (row.NN_CHIPS || 0);
                     total_cash_out_nn += (row.NN_CHIPS || 0);
                     total_cash_out_cc += (row.CC_CHIPS || 0);
                     // Track NN and CC chips for CASH OUT transactions
-                    mergedData[dateKey].nn += (row.NN_CHIPS || 0);
-                    mergedData[dateKey].cc += (row.CC_CHIPS || 0);
+                    mergedData[mergeKey].nn += (row.NN_CHIPS || 0);
+                    mergedData[mergeKey].cc += (row.CC_CHIPS || 0);
                     // Track transaction type for CASH OUT (1=Cash, 2=Deposit, 3=Marker)
                     var cashTrans = parseInt(row.TRANSACTION, 10) || 1;
-                    mergedData[dateKey].cash_out_type = cashTrans;
+                    mergedData[mergeKey].cash_out_type = cashTrans;
                 }
                 if (row.CAGE_TYPE == 3) { // TOTAL ROLLING
                     const rollingAmount = (row.AMOUNT || 0) + (row.NN_CHIPS || 0) + (row.CC_CHIPS || 0);
-                    mergedData[dateKey].total_rolling += rollingAmount;
+                    mergedData[mergeKey].total_rolling += rollingAmount;
                     // For calculation: AMOUNT + NN only (exclude CC chips)
-                    mergedData[dateKey].total_rolling_for_calc += (row.AMOUNT || 0) + (row.NN_CHIPS || 0);
+                    mergedData[mergeKey].total_rolling_for_calc += (row.AMOUNT || 0) + (row.NN_CHIPS || 0);
                     total_rolling += (row.AMOUNT || 0);
                     total_rolling_nn += (row.NN_CHIPS || 0);
                     total_rolling_cc += (row.CC_CHIPS || 0);
                     // Track NN and CC chips for TOTAL ROLLING transactions only
-                    mergedData[dateKey].nn += (row.NN_CHIPS || 0);
-                    mergedData[dateKey].cc += (row.CC_CHIPS || 0);
+                    mergedData[mergeKey].nn += (row.NN_CHIPS || 0);
+                    mergedData[mergeKey].cc += (row.CC_CHIPS || 0);
                 }
                 if (row.CAGE_TYPE == 4) { // REAL ROLLING
                     const realRollingAmount = (row.AMOUNT || 0) + (row.NN_CHIPS || 0) + (row.CC_CHIPS || 0);
-                    mergedData[dateKey].real_rolling += realRollingAmount;
+                    mergedData[mergeKey].real_rolling += realRollingAmount;
                     // For calculation: AMOUNT + NN + CC (all included)
-                    mergedData[dateKey].real_rolling_for_calc += (row.AMOUNT || 0) + (row.NN_CHIPS || 0) + (row.CC_CHIPS || 0);
+                    mergedData[mergeKey].real_rolling_for_calc += (row.AMOUNT || 0) + (row.NN_CHIPS || 0) + (row.CC_CHIPS || 0);
                     total_rolling_real += (row.AMOUNT || 0);
                     total_rolling_nn_real += (row.NN_CHIPS || 0);
                     total_rolling_cc_real += (row.CC_CHIPS || 0);
                     // Track NN and CC chips for REAL ROLLING transactions only
-                    mergedData[dateKey].nn += (row.NN_CHIPS || 0);
-                    mergedData[dateKey].cc += (row.CC_CHIPS || 0);
+                    mergedData[mergeKey].nn += (row.NN_CHIPS || 0);
+                    mergedData[mergeKey].cc += (row.CC_CHIPS || 0);
                 }
                 if (row.CAGE_TYPE == 5) { // ROLLER CHIPS
                     // ROLLER CHIPS - tracked separately for display purposes
                     // Use ROLLER_NN_CHIPS and ROLLER_CC_CHIPS columns
                     // ROLLER_TRANSACTION: 1 = ADD (add), 2 = RETURN (subtract)
-                    if (!mergedData[dateKey].roller_nn) mergedData[dateKey].roller_nn = 0;
-                    if (!mergedData[dateKey].roller_cc) mergedData[dateKey].roller_cc = 0;
+                    if (!mergedData[mergeKey].roller_nn) mergedData[mergeKey].roller_nn = 0;
+                    if (!mergedData[mergeKey].roller_cc) mergedData[mergeKey].roller_cc = 0;
                     var rollerTransaction = row.ROLLER_TRANSACTION || 1; // Default to ADD if null
                     if (rollerTransaction == 1) {
                         // ADD - add the values
-                        mergedData[dateKey].roller_nn += (row.ROLLER_NN_CHIPS || 0);
-                        mergedData[dateKey].roller_cc += (row.ROLLER_CC_CHIPS || 0);
+                        mergedData[mergeKey].roller_nn += (row.ROLLER_NN_CHIPS || 0);
+                        mergedData[mergeKey].roller_cc += (row.ROLLER_CC_CHIPS || 0);
                     } else if (rollerTransaction == 2) {
                         // RETURN - subtract the values
-                        mergedData[dateKey].roller_nn -= (row.ROLLER_NN_CHIPS || 0);
-                        mergedData[dateKey].roller_cc -= (row.ROLLER_CC_CHIPS || 0);
-                        mergedData[dateKey].roller_return_cc += (row.ROLLER_CC_CHIPS || 0);  // Track roller return CC for this row
+                        mergedData[mergeKey].roller_nn -= (row.ROLLER_NN_CHIPS || 0);
+                        mergedData[mergeKey].roller_cc -= (row.ROLLER_CC_CHIPS || 0);
+                        mergedData[mergeKey].roller_return_cc += (row.ROLLER_CC_CHIPS || 0);  // Track roller return CC for this row
                         total_roller_return_cc += (row.ROLLER_CC_CHIPS || 0);  // Track roller return CC for total rolling
                     }
                 }
@@ -3485,7 +3738,10 @@ function reloadDataRecord() {
             let totalRollerCC = 0;
 
             const sortedDates = Object.keys(mergedData).sort(function (a, b) {
-                return (mergedData[a].timestamp || 0) - (mergedData[b].timestamp || 0);
+                const ta = mergedData[a].timestamp || 0;
+                const tb = mergedData[b].timestamp || 0;
+                if (ta !== tb) return ta - tb;
+                return (mergedData[a].sortId || 0) - (mergedData[b].sortId || 0);
             });
 
             for (const date of sortedDates) {
@@ -3583,7 +3839,7 @@ function reloadDataRecord() {
                 var addBuyinType = parseInt(rowData.additional_buyin_type, 10) || 1;
                 var cashOutType = parseInt(rowData.cash_out_type, 10) || 1;
                 allRows.push([
-                    date,
+                    rowData.displayDate || date,
                     formatBuyinCell(rowData.buy_in, buyInType),
                     formatBuyinCell(rowData.additional_buyin, addBuyinType),
                     formatBuyinCell(rowData.cash_out, cashOutType),

@@ -12,7 +12,7 @@
 					<input type="hidden" name="txttotal_balance_cashout" id="total_balance_cashout">
 					<input type="hidden" name="txtMarkerChipsReturn" id="MarkerChipsReturn">
 					<input type="hidden" name="txtTotalRolling" id="TotalRollingCashout">
-					<div class="row mb-4">
+					<div class="row mb-4" id="nn-cc-row">
 						<div class="col-sm-6">
 							<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
 								class="form-control text-center txtNN" placeholder="NN Chips" name="txtNN" id="txtNNCashout">
@@ -24,7 +24,7 @@
 						</div>
 					</div>
 
-					<div class="row mb-2">
+					<div class="row mb-2" id="trans-type-row">
 						<div class="col-sm-4">
 							<div class="form-check">
 								<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash1" name="txtTransType">
@@ -56,6 +56,51 @@
 							</div>
 						</div>
 					</div>
+
+					<div class="row mb-2">
+						<div class="col-12 d-flex align-items-center justify-content-between">
+							<div class="form-check mb-0">
+								<input class="form-check-input" type="checkbox" id="enableSplitCashout">
+								<label class="form-check-label" for="enableSplitCashout">
+									Split to Cash &amp; Deposit
+								</label>
+							</div>
+							
+						</div>
+					</div>
+
+					<div class="row mb-3" id="split-cashout-row" style="display:none;">
+						<div class="col-sm-6 mb-3 mb-sm-0">
+							<div class="border rounded p-2 h-100">
+								<div class="fw-semibold small text-muted mb-2">NN Chips</div>
+								<div class="mb-2">
+									<label class="form-label mb-1">Cash</label>
+									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+										class="form-control text-center" placeholder="NN Chips" id="nnCashAmount">
+								</div>
+								<div>
+									<label class="form-label mb-1">Deposit</label>
+									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+										class="form-control text-center" placeholder="NN Chips" id="nnDepositAmount">
+								</div>
+							</div>
+						</div>
+						<div class="col-sm-6">
+							<div class="border rounded p-2 h-100">
+								<div class="fw-semibold small text-muted mb-2">CC Chips</div>
+								<div class="mb-2">
+									<label class="form-label mb-1">Cash</label>
+									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+										class="form-control text-center" placeholder="CC Chips" id="ccCashAmount">
+								</div>
+								<div>
+									<label class="form-label mb-1">Deposit</label>
+									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+										class="form-control text-center" placeholder="CC Chips" id="ccDepositAmount">
+								</div>
+							</div>
+						</div>
+					</div>
 				</div>
 		<div class="modal-footer">
 			<button type="submit" class="btn btn-sm btn-primary" id="submit-cashout-btn">Save</button>
@@ -72,25 +117,97 @@
 	<script>
 	document.addEventListener('DOMContentLoaded', function () {
 		const nnInput = document.getElementById('txtNNCashout');
-		if (!nnInput) return;
 
-		nnInput.addEventListener('input', function () {
-			const raw = (this.value || '').toString().replace(/,/g, '');
-			const trimmed = raw.trim();
+		if (nnInput) {
+			nnInput.addEventListener('input', function () {
+				const raw = (this.value || '').toString().replace(/,/g, '');
+				const trimmed = raw.trim();
 
-			// Allow empty while typing
-			if (!trimmed) {
-				this.classList.remove('is-invalid');
+				// Allow empty while typing
+				if (!trimmed) {
+					this.classList.remove('is-invalid');
+					return;
+				}
+
+				const value = Number(trimmed);
+
+				if (!Number.isFinite(value) || value <= 0 || value % 1000 !== 0) {
+					this.classList.add('is-invalid');
+				} else {
+					this.classList.remove('is-invalid');
+				}
+			});
+		}
+
+		const splitToggle = document.getElementById('enableSplitCashout');
+		const splitRow = document.getElementById('split-cashout-row');
+		const transTypeRow = document.getElementById('trans-type-row');
+		const nnCcRow = document.getElementById('nn-cc-row');
+		const nnCashInput = document.getElementById('nnCashAmount');
+		const nnDepositInput = document.getElementById('nnDepositAmount');
+		const ccCashInput = document.getElementById('ccCashAmount');
+		const ccDepositInput = document.getElementById('ccDepositAmount');
+		const validateNnSplitInput = function (inputEl) {
+			if (!inputEl) return;
+			const raw = (inputEl.value || '').toString().replace(/,/g, '').trim();
+			if (!raw) {
+				inputEl.classList.remove('is-invalid');
 				return;
 			}
-
-			const value = Number(trimmed);
-
-			if (!Number.isFinite(value) || value <= 0 || value % 1000 !== 0) {
-				this.classList.add('is-invalid');
+			const value = Number(raw);
+			if (!Number.isFinite(value) || value < 0 || (value > 0 && value % 1000 !== 0)) {
+				inputEl.classList.add('is-invalid');
 			} else {
-				this.classList.remove('is-invalid');
+				inputEl.classList.remove('is-invalid');
 			}
-		});
+		};
+
+		if (nnCashInput) {
+			nnCashInput.addEventListener('input', function () {
+				validateNnSplitInput(nnCashInput);
+			});
+		}
+
+		if (nnDepositInput) {
+			nnDepositInput.addEventListener('input', function () {
+				validateNnSplitInput(nnDepositInput);
+			});
+		}
+
+		if (splitToggle) {
+			splitToggle.addEventListener('change', function () {
+				const isOn = this.checked;
+
+				if (splitRow) {
+					splitRow.style.display = isOn ? '' : 'none';
+				}
+
+				if (transTypeRow) {
+					transTypeRow.style.display = isOn ? 'none' : '';
+				}
+
+				if (nnCcRow) {
+					nnCcRow.style.display = isOn ? 'none' : '';
+				}
+
+				if (!isOn) {
+					if (nnCashInput) nnCashInput.value = '';
+					if (nnDepositInput) nnDepositInput.value = '';
+					if (ccCashInput) ccCashInput.value = '';
+					if (ccDepositInput) ccDepositInput.value = '';
+					if (nnCashInput) nnCashInput.classList.remove('is-invalid');
+					if (nnDepositInput) nnDepositInput.classList.remove('is-invalid');
+					if (ccCashInput) ccCashInput.classList.remove('is-invalid');
+					if (ccDepositInput) ccDepositInput.classList.remove('is-invalid');
+				} else {
+					// When enabling split, clear transaction type radios to avoid confusion
+					const transTypeRadios = document.querySelectorAll('input[name="txtTransType"]');
+					transTypeRadios.forEach(function (radio) {
+						radio.checked = false;
+					});
+				}
+			});
+		}
+
 	});
 	</script>

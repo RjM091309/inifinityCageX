@@ -2045,6 +2045,12 @@ router.post('/game_list/add/cashout', async (req, res) => {
 		txttotal_balance_cashout
 	} = req.body;
 
+	const skipTelegram =
+		req.body.skip_telegram === '1' || req.body.skip_telegram === 'true';
+	const splitTelegramCombined =
+		req.body.split_telegram_combined === '1' ||
+		req.body.split_telegram_combined === 'true';
+
 	// Block add when game is settled
 	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
 	if (settledRows.length > 0 && settledRows[0].SETTLED === 1) {
@@ -2084,6 +2090,25 @@ router.post('/game_list/add/cashout', async (req, res) => {
 	let sanitizedBalanceCashout = (txttotal_balance_cashout || '0').replace(/,/g, '');
 	let currentBalanceCashout = isNaN(sanitizedBalanceCashout) ? 0 : parseFloat(sanitizedBalanceCashout) + chipsReturn;
 
+	let splitCashNn = 0;
+	let splitCashCc = 0;
+	if (splitTelegramCombined) {
+		const rawCashNn = (req.body.split_cash_nn || '0').toString().replace(/,/g, '');
+		const rawCashCc = (req.body.split_cash_cc || '0').toString().replace(/,/g, '');
+		splitCashNn = parseFloat(rawCashNn);
+		splitCashCc = parseFloat(rawCashCc);
+		if (isNaN(splitCashNn) || splitCashNn < 0) splitCashNn = 0;
+		if (isNaN(splitCashCc) || splitCashCc < 0) splitCashCc = 0;
+	}
+	const splitGrandTotal = splitTelegramCombined
+		? splitCashNn + splitCashCc + txtNNamount + txtCCamount
+		: chipsReturn;
+	// 잔고 sa Telegram: dagdag lang ang deposit leg (계좌입금); hindi kasama ang cash leg
+	const depositLegTotal = txtNNamount + txtCCamount;
+	const currentBalanceAfterSplit = splitTelegramCombined
+		? (parseFloat(sanitizedBalanceCashout) || 0) + depositLegTotal
+		: currentBalanceCashout;
+
 	let CashOutDESC = 'Chips Returned'; // TRANSACTION DETAILS
 
 	try {
@@ -2109,8 +2134,6 @@ router.post('/game_list/add/cashout', async (req, res) => {
 		if (agentResults.length > 0) {
 			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
 
-			/* Telegram-only data for cash-out temporarily disabled
-			// Fetch TELEGRAM_ID for the agent
 			const telegramIdQuery = `
 				SELECT agent.TELEGRAM_ID 
 				FROM agent
@@ -2119,32 +2142,28 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			`;
 			const [telegramIdResults] = await pool.execute(telegramIdQuery, [txtAccountCode]);
 
-			let time_now = new Date();
-			let updated_time = time_now.toLocaleTimeString();
-			let date_nowTG = new Date().toLocaleDateString();
-			*/
+			const time_now = new Date();
+			const updated_time = time_now.toLocaleTimeString();
+			const date_nowTG = new Date().toLocaleDateString();
 
-			/* Telegram message content for cash-out temporarily disabled
-			// Prepare Telegram message
 			let text = '';
-			let managementText = ''; // Message for management (without account balance)
-			if (txtTransType == 2) {
+			let managementText = '';
+			if (!skipTelegram && splitTelegramCombined) {
+				const cashTotal = splitCashNn + splitCashCc;
+				const depTotal = txtNNamount + txtCCamount;
+				text = `* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n\n현금: ${cashTotal.toLocaleString()}\n계좌입금: ${depTotal.toLocaleString()}\n총 캐시아웃: ${splitGrandTotal.toLocaleString()}\n잔고: ${currentBalanceAfterSplit.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account: ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n\n현금 Cash: ${cashTotal.toLocaleString()}\n계좌입금 Deposit: ${depTotal.toLocaleString()}\n총 캐시아웃 Total Cash-out: ${splitGrandTotal.toLocaleString()}\n\n날짜 Date: ${date_nowTG}\n시간 Time: ${updated_time}`;
+			} else if (!skipTelegram && txtTransType == 2) {
 				text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n캐시아웃: ${chipsReturn.toLocaleString()} - 계좌입금\n잔고: ${currentBalanceCashout.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				// Management/agent message: bilingual labels, no payment type
 				managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
-			} else if (txtTransType == 1) {
+			} else if (!skipTelegram && txtTransType == 1) {
 				text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n캐시아웃: ${chipsReturn.toLocaleString()} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				// Management/agent message: bilingual labels, no payment type
 				managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
-			} else if (txtTransType == 4) {
+			} else if (!skipTelegram && txtTransType == 4) {
 				text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n캐시아웃: ${chipsReturn.toLocaleString()} - 크레딧\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				// Management/agent message: bilingual labels, no payment type
 				managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
-			*/
 
-			/* Telegram sending for cash-out temporarily disabled
-			// Send Telegram messages (when we have agent data)
 			if (text !== '' && agentResults.length > 0) {
 				const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
 				if (telegramId) {
@@ -2172,7 +2191,6 @@ router.post('/game_list/add/cashout', async (req, res) => {
 					console.error('Failed to send Telegram message to management:', telegramError.message);
 				}
 			}
-			*/
 		}
 
 		if (txtTransType == 1 && agentResults.length > 0 && agentResults[0].agent_id) {
