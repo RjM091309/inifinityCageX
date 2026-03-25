@@ -2045,12 +2045,6 @@ router.post('/game_list/add/cashout', async (req, res) => {
 		txttotal_balance_cashout
 	} = req.body;
 
-	const skipTelegram =
-		req.body.skip_telegram === '1' || req.body.skip_telegram === 'true';
-	const splitTelegramCombined =
-		req.body.split_telegram_combined === '1' ||
-		req.body.split_telegram_combined === 'true';
-
 	// Block add when game is settled
 	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
 	if (settledRows.length > 0 && settledRows[0].SETTLED === 1) {
@@ -2089,25 +2083,6 @@ router.post('/game_list/add/cashout', async (req, res) => {
 	let chipsReturn = txtNNamount + txtCCamount;
 	let sanitizedBalanceCashout = (txttotal_balance_cashout || '0').replace(/,/g, '');
 	let currentBalanceCashout = isNaN(sanitizedBalanceCashout) ? 0 : parseFloat(sanitizedBalanceCashout) + chipsReturn;
-
-	let splitCashNn = 0;
-	let splitCashCc = 0;
-	if (splitTelegramCombined) {
-		const rawCashNn = (req.body.split_cash_nn || '0').toString().replace(/,/g, '');
-		const rawCashCc = (req.body.split_cash_cc || '0').toString().replace(/,/g, '');
-		splitCashNn = parseFloat(rawCashNn);
-		splitCashCc = parseFloat(rawCashCc);
-		if (isNaN(splitCashNn) || splitCashNn < 0) splitCashNn = 0;
-		if (isNaN(splitCashCc) || splitCashCc < 0) splitCashCc = 0;
-	}
-	const splitGrandTotal = splitTelegramCombined
-		? splitCashNn + splitCashCc + txtNNamount + txtCCamount
-		: chipsReturn;
-	// 잔고 sa Telegram: dagdag lang ang deposit leg (계좌입금); hindi kasama ang cash leg
-	const depositLegTotal = txtNNamount + txtCCamount;
-	const currentBalanceAfterSplit = splitTelegramCombined
-		? (parseFloat(sanitizedBalanceCashout) || 0) + depositLegTotal
-		: currentBalanceCashout;
 
 	let CashOutDESC = 'Chips Returned'; // TRANSACTION DETAILS
 
@@ -2148,18 +2123,13 @@ router.post('/game_list/add/cashout', async (req, res) => {
 
 			let text = '';
 			let managementText = '';
-			if (!skipTelegram && splitTelegramCombined) {
-				const cashTotal = splitCashNn + splitCashCc;
-				const depTotal = txtNNamount + txtCCamount;
-				text = `* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n\n현금: ${cashTotal.toLocaleString()}\n계좌입금: ${depTotal.toLocaleString()}\n총 캐시아웃: ${splitGrandTotal.toLocaleString()}\n잔고: ${currentBalanceAfterSplit.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account: ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n\n현금 Cash: ${cashTotal.toLocaleString()}\n계좌입금 Deposit: ${depTotal.toLocaleString()}\n총 캐시아웃 Total Cash-out: ${splitGrandTotal.toLocaleString()}\n\n날짜 Date: ${date_nowTG}\n시간 Time: ${updated_time}`;
-			} else if (!skipTelegram && txtTransType == 2) {
+			if (txtTransType == 2) {
 				text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n캐시아웃: ${chipsReturn.toLocaleString()} - 계좌입금\n잔고: ${currentBalanceCashout.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
-			} else if (!skipTelegram && txtTransType == 1) {
+			} else if (txtTransType == 1) {
 				text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n캐시아웃: ${chipsReturn.toLocaleString()} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
-			} else if (!skipTelegram && txtTransType == 4) {
+			} else if (txtTransType == 4) {
 				text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n캐시아웃: ${chipsReturn.toLocaleString()} - 크레딧\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n캐시아웃 Cash-out : ${chipsReturn.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
@@ -2216,6 +2186,216 @@ router.post('/game_list/add/cashout', async (req, res) => {
 		console.error('Error in /game_list/add/cashout:', err);
 		res.status(500).send('Internal Server Error');
 	}
+});
+
+// Split cash-out (Cash + Deposit legs) in a single DB transaction — all-or-nothing
+router.post('/game_list/add/cashout_split', async (req, res) => {
+	const {
+		game_id,
+		txtAccountCode,
+		txttotal_balance_cashout,
+		txtTotalRolling
+	} = req.body;
+
+	const parseAmt = (v) => {
+		const s = (v === undefined || v === null ? '' : v).toString().replace(/,/g, '').trim();
+		if (s === '') return 0;
+		const n = parseFloat(s);
+		return Number.isFinite(n) ? n : NaN;
+	};
+
+	let cashNn = parseAmt(req.body.split_cash_nn);
+	let cashCc = parseAmt(req.body.split_cash_cc);
+	let depNn = parseAmt(req.body.split_dep_nn);
+	let depCc = parseAmt(req.body.split_dep_cc);
+
+	const rollingLimit = parseFloat((txtTotalRolling || '0').replace(/,/g, '')) || 0;
+	const sanitizedBalanceCashout = (txttotal_balance_cashout || '0').replace(/,/g, '');
+
+	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
+	if (settledRows.length > 0 && settledRows[0].SETTLED === 1) {
+		return res.status(403).json({ error: 'Cannot add records to a settled game.' });
+	}
+
+	if ([cashNn, cashCc, depNn, depCc].some((n) => !Number.isFinite(n) || n < 0)) {
+		return res.status(400).json({ error: 'Invalid amounts.' });
+	}
+	if (cashNn > 0 && cashNn % 1000 !== 0) {
+		return res.status(400).json({ error: 'NN Cash must be in thousands.' });
+	}
+	if (depNn > 0 && depNn % 1000 !== 0) {
+		return res.status(400).json({ error: 'NN Deposit must be in thousands.' });
+	}
+
+	const totalNN = cashNn + depNn;
+	const cashLeg = cashNn + cashCc;
+	const depLeg = depNn + depCc;
+	if (cashLeg <= 0 || depLeg <= 0) {
+		return res.status(400).json({ error: 'Both Cash and Deposit must be greater than zero.' });
+	}
+	if (totalNN > rollingLimit) {
+		return res.status(400).json({ error: 'Total NN exceeds Total Rolling.' });
+	}
+
+	const splitGrandTotal = cashLeg + depLeg;
+	const depositLegTotal = depNn + depCc;
+	const currentBalanceAfterSplit =
+		(parseFloat(sanitizedBalanceCashout) || 0) + depositLegTotal;
+
+	const date_now = new Date();
+	const CashOutDESC = 'Chips Returned';
+	const userId = req.session.user_id;
+
+	const query1 = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+
+	const connection = await pool.getConnection();
+	try {
+		await connection.beginTransaction();
+
+		const [r1] = await connection.execute(query1, [
+			game_id,
+			date_now,
+			2,
+			0,
+			cashNn,
+			cashCc,
+			1,
+			userId,
+			date_now
+		]);
+		const gameRecordIdCash = r1.insertId;
+		await connection.execute(query2, [
+			txtAccountCode,
+			game_id,
+			1,
+			1,
+			CashOutDESC,
+			cashNn + cashCc,
+			userId,
+			date_now
+		]);
+
+		const [r2] = await connection.execute(query1, [
+			game_id,
+			date_now,
+			2,
+			0,
+			depNn,
+			depCc,
+			2,
+			userId,
+			date_now
+		]);
+		await connection.execute(query2, [
+			txtAccountCode,
+			game_id,
+			1,
+			2,
+			CashOutDESC,
+			depNn + depCc,
+			userId,
+			date_now
+		]);
+
+		const agentQuery = `
+			SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
+			FROM agent
+			JOIN account ON account.AGENT_ID = agent.IDNo
+			WHERE account.ACTIVE = 1 AND account.IDNo = ?
+		`;
+		const [agentResults] = await connection.execute(agentQuery, [txtAccountCode]);
+
+		if (agentResults.length > 0 && agentResults[0].agent_id) {
+			const cashChipsReturn = cashNn + cashCc;
+			const cashTransactionQuery = `
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+			await connection.execute(cashTransactionQuery, [
+				gameRecordIdCash,
+				agentResults[0].agent_id,
+				String(cashChipsReturn),
+				'Game Cash-out',
+				2,
+				`Game - ${game_id}`,
+				userId,
+				date_now
+			]);
+		}
+
+		await connection.commit();
+	} catch (err) {
+		try {
+			await connection.rollback();
+		} catch (rbErr) {
+			console.error('cashout_split rollback:', rbErr);
+		}
+		console.error('Error in /game_list/add/cashout_split (rolled back):', err);
+		return res.status(500).json({ error: 'Cash-out failed. No changes were saved.' });
+	} finally {
+		connection.release();
+	}
+
+	// Telegram after successful commit (DB already consistent)
+	try {
+		const agentQuery = `
+			SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME
+			FROM agent
+			JOIN account ON account.AGENT_ID = agent.IDNo
+			WHERE account.ACTIVE = 1 AND account.IDNo = ?
+		`;
+		const [agentResults] = await pool.execute(agentQuery, [txtAccountCode]);
+		if (agentResults.length > 0) {
+			const { AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
+			const telegramIdQuery = `
+				SELECT agent.TELEGRAM_ID 
+				FROM agent
+				JOIN account ON account.AGENT_ID = agent.IDNo
+				WHERE account.ACTIVE = 1 AND account.IDNo = ?
+			`;
+			const [telegramIdResults] = await pool.execute(telegramIdQuery, [txtAccountCode]);
+
+			const time_now = new Date();
+			const updated_time = time_now.toLocaleTimeString();
+			const date_nowTG = new Date().toLocaleDateString();
+
+			const cashTotal = cashNn + cashCc;
+			const depTotal = depNn + depCc;
+			const text = `* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n\n현금: ${cashTotal.toLocaleString()}\n계좌입금: ${depTotal.toLocaleString()}\n총 캐시아웃: ${splitGrandTotal.toLocaleString()}\n잔고: ${currentBalanceAfterSplit.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			const managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account: ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n\n현금 Cash: ${cashTotal.toLocaleString()}\n계좌입금 Deposit: ${depTotal.toLocaleString()}\n총 캐시아웃 Total Cash-out: ${splitGrandTotal.toLocaleString()}\n\n날짜 Date: ${date_nowTG}\n시간 Time: ${updated_time}`;
+
+			const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
+			if (telegramId) {
+				try {
+					await sendTelegramMessage(text, telegramId);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to agent:', telegramError.message);
+				}
+			} else {
+				console.error('No TELEGRAM_ID found for Account Code:', txtAccountCode);
+			}
+			try {
+				await sendToAgentNotifications(agentCode, managementText);
+			} catch (telegramError) {
+				console.error('Failed to send to agent notifications:', telegramError.message);
+			}
+			try {
+				await sendTelegramToAdditionalChats(text);
+			} catch (telegramError) {
+				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+			}
+			try {
+				await sendTelegramToManagement(managementText);
+			} catch (telegramError) {
+				console.error('Failed to send Telegram message to management:', telegramError.message);
+			}
+		}
+	} catch (tgErr) {
+		console.error('Telegram block after cashout_split:', tgErr);
+	}
+
+	res.redirect('/game_list');
 });
 
 

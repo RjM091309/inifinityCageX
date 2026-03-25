@@ -2177,64 +2177,37 @@ $('#add_buyin').submit(function (event) {
 					return n === 0 ? '' : String(Math.round(n));
 				};
 
-				var postLeg = function (payload, done, fail) {
-					$.ajax({
-						url: '/game_list/add/cashout',
-						type: 'POST',
-						data: payload,
-						success: done,
-						error: fail
-					});
-				};
-
-				var payloadCash = $.extend({}, commonPayload, {
-					txtNN: fmt(nnCash),
-					txtCC: fmt(ccCash),
-					txtTransType: '1',
-					skip_telegram: '1'
-				});
-				var payloadDep = $.extend({}, commonPayload, {
-					txtNN: fmt(nnDep),
-					txtCC: fmt(ccDep),
-					txtTransType: '2',
-					split_telegram_combined: '1',
+				var splitPayload = $.extend({}, commonPayload, {
 					split_cash_nn: fmt(nnCash),
-					split_cash_cc: fmt(ccCash)
+					split_cash_cc: fmt(ccCash),
+					split_dep_nn: fmt(nnDep),
+					split_dep_cc: fmt(ccDep)
 				});
 
-				postLeg(
-					payloadCash,
-					function () {
-						postLeg(
-							payloadDep,
-							function () {
-								Swal.fire({
-									icon: 'success',
-									title: 'Success!',
-									text: 'Cash-out completed.'
-								}).then(function () {
-									reloadData();
-									$('#modal-add-cashout').modal('hide');
-									$btn.prop('disabled', false).html('Save');
-								});
-							},
-							function (xhr) {
-								var errorMessage = xhr.responseJSON && xhr.responseJSON.error
-									? xhr.responseJSON.error
-									: 'Deposit leg failed after Cash was saved. Check records and try again.';
-								Swal.fire({ icon: 'error', title: 'Error!', text: errorMessage });
-								$btn.prop('disabled', false).html('Save');
-							}
-						);
+				$.ajax({
+					url: '/game_list/add/cashout_split',
+					type: 'POST',
+					data: splitPayload,
+					success: function () {
+						Swal.fire({
+							icon: 'success',
+							title: 'Success!',
+							text: 'Cash-out completed.'
+						}).then(function () {
+							reloadData();
+							$('#modal-add-cashout').modal('hide');
+							$btn.prop('disabled', false).html('Save');
+						});
 					},
-					function (xhr) {
-						var errorMessage = xhr.responseJSON && xhr.responseJSON.error
-							? xhr.responseJSON.error
-							: 'Something went wrong. Please try again.';
+					error: function (xhr) {
+						var errorMessage =
+							xhr.responseJSON && xhr.responseJSON.error
+								? xhr.responseJSON.error
+								: xhr.responseText || 'Something went wrong. Please try again.';
 						Swal.fire({ icon: 'error', title: 'Error!', text: errorMessage });
 						$btn.prop('disabled', false).html('Save');
 					}
-				);
+				});
 			});
 			return;
 		}
