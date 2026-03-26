@@ -160,19 +160,27 @@ $(document).ready(function () {
 					const totalAmount = Number(row.total_balance ?? row.total_ledger_amount ?? 0);
 					grandTotal += totalAmount;
 
-					const btn = `
+					// Only Super Admin (permissions === 0) can see the delete button
+					const isSuperAdmin = permissions === 0;
+
+					let btn = `
 						<button type="button" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled"
 							data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit"
 							onclick="edit_agent(${row.agent_id}, '${escapeJsString(row.agent_code)}', '${escapeJsString(row.agent_name)}', '${escapeJsString(row.agent_contact)}', '${escapeJsString(row.agent_telegram)}', '${escapeJsString(row.agent_remarks)}')">
 							<i class="fa fa-pencil-alt"></i>
 						</button>
-						<div class="btn-group">
-							<button type="button" onclick="archive_account(${row.agent_id})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
-								data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
-								<i class="fa fa-trash-alt"></i>
-							</button>
-						</div>
 					`;
+
+					if (isSuperAdmin) {
+						btn += `
+							<div class="btn-group">
+								<button type="button" onclick="archive_account(${row.agent_id})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
+									data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
+									<i class="fa fa-trash-alt"></i>
+								</button>
+							</div>
+						`;
+					}
 
 					const account_no = permissions !== 2
 						? `<a href="#" onclick="account_details(${row.account_id}, '${escapeJsString(row.agent_code)}', '${escapeJsString(row.agent_name)}')">${row.agent_code}</a>`

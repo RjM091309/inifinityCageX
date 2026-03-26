@@ -380,9 +380,14 @@ router.put('/agent/:id', uploadPassportImg.single('photo'), async (req, res) => 
 });
 
 
-// REMOVE AGENT
+// REMOVE AGENT (Super Admin only)
 router.put('/agent/remove/:id', async (req, res) => {
 	try {
+		const permissions = req.session?.permissions;
+		if (permissions !== 0) {
+			return res.status(403).json({ success: false, message: 'Only Super Admin can delete agents.' });
+		}
+
 		const id = parseInt(req.params.id);
 		const date_now = new Date();
 

@@ -152,9 +152,11 @@ $(document).ready(function () {
 								<button type="button" class="btn btn-sm btn-alt-secondary js-bs-tooltip-enabled" disabled>
 									<i class="fa fa-pencil-alt"></i>
 								</button>
+								<!--
 								<button type="button" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled" disabled>
 									<i class="fa fa-trash-alt"></i>
 								</button>
+								-->
 							</div>
 						`;
 					}
@@ -165,11 +167,13 @@ $(document).ready(function () {
 								onclick="edit_agent(${row.agent_id}, '${escapeJsString(row.agent_code)}', '${escapeJsString(row.agent_name)}', '${escapeJsString(row.agent_contact)}', '${escapeJsString(row.agent_telegram)}', '${escapeJsString(row.agent_remarks)}')">
 								<i class="fa fa-pencil-alt"></i>
 							</button>
+							<!--
 							<button type="button" 
 								onclick="checkPermissionToDeleteAgent(${row.agent_id})" 
 								class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled">
 								<i class="fa fa-trash-alt"></i>
 							</button>
+							-->
 						</div>
 					`;
 				}
