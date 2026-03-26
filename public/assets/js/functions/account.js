@@ -16,6 +16,7 @@ var currentAccountDetailsId = null;
 var currentAccountBalance = 0;
 var accountDetailsDataTable = null;
 var currentAccountDetailsId = null;
+var lastSavedAgentRemarks = '';
 
 // Cache for Telegram usernames
 var telegramUsernameCache = {};
@@ -506,6 +507,13 @@ function account_details(account_id_data, agent_code, account_name) {
             document.getElementById('account_name').textContent = account.account_name || 'N/A';
          //   document.getElementById('account_id').value = account.ACCOUNT_ID || '';
 
+            const remarksEl = document.getElementById('agent_remarks_notice');
+            if (remarksEl) {
+                const ar = account.agent_remarks != null ? String(account.agent_remarks).trim() : '';
+                remarksEl.value = ar;
+                lastSavedAgentRemarks = ar;
+            }
+
             // Check for passport photo
             if (account.PASSPORTPHOTO && account.PASSPORTPHOTO !== 'DEFAULT.jpg') {
                 document.getElementById('account_photo').src = `/PassportUpload/${account.PASSPORTPHOTO}`;
@@ -514,10 +522,20 @@ function account_details(account_id_data, agent_code, account_name) {
             }
         } else {
             console.log('No data found for this account');
+            const remarksElEmpty = document.getElementById('agent_remarks_notice');
+            if (remarksElEmpty) {
+                remarksElEmpty.value = '';
+                lastSavedAgentRemarks = '';
+            }
         }
     })
     .catch(error => {
         console.error('Error fetching account details:', error);
+        const remarksElErr = document.getElementById('agent_remarks_notice');
+        if (remarksElErr) {
+            remarksElErr.value = '';
+            lastSavedAgentRemarks = '';
+        }
     });
 
 
@@ -526,6 +544,8 @@ function account_details(account_id_data, agent_code, account_name) {
     $('#agent_code').text(agent_code);
 	$('#account_name').text(account_name);
 	$('#account_id').val(account_id_data);
+	$('#agent_remarks_notice').val('');
+	lastSavedAgentRemarks = '';
 
 	$('.txtAmount').val('');
 	$('.remarks').val('');
@@ -1210,6 +1230,48 @@ $('#txtAccount').on('change', function () {
             }
         });
     }
+});
+
+$(document).on('keydown', '#agent_remarks_notice', function (e) {
+	if (e.key !== 'Enter') return;
+	e.preventDefault();
+	const $inp = $(this);
+	const accountId = $('#account_id').val() || $('#account_id_add').val();
+	if (!accountId) return;
+	const val = ($inp.val() || '').trim();
+	if (val === lastSavedAgentRemarks) return;
+	$.ajax({
+		url: '/account/' + accountId + '/agent_remarks',
+		method: 'PUT',
+		contentType: 'application/json',
+		data: JSON.stringify({ remarks: val }),
+		success: function () {
+			lastSavedAgentRemarks = val;
+			$inp.blur();
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({
+					icon: 'success',
+					title: 'Saved',
+					text: 'Agent remarks updated.',
+					timer: 2000,
+					showConfirmButton: false,
+					didClose: function () {
+						const el = document.getElementById('agent_remarks_notice');
+						if (el) el.blur();
+					}
+				});
+			}
+		},
+		error: function (xhr) {
+			$inp.val(lastSavedAgentRemarks);
+			const msg = xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'Could not save remarks.';
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Save failed', text: msg, timer: 2800, showConfirmButton: true });
+			} else {
+				alert(msg);
+			}
+		}
+	});
 });
 
 document.addEventListener('DOMContentLoaded', function () {

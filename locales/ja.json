@@ -1010,7 +1010,8 @@
 		"amount": "金額",
 		"remarks": "備考",
 		"close": "閉じる",
-		"balance_check": "残高チェック"
+		"balance_check": "残高チェック",
+		"agent_remarks": "modal_account_details.agent_remarks"
 	},
 	"modal_change_status": {
 		"change_status": "ステータスの変更",

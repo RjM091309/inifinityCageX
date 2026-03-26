@@ -1400,7 +1400,8 @@ router.get('/account_passportphoto_data/:account_id', async (req, res) => {
 				account.*, 
 				agent.NAME AS account_name, 
 				agent.AGENT_CODE AS agent_code,
-				agent.PHOTO AS PASSPORTPHOTO 
+				agent.PHOTO AS PASSPORTPHOTO,
+				agent.REMARKS AS agent_remarks
 			FROM account 
 			LEFT JOIN agent ON agent.IDNo = account.AGENT_ID 
 			WHERE account.IDNo = ?
@@ -1410,6 +1411,30 @@ router.get('/account_passportphoto_data/:account_id', async (req, res) => {
 	} catch (error) {
 		console.error('Error fetching account data:', error);
 		res.status(500).send('Error fetching account data');
+	}
+});
+
+// UPDATE AGENT REMARKS (Guest Portal — Transaction History header)
+router.put('/account/:accountId/agent_remarks', async (req, res) => {
+	try {
+		const accountId = parseInt(req.params.accountId, 10);
+		if (Number.isNaN(accountId)) {
+			return res.status(400).json({ error: 'Invalid account id' });
+		}
+		const remarks = req.body && req.body.remarks != null ? String(req.body.remarks) : '';
+		const date_now = new Date();
+		const [[row]] = await pool.query('SELECT AGENT_ID FROM account WHERE IDNo = ?', [accountId]);
+		if (!row || row.AGENT_ID == null) {
+			return res.status(404).json({ error: 'Account or agent not found' });
+		}
+		await pool.execute(
+			'UPDATE agent SET REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[remarks, req.session.user_id, date_now, row.AGENT_ID]
+		);
+		res.json({ success: true });
+	} catch (error) {
+		console.error('Error updating agent remarks:', error);
+		res.status(500).json({ error: 'Error updating agent remarks' });
 	}
 });
 

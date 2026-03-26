@@ -1007,7 +1007,8 @@
 		"amount": "AMOUNT",
 		"remarks": "REMARKS",
 		"close": "Close",
-		"balance_check": "Balance Check"
+		"balance_check": "Balance Check",
+		"agent_remarks": "modal_account_details.agent_remarks"
 	},
 	"modal_change_status": {
 		"change_status": "Change Status",

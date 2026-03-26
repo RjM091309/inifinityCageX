@@ -1010,7 +1010,8 @@
 		"amount": "金额",
 		"remarks": "备注",
 		"close": "关闭",
-		"balance_check": "余额检查"
+		"balance_check": "余额检查",
+		"agent_remarks": "modal_account_details.agent_remarks"
 	},
 	"modal_change_status": {
 		"change_status": "更改状态",
