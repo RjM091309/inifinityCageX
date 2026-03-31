@@ -33,6 +33,7 @@
                                             <th>CC Chips</th>
                                             <th><%= __('dashboard_history.reset_by') %></th>
                                             <th>Date Settled</th>
+                                            <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -228,8 +229,58 @@
                                     "render": function (data, type, row) {
                                         return type === 'sort' ? row.ENCODED_DT_RAW : row.ENCODED_DT;
                                     }
+                                },
+                                {
+                                    "data": null,
+                                    "orderable": false,
+                                    "searchable": false,
+                                    "render": function (data, type, row) {
+                                        if (!row.MONTH_SETTLE_ID || Number(row.IS_LATEST_SETTLE) !== 1) return '-';
+                                        return `
+                                            <button class="btn btn-sm btn-outline-danger undo-month-settle-btn" data-id="${row.MONTH_SETTLE_ID}">
+                                                Undo
+                                            </button>
+                                        `;
+                                    }
                                 }
                             ]
+                        });
+
+                        $('#dashboardhistory-tbl').on('click', '.undo-month-settle-btn', async function () {
+                            const monthSettleId = $(this).data('id');
+                            const confirmRes = await Swal.fire({
+                                icon: 'warning',
+                                title: 'Undo monthly settle?',
+                                text: 'This will delete the selected settle.',
+                                showCancelButton: true,
+                                confirmButtonText: 'Yes, undo',
+                                cancelButtonText: 'Cancel'
+                            });
+                            if (!confirmRes.isConfirmed) return;
+
+                            try {
+                                const response = await fetch('/undo-month-settle', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ month_settle_id: monthSettleId })
+                                });
+                                const result = await response.json().catch(() => ({}));
+                                if (!response.ok || !result.success) {
+                                    throw new Error(result.message || 'Failed to undo monthly settle');
+                                }
+
+                                await Swal.fire({
+                                    icon: 'success',
+                                    title: 'Undo successful'
+                                });
+                                $('#dashboardhistory-tbl').DataTable().ajax.reload(null, false);
+                            } catch (error) {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: error.message || 'An error occurred while undoing monthly settle.'
+                                });
+                            }
                         });
                     });
 

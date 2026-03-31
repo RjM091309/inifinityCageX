@@ -86,10 +86,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                     })
                                     .then(insertData => {
                                         if (insertData.success) {
-                                            // Step 4: Pagkatapos, tawagin ang reset endpoint
+                                            // Step 4: Pagkatapos, tawagin ang reset endpoint (may MONTH_SETTLE_ID para undo)
                                             fetch('/reset-main-cage-balance', {
                                                 method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' }
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    month_settle_id: insertData.month_settle_id
+                                                })
                                             })
                                             .then(response => {
                                                 if (!response.ok) {

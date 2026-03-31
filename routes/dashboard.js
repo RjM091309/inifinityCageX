@@ -228,8 +228,8 @@ ON
 	`;
 
 	let sqlTotalChipsBuyin = 'SELECT  SUM(TOTAL_CHIPS) AS TotalChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1';
-	let sqlCCChipsMonthlySettle = 'SELECT SUM(CC_CHIPS) AS CCChipsMonthlySettle FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=4';
-	let sqlNNChipsMonthlySettle = 'SELECT SUM(NN_CHIPS) AS NNChipsMonthlySettle FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=4';
+	let sqlCCChipsMonthlySettle = 'SELECT SUM(CC_CHIPS) AS CCChipsMonthlySettle FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=4 AND RESET=0';
+	let sqlNNChipsMonthlySettle = 'SELECT SUM(NN_CHIPS) AS NNChipsMonthlySettle FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=4 AND RESET=0';
 	let sqlCashDeposit = 'SELECT  SUM(AMOUNT) AS CASH_DEPOSIT FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=1';
 	let sqlCashWithdraw = 'SELECT  SUM(AMOUNT) AS CASH_WITHDRAW FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=2';
 	let sqlAccountDeposit = `
@@ -2475,11 +2475,29 @@ router.get("/dashboard_history", function (req, res) {
 // Reset Main Cage Balances
 router.post('/reset-main-cage-balance', async (req, res) => {
 	try {
+		const monthSettleId = req.body?.month_settle_id;
+		const hasSettleId =
+			monthSettleId !== undefined && monthSettleId !== null && monthSettleId !== '';
+
 		// Update all tables to mark records as settled (RESET = 0)
 		// Only update active records that are currently unsettled (RESET = 1)
+		// Kung may month_settle_id (galing sa /insert-dash-history), i-tag ang rows para sa undo
 		// await pool.execute(`UPDATE junket_house_expense SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
-		await pool.execute(`UPDATE game_record SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
-		await pool.execute(`UPDATE junket_total_chips SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
+		if (hasSettleId) {
+			await pool.execute(
+				`UPDATE game_record SET RESET = 0, MONTH_SETTLE_ID = ? WHERE RESET = 1 AND ACTIVE = 1`,
+				[monthSettleId]
+			);
+			await pool.execute(
+				`UPDATE junket_total_chips
+				 SET RESET = 0, MONTH_SETTLE_ID = ?
+				 WHERE RESET = 1 AND ACTIVE = 1 AND TRANSACTION_ID <> 4`,
+				[monthSettleId]
+			);
+		} else {
+			await pool.execute(`UPDATE game_record SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
+			await pool.execute(`UPDATE junket_total_chips SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1 AND TRANSACTION_ID <> 4`);
+		}
 		// await pool.execute(`UPDATE winloss SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
 		// await pool.execute(`UPDATE total_rolling SET RESET = 0 WHERE RESET = 1 AND ACTIVE = 1`);
 
@@ -2614,14 +2632,85 @@ router.post('/insert-dash-history', async (req, res) => {
 		connection = await pool.getConnection();
 		await connection.beginTransaction();
 
-		// Insert junket_total_chips as Chips Cashout (TRANSACTION_ID=2, RESET=0)
 		const chipsCashoutDesc = '<span class="css-red">Monthly Settle</span>';
 		const nnCashout = normalizeNumber(NN_CASHOUT);
 		const ccCashout = normalizeNumber(CC_CASHOUT);
 		const totalChipsCashout = nnCashout + ccCashout;
+
+		// Upsert-style settle by period:
+		// - if inactive row exists for same period, reactivate/update it (para di tumama sa uq_period)
+		// - else insert new row
+		let monthSettleId;
+		const [periodRows] = await connection.execute(
+			`SELECT id, active
+			 FROM month_settle
+			 WHERE period_start = ? AND period_end = ?
+			 LIMIT 1
+			 FOR UPDATE`,
+			[periodStartStr, periodEndStr]
+		);
+
+		if (periodRows && periodRows.length > 0) {
+			const existingRow = periodRows[0];
+			if (Number(existingRow.active) === 1) {
+				throw new Error(`${periodLabel} has already been settled.`);
+			}
+
+			monthSettleId = Number(existingRow.id);
+			await connection.execute(
+				`UPDATE month_settle
+				 SET
+					active = 1,
+					period_label = ?,
+					nn_cashout = ?,
+					cc_cashout = ?,
+					total_rolling_history = ?,
+					house_rolling_history = ?,
+					winloss_history = ?,
+					commission_history = ?,
+					encoded_by = ?,
+					encoded_dt = ?,
+					edited_by = NULL,
+					edited_dt = NULL
+				 WHERE id = ?`,
+				[
+					periodLabel,
+					nnCashout,
+					ccCashout,
+					normalizeNumber(TOTAL_ROLLING_HISTORY),
+					normalizeNumber(HOUSE_ROLLING_HISTORY),
+					normalizeNumber(WINLOSS_HISTORY),
+					normalizeNumber(COMMISSION_HISTORY),
+					req.session.user_id,
+					date_now,
+					monthSettleId
+				]
+			);
+		} else {
+			const [monthSettleResult] = await connection.execute(
+				`INSERT INTO month_settle (period_start, period_end, period_label, nn_cashout, cc_cashout, total_rolling_history, house_rolling_history, winloss_history, commission_history, encoded_by, encoded_dt)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[
+					periodStartStr,
+					periodEndStr,
+					periodLabel,
+					nnCashout,
+					ccCashout,
+					normalizeNumber(TOTAL_ROLLING_HISTORY),
+					normalizeNumber(HOUSE_ROLLING_HISTORY),
+					normalizeNumber(WINLOSS_HISTORY),
+					normalizeNumber(COMMISSION_HISTORY),
+					req.session.user_id,
+					date_now
+				]
+			);
+			monthSettleId = monthSettleResult.insertId;
+		}
+
+		// Insert junket_total_chips as Chips Cashout (TRANSACTION_ID=4, RESET=0) — naka-link sa settlement batch
 		await connection.execute(
-			'INSERT INTO junket_total_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, RESET, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, 0, ?, ?)',
-			[4, chipsCashoutDesc, nnCashout, ccCashout, totalChipsCashout, req.session.user_id, date_now]
+			'INSERT INTO junket_total_chips(TRANSACTION_ID, DESCRIPTION, NN_CHIPS, CC_CHIPS, TOTAL_CHIPS, RESET, MONTH_SETTLE_ID, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)',
+			[4, chipsCashoutDesc, nnCashout, ccCashout, totalChipsCashout, monthSettleId, req.session.user_id, date_now]
 		);
 
 		// Insert dash_history
@@ -2639,30 +2728,14 @@ router.post('/insert-dash-history', async (req, res) => {
 			]
 		);
 
-		// Insert month_settle (already checked above - period not yet settled)
-		await connection.execute(
-			`INSERT INTO month_settle (period_start, period_end, period_label, nn_cashout, cc_cashout, total_rolling_history, house_rolling_history, winloss_history, commission_history, encoded_by, encoded_dt)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			[
-				periodStartStr,
-				periodEndStr,
-				periodLabel,
-				nnCashout,
-				ccCashout,
-				normalizeNumber(TOTAL_ROLLING_HISTORY),
-				normalizeNumber(HOUSE_ROLLING_HISTORY),
-				normalizeNumber(WINLOSS_HISTORY),
-				normalizeNumber(COMMISSION_HISTORY),
-				req.session.user_id,
-				date_now
-			]
-		);
-
 		await connection.commit();
-		res.json({ success: true });
+		res.json({ success: true, month_settle_id: monthSettleId });
 	} catch (err) {
 		if (connection) await connection.rollback();
 		console.error('Error inserting data into dash_history', err);
+		if (err && typeof err.message === 'string' && err.message.includes('has already been settled')) {
+			return res.status(400).json({ success: false, message: err.message });
+		}
 		res.status(500).json({ success: false, message: 'Error inserting data into dash_history' });
 	} finally {
 		if (connection) connection.release();
@@ -2675,6 +2748,17 @@ router.post('/insert-dash-history', async (req, res) => {
 router.get('/get-dashboard-history', async (req, res) => {
 	const query = `
 		SELECT 
+			ms.id AS MONTH_SETTLE_ID,
+			CASE 
+				WHEN ms.id = (
+					SELECT msl.id
+					FROM month_settle msl
+					WHERE msl.active = 1
+					ORDER BY msl.encoded_dt DESC, msl.id DESC
+					LIMIT 1
+				) THEN 1
+				ELSE 0
+			END AS IS_LATEST_SETTLE,
 			ms.period_label AS PERIOD_LABEL,
 			ms.encoded_dt AS ENCODED_DT,
 			ms.commission_history AS COMMISSION_HISTORY,
@@ -2686,6 +2770,7 @@ router.get('/get-dashboard-history', async (req, res) => {
 			user_info.FIRSTNAME AS FIRSTNAME
 		FROM month_settle ms
 		JOIN user_info ON user_info.IDNo = ms.encoded_by
+		WHERE ms.active = 1
 		ORDER BY ms.encoded_dt DESC
 	`;
 
@@ -2695,6 +2780,84 @@ router.get('/get-dashboard-history', async (req, res) => {
 	} catch (err) {
 		console.error('Error fetching dashboard history data', err);
 		res.status(500).json({ error: 'Error fetching data' });
+	}
+});
+
+// Soft undo for one monthly settle batch
+router.post('/undo-month-settle', async (req, res) => {
+	const monthSettleId = Number(req.body?.month_settle_id);
+	if (!Number.isInteger(monthSettleId) || monthSettleId <= 0) {
+		return res.status(400).json({ success: false, message: 'Invalid month_settle_id' });
+	}
+
+	let connection;
+	try {
+		connection = await pool.getConnection();
+		await connection.beginTransaction();
+
+		const [settleRows] = await connection.execute(
+			'SELECT id, active FROM month_settle WHERE id = ? LIMIT 1',
+			[monthSettleId]
+		);
+		if (!settleRows || settleRows.length === 0) {
+			await connection.rollback();
+			return res.status(404).json({ success: false, message: 'Monthly settle record not found' });
+		}
+		if (Number(settleRows[0].active) === 0) {
+			await connection.rollback();
+			return res.status(400).json({ success: false, message: 'Monthly settle is already undone' });
+		}
+		const [latestRows] = await connection.execute(
+			`SELECT id
+			 FROM month_settle
+			 WHERE active = 1
+			 ORDER BY encoded_dt DESC, id DESC
+			 LIMIT 1`
+		);
+		if (!latestRows || latestRows.length === 0 || Number(latestRows[0].id) !== monthSettleId) {
+			await connection.rollback();
+			return res.status(400).json({
+				success: false,
+				message: 'Only the latest monthly settle can be undone'
+			});
+		}
+
+		// Re-open only rows linked to this specific settlement batch
+		await connection.execute(
+			`UPDATE game_record
+			 SET RESET = 1, MONTH_SETTLE_ID = NULL
+			 WHERE MONTH_SETTLE_ID = ? AND ACTIVE = 1`,
+			[monthSettleId]
+		);
+		await connection.execute(
+			`UPDATE junket_total_chips
+			 SET RESET = 1, MONTH_SETTLE_ID = NULL
+			 WHERE MONTH_SETTLE_ID = ? AND ACTIVE = 1 AND TRANSACTION_ID <> 4`,
+			[monthSettleId]
+		);
+		await connection.execute(
+			`UPDATE junket_total_chips
+			 SET ACTIVE = 0, RESET = 1, MONTH_SETTLE_ID = NULL
+			 WHERE MONTH_SETTLE_ID = ? AND ACTIVE = 1 AND TRANSACTION_ID = 4`,
+			[monthSettleId]
+		);
+
+		// Soft delete month_settle itself
+		await connection.execute(
+			`UPDATE month_settle
+			 SET active = 0, edited_by = ?, edited_dt = ?
+			 WHERE id = ?`,
+			[req.session.user_id, new Date(), monthSettleId]
+		);
+
+		await connection.commit();
+		return res.json({ success: true });
+	} catch (err) {
+		if (connection) await connection.rollback();
+		console.error('Error undoing monthly settle', err);
+		return res.status(500).json({ success: false, message: 'Error undoing monthly settle' });
+	} finally {
+		if (connection) connection.release();
 	}
 });
 

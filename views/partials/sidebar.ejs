@@ -550,11 +550,15 @@ aside.sidebar .sidebar-footer {
               const errData = await historyResponse.json().catch(() => ({}));
               throw new Error(errData.message || 'Failed to save history');
             }
+            const historyData = await historyResponse.json().catch(() => ({}));
             
-            // Step 2: Reset the values (set RESET = 0)
+            // Step 2: Reset the values (set RESET = 0) at i-tag ang MONTH_SETTLE_ID para sa undo
             const resetResponse = await fetch('/reset-main-cage-balance', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' }
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                month_settle_id: historyData.month_settle_id
+              })
             });
             
             if (!resetResponse.ok) throw new Error('Failed to reset balances');
