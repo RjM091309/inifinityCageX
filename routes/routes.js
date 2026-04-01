@@ -3320,13 +3320,14 @@ pageRouter.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), (r
 	} = req.body;
 	let date_now = new Date();
 	let editXAmount = txtAmount.split(',').join("");
+	const safeDateTime = txtDateandTime || null;
 
 	// Kung may na-upload na bagong file, isama ito sa update query (PHOTO column)
 	if (req.file) {
 		const query = `UPDATE junket_house_expense 
-                       SET CATEGORY_ID = ?, RECEIPT_NO = ?, DATE_TIME = ?, DESCRIPTION = ?, AMOUNT = ?, PHOTO = ?, EDITED_BY = ?, ENCODED_DT = ? 
+                       SET CATEGORY_ID = ?, RECEIPT_NO = ?, DATE_TIME = ?, DESCRIPTION = ?, AMOUNT = ?, PHOTO = ?, EDITED_BY = ?, EDITED_DT = ? 
                        WHERE IDNo = ?`;
-		connection.query(query, [txtCategory, txtReceiptNo, txtDateandTime, txtDescription, editXAmount, req.file.filename, req.session.user_id, date_now, id], (err, result) => {
+		connection.query(query, [txtCategory, txtReceiptNo, safeDateTime, txtDescription, editXAmount, req.file.filename, req.session.user_id, date_now, id], (err, result) => {
 			if (err) {
 				console.error('Error updating Junket:', err);
 				res.status(500).send('Error updating Junket');
@@ -3337,9 +3338,9 @@ pageRouter.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), (r
 	} else {
 		// Kung walang bagong file, hindi babaguhin ang PHOTO column
 		const query = `UPDATE junket_house_expense 
-                       SET CATEGORY_ID = ?, RECEIPT_NO = ?, DATE_TIME = ?, DESCRIPTION = ?, AMOUNT = ?, EDITED_BY = ?, ENCODED_DT = ? 
+                       SET CATEGORY_ID = ?, RECEIPT_NO = ?, DATE_TIME = ?, DESCRIPTION = ?, AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ? 
                        WHERE IDNo = ?`;
-		connection.query(query, [txtCategory, txtReceiptNo, txtDateandTime, txtDescription, editXAmount, req.session.user_id, date_now, id], (err, result) => {
+		connection.query(query, [txtCategory, txtReceiptNo, safeDateTime, txtDescription, editXAmount, req.session.user_id, date_now, id], (err, result) => {
 			if (err) {
 				console.error('Error updating Junket:', err);
 				res.status(500).send('Error updating Junket');

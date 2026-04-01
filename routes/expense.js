@@ -746,6 +746,7 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 
 		const date_now = new Date();
 		const editXAmount = parseFloat(txtAmount.replace(/,/g, ''));
+		const safeDateTime = txtDateandTime || null;
 
 		// Get previous amount before updating (for Telegram \"before amount\")
 		const [oldRows] = await pool.execute(
@@ -756,9 +757,9 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 
 		let query = `
 			UPDATE junket_house_expense 
-			SET CATEGORY_ID = ?, RECEIPT_NO = ?, DATE_TIME = ?, DESCRIPTION = ?, AMOUNT = ?, EDITED_BY = ?, ENCODED_DT = ?
+			SET CATEGORY_ID = ?, RECEIPT_NO = ?, DATE_TIME = ?, DESCRIPTION = ?, AMOUNT = ?, EDITED_BY = ?, EDITED_DT = ?
 		`;
-		const params = [txtCategory, txtReceiptNo, txtDateandTime, txtDescription, editXAmount, req.session.user_id, date_now];
+		const params = [txtCategory, txtReceiptNo, safeDateTime, txtDescription, editXAmount, req.session.user_id, date_now];
 
 		if (req.file) {
 			query += `, PHOTO = ?`;

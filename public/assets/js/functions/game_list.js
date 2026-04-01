@@ -243,6 +243,12 @@ $(document).ready(function () {
 		$('#game_list-tbl tfoot #GRAND_WIN_LOSS').text(grandWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 	};
 
+    function clearGameListDisplay() {
+        dataTable.clear();
+        dataTable.draw();
+        $('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT, #GRAND_CHIPS_RETURN, #GRAND_TOTAL_ROLLING, #GRAND_ROLLER_CHIPS, #GRAND_REAL_ROLLING, #GRAND_COMMISSION, #GRAND_WIN_LOSS').text('0.00');
+    }
+
     function reloadData() {
 		// Build params; if highlightId exists, pass it to bypass date filtering on backend
 		const params = {};
@@ -276,12 +282,8 @@ $(document).ready(function () {
 				}
 				
 				if (!fromDate || !toDate) {
-					// Default to current month if not set
-					var now = new Date();
-					var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-					var pad = function(n) { return String(n).padStart(2, '0'); };
-					fromDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
-					toDate = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+                    clearGameListDisplay();
+					return;
 				}
 				
 				params.fromDate = fromDate;
@@ -1180,10 +1182,11 @@ $(document).ready(function () {
         } else {
             $('#settlement-date-wrapper').hide();
             $('#daterange-wrapper').show();
-            // Reload data with date range
-            if (typeof window.reloadData === 'function') {
-                window.reloadData();
+            // Clear existing date range values and keep table empty
+            if (dateRangePicker && typeof dateRangePicker.clear === 'function') {
+                dateRangePicker.clear();
             }
+            clearGameListDisplay();
         }
     });
     
@@ -1331,7 +1334,7 @@ $(document).ready(function () {
             dateFormat: 'Y-m-d',
             altInput: true,
             altFormat: 'M d, Y',
-            defaultDate: [defaultFromDate, defaultToDate],
+            defaultDate: [],
             maxDate: defaultSettlementDate || 'today',
             onDayCreate: function (dayElem) {
                 if (!dayElem || !dayElem.dateObj) return;

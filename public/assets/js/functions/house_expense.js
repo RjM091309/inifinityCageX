@@ -14,6 +14,15 @@ function attrEncode(str) {
 }
 
 $(document).ready(function () {
+    function clearExpenseTableDisplay() {
+        if ($.fn.DataTable.isDataTable('#expense-tbl')) {
+            var dt = $('#expense-tbl').DataTable();
+            dt.clear();
+            dt.draw();
+        }
+        $('#TOTAL_EXPENSE_AMOUNT').text('₱0.00');
+        $('#TOTAL_RETURN_MONEY_AMOUNT').text('₱0.00');
+    }
 
     function initializeExpenseTable() {
 
@@ -65,6 +74,7 @@ $(document).ready(function () {
         function reloadData() {
             var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
             var requestData = {};
+            var requestMode = filterMode;
             
             if (filterMode === 'settlement') {
                 // Settlement date mode
@@ -86,12 +96,8 @@ $(document).ready(function () {
                 }
                 
                 if (!fromDate || !toDate) {
-                    // Default to current month if not set
-                    var now = new Date();
-                    var firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-                    var pad = function(n) { return String(n).padStart(2, '0'); };
-                    fromDate = firstOfMonth.getFullYear() + '-' + pad(firstOfMonth.getMonth() + 1) + '-' + pad(firstOfMonth.getDate());
-                    toDate = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+                    clearExpenseTableDisplay();
+                    return;
                 }
                 
                 requestData.fromDate = fromDate;
@@ -103,6 +109,11 @@ $(document).ready(function () {
                 method: 'GET',
                 data: requestData,
                 success: function (data) {
+                    var currentMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+                    if (currentMode !== requestMode) {
+                        // Ignore stale response from previous mode
+                        return;
+                    }
                     dataTable.clear();
                     var total_expense = 0;
                     var total_return_money = 0;
@@ -255,39 +266,13 @@ $(document).ready(function () {
             $('#settlement-date-wrapper').hide();
             $('#daterange-wrapper').show();
             
-            // Update date range picker to default range (earliest settlement to next settlement)
+            // Clear date range on mode switch and keep table empty until user selects both dates
             var daterangePickerEl = document.getElementById('daterange-picker');
             if (daterangePickerEl && daterangePickerEl._flatpickr) {
-                var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
-                var defaultSettlementDate = null;
-                var settledDates = window.settledDatesForMonth || [];
-                
-                if (wrapper) {
-                    defaultSettlementDate = wrapper.getAttribute('data-default-settlement-date');
-                }
-                
-                // Get earliest settlement date
-                var earliestSettlementDate = null;
-                if (settledDates.length > 0) {
-                    var sortedDates = settledDates.slice().sort();
-                    earliestSettlementDate = sortedDates[0];
-                } else {
-                    var now = new Date();
-                    var pad = function(n) { return String(n).padStart(2, '0'); };
-                    var earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
-                    earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
-                }
-                
-                // Set default range and max date
-                var defaultToDate = defaultSettlementDate || new Date().toISOString().slice(0, 10);
-                daterangePickerEl._flatpickr.set('maxDate', defaultToDate);
-                daterangePickerEl._flatpickr.setDate([earliestSettlementDate, defaultToDate], false);
+                daterangePickerEl._flatpickr.clear();
             }
             
-            // Reload data with date range
-            if (typeof window.reloadData === 'function') {
-                window.reloadData();
-            }
+            clearExpenseTableDisplay();
         }
     });
     
@@ -327,8 +312,6 @@ $(document).ready(function () {
             earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
         }
         
-        // Default date range: From earliest settlement date to next settlement date
-        var defaultFromDate = earliestSettlementDate;
         var defaultToDate = defaultSettlementDate || now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
         
         dateRangePicker = flatpickr("#daterange-picker", {
@@ -336,7 +319,7 @@ $(document).ready(function () {
             dateFormat: 'Y-m-d',
             altInput: true,
             altFormat: 'M d, Y',
-            defaultDate: [defaultFromDate, defaultToDate],
+            defaultDate: [],
             maxDate: defaultToDate,
             onDayCreate: function (dayElem) {
                 if (!dayElem || !dayElem.dateObj) return;
@@ -474,7 +457,7 @@ $(document).ready(function () {
                     window.selectedSettlementDate = dateStr || '';
                     if (typeof window.updateNavigationButtons === 'function') window.updateNavigationButtons();
                     if (typeof window.updateSettleButtonState === 'function') window.updateSettleButtonState();
-                    if (typeof window.reloadExpenseBySettlementDate === 'function') window.reloadExpenseBySettlementDate();
+                    if (typeof window.reloadData === 'function') window.reloadData();
                 },
                 onMonthChange: function (selectedDates, dateStr, instance) {
                     setTimeout(function () {
@@ -662,6 +645,11 @@ $(document).ready(function () {
 
     // Update reloadData to support settlement date
     window.reloadExpenseBySettlementDate = function() {
+        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+        if (filterMode !== 'settlement') {
+            clearExpenseTableDisplay();
+            return;
+        }
         // Get fresh date each time function is called
         var date = window.selectedSettlementDate || 'current';
         $.ajax({
@@ -669,6 +657,11 @@ $(document).ready(function () {
             method: 'GET',
             data: { date: date },
                     success: function (data) {
+                        var currentMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+                        if (currentMode !== 'settlement') {
+                            clearExpenseTableDisplay();
+                            return;
+                        }
                         var dataTable = $('#expense-tbl').DataTable();
                         dataTable.clear();
                         var total_expense = 0;
