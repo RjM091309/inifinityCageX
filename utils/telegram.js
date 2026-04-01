@@ -531,7 +531,7 @@ INFINITY 를 이용해 주셔서 감사합니다.
 
 INFINITY 의 최신 이벤트 및 정보를 확인하실 수 있습니다.
 
-https://t.me/InfinityClark
+https://t.me/infclark
 
 ✅문의사항
 
