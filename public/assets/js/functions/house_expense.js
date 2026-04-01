@@ -14,6 +14,18 @@ function attrEncode(str) {
 }
 
 $(document).ready(function () {
+    function toLocalYmd(dateObj) {
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        return dateObj.getFullYear() + '-' + pad(dateObj.getMonth() + 1) + '-' + pad(dateObj.getDate());
+    }
+
+    function formatDisplayDate(row) {
+        // Prefer business date/time field for expenses; fallback to encoded timestamp.
+        var sourceDate = row.DATE_TIME || row.ENCODED_DT;
+        if (!sourceDate) return '';
+        return moment.utc(sourceDate).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
+    }
+
 
     function initializeExpenseTable() {
 
@@ -188,7 +200,7 @@ $(document).ready(function () {
                                 </div>`;
                         }
                     
-                    const formattedDate = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
+                    const formattedDate = formatDisplayDate(row);
                     
                     // For return money records, show "-" for Type, otherwise use expense_type
                     let expenseTypeLabel = '-';
@@ -260,10 +272,12 @@ $(document).ready(function () {
             if (daterangePickerEl && daterangePickerEl._flatpickr) {
                 var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
                 var defaultSettlementDate = null;
+                var todayStr = null;
                 var settledDates = window.settledDatesForMonth || [];
                 
                 if (wrapper) {
                     defaultSettlementDate = wrapper.getAttribute('data-default-settlement-date');
+                    todayStr = wrapper.getAttribute('data-today');
                 }
                 
                 // Get earliest settlement date
@@ -279,7 +293,7 @@ $(document).ready(function () {
                 }
                 
                 // Set default range and max date
-                var defaultToDate = defaultSettlementDate || new Date().toISOString().slice(0, 10);
+                var defaultToDate = todayStr || toLocalYmd(new Date());
                 daterangePickerEl._flatpickr.set('maxDate', defaultToDate);
                 daterangePickerEl._flatpickr.setDate([earliestSettlementDate, defaultToDate], false);
             }
@@ -300,9 +314,11 @@ $(document).ready(function () {
         // Get default settlement date (next settlement date) from wrapper
         var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
         var defaultSettlementDate = null;
+        var todayStr = null;
         var settledDates = [];
         if (wrapper) {
             defaultSettlementDate = wrapper.getAttribute('data-default-settlement-date');
+            todayStr = wrapper.getAttribute('data-today');
             var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
             try {
                 var parsedDates = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
@@ -329,7 +345,7 @@ $(document).ready(function () {
         
         // Default date range: From earliest settlement date to next settlement date
         var defaultFromDate = earliestSettlementDate;
-        var defaultToDate = defaultSettlementDate || now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+        var defaultToDate = todayStr || toLocalYmd(now);
         
         dateRangePicker = flatpickr("#daterange-picker", {
             mode: 'range',

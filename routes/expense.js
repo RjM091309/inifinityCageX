@@ -304,6 +304,10 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 router.get('/junket_house_expense_data', async (req, res) => {
 	try {
 		let { fromDate, toDate, date } = req.query;
+		const toLocalYmd = (d) => {
+			const pad = (n) => String(n).padStart(2, '0');
+			return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+		};
 
 		// If 'date' parameter is provided, use settlement filtering logic
 		if (date !== undefined && date !== null && date !== '') {
@@ -551,8 +555,8 @@ router.get('/junket_house_expense_data', async (req, res) => {
 		if (!fromDate || !toDate) {
 			const currentDate = new Date();
 			const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-			fromDate = firstDayOfMonth.toISOString().slice(0, 10);
-			toDate = currentDate.toISOString().slice(0, 10);
+			fromDate = toLocalYmd(firstDayOfMonth);
+			toDate = toLocalYmd(currentDate);
 		}
 
 		const isValidDate = (date) => /^\d{4}-\d{2}-\d{2}$/.test(date);
