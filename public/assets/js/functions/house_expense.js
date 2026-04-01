@@ -425,6 +425,7 @@ $(document).ready(function () {
         var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
         if (wrapper) {
             var defaultDate = wrapper.getAttribute('data-default-settlement-date') || new Date().toISOString().slice(0, 10);
+            var maxPickerDate = wrapper.getAttribute('data-max-settlement-date') || defaultDate;
             var settledDatesRaw = wrapper.getAttribute('data-settled-dates');
             try {
                 window.settledDatesForMonth = settledDatesRaw ? JSON.parse(settledDatesRaw) : [];
@@ -446,7 +447,7 @@ $(document).ready(function () {
                 altFormat: 'F d, Y',
                 defaultDate: defaultDate,
                 minDate: earliestSettlementDate,
-                maxDate: defaultDate, // Allow up to default settlement date (can be future date like Feb 13)
+                maxDate: maxPickerDate,
                 allowInput: false,
                 onDayCreate: function (dayElem) {
                     if (!dayElem || !dayElem.dateObj) return;
@@ -559,13 +560,13 @@ $(document).ready(function () {
         var pad = function(n) { return String(n).padStart(2, '0'); };
         var nextDateStr = next.getFullYear() + '-' + pad(next.getMonth() + 1) + '-' + pad(next.getDate());
         
-        // Don't go beyond today OR default settlement date (whichever is later)
-        // This allows navigation to default settlement date even if it's tomorrow
-        var todayStr = $('#settlement-date-wrapper .input-group').attr('data-today') || new Date().toISOString().slice(0, 10);
-        var defaultSettlementDate = $('#settlement-date-wrapper .input-group').attr('data-default-settlement-date') || todayStr;
-        var maxAllowedDate = defaultSettlementDate > todayStr ? defaultSettlementDate : todayStr;
-        
-        if (nextDateStr > maxAllowedDate) {
+        // Match Game Book: cap at server "next settlement" (data-max-settlement-date), not max(today, default).
+        // Otherwise after midnight "today" becomes April 1 while next unsettled day is still March 31 — Next would wrongly allow April 1.
+        var wrapper = document.querySelector('#settlement-date-wrapper .input-group');
+        var maxAllowedStr = (wrapper && wrapper.getAttribute('data-max-settlement-date')) ||
+                            (wrapper && wrapper.getAttribute('data-today')) ||
+                            new Date().toISOString().slice(0, 10);
+        if (nextDateStr > maxAllowedStr) {
             return null;
         }
         

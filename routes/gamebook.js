@@ -128,16 +128,14 @@ router.get("/game_list", checkSession, async function (req, res) {
 	  const now = new Date();
 	  const pad = (n) => String(n).padStart(2, '0');
 	  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-	  const firstOfMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
 	  let defaultSettlementDate = todayStr;
 	  let lastSettlementDateStr = null;
 	  try {
-	    // Allow chaining settlements forward without being limited by today's date.
-	    // Example: today is 19, but if 18 and 19 and 20 are already settled,
-	    // the next default will be 21.
+	    // Next day to settle = day after latest active settlement (any month).
+	    // Do not restrict to "this month only": on the 1st of a new month, March
+	    // settlements would be excluded and MAX would be NULL, incorrectly defaulting to today.
 	    const [rows] = await pool.execute(
-	      'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE >= ?',
-	      [firstOfMonth]
+	      'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM daily_settlement WHERE ACTIVE = 1'
 	    );
 	    const lastSettlement = rows[0] && rows[0].last_settlement;
 	    if (lastSettlement) {
@@ -964,7 +962,9 @@ router.get('/game_list_data', async (req, res) => {
             }
             const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
             if (isValidDate(date)) {
-                const todayServer = new Date().toISOString().slice(0, 10);
+                const nowForToday = new Date();
+                const padLocal = (n) => String(n).padStart(2, '0');
+                const todayServer = `${nowForToday.getFullYear()}-${padLocal(nowForToday.getMonth() + 1)}-${padLocal(nowForToday.getDate())}`;
                 const [hasSettlement] = await pool.execute(
                     'SELECT IDNo FROM daily_settlement WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1 LIMIT 1',
                     [date]
@@ -987,18 +987,13 @@ router.get('/game_list_data', async (req, res) => {
                     return res.json(rows);
                 }
 
-                // Compute the "next settlement date" (first day AFTER the latest settlement this month),
-                // falling back to today when there is no settlement yet. This matches the logic used
-                // when rendering the Game Book page and ensures the frontend and backend agree on
-                // which date is the next eligible day to settle.
+                // Next settlement date = first day AFTER the latest active settlement (any month).
+                // Same rule as the Game Book page render; local calendar date for "today".
                 let defaultSettlementDate = todayServer;
                 try {
-                    const nowServer = new Date();
                     const pad = (n) => String(n).padStart(2, '0');
-                    const firstOfMonthDefault = `${nowServer.getFullYear()}-${pad(nowServer.getMonth() + 1)}-01`;
                     const [lastRows] = await pool.execute(
-                        'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE >= ?',
-                        [firstOfMonthDefault]
+                        'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM daily_settlement WHERE ACTIVE = 1'
                     );
                     const lastSettlement = lastRows[0] && lastRows[0].last_settlement;
                     if (lastSettlement) {

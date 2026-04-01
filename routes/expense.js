@@ -35,42 +35,34 @@ router.get("/house_expense", checkSession, async function (req, res) {
 		const now = new Date();
 		const pad = (n) => String(n).padStart(2, '0');
 		const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-		const firstOfMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
 		let defaultSettlementDate = todayStr;
+		let lastSettlementDateStr = null;
 
-		// Get last settlement date (can be future date if advance settlement was done)
-		// Default settlement date should be the next day after the last settlement
-		// Example: Today is Feb 11, but Feb 12 was already settled -> default should be Feb 13
-		// If no settlement exists, use today
+		// Default = first day after latest active settlement (any month). Month-scoped MAX breaks on the 1st.
 		try {
-			// Get MAX settlement date without restricting to today (to handle advance settlements)
-			const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-			const lastDayStr = `${lastDayOfMonth.getFullYear()}-${pad(lastDayOfMonth.getMonth() + 1)}-${pad(lastDayOfMonth.getDate())}`;
 			const [rows] = await pool.execute(
-				'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM expense_daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ?',
-				[firstOfMonth, lastDayStr]
+				'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM expense_daily_settlement WHERE ACTIVE = 1'
 			);
 			const lastSettlement = rows[0] && rows[0].last_settlement;
 			if (lastSettlement) {
 				const last = lastSettlement instanceof Date ? lastSettlement : new Date(String(lastSettlement).slice(0, 10) + 'T12:00:00Z');
+				lastSettlementDateStr = `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`;
 				const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
-				const nextDateStr = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(nextDate.getDate())}`;
-				// Always use next day after last settlement (even if it's in the future)
-				// This is the correct default for new expenses
-				defaultSettlementDate = nextDateStr;
+				defaultSettlementDate = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(nextDate.getDate())}`;
 			}
 		} catch (e) {
 			// keep defaultSettlementDate = todayStr
 		}
 
-		// Get settled dates this month
 		let settledDatesForMonth = [];
 		try {
-			const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-			const lastDayStr = `${lastDayOfMonth.getFullYear()}-${pad(lastDayOfMonth.getMonth() + 1)}-${pad(lastDayOfMonth.getDate())}`;
+			const earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
+			const earliestStr = `${earliestAllowed.getFullYear()}-${pad(earliestAllowed.getMonth() + 1)}-${pad(earliestAllowed.getDate())}`;
+			const upperBoundStr =
+				lastSettlementDateStr && lastSettlementDateStr > todayStr ? lastSettlementDateStr : todayStr;
 			const [settledRows] = await pool.execute(
 				'SELECT DISTINCT SETTLEMENT_DATE FROM expense_daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE',
-				[firstOfMonth, lastDayStr]
+				[earliestStr, upperBoundStr]
 			);
 			settledDatesForMonth = (settledRows || []).map(r => {
 				const d = r.SETTLEMENT_DATE;
@@ -86,6 +78,7 @@ router.get("/house_expense", checkSession, async function (req, res) {
 			...sessions(req, 'house_expense'),
 			permissions: permissions,
 			defaultSettlementDate: defaultSettlementDate,
+			maxSettlementDate: defaultSettlementDate,
 			settledDatesForMonth: settledDatesForMonth,
 			todayStr: todayStr
 		});
@@ -307,16 +300,13 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 
 
 // GET JUNKET EXPENSE
-// Supports settlement filtering: date=current (unsettled only) or date=YYYY-MM-DD (settled that day; if today and no settlement yet, return unsettled)
+// Settlement filter: date=current (unsettled), date=YYYY-MM-DD settled that day, or date >= next-day-after-last-settlement with no row → unsettled (local calendar)
 router.get('/junket_house_expense_data', async (req, res) => {
 	try {
 		let { fromDate, toDate, date } = req.query;
 
 		// If 'date' parameter is provided, use settlement filtering logic
 		if (date !== undefined && date !== null && date !== '') {
-			const todayStr = new Date().toISOString().slice(0, 10);
-			const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
-			
 			if (date === 'current') {
 				// Show only unsettled expenses
 				const query = `
@@ -459,8 +449,34 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						photoUrl: expense.PHOTO ? '/ReceiptUpload/' + expense.PHOTO : null
 					}));
 					return res.json(updatedResult);
-				} else if (date >= todayStr) {
-					// Future date or today with no settlement: show unsettled
+				}
+
+				// Same "next settlement date" rule as Game Book / house_expense page (local calendar today).
+				const nowLocal = new Date();
+				const padL = (n) => String(n).padStart(2, '0');
+				const todayStr = `${nowLocal.getFullYear()}-${padL(nowLocal.getMonth() + 1)}-${padL(nowLocal.getDate())}`;
+				let defaultSettlementDate = todayStr;
+				try {
+					const [lastRows] = await pool.execute(
+						'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM expense_daily_settlement WHERE ACTIVE = 1'
+					);
+					const lastSettlement = lastRows[0] && lastRows[0].last_settlement;
+					if (lastSettlement) {
+						const last =
+							lastSettlement instanceof Date
+								? lastSettlement
+								: new Date(String(lastSettlement).slice(0, 10) + 'T12:00:00Z');
+						const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
+						defaultSettlementDate = `${nextDate.getFullYear()}-${padL(nextDate.getMonth() + 1)}-${padL(
+							nextDate.getDate()
+						)}`;
+					}
+				} catch (e) {
+					// keep defaultSettlementDate = todayStr
+				}
+
+				if (date >= defaultSettlementDate) {
+					// On or after next eligible settlement day: show all unsettled (missed day can be settled next calendar day).
 					const query = `
 						SELECT 
 							e.IDNo,
@@ -523,10 +539,10 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						photoUrl: expense.PHOTO ? '/ReceiptUpload/' + expense.PHOTO : null
 					}));
 					return res.json(updatedResult);
-				} else {
-					// Past date with no settlement: return empty array
-					return res.json([]);
 				}
+
+				// Before next eligible settlement day and no row for this date: empty
+				return res.json([]);
 			}
 		}
 
@@ -1071,42 +1087,33 @@ router.get('/expense_settlement_info', async (req, res) => {
 		const now = new Date();
 		const pad = (n) => String(n).padStart(2, '0');
 		const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-		const firstOfMonth = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
 		let defaultSettlementDate = todayStr;
+		let lastSettlementDateStr = null;
 
-		// Get last settlement date (can be future date if advance settlement was done)
-		// Default settlement date should be the next day after the last settlement
-		// Example: Today is Feb 11, but Feb 12 was already settled -> default should be Feb 13
-		// If no settlement exists, use today
 		try {
-			// Get MAX settlement date without restricting to today (to handle advance settlements)
-			const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-			const lastDayStr = `${lastDayOfMonth.getFullYear()}-${pad(lastDayOfMonth.getMonth() + 1)}-${pad(lastDayOfMonth.getDate())}`;
 			const [rows] = await pool.execute(
-				'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM expense_daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ?',
-				[firstOfMonth, lastDayStr]
+				'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM expense_daily_settlement WHERE ACTIVE = 1'
 			);
 			const lastSettlement = rows[0] && rows[0].last_settlement;
 			if (lastSettlement) {
 				const last = lastSettlement instanceof Date ? lastSettlement : new Date(String(lastSettlement).slice(0, 10) + 'T12:00:00Z');
+				lastSettlementDateStr = `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`;
 				const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
-				const nextDateStr = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(nextDate.getDate())}`;
-				// Always use next day after last settlement (even if it's in the future)
-				// This is the correct default for new expenses
-				defaultSettlementDate = nextDateStr;
+				defaultSettlementDate = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(nextDate.getDate())}`;
 			}
 		} catch (e) {
 			// keep defaultSettlementDate = todayStr
 		}
 
-		// Get settled dates this month
 		let settledDatesForMonth = [];
 		try {
-			const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-			const lastDayStr = `${lastDayOfMonth.getFullYear()}-${pad(lastDayOfMonth.getMonth() + 1)}-${pad(lastDayOfMonth.getDate())}`;
+			const earliestAllowed = new Date(now.getFullYear() - 1, 0, 1);
+			const earliestStr = `${earliestAllowed.getFullYear()}-${pad(earliestAllowed.getMonth() + 1)}-${pad(earliestAllowed.getDate())}`;
+			const upperBoundStr =
+				lastSettlementDateStr && lastSettlementDateStr > todayStr ? lastSettlementDateStr : todayStr;
 			const [settledRows] = await pool.execute(
 				'SELECT DISTINCT SETTLEMENT_DATE FROM expense_daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE',
-				[firstOfMonth, lastDayStr]
+				[earliestStr, upperBoundStr]
 			);
 			settledDatesForMonth = (settledRows || []).map(r => {
 				const d = r.SETTLEMENT_DATE;
