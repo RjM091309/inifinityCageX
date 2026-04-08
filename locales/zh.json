@@ -803,7 +803,10 @@
 		"accounts_with_credit": "有信用账户余额",
 		"balance_from_credit": "信用(3)",
 		"balance_from_buyin": "买进(10)",
-		"total": "合计"
+		"total": "合计",
+		"edit_remarks": "dashboard_marker.edit_remarks",
+		"remarks_updated": "dashboard_marker.remarks_updated",
+		"error_update_remarks": "dashboard_marker.error_update_remarks"
 	},
 	"modal_new_agent": {
 		"new_guest": "新客人",

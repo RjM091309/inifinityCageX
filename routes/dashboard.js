@@ -2439,6 +2439,46 @@ router.delete('/marker_record/:id', async (req, res) => {
 	}
 });
 
+// PATCH MARKER REMARKS (account_ledger) — Super Admin only
+router.patch('/marker_record/:id/remarks', async (req, res) => {
+	const permissions = req.session?.permissions;
+	if (permissions !== 0) {
+		return res.status(403).json({ success: false, message: 'Only Super Admin can edit remarks.' });
+	}
+
+	const id = parseInt(req.params.id, 10);
+	if (isNaN(id)) {
+		return res.status(400).json({ success: false, message: 'Invalid id.' });
+	}
+
+	let remarks = req.body && req.body.remarks != null ? String(req.body.remarks) : '';
+	if (remarks.length > 500) remarks = remarks.slice(0, 500);
+	const date_now = new Date();
+
+	try {
+		const [rows] = await pool.execute(
+			`SELECT IDNo FROM account_ledger 
+			 WHERE IDNo = ? AND ACTIVE = 1 
+			 AND (TRANSACTION_ID IN (3, 10, 11, 12) OR TRANSACTION_TYPE = 4)`,
+			[id]
+		);
+
+		if (rows.length === 0) {
+			return res.status(404).json({ success: false, message: 'Record not found.' });
+		}
+
+		await pool.execute(
+			'UPDATE account_ledger SET REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[remarks, req.session.user_id, date_now, id]
+		);
+
+		res.json({ success: true, message: 'Remarks updated.' });
+	} catch (err) {
+		console.error('Error updating marker remarks:', err);
+		res.status(500).json({ success: false, message: 'Error updating remarks.' });
+	}
+});
+
 // GET MARKER HISTORY (all credit-related transactions, no filter)
 router.get('/marker_history', async (req, res) => {
 	const query = `

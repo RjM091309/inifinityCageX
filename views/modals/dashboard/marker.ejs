@@ -131,51 +131,54 @@
             </ul>
 
             <div id="marker-history-wrapper" class="marker-tab-panel mb-3" data-panel="marker-history">
-                <div class="d-flex justify-content-end align-items-center mb-2">
-                    <button type="button" id="export-excel" class="btn btn-sm btn-success-subtle"><%= __('dashboard_marker.export') %></button>
+                <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-2 marker-history-export-row">
+                    <button type="button" id="export-excel" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 px-3 shadow-sm">
+                        <i class="fa fa-file-excel opacity-90"></i><span><%= __('dashboard_marker.export') %></span>
+                    </button>
                 </div>
-                <table id="marker-tbl" class="table table-bordered table-responsive" style="width: 100%;">
+                <div class="marker-history-dt-wrap marker-history-card table-responsive">
+                <table id="marker-tbl" class="table marker-history-table w-100 mb-0">
                 <thead>
                     <tr>
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.account_name') %></th>
-                        <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.amount') %></th>
+                        <th class="d-none d-sm-table-cell text-center marker-history-col-amount"><%= __('dashboard_marker.amount') %></th>
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.transaction_type') %></th>
-                        <th class="d-none d-sm-table-cell" style="width: 200px !important;"><%= __('dashboard_marker.date') %></th>
+                        <th class="d-none d-sm-table-cell text-center"><%= __('dashboard_marker.date') %></th>
                         <th class="d-none d-sm-table-cell"><%= __('dashboard_marker.remarks') %></th>
-                        <th class="d-none d-sm-table-cell text-center" style="width: 60px;"><%= __('dashboard_marker.action') %></th>
                     </tr>
                 </thead>
                 <tbody>
                 </tbody>
                 </table>
+                </div>
             </div>
 
             <div id="marker-accounts-credit-wrapper" class="marker-tab-panel mb-3" data-panel="credit" style="display: none;">
-                <div class="table-responsive">
-                    <table id="marker-accounts-credit-tbl" class="table table-bordered marker-balance-tbl" style="width:100%">
+                <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+                    <table id="marker-accounts-credit-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
                         <thead>
                             <tr>
                                 <th><%= __('dashboard_marker.account_name') %></th>
-                                <th class="text-end"><%= __('dashboard_marker.balance') %></th>
+                                <th class="text-center marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
                             </tr>
                         </thead>
                         <tbody></tbody>
-                        <tfoot><tr><th></th><th class="text-end"></th></tr></tfoot>
+                        <tfoot><tr><th></th><th class="text-center marker-balance-col-amount"></th></tr></tfoot>
                     </table>
                 </div>
             </div>
 
             <div id="marker-accounts-buyin-wrapper" class="marker-tab-panel mb-3" data-panel="buyin" style="display: none;">
-                <div class="table-responsive">
-                    <table id="marker-accounts-buyin-tbl" class="table table-bordered marker-balance-tbl" style="width:100%">
+                <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+                    <table id="marker-accounts-buyin-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
                         <thead>
                             <tr>
                                 <th><%= __('dashboard_marker.account_name') %></th>
-                                <th class="text-end"><%= __('dashboard_marker.balance') %></th>
+                                <th class="text-center marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
                             </tr>
                         </thead>
                         <tbody></tbody>
-                        <tfoot><tr><th></th><th class="text-end"></th></tr></tfoot>
+                        <tfoot><tr><th></th><th class="text-center marker-balance-col-amount"></th></tr></tfoot>
                     </table>
                 </div>
             </div>
@@ -186,40 +189,442 @@
 
     <style>
         .modal-lg2 {
-            max-width: 45% !important;
+            max-width: min(96vw, 60rem) !important;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
         }
 
-         /* Base table styles */
-  #marker-tbl {
-    width: 100%;
-    font-size: 13px;
-    border-collapse: collapse;
-}
+        #modal-new-marker .modal-body {
+            min-width: 0;
+        }
 
-/* Header styles */
-#marker-tbl thead th {
-    background: var(--bs-primary-bg-subtle);
-    color: var(--bs-primary);
-    font-weight: 500;
-    padding: 12px 15px;
+        #modal-new-marker #marker-history-wrapper {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        #modal-new-marker .marker-history-export-row {
+            padding: 0 0.125rem;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap,
+        #modal-new-marker .marker-balance-dt-wrap,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap {
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Card shell around history + Junket/Game credit tables + DataTables UI */
+        #modal-new-marker .marker-history-card,
+        #modal-new-marker .marker-balance-card,
+        #marker-accounts-credit-wrapper .marker-balance-card,
+        #marker-accounts-buyin-wrapper .marker-balance-card {
+            border-radius: 0.5rem;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px);
+            box-shadow:
+                0 1px 2px rgba(15, 23, 42, 0.04),
+                0 4px 12px rgba(15, 23, 42, 0.06);
+            padding: 0.65rem 0.30rem 0.5rem 0.75rem;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_wrapper,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_wrapper,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_wrapper,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_wrapper {
+            width: 100% !important;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_wrapper > .row:first-child,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_wrapper > .row:first-child,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_wrapper > .row:first-child,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_wrapper > .row:first-child {
+            margin-bottom: 0.65rem !important;
+            padding: 0.5rem 0 0.5rem 0.55rem;
+            align-items: center;
+            justify-content: space-between;
+            --bs-gutter-x: 0;
+            background: #fff;
+            border: 1px solid #e8ecf1;
+            border-radius: 0.375rem;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_wrapper > .row:first-child > div:last-child,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_wrapper > .row:first-child > div:last-child,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_wrapper > .row:first-child > div:last-child,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_wrapper > .row:first-child > div:last-child {
+            padding-right: 0 !important;
+            padding-left: 0 !important;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_length,
+        #modal-new-marker .marker-history-dt-wrap .dataTables_filter,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_length,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_filter,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_length,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_length,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_filter {
+            max-width: 100%;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_filter,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_filter,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_filter {
+            margin-right: 0 !important;
+            margin-left: 0;
+            flex: 0 0 auto;
+            text-align: right;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_length label,
+        #modal-new-marker .marker-history-dt-wrap .dataTables_filter label,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_length label,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_filter label,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_length label,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter label,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_length label,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_filter label {
+            font-size: 0.8125rem;
+            color: #64748b;
+            font-weight: 500;
+            gap: 0.35rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_filter label,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_filter label,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter label,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_filter label {
+            justify-content: flex-end;
+            width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            #modal-new-marker .marker-history-dt-wrap .dataTables_filter label,
+            #modal-new-marker .marker-balance-dt-wrap .dataTables_filter label,
+            #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter label,
+            #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_filter label {
+                width: auto;
+            }
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_length select,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_length select,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_length select,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_length select {
+            display: inline-block;
+            min-width: 4.25rem;
+            padding: 0.3rem 2rem 0.3rem 0.55rem;
+            font-size: 0.8125rem;
+            line-height: 1.4;
+            color: #334155;
+            background-color: #fff;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.375rem;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_filter input,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_filter input,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter input,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_filter input {
+            max-width: 100%;
+            width: 100% !important;
+            box-sizing: border-box;
+            margin-left: 0.35rem !important;
+            padding: 0.4rem 0.65rem;
+            font-size: 0.8125rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.375rem;
+            background: #fff;
+            color: #334155;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_filter input:focus,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_filter input:focus,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter input:focus,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_filter input:focus {
+            outline: none;
+            border-color: var(--bs-primary);
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+        }
+
+        @media (min-width: 768px) {
+            #modal-new-marker .marker-history-dt-wrap .dataTables_filter input,
+            #modal-new-marker .marker-balance-dt-wrap .dataTables_filter input,
+            #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_filter input,
+            #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_filter input {
+                width: auto !important;
+                min-width: 11rem;
+                max-width: 17rem;
+            }
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_wrapper > .row:last-child,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_wrapper > .row:last-child,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_wrapper > .row:last-child,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_wrapper > .row:last-child {
+            margin-top: 0.65rem !important;
+            padding: 0.55rem 0.35rem 0.15rem;
+            border-top: 1px solid #eef2f7;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_info,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_info,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_info,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_info {
+            font-size: 0.8125rem;
+            color: #64748b;
+            padding-top: 0.35rem !important;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_paginate,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_paginate,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_paginate,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_paginate {
+            overflow-x: auto;
+            max-width: 100%;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 0.25rem;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_paginate .pagination,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_paginate .pagination,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_paginate .pagination,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_paginate .pagination {
+            margin-bottom: 0;
+            gap: 0.2rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_paginate .page-link,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_paginate .page-link,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_paginate .page-link,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_paginate .page-link {
+            font-size: 0.8125rem;
+            padding: 0.3rem 0.55rem;
+            border-radius: 0.3rem;
+            border-color: #e2e8f0;
+            color: #475569;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_paginate .page-item.active .page-link,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_paginate .page-item.active .page-link,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_paginate .page-item.active .page-link,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_paginate .page-item.active .page-link {
+            background: var(--bs-primary);
+            border-color: var(--bs-primary);
+            color: #fff;
+        }
+
+        #modal-new-marker .marker-history-dt-wrap .dataTables_paginate .page-link:hover,
+        #modal-new-marker .marker-balance-dt-wrap .dataTables_paginate .page-link:hover,
+        #marker-accounts-credit-wrapper .marker-balance-dt-wrap .dataTables_paginate .page-link:hover,
+        #marker-accounts-buyin-wrapper .marker-balance-dt-wrap .dataTables_paginate .page-link:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: var(--bs-primary);
+        }
+
+        /* Junket Credit / Game Credit — same look as History + narrow Balance */
+        #marker-accounts-credit-tbl.dataTable.marker-balance-table,
+        #marker-accounts-buyin-tbl.dataTable.marker-balance-table {
+            width: 100% !important;
+            max-width: 100% !important;
+            font-size: 0.8125rem;
+            line-height: 1.45;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.375rem;
+            overflow: hidden;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+        }
+
+        #marker-accounts-credit-wrapper .marker-balance-table thead th,
+        #marker-accounts-buyin-wrapper .marker-balance-table thead th {
+            background: linear-gradient(180deg, #eef4ff 0%, #e8efff 100%);
+            color: #1e3a5f;
+            font-weight: 600;
+            font-size: 0.75rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            padding: 0.65rem 0.75rem;
+            border-bottom: 1px solid #d5e0f0 !important;
+            border-color: #eef2f7 !important;
+        }
+
+        #marker-accounts-credit-wrapper .marker-balance-table thead th:first-child,
+        #marker-accounts-buyin-wrapper .marker-balance-table thead th:first-child {
+            text-align: left;
+        }
+
+        #marker-accounts-credit-wrapper .marker-balance-table tbody td,
+        #marker-accounts-buyin-wrapper .marker-balance-table tbody td {
+            padding: 0.65rem 0.75rem;
+            color: #334155;
+            border-color: #eef2f7 !important;
+            vertical-align: top;
+        }
+
+        #marker-accounts-credit-wrapper .marker-balance-table tbody tr:nth-child(even) td,
+        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:nth-child(even) td {
+            background-color: #fafbfd;
+        }
+
+        #marker-accounts-credit-wrapper .marker-balance-table tbody tr:nth-child(odd) td,
+        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:nth-child(odd) td {
+            background-color: #fff;
+        }
+
+        #marker-accounts-credit-wrapper .marker-balance-table tbody tr:hover td,
+        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:hover td {
+            background-color: #f0f6ff !important;
+        }
+
+        #marker-accounts-credit-wrapper .marker-balance-table tbody tr:hover td:first-child,
+        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:hover td:first-child {
+            box-shadow: inset 3px 0 0 var(--bs-primary);
+        }
+
+        #marker-accounts-credit-wrapper .marker-balance-table thead th.marker-balance-col-amount,
+        #marker-accounts-buyin-wrapper .marker-balance-table thead th.marker-balance-col-amount,
+        #marker-accounts-credit-wrapper .marker-balance-table tbody td.marker-balance-col-amount,
+        #marker-accounts-buyin-wrapper .marker-balance-table tbody td.marker-balance-col-amount,
+        #marker-accounts-credit-wrapper .marker-balance-table tfoot th.marker-balance-col-amount,
+        #marker-accounts-buyin-wrapper .marker-balance-table tfoot th.marker-balance-col-amount {
+            width: 5.75rem;
+            max-width: 6.25rem;
+            min-width: 4.5rem;
+            padding-left: 0.4rem;
+            padding-right: 0.4rem;
+            font-variant-numeric: tabular-nums;
+            text-align: center !important;
+        }
+
+        #marker-accounts-credit-wrapper .marker-balance-table tfoot th,
+        #marker-accounts-buyin-wrapper .marker-balance-table tfoot th {
+            background-color: #f4f6fa;
+            border-top: 2px solid #dee2e6;
+            padding: 0.65rem 0.75rem;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        #marker-accounts-credit-wrapper .marker-balance-table tfoot th:first-child,
+        #marker-accounts-buyin-wrapper .marker-balance-table tfoot th:first-child {
+            text-align: left;
+        }
+
+         /* History table — layout + word-wrap + visual polish */
+  #modal-new-marker #marker-tbl.dataTable.marker-history-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  }
+
+  #modal-new-marker #marker-tbl thead th:not(.marker-history-col-amount),
+  #modal-new-marker #marker-tbl tbody td:not(.marker-history-col-amount) {
+    min-width: 0;
+  }
+
+  #modal-new-marker #marker-tbl thead th,
+  #modal-new-marker #marker-tbl tbody td {
+    box-sizing: border-box;
+    white-space: normal !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    vertical-align: top;
+    border-color: #eef2f7 !important;
+  }
+
+  #modal-new-marker #marker-tbl tbody td.marker-history-col-remarks {
+    vertical-align: top;
+  }
+
+  #modal-new-marker #marker-tbl .marker-history-remarks-actions .btn {
+    padding: 0.2rem 0.45rem;
+  }
+
+  #modal-new-marker #marker-tbl thead th {
+    background: linear-gradient(180deg, #eef4ff 0%, #e8efff 100%);
+    color: #1e3a5f;
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 0.65rem 0.75rem;
     text-align: left;
-    border: none;
-}
+    border-bottom: 1px solid #d5e0f0 !important;
+  }
 
-/* Row styles */
-#marker-tbl tbody tr {
-    border-bottom: 1px solid #eee;
-}
+  #modal-new-marker #marker-tbl thead th.text-center {
+    text-align: center !important;
+  }
 
-/* Cell styles */
-#marker-tbl td {
-    padding: 12px 15px;
-    color: #666;
-}
+  #modal-new-marker #marker-tbl tbody td.text-center {
+    text-align: center !important;
+  }
 
-#marker-tbl tbody tr:hover {
-  background-color: #f5f5f5 !important;
-}
+  #modal-new-marker #marker-tbl tbody tr:nth-child(even) td {
+    background-color: #fafbfd;
+  }
+
+  #modal-new-marker #marker-tbl tbody tr:nth-child(odd) td {
+    background-color: #fff;
+  }
+
+  #modal-new-marker #marker-tbl tbody td {
+    padding: 0.65rem 0.75rem;
+    color: #334155;
+  }
+
+  #modal-new-marker #marker-tbl thead th.marker-history-col-amount,
+  #modal-new-marker #marker-tbl tbody td.marker-history-col-amount {
+    width: 5.75rem;
+    max-width: 6.25rem;
+    min-width: 4.5rem;
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+
+  #modal-new-marker #marker-tbl tbody tr {
+    transition: background-color 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  #modal-new-marker #marker-tbl tbody tr:hover td {
+    background-color: #f0f6ff !important;
+  }
+
+  #modal-new-marker #marker-tbl tbody tr:hover td:first-child {
+    box-shadow: inset 3px 0 0 var(--bs-primary);
+  }
 
 #modal-new-marker .marker-balance-tabs .nav-link {
   font-size: 0.875rem;
@@ -235,45 +640,6 @@
   border-bottom-color: var(--bs-primary);
   background: transparent;
 }
-#modal-new-marker .marker-balance-tbl {
-  width: 100%;
-  font-size: 13px;
-  border-collapse: collapse;
-  border: 1px solid #dee2e6;
-}
-#modal-new-marker .marker-balance-tbl thead tr th { border-bottom: 1px solid #dee2e6; }
-#modal-new-marker .marker-balance-tbl tbody tr:last-child td,
-#modal-new-marker .marker-balance-tbl tbody td.dataTables_empty { border-bottom: 1px solid #dee2e6; }
-#modal-new-marker .marker-balance-tbl tfoot tr th { border-bottom: 1px solid #dee2e6; }
-#modal-new-marker .marker-balance-tbl thead th {
-  background: var(--bs-primary-bg-subtle);
-  color: var(--bs-primary);
-  font-weight: 500;
-  padding: 12px 15px;
-  text-align: left;
-  border: none;
-}
-#modal-new-marker .marker-balance-tbl tbody tr { border-bottom: 1px solid #eee; }
-#modal-new-marker .marker-balance-tbl td { padding: 12px 15px; color: #666; }
-#modal-new-marker .marker-balance-tbl tbody tr:hover { background-color: #f5f5f5 !important; }
-#modal-new-marker .marker-balance-tbl tr.marker-balance-total-row td {
-	border-top: 2px solid #dee2e6;
-	background-color: #f4f6fa;
-	padding: 10px 15px;
-}
-#modal-new-marker .marker-balance-tbl tfoot tr th {
-	border-top: 2px solid #dee2e6;
-	background-color: #f4f6fa;
-	padding: 10px 15px;
-}
-
-/* Balance column */
-#marker-tbl td:last-child {
-    text-align: left;
-    color: #333;
-}
-
-
 /* Footer total row */
 
 
@@ -336,7 +702,11 @@
 <script>
 window.markerTranslations = window.markerTranslations || {
 	showing_entries: "<%= __('dashboard_marker.showing_entries') %>",
+	save: "<%= __('dashboard_marker.save') %>",
 	delete: "<%= __('dashboard_marker.delete') %>",
+	edit_remarks: "<%= __('dashboard_marker.edit_remarks') %>",
+	remarks_updated: "<%= __('dashboard_marker.remarks_updated') %>",
+	error_update_remarks: "<%= __('dashboard_marker.error_update_remarks') %>",
 	confirm_delete: "<%= __('dashboard_marker.confirm_delete') %>",
 	yes_delete: "<%= __('dashboard_marker.yes_delete') %>",
 	length_menu: "<%= __('dashboard_marker.length_menu') %>",

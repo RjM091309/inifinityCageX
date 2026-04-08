@@ -15,6 +15,41 @@
         return num.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 0 });
     }
 
+    /** Marker history table: no trailing .00 for whole amounts */
+    function formatMarkerHistoryAmount(value) {
+        var n = value != null ? Number(value) : 0;
+        if (isNaN(n)) return '0';
+        var rounded = Math.round(n * 100) / 100;
+        if (Math.abs(rounded - Math.round(rounded)) < 1e-9) {
+            return Math.round(rounded).toLocaleString('en-US');
+        }
+        return rounded.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    var MARKER_HISTORY_DATE_PARSE_FORMATS = [
+        'MMMM DD, YYYY HH:mm:ss',
+        'MMMM DD, YYYY HH:mm',
+        'DD MMM, YYYY HH:mm:ss',
+        'DD MMM, YYYY HH:mm'
+    ];
+
+    function parseMarkerHistoryDateString(value) {
+        if (!value || !window.moment) return null;
+        var m = moment(value, MARKER_HISTORY_DATE_PARSE_FORMATS, true);
+        if (m.isValid()) return m;
+        m = moment(value);
+        return m.isValid() ? m : null;
+    }
+
+    function escapeHtml(s) {
+        if (s == null || s === '') return '';
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
     function getTransactionLabel(transactionId) {
         switch (parseInt(transactionId, 10)) {
             case 11: return 'Marker Returned Cash';
@@ -76,6 +111,8 @@
                 emptyTable: translations.no_data_available || "No data available in table",
                 zeroRecords: translations.no_data_available || "No matching records found"
             },
+            dom: '<"row g-0 gy-2 mb-2 align-items-center gap-3"<"col-12 col-md-auto"l><"col-12 col-md d-flex justify-content-end align-items-center"f>>rt<"row g-2 mt-2"<"col-12 col-md-6"i><"col-12 col-md-6"p>>',
+            autoWidth: false,
             ajax: {
                 url: options.ajaxUrl || '/marker_history',
                 dataSrc: function (json) {
@@ -85,7 +122,7 @@
                         try {
                             return data.map(function (row) {
                                 if (row.ENCODED_DT) {
-                                    row.ENCODED_DT = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
+                                    row.ENCODED_DT = moment.utc(row.ENCODED_DT).utcOffset(8).format('MMMM DD, YYYY HH:mm');
                                 }
                                 return row;
                             });
@@ -108,62 +145,157 @@
                 },
                 {
                     data: 'AMOUNT',
+                    className: 'text-center marker-history-col-amount',
                     render: function (data) {
-                        return (data != null ? String(data) : '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                        return formatMarkerHistoryAmount(data);
                     }
                 },
                 { data: 'TRANSACTION_INFO', render: renderTransactionType },
                 { data: 'ENCODED_DT' },
-                { data: 'REMARKS', defaultContent: '' },
-                {
-                    data: 'IDNo',
-                    orderable: false,
-                    render: function (idNo, type, row) {
-                        if (type === 'display') {
-                            var perms = parseInt($('#user-role').data('permissions'), 10);
-                            var canDelete = ($('#user-role').length && perms === 0); // Super Admin only
-                            if (!canDelete) return '';
-                            return '<button type="button" class="btn btn-sm btn-danger-subtle btn-delete-marker" data-id="' + (idNo || '') + '" data-bs-toggle="tooltip" aria-label="Delete" title="Delete"><i class="fa fa-trash-alt"></i></button>';
-                        }
-                        return idNo;
-                    }
-                }
+                { data: 'REMARKS', defaultContent: '' }
             ],
             columnDefs: [
                 {
                     targets: 3,
+                    className: 'text-center',
                     render: function (data, type, row) {
                         if (type === 'sort') {
-                            return window.moment && moment.utc(data, 'MMMM DD, YYYY HH:mm:ss').format('YYYY-MM-DD HH:mm:ss');
+                            if (!window.moment) return data;
+                            var mSort = parseMarkerHistoryDateString(data);
+                            return mSort ? mSort.format('YYYY-MM-DD HH:mm:ss') : data;
                         }
                         if (!window.moment) return data;
-                        var dateMoment = moment(data, 'MMMM DD, YYYY HH:mm:ss');
-                        return dateMoment.isValid() ? dateMoment.local().format('DD MMM, YYYY HH:mm:ss') : (data || '');
-                    },
-                    createdCell: function (cell) {
-                        $(cell).addClass('text-center');
+                        var dateMoment = parseMarkerHistoryDateString(data);
+                        return dateMoment ? dateMoment.local().format('DD MMM, YYYY HH:mm') : (data || '');
                     }
                 },
                 {
                     targets: 4,
-                    render: function (data) {
-                        return data || '';
-                    }
-                },
-                {
-                    targets: 5,
-                    visible: isSuperAdmin,
-                    className: 'text-center',
-                    createdCell: function (cell) {
-                        $(cell).addClass('text-center');
+                    className: 'marker-history-col-remarks',
+                    render: function (data, type, row) {
+                        var raw = data != null ? String(data) : '';
+                        if (type === 'sort' || type === 'filter') {
+                            return raw;
+                        }
+                        if (type !== 'display') {
+                            return raw;
+                        }
+                        var safe = escapeHtml(raw);
+                        var textHtml = safe ? safe : '<span class="text-muted">—</span>';
+                        if (!isSuperAdmin) {
+                            return textHtml;
+                        }
+                        var id = row.IDNo != null ? String(row.IDNo) : '';
+                        var enc = encodeURIComponent(raw);
+                        var t = translations;
+                        var editTitle = (t.edit_remarks || 'Edit remarks').replace(/"/g, '&quot;');
+                        var delTitle = (t.delete || 'Delete').replace(/"/g, '&quot;');
+                        return (
+                            '<div class="marker-history-remarks-cell d-flex align-items-start gap-2 justify-content-between">' +
+                            '<span class="marker-history-remarks-text flex-grow-1 text-break">' + textHtml + '</span>' +
+                            '<span class="marker-history-remarks-actions flex-shrink-0 d-flex gap-1">' +
+                            '<button type="button" class="btn btn-sm btn-light border btn-edit-marker-remarks" data-id="' + id + '" data-remarks="' + enc + '" title="' + editTitle + '"><i class="fa fa-pen"></i></button>' +
+                            '<button type="button" class="btn btn-sm btn-danger-subtle btn-delete-marker" data-id="' + id + '" title="' + delTitle + '"><i class="fa fa-trash-alt"></i></button>' +
+                            '</span></div>'
+                        );
                     }
                 }
             ]
         });
 
+        // Edit remarks (Super Admin)
+        $table.off('click.markerEditRemarks').on('click.markerEditRemarks', '.btn-edit-marker-remarks', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var btn = $(this);
+            var id = btn.data('id');
+            if (!id) return;
+            var perms = parseInt($('#user-role').data('permissions'), 10);
+            if ($('#user-role').length && perms !== 0) return;
+
+            var rawRemarks = '';
+            try {
+                rawRemarks = decodeURIComponent(String(btn.attr('data-remarks') || ''));
+            } catch (err) {
+                rawRemarks = '';
+            }
+
+            var t = window.markerTranslations || {};
+            var title = t.edit_remarks || 'Edit remarks';
+            var saveLabel = t.save || 'Save';
+            var okMsg = t.remarks_updated || 'Remarks updated.';
+            var errMsg = t.error_update_remarks || 'Could not update remarks.';
+
+            function doPatch(newVal) {
+                btn.prop('disabled', true);
+                $.ajax({
+                    url: '/marker_record/' + id + '/remarks',
+                    method: 'PATCH',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ remarks: newVal != null ? String(newVal) : '' }),
+                    success: function (res) {
+                        if (res.success) {
+                            if (table && table.ajax) table.ajax.reload();
+                            if (window.Swal) window.Swal.fire({ icon: 'success', title: 'Success', text: res.message || okMsg });
+                        } else {
+                            if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Error', text: res.message || errMsg });
+                        }
+                    },
+                    error: function (xhr) {
+                        var msg = (xhr.responseJSON && xhr.responseJSON.message) || errMsg;
+                        if (window.Swal) window.Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                    },
+                    complete: function () { btn.prop('disabled', false); }
+                });
+            }
+
+            if (window.Swal) {
+                // Bootstrap modal focus trap steals focus from SweetAlert2 inputs; allow focus inside Swal
+                function allowSwalFocus(e) {
+                    if (e.target && e.target.closest && e.target.closest('.swal2-container')) {
+                        e.stopImmediatePropagation();
+                    }
+                }
+                window.addEventListener('focusin', allowSwalFocus, true);
+                window.Swal.fire({
+                    title: title,
+                    input: 'textarea',
+                    inputValue: rawRemarks,
+                    inputAttributes: { maxlength: 500, 'aria-label': title },
+                    showCancelButton: true,
+                    confirmButtonText: saveLabel,
+                    cancelButtonColor: '#6c757d',
+                    focusConfirm: false,
+                    heightAuto: false,
+                    didOpen: function () {
+                        var inp = window.Swal.getInput();
+                        if (inp) {
+                            inp.removeAttribute('readonly');
+                            inp.removeAttribute('disabled');
+                            setTimeout(function () {
+                                inp.focus();
+                            }, 50);
+                        }
+                    },
+                    willClose: function () {
+                        window.removeEventListener('focusin', allowSwalFocus, true);
+                    }
+                }).then(function (result) {
+                    window.removeEventListener('focusin', allowSwalFocus, true);
+                    if (result.isConfirmed) {
+                        doPatch(result.value);
+                    }
+                });
+            } else {
+                var p = window.prompt(title, rawRemarks);
+                if (p !== null) doPatch(p);
+            }
+        });
+
         // Delete button click (delegated)
         $table.off('click.markerDelete').on('click.markerDelete', '.btn-delete-marker', function (e) {
             e.preventDefault();
+            e.stopPropagation();
             var btn = $(this);
             var id = btn.data('id');
             if (!id) return;
@@ -255,11 +387,16 @@
             var wsData = [];
             wsData.push(['ACCOUNT NAME', 'AMOUNT', 'TRANSACTION TYPE', 'DATE', 'REMARKS']);
             data.forEach(function (row) {
+                var dateCell = row.ENCODED_DT || '';
+                if (dateCell && window.moment) {
+                    var md = parseMarkerHistoryDateString(dateCell);
+                    if (md) dateCell = md.format('DD MMM, YYYY HH:mm');
+                }
                 wsData.push([
                     (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')',
-                    (row.AMOUNT != null ? row.AMOUNT : 0).toLocaleString(),
+                    formatMarkerHistoryAmount(row.AMOUNT),
                     getTransactionLabel(row.TRANSACTION_ID),
-                    row.ENCODED_DT || '',
+                    dateCell,
                     row.REMARKS || ''
                 ]);
             });
@@ -668,6 +805,29 @@
         var table = initHistoryTable(tableSelector, options.tableOptions || {});
         if (!table) return null;
 
+        function adjustHistoryTableLayout() {
+            if (!table || typeof table.columns !== 'function') return;
+            try {
+                table.columns.adjust();
+            } catch (e) { /* noop */ }
+        }
+
+        var markerResizeTimer;
+        $(window).off('resize.markerHistoryDt').on('resize.markerHistoryDt', function () {
+            clearTimeout(markerResizeTimer);
+            markerResizeTimer = setTimeout(function () {
+                if ($.fn.DataTable.isDataTable(tableSelector)) adjustHistoryTableLayout();
+            }, 150);
+        });
+
+        if (options.modalSelector) {
+            $(options.modalSelector)
+                .off('shown.bs.modal.markerDtCols')
+                .on('shown.bs.modal.markerDtCols', function () {
+                    adjustHistoryTableLayout();
+                });
+        }
+
         function updateAccountsBalanceTable() {
             var $creditTbl = $('#marker-accounts-credit-tbl');
             var $buyinTbl = $('#marker-accounts-buyin-tbl');
@@ -707,32 +867,32 @@
                     var t = window.markerTranslations || {};
                     var totalLabel = t.total || 'Total';
                     creditRows.forEach(function (r) {
-                        $creditTbody.append('<tr><td>' + r.name + '</td><td class="text-end">' + formatWithCommas(r.amount) + '</td></tr>');
+                        $creditTbody.append('<tr><td>' + r.name + '</td><td class="text-center marker-balance-col-amount">' + formatMarkerHistoryAmount(r.amount) + '</td></tr>');
                     });
                     if (creditRows.length > 0) {
                         $creditTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
-                        $creditTbl.find('tfoot th').last().addClass('fw-semibold text-end').text(formatWithCommas(totalCredit));
+                        $creditTbl.find('tfoot th').last().addClass('fw-semibold text-center marker-balance-col-amount').text(formatMarkerHistoryAmount(totalCredit));
                         $creditTbl.find('tfoot').show();
                     } else {
                         $creditTbl.find('tfoot').hide();
                     }
                     buyinRows.forEach(function (r) {
-                        $buyinTbody.append('<tr><td>' + r.name + '</td><td class="text-end">' + formatWithCommas(r.amount) + '</td></tr>');
+                        $buyinTbody.append('<tr><td>' + r.name + '</td><td class="text-center marker-balance-col-amount">' + formatMarkerHistoryAmount(r.amount) + '</td></tr>');
                     });
                     if (buyinRows.length > 0) {
                         $buyinTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
-                        $buyinTbl.find('tfoot th').last().addClass('fw-semibold text-end').text(formatWithCommas(totalBuyin));
+                        $buyinTbl.find('tfoot th').last().addClass('fw-semibold text-center marker-balance-col-amount').text(formatMarkerHistoryAmount(totalBuyin));
                         $buyinTbl.find('tfoot').show();
                     } else {
                         $buyinTbl.find('tfoot').hide();
                     }
-                    $('#txtTotalJunketCredit').val(formatWithCommas(totalCredit));
-                    $('#txtTotalGameCredit').val(formatWithCommas(totalBuyin));
+                    $('#txtTotalJunketCredit').val(formatMarkerHistoryAmount(totalCredit));
+                    $('#txtTotalGameCredit').val(formatMarkerHistoryAmount(totalBuyin));
                     if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
                 },
                 error: function () {
-                    $creditTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-end">—</td></tr>');
-                    $buyinTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-end">—</td></tr>');
+                    $creditTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
+                    $buyinTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
                     $('#txtTotalJunketCredit').val('0');
                     $('#txtTotalGameCredit').val('0');
                     if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
@@ -761,7 +921,11 @@
                 searching: true,
                 paging: true,
                 info: true,
-                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip'
+                autoWidth: false,
+                dom: '<"row g-0 gy-2 mb-2 align-items-center gap-3"<"col-12 col-md-auto"l><"col-12 col-md d-flex justify-content-end align-items-center"f>>rt<"row g-2 mt-2"<"col-12 col-md-6"i><"col-12 col-md-6"p>>',
+                columnDefs: [
+                    { targets: 1, className: 'text-center marker-balance-col-amount' }
+                ]
             };
             $('#marker-accounts-credit-tbl').DataTable(Object.assign({}, dtOpts, { language: creditLang }));
             $('#marker-accounts-buyin-tbl').DataTable(Object.assign({}, dtOpts, { language: buyinLang }));

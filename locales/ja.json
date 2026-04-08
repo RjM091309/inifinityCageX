@@ -803,7 +803,10 @@
 		"accounts_with_credit": "クレジット残高（残高のある口座）",
 		"balance_from_credit": "クレジット(3)",
 		"balance_from_buyin": "バイイン(10)",
-		"total": "合計"
+		"total": "合計",
+		"edit_remarks": "dashboard_marker.edit_remarks",
+		"remarks_updated": "dashboard_marker.remarks_updated",
+		"error_update_remarks": "dashboard_marker.error_update_remarks"
 	},
 	"modal_new_agent": {
 		"new_guest": "新規ゲスト",

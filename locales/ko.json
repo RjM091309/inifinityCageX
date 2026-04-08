@@ -803,7 +803,10 @@
 		"accounts_with_credit": "크레딧 보유 계정 잔액",
 		"balance_from_credit": "크레딧(3)",
 		"balance_from_buyin": "바이인(10)",
-		"total": "합계"
+		"total": "합계",
+		"edit_remarks": "dashboard_marker.edit_remarks",
+		"remarks_updated": "dashboard_marker.remarks_updated",
+		"error_update_remarks": "dashboard_marker.error_update_remarks"
 	},
 	"modal_new_agent": {
 		"new_guest": "새 게스트",

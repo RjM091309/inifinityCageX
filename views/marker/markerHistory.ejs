@@ -138,7 +138,6 @@
 								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.transaction_type_col') %></th>
 								<th class="d-none d-sm-table-cell" style="width: 200px;"><%= __('dashboard_marker.date') %></th>
 								<th class="d-none d-sm-table-cell"><%= __('dashboard_marker.remarks') %></th>
-								<th class="d-none d-sm-table-cell text-center" style="width: 60px;"><%= __('dashboard_marker.action') %></th>
 							</tr>
 						</thead>
 						<tbody></tbody>
@@ -146,31 +145,31 @@
 					</div>
 
 					<div id="marker-accounts-credit-wrapper" class="marker-tab-panel mb-3" data-panel="credit" style="display: none;">
-						<div class="table-responsive">
-							<table id="marker-accounts-credit-tbl" class="table table-bordered marker-balance-tbl" style="width:100%">
+						<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+							<table id="marker-accounts-credit-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
 								<thead>
 									<tr>
 										<th><%= __('dashboard_marker.account_name') %></th>
-										<th class="text-end"><%= __('dashboard_marker.balance') %></th>
+										<th class="text-center marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
 									</tr>
 								</thead>
 								<tbody></tbody>
-								<tfoot><tr><th></th><th class="text-end"></th></tr></tfoot>
+								<tfoot><tr><th></th><th class="text-center marker-balance-col-amount"></th></tr></tfoot>
 							</table>
 						</div>
 					</div>
 
 					<div id="marker-accounts-buyin-wrapper" class="marker-tab-panel mb-3" data-panel="buyin" style="display: none;">
-						<div class="table-responsive">
-							<table id="marker-accounts-buyin-tbl" class="table table-bordered marker-balance-tbl" style="width:100%">
+						<div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+							<table id="marker-accounts-buyin-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
 								<thead>
 									<tr>
 										<th><%= __('dashboard_marker.account_name') %></th>
-										<th class="text-end"><%= __('dashboard_marker.balance') %></th>
+										<th class="text-center marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
 									</tr>
 								</thead>
 								<tbody></tbody>
-								<tfoot><tr><th></th><th class="text-end"></th></tr></tfoot>
+								<tfoot><tr><th></th><th class="text-center marker-balance-col-amount"></th></tr></tfoot>
 							</table>
 						</div>
 					</div>
@@ -186,14 +185,18 @@
 	// Pass translations to JavaScript
 	window.markerTranslations = {
 		showing_entries: "<%= __('dashboard_marker.showing_entries') %>",
+		save: "<%= __('dashboard_marker.save') %>",
+		edit_remarks: "<%= __('dashboard_marker.edit_remarks') %>",
+		remarks_updated: "<%= __('dashboard_marker.remarks_updated') %>",
+		error_update_remarks: "<%= __('dashboard_marker.error_update_remarks') %>",
+		delete: "<%= __('dashboard_marker.delete') %>",
+		confirm_delete: "<%= __('dashboard_marker.confirm_delete') %>",
+		yes_delete: "<%= __('dashboard_marker.yes_delete') %>",
 		info_empty: "<%= __('dashboard_marker.info_empty') %>",
 		info_filtered: "<%= __('dashboard_marker.info_filtered') %>",
 		length_menu: "<%= __('dashboard_marker.length_menu') %>",
 		first: "<%= __('dashboard_marker.first') %>",
 		last: "<%= __('dashboard_marker.last') %>",
-		delete: "<%= __('dashboard_marker.delete') %>",
-		confirm_delete: "<%= __('dashboard_marker.confirm_delete') %>",
-		yes_delete: "<%= __('dashboard_marker.yes_delete') %>",
 		previous: "<%= __('dashboard_marker.previous') %>",
 		next: "<%= __('dashboard_marker.next') %>",
 		search: "<%= __('dashboard_marker.search') %>",
@@ -335,6 +338,8 @@ $(document).ready(function() {
 	background-color: #f4f6fa;
 	padding: 10px 15px;
 }
+#marker-history-tbl tbody td.marker-history-col-remarks { vertical-align: top; }
+#marker-history-tbl .marker-history-remarks-actions .btn { padding: 0.2rem 0.45rem; }
 </style>
 
 
