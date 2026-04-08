@@ -96,6 +96,54 @@
                       </div>
                   </div>
               </div>
+
+              <div class="row mb-2">
+                  <div class="col-sm-12 d-flex align-items-center justify-content-between">
+                      <div class="form-check mb-0">
+                          <input class="form-check-input" type="checkbox" id="enableSplitNewGame">
+                          <label class="form-check-label" for="enableSplitNewGame">
+                              Split Buy-in
+                          </label>
+                      </div>
+                  </div>
+              </div>
+
+              <div class="row mb-2" id="split-new-game-row" style="display:none;">
+                  <div class="col-sm-6 mb-2 mb-sm-0">
+                      <div class="border rounded p-2 h-100">
+                          <div class="fw-semibold small text-muted mb-2">NN Chips</div>
+                          <div class="mb-2">
+                              <label class="form-label mb-1">Cash</label>
+                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitCashNN" placeholder="NN Chips" />
+                          </div>
+                          <div class="mb-2">
+                              <label class="form-label mb-1">Deposit</label>
+                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitDepNN" placeholder="NN Chips" />
+                          </div>
+                          <div>
+                              <label class="form-label mb-1">Credit</label>
+                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitCreditNN" placeholder="NN Chips" />
+                          </div>
+                      </div>
+                  </div>
+                  <div class="col-sm-6">
+                      <div class="border rounded p-2 h-100">
+                          <div class="fw-semibold small text-muted mb-2">CC Chips</div>
+                          <div class="mb-2">
+                              <label class="form-label mb-1">Cash</label>
+                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitCashCC" placeholder="CC Chips" />
+                          </div>
+                          <div class="mb-2">
+                              <label class="form-label mb-1">Deposit</label>
+                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitDepCC" placeholder="CC Chips" />
+                          </div>
+                          <div>
+                              <label class="form-label mb-1">Credit</label>
+                              <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" id="splitCreditCC" placeholder="CC Chips" />
+                          </div>
+                      </div>
+                  </div>
+              </div>
               <hr style="border: 1px solid">
                <!-- ROLLER CHIPS Section -->
                <div class="row mb-2">
@@ -209,6 +257,62 @@ document.addEventListener("DOMContentLoaded", function () {
             validateNnThousandsInline(this);
         });
     }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    const splitToggle = document.getElementById('enableSplitNewGame');
+    const splitRow = document.getElementById('split-new-game-row');
+    const transTypeRow = document.querySelector('#modal-new-game-list input[name="txtTransType"]')?.closest('.row.mb-2');
+    const transTypeRadios = document.querySelectorAll('#modal-new-game-list input[name="txtTransType"]');
+    const baseAmountRow = document.querySelector('#modal-new-game-list #txtNN')?.closest('.row');
+    const splitInputs = [
+        document.getElementById('splitCashNN'),
+        document.getElementById('splitCashCC'),
+        document.getElementById('splitDepNN'),
+        document.getElementById('splitDepCC'),
+        document.getElementById('splitCreditNN'),
+        document.getElementById('splitCreditCC')
+    ];
+
+    const validateNnSplitInput = function (inputEl) {
+        if (!inputEl) return;
+        const id = inputEl.id || '';
+        const isNnField = id.toLowerCase().includes('nn');
+        const raw = (inputEl.value || '').toString().replace(/,/g, '').trim();
+        if (!raw) {
+            inputEl.classList.remove('is-invalid');
+            return;
+        }
+        const n = Number(raw);
+        const invalid = !Number.isFinite(n) || n < 0 || (isNnField && n > 0 && n % 1000 !== 0);
+        inputEl.classList.toggle('is-invalid', invalid);
+    };
+
+    splitInputs.forEach(function (inputEl) {
+        if (!inputEl) return;
+        inputEl.addEventListener('input', function () {
+            validateNnSplitInput(inputEl);
+        });
+    });
+
+    if (!splitToggle) return;
+    splitToggle.addEventListener('change', function () {
+        const isOn = !!this.checked;
+        if (splitRow) splitRow.style.display = isOn ? '' : 'none';
+        if (baseAmountRow) baseAmountRow.style.display = isOn ? 'none' : '';
+        if (transTypeRow) transTypeRow.style.display = isOn ? 'none' : '';
+        transTypeRadios.forEach(function (radio) {
+            radio.disabled = isOn;
+            if (isOn) radio.checked = false;
+        });
+        if (!isOn) {
+            splitInputs.forEach(function (inputEl) {
+                if (!inputEl) return;
+                inputEl.value = '';
+                inputEl.classList.remove('is-invalid');
+            });
+        }
+    });
 });
 
 document.addEventListener("DOMContentLoaded", function () {

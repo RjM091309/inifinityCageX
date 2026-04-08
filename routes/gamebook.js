@@ -461,6 +461,193 @@ router.post('/add_game_list', async (req, res) => {
 	}
 });
 
+// ADD GAME LIST (Split: Cash + Deposit + Credit)
+router.post('/add_game_list_split', async (req, res) => {
+	const {
+		txtAccountCode,
+		txtGameType,
+		txtRollerNN,
+		txtRollerCC,
+		txtCommisionType,
+		txtCommisionRate,
+		totalBalanceGuest1,
+		split_cash_nn,
+		split_cash_cc,
+		split_dep_nn,
+		split_dep_cc,
+		split_credit_nn,
+		split_credit_cc
+	} = req.body;
+
+	const parseAmt = (v) => {
+		const s = (v === undefined || v === null ? '' : v).toString().replace(/,/g, '').trim();
+		if (s === '') return 0;
+		const n = parseFloat(s);
+		return Number.isFinite(n) ? n : NaN;
+	};
+
+	const accountId = parseInt(txtAccountCode, 10) || null;
+	const encodedBy = req.session?.user_id || null;
+	const gameType = txtGameType || 'N/A';
+	const commType = txtCommisionType || null;
+	const commRate = parseFloat((txtCommisionRate || '0').toString().replace(/,/g, '')) || 0;
+	const rollerNNAmount = parseAmt(txtRollerNN);
+	const rollerCCAmount = parseAmt(txtRollerCC);
+
+	const cashNn = parseAmt(split_cash_nn);
+	const cashCc = parseAmt(split_cash_cc);
+	const depNn = parseAmt(split_dep_nn);
+	const depCc = parseAmt(split_dep_cc);
+	const creditNn = parseAmt(split_credit_nn);
+	const creditCc = parseAmt(split_credit_cc);
+
+	const cashTotal = cashNn + cashCc;
+	const depositTotal = depNn + depCc;
+	const creditTotal = creditNn + creditCc;
+	const grandTotal = cashTotal + depositTotal + creditTotal;
+	const totalBalanceGuest = parseFloat((totalBalanceGuest1 || '0').toString().replace(/,/g, '')) || 0;
+	const date_now = new Date();
+
+	if (!accountId || encodedBy === null) {
+		return res.status(400).json({ error: 'Invalid account or session.' });
+	}
+	if ([cashNn, cashCc, depNn, depCc, creditNn, creditCc, rollerNNAmount, rollerCCAmount].some((n) => !Number.isFinite(n) || n < 0)) {
+		return res.status(400).json({ error: 'Invalid split amounts.' });
+	}
+	if ((cashNn > 0 && cashNn % 1000 !== 0) || (depNn > 0 && depNn % 1000 !== 0) || (creditNn > 0 && creditNn % 1000 !== 0)) {
+		return res.status(400).json({ error: 'NN split amounts must be in thousands.' });
+	}
+	if (depositTotal > totalBalanceGuest) {
+		return res.status(400).json({ error: 'Deposit amount exceeds available balance.' });
+	}
+	if (grandTotal <= 0) {
+		return res.status(400).json({ error: 'Total amount must be greater than zero.' });
+	}
+
+	const gameRecordSQL = `
+		INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`;
+	const ledgerDepositSQL = `
+		INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`;
+	const ledgerCreditSQL = `
+		INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`;
+
+	const connection = await pool.getConnection();
+	try {
+		await connection.beginTransaction();
+
+		const [gameResult] = await connection.execute(`
+			INSERT INTO game_list (ACCOUNT_ID, GAME_TYPE, INITIAL_MOP, GAME_NO, WORKING_CHIPS, COMMISSION_TYPE, COMMISSION_PERCENTAGE, ENCODED_BY, ENCODED_DT)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[accountId, gameType, 'SPLIT', 'N/A', grandTotal, commType, commRate, encodedBy, date_now]
+		);
+		const gameId = gameResult.insertId;
+
+		let cashRecordId = null;
+		if (cashTotal > 0) {
+			const [cashRecord] = await connection.execute(gameRecordSQL, [gameId, date_now, 1, 0, cashNn, cashCc, 1, encodedBy, date_now]);
+			cashRecordId = cashRecord.insertId;
+			await connection.execute(gameRecordSQL, [gameId, date_now, 3, 0, cashNn, cashCc, 1, encodedBy, date_now]);
+		}
+		if (depositTotal > 0) {
+			await connection.execute(gameRecordSQL, [gameId, date_now, 1, 0, depNn, depCc, 2, encodedBy, date_now]);
+			await connection.execute(gameRecordSQL, [gameId, date_now, 3, 0, depNn, depCc, 2, encodedBy, date_now]);
+		}
+		if (creditTotal > 0) {
+			await connection.execute(gameRecordSQL, [gameId, date_now, 1, 0, creditNn, creditCc, 3, encodedBy, date_now]);
+			await connection.execute(gameRecordSQL, [gameId, date_now, 3, 0, creditNn, creditCc, 3, encodedBy, date_now]);
+		}
+
+		if (rollerNNAmount > 0 || rollerCCAmount > 0) {
+			const rollerChipsSQL = `
+				INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`;
+			await connection.execute(rollerChipsSQL, [gameId, date_now, 5, 0, 0, 0, rollerNNAmount, rollerCCAmount, 1, encodedBy, date_now]);
+		}
+
+		if (depositTotal > 0) {
+			await connection.execute(ledgerDepositSQL, [accountId, gameId, 2, 2, 'INITIAL BUY-IN', depositTotal, encodedBy, date_now]);
+		}
+		if (creditTotal > 0) {
+			await connection.execute(ledgerCreditSQL, [accountId, gameId, 10, 3, creditTotal, `Buy-in Game: ${gameId}`, encodedBy, date_now]);
+		}
+
+		const [agentRows] = await connection.execute(`
+			SELECT agent.IDNo AS agent_id
+			FROM agent
+			JOIN account ON account.AGENT_ID = agent.IDNo
+			WHERE account.ACTIVE = 1 AND account.IDNo = ?`,
+			[accountId]
+		);
+		if (cashTotal > 0 && cashRecordId && agentRows.length > 0 && agentRows[0].agent_id) {
+			await connection.execute(`
+				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				[cashRecordId, agentRows[0].agent_id, cashTotal.toString(), 'Game buy-in', 1, `Game - ${gameId}`, encodedBy, date_now]
+			);
+		}
+
+		await connection.commit();
+
+		// Telegram after successful commit (DB already consistent)
+		try {
+			const [agentRows] = await pool.execute(`
+				SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+				FROM account
+				JOIN agent ON agent.IDNo = account.AGENT_ID
+				WHERE account.ACTIVE = 1 AND account.IDNo = ?
+				LIMIT 1`,
+				[accountId]
+			);
+			if (Array.isArray(agentRows) && agentRows.length > 0) {
+				const { AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentRows[0];
+				const date_nowTG = new Date().toLocaleDateString();
+				const updated_time = new Date().toLocaleTimeString();
+				const balanceAfterDeposit = totalBalanceGuest - depositTotal;
+				const splitLinesKo = [];
+				if (cashTotal > 0) splitLinesKo.push(`현금: ${cashTotal.toLocaleString()}`);
+				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString()}`);
+				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString()}`);
+				const splitTextBlockKo = splitLinesKo.join('\n');
+				const splitLinesMgmt = [];
+				if (cashTotal > 0) splitLinesMgmt.push(`현금 Cash: ${cashTotal.toLocaleString()}`);
+				if (depositTotal > 0) splitLinesMgmt.push(`계좌출금 Deposit: ${depositTotal.toLocaleString()}`);
+				if (creditTotal > 0) splitLinesMgmt.push(`크레딧 Credit: ${creditTotal.toLocaleString()}`);
+				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
+				const text = `Infinity Cage\n\n* 게임 시작 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameId} - ${gameType}\n${splitTextBlockKo}\n총 바이인: ${grandTotal.toLocaleString()}${depositTotal > 0 ? `\n잔고: ${balanceAfterDeposit.toLocaleString()}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				const managementText = `Infinity Cage\n\n* 게임 시작 Game Start *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameId} - ${gameType}\n${splitTextBlockMgmt}\n총 바이인 Total Buy-in: ${grandTotal.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+
+				if (telegramId) {
+					try { await sendTelegramMessage(text, telegramId); } catch (telegramError) { console.error('Failed to send Telegram message to agent:', telegramError.message); }
+				}
+				try { await sendToAgentNotifications(agentCode, managementText); } catch (telegramError) { console.error('Failed to send to agent notifications:', telegramError.message); }
+				try { await sendTelegramToAdditionalChats(text); } catch (telegramError) { console.error('Failed to send Telegram message to additional chats:', telegramError.message); }
+				try { await sendTelegramToManagement(managementText); } catch (telegramError) { console.error('Failed to send Telegram message to management:', telegramError.message); }
+			}
+		} catch (tgErr) {
+			console.error('Telegram block after add_game_list_split:', tgErr);
+		}
+
+		return res.redirect('/game_list');
+	} catch (err) {
+		try {
+			await connection.rollback();
+		} catch (rbErr) {
+			console.error('add_game_list_split rollback:', rbErr);
+		}
+		console.error('Error in /add_game_list_split (rolled back):', err);
+		return res.status(500).json({ error: 'Failed to create split new game.' });
+	} finally {
+		connection.release();
+	}
+});
+
 
 // ======================= GAME SERVICES ==================
 // Get services for a game
@@ -2023,6 +2210,156 @@ router.post('/game_list/add/buyin', async (req, res) => {
 		res.redirect('/game_list');
 	} catch (error) {
 		res.status(500).send(error);
+	}
+});
+
+// ADD GAME RECORD BUYIN (Split: Cash + Deposit + Credit)
+router.post('/game_list/add/buyin_split', async (req, res) => {
+	const {
+		game_id,
+		txtAccountCode,
+		totalBalanceGuest2,
+		split_cash_nn,
+		split_cash_cc,
+		split_dep_nn,
+		split_dep_cc,
+		split_credit_nn,
+		split_credit_cc
+	} = req.body;
+
+	const parseAmt = (v) => {
+		const s = (v === undefined || v === null ? '' : v).toString().replace(/,/g, '').trim();
+		if (s === '') return 0;
+		const n = parseFloat(s);
+		return Number.isFinite(n) ? n : NaN;
+	};
+
+	const cashNn = parseAmt(split_cash_nn);
+	const cashCc = parseAmt(split_cash_cc);
+	const depNn = parseAmt(split_dep_nn);
+	const depCc = parseAmt(split_dep_cc);
+	const creditNn = parseAmt(split_credit_nn);
+	const creditCc = parseAmt(split_credit_cc);
+
+	const cashTotal = cashNn + cashCc;
+	const depositTotal = depNn + depCc;
+	const creditTotal = creditNn + creditCc;
+	const grandTotal = cashTotal + depositTotal + creditTotal;
+	const totalBalance = parseFloat((totalBalanceGuest2 || '0').toString().replace(/,/g, '')) || 0;
+	const date_now = new Date();
+
+	const [settledRows] = await pool.execute('SELECT SETTLED FROM game_list WHERE IDNo = ? AND ACTIVE != 0', [game_id]);
+	if (settledRows.length > 0 && settledRows[0].SETTLED === 1) {
+		return res.status(403).json({ error: 'Cannot add records to a settled game.' });
+	}
+	if ([cashNn, cashCc, depNn, depCc, creditNn, creditCc].some((n) => !Number.isFinite(n) || n < 0)) {
+		return res.status(400).json({ error: 'Invalid split amounts.' });
+	}
+	if ((cashNn > 0 && cashNn % 1000 !== 0) || (depNn > 0 && depNn % 1000 !== 0) || (creditNn > 0 && creditNn % 1000 !== 0)) {
+		return res.status(400).json({ error: 'NN split amounts must be in thousands.' });
+	}
+	if (grandTotal <= 0) {
+		return res.status(400).json({ error: 'Total amount must be greater than zero.' });
+	}
+	if (depositTotal > totalBalance) {
+		return res.status(400).json({ error: 'Deposit amount exceeds available balance.' });
+	}
+
+	const gameRecordSQL = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	const ledgerDepositSQL = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+	const ledgerCreditSQL = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+
+	const connection = await pool.getConnection();
+	try {
+		await connection.beginTransaction();
+
+		let cashRecordId = null;
+		if (cashTotal > 0) {
+			const [cashRecord] = await connection.execute(gameRecordSQL, [game_id, date_now, 1, 0, cashNn, cashCc, 1, req.session.user_id, date_now]);
+			cashRecordId = cashRecord.insertId;
+			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, cashNn, cashCc, 1, req.session.user_id, date_now]);
+		}
+		if (depositTotal > 0) {
+			await connection.execute(gameRecordSQL, [game_id, date_now, 1, 0, depNn, depCc, 2, req.session.user_id, date_now]);
+			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, depNn, depCc, 2, req.session.user_id, date_now]);
+			await connection.execute(ledgerDepositSQL, [txtAccountCode, game_id, 2, 2, 'ADDITIONAL BUY-IN', depositTotal, req.session.user_id, date_now]);
+		}
+		if (creditTotal > 0) {
+			await connection.execute(gameRecordSQL, [game_id, date_now, 1, 0, creditNn, creditCc, 3, req.session.user_id, date_now]);
+			await connection.execute(gameRecordSQL, [game_id, date_now, 3, 0, creditNn, creditCc, 3, req.session.user_id, date_now]);
+			await connection.execute(ledgerCreditSQL, [txtAccountCode, game_id, 10, 3, creditTotal, `Add Buy-in Game: ${game_id}`, req.session.user_id, date_now]);
+		}
+
+		if (cashTotal > 0 && cashRecordId) {
+			const [agentResults] = await connection.execute(`
+				SELECT agent.IDNo AS agent_id
+				FROM agent
+				JOIN account ON account.AGENT_ID = agent.IDNo
+				WHERE account.ACTIVE = 1 AND account.IDNo = ?`,
+				[txtAccountCode]
+			);
+			if (agentResults.length > 0 && agentResults[0].agent_id) {
+				await connection.execute(`
+					INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					[cashRecordId, agentResults[0].agent_id, cashTotal.toString(), 'Additional buy-in', 1, `Game - ${game_id}`, req.session.user_id, date_now]
+				);
+			}
+		}
+
+		await connection.commit();
+
+		// Telegram after successful commit (DB already consistent)
+		try {
+			const [agentRows] = await pool.execute(`
+				SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+				FROM account
+				JOIN agent ON agent.IDNo = account.AGENT_ID
+				WHERE account.ACTIVE = 1 AND account.IDNo = ?
+				LIMIT 1`,
+				[txtAccountCode]
+			);
+			if (Array.isArray(agentRows) && agentRows.length > 0) {
+				const { AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentRows[0];
+				const date_nowTG = new Date().toLocaleDateString();
+				const updated_time = new Date().toLocaleTimeString();
+				const splitLinesKo = [];
+				if (cashTotal > 0) splitLinesKo.push(`현금: ${cashTotal.toLocaleString()}`);
+				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString()}`);
+				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString()}`);
+				const splitTextBlockKo = splitLinesKo.join('\n');
+				const splitLinesMgmt = [];
+				if (cashTotal > 0) splitLinesMgmt.push(`현금 Cash: ${cashTotal.toLocaleString()}`);
+				if (depositTotal > 0) splitLinesMgmt.push(`계좌출금 Deposit: ${depositTotal.toLocaleString()}`);
+				if (creditTotal > 0) splitLinesMgmt.push(`크레딧 Credit: ${creditTotal.toLocaleString()}`);
+				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
+				const totalBuyin = grandTotal;
+				const newTotalBalance = totalBalance - depositTotal;
+				const text = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id}\n${splitTextBlockKo}\n바이인 합계: ${totalBuyin.toLocaleString()}${depositTotal > 0 ? `\n잔고: ${newTotalBalance.toLocaleString()}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				const managementText = `Infinity Cage\n\n* 추가 바이인 Add Buy-in *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id}\n${splitTextBlockMgmt}\n바이인 합계 Total Buy-in : ${totalBuyin.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+
+				if (telegramId) {
+					try { await sendTelegramMessage(text, telegramId); } catch (telegramError) { console.error('Failed to send Telegram message to agent:', telegramError.message); }
+				}
+				try { await sendToAgentNotifications(agentCode, managementText); } catch (telegramError) { console.error('Failed to send to agent notifications:', telegramError.message); }
+				try { await sendTelegramToAdditionalChats(text); } catch (telegramError) { console.error('Failed to send Telegram message to additional chats:', telegramError.message); }
+				try { await sendTelegramToManagement(managementText); } catch (telegramError) { console.error('Failed to send Telegram message to management:', telegramError.message); }
+			}
+		} catch (tgErr) {
+			console.error('Telegram block after buyin_split:', tgErr);
+		}
+
+		return res.redirect('/game_list');
+	} catch (err) {
+		try {
+			await connection.rollback();
+		} catch (rbErr) {
+			console.error('buyin_split rollback:', rbErr);
+		}
+		console.error('Error in /game_list/add/buyin_split (rolled back):', err);
+		return res.status(500).json({ error: 'Failed to add split buy-in.' });
+	} finally {
+		connection.release();
 	}
 });
 

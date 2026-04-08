@@ -19,7 +19,7 @@
 							</div>
 						</div>
 
-							<div class="row mb-4">
+						<div class="row mb-4" id="buyin-nncc-row">
 							<div class="col-sm-6">
 								<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
 									class="form-control text-center txtNN" placeholder="NN Chips" name="txtNN">
@@ -31,7 +31,7 @@
 								</div>
 							</div>
 
-							<div class="row mb-2">
+							<div class="row mb-2" id="buyin-trans-type-row">
 								<div class="col-sm-4">
 									<div class="form-check">
 										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash" name="txtTransType">
@@ -60,9 +60,57 @@
 												Credit
 											</span>
 										</label>
-		</div>
-	</div>
-</div>
+									</div>
+								</div>
+							</div>
+
+							<div class="row mb-2">
+								<div class="col-sm-12 d-flex align-items-center justify-content-between">
+									<div class="form-check mb-0">
+										<input class="form-check-input" type="checkbox" id="enableSplitBuyin">
+										<label class="form-check-label" for="enableSplitBuyin">
+											Split Additional Buy-in 
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<div class="row mb-3" id="split-buyin-row" style="display:none;">
+								<div class="col-sm-6 mb-2 mb-sm-0">
+									<div class="border rounded p-2 h-100">
+										<div class="fw-semibold small text-muted mb-2">NN Chips</div>
+										<div class="mb-2">
+											<label class="form-label mb-1">Cash</label>
+											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinCashNN" placeholder="NN Chips">
+										</div>
+										<div class="mb-2">
+											<label class="form-label mb-1">Deposit</label>
+											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinDepNN" placeholder="NN Chips">
+										</div>
+										<div>
+											<label class="form-label mb-1">Credit</label>
+											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinCreditNN" placeholder="NN Chips">
+										</div>
+									</div>
+								</div>
+								<div class="col-sm-6">
+									<div class="border rounded p-2 h-100">
+										<div class="fw-semibold small text-muted mb-2">CC Chips</div>
+										<div class="mb-2">
+											<label class="form-label mb-1">Cash</label>
+											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinCashCC" placeholder="CC Chips">
+										</div>
+										<div class="mb-2">
+											<label class="form-label mb-1">Deposit</label>
+											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinDepCC" placeholder="CC Chips">
+										</div>
+										<div>
+											<label class="form-label mb-1">Credit</label>
+											<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" id="splitBuyinCreditCC" placeholder="CC Chips">
+										</div>
+									</div>
+								</div>
+							</div>
 </div>
 
 <script>
@@ -88,6 +136,54 @@ document.addEventListener('DOMContentLoaded', function () {
 			this.classList.remove('is-invalid');
 		}
 	});
+
+	const splitToggle = document.getElementById('enableSplitBuyin');
+	const splitRow = document.getElementById('split-buyin-row');
+	const nnccRow = document.getElementById('buyin-nncc-row');
+	const transTypeRow = document.getElementById('buyin-trans-type-row');
+	const radios = document.querySelectorAll('#modal-add-buyin input[name="txtTransType"]');
+	const splitInputs = [
+		document.getElementById('splitBuyinCashNN'),
+		document.getElementById('splitBuyinCashCC'),
+		document.getElementById('splitBuyinDepNN'),
+		document.getElementById('splitBuyinDepCC'),
+		document.getElementById('splitBuyinCreditNN'),
+		document.getElementById('splitBuyinCreditCC')
+	];
+
+	const validateSplit = function (el) {
+		if (!el) return;
+		const raw = (el.value || '').toString().replace(/,/g, '').trim();
+		if (!raw) {
+			el.classList.remove('is-invalid');
+			return;
+		}
+		const n = Number(raw);
+		const isNN = (el.id || '').toLowerCase().includes('nn');
+		const invalid = !Number.isFinite(n) || n < 0 || (isNN && n > 0 && n % 1000 !== 0);
+		el.classList.toggle('is-invalid', invalid);
+	};
+	splitInputs.forEach(function (el) {
+		if (!el) return;
+		el.addEventListener('input', function () { validateSplit(el); });
+	});
+
+	if (splitToggle) {
+		splitToggle.addEventListener('change', function () {
+			const isOn = this.checked;
+			if (splitRow) splitRow.style.display = isOn ? '' : 'none';
+			if (nnccRow) nnccRow.style.display = isOn ? 'none' : '';
+			if (transTypeRow) transTypeRow.style.display = isOn ? 'none' : '';
+			radios.forEach(function (r) { r.disabled = isOn; if (isOn) r.checked = false; });
+			if (!isOn) {
+				splitInputs.forEach(function (el) {
+					if (!el) return;
+					el.value = '';
+					el.classList.remove('is-invalid');
+				});
+			}
+		});
+	}
 });
 </script>
 					<div class="modal-footer">

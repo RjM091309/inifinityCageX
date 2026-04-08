@@ -41,6 +41,12 @@ function addGameList(id) {
 	
 	// Show modal IMMEDIATELY for smooth UX (don't wait for data)
 	$('#modal-new-game-list').modal('show');
+	$('#enableSplitNewGame').prop('checked', false);
+	$('#split-new-game-row').hide();
+	$('#splitCashNN, #splitCashCC, #splitDepNN, #splitDepCC, #splitCreditNN, #splitCreditCC').val('').removeClass('is-invalid');
+	$('#modal-new-game-list input[name="txtTransType"]').prop('disabled', false).prop('checked', false);
+	$('#modal-new-game-list input[name="txtTransType"]').first().closest('.row.mb-2').show();
+	$('#txtNN, #txtCC').closest('.row').show();
 	
 	// Populate dropdown based on data availability
 	if (Array.isArray(_accountOptionsCache)) {
@@ -1644,6 +1650,164 @@ $('#add_game_list').submit(function (event) {
     var txtNNamount = parseFloat(nnChips.replace(/,/g, '')) || 0; // Convert NN Chips to number
     var txtCCamount = parseFloat(ccChips.replace(/,/g, '')) || 0; // Convert CC Chips to number
     var totalBalanceGuest1 = $('#total_balanceGuest1').val().replace(/,/g, '').trim();
+    var splitEnabled = $('#enableSplitNewGame').is(':checked');
+
+    if (splitEnabled) {
+        var parseSplitNum = function (selector) {
+            var v = ($(selector).val() || '').toString().replace(/,/g, '').trim();
+            return v === '' ? 0 : parseFloat(v);
+        };
+
+        var splitCashNN = parseSplitNum('#splitCashNN');
+        var splitCashCC = parseSplitNum('#splitCashCC');
+        var splitDepNN = parseSplitNum('#splitDepNN');
+        var splitDepCC = parseSplitNum('#splitDepCC');
+        var splitCreditNN = parseSplitNum('#splitCreditNN');
+        var splitCreditCC = parseSplitNum('#splitCreditCC');
+
+        var splitValues = [splitCashNN, splitCashCC, splitDepNN, splitDepCC, splitCreditNN, splitCreditCC];
+        var splitSelectors = ['#splitCashNN', '#splitCashCC', '#splitDepNN', '#splitDepCC', '#splitCreditNN', '#splitCreditCC'];
+        splitSelectors.forEach(function (sel) { $(sel).removeClass('is-invalid'); });
+
+        if (splitValues.some(function (n) { return !Number.isFinite(n) || n < 0; })) {
+            Swal.fire({ title: 'Invalid Input', text: 'Please enter valid split amounts.', icon: 'error', confirmButtonText: 'OK' });
+            $btn.prop('disabled', false).text('Submit');
+            return;
+        }
+        if ((splitCashNN > 0 && splitCashNN % 1000 !== 0) || (splitDepNN > 0 && splitDepNN % 1000 !== 0) || (splitCreditNN > 0 && splitCreditNN % 1000 !== 0)) {
+            if (splitCashNN > 0 && splitCashNN % 1000 !== 0) $('#splitCashNN').addClass('is-invalid');
+            if (splitDepNN > 0 && splitDepNN % 1000 !== 0) $('#splitDepNN').addClass('is-invalid');
+            if (splitCreditNN > 0 && splitCreditNN % 1000 !== 0) $('#splitCreditNN').addClass('is-invalid');
+            Swal.fire({ title: 'Invalid NN Chips amount', text: 'NN split amounts must be in thousands (e.g. 1,000 / 2,000 / 3,000).', icon: 'error', confirmButtonText: 'OK' });
+            $btn.prop('disabled', false).text('Submit');
+            return;
+        }
+
+        var cashLegTotal = splitCashNN + splitCashCC;
+        var depLegTotal = splitDepNN + splitDepCC;
+        var creditLegTotal = splitCreditNN + splitCreditCC;
+        var splitTotal = cashLegTotal + depLegTotal + creditLegTotal;
+
+        if (splitTotal <= 0) {
+            Swal.fire({ title: 'Warning', text: 'Please enter at least one split amount.', icon: 'warning', confirmButtonText: 'OK' });
+            $btn.prop('disabled', false).text('Submit');
+            return;
+        }
+        if (depLegTotal > (parseFloat(totalBalanceGuest1) || 0)) {
+            Swal.fire({
+                title: 'Insufficient Balance',
+                text: 'Deposit split exceeds available total balance of ₱' + formatNumberWithCommas(totalBalanceGuest1),
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+            $btn.prop('disabled', false).text('Submit');
+            return;
+        }
+        if (!commissionTypeSelected) {
+            Swal.fire({ title: 'Warning', text: 'Please select a Commission Type.', icon: 'warning', confirmButtonText: 'OK' });
+            $btn.prop('disabled', false).text('Submit');
+            return;
+        }
+
+        var gameType = $('input[name="txtGameType"]:checked').val() || '';
+        var accountCode = $('#txtTrans').val() || '';
+        var accountText = $('#txtTrans option:selected').text() || accountCode;
+        var rollerNN = $('#txtRollerNN').val().trim();
+        var rollerCC = $('#txtRollerCC').val().trim();
+        var rollerNNAmount = parseFloat(rollerNN.replace(/,/g, '')) || 0;
+        var rollerCCAmount = parseFloat(rollerCC.replace(/,/g, '')) || 0;
+        var commissionTypeText = $('#commissionType option:selected').text() || '';
+        var commissionRate = $('#commissionRate').val() || '0';
+
+        var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
+        var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
+        var buildRow = function (label, value) {
+            return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+        };
+        var rows = '';
+        rows += buildRow('Game Type:', gameType || '-');
+        rows += buildRow('Account:', accountText || '-');
+        if (splitCashNN > 0) rows += buildRow('Cash (NN):', splitCashNN.toLocaleString());
+        if (splitCashCC > 0) rows += buildRow('Cash (CC):', splitCashCC.toLocaleString());
+        if (splitDepNN > 0) rows += buildRow('Deposit (NN):', splitDepNN.toLocaleString());
+        if (splitDepCC > 0) rows += buildRow('Deposit (CC):', splitDepCC.toLocaleString());
+        if (splitCreditNN > 0) rows += buildRow('Credit (NN):', splitCreditNN.toLocaleString());
+        if (splitCreditCC > 0) rows += buildRow('Credit (CC):', splitCreditCC.toLocaleString());
+        rows += buildRow('Total Amount:', splitTotal.toLocaleString());
+        rows += buildRow('Commission Type:', commissionTypeText || '-');
+        if (parseFloat(commissionRate) > 0) rows += buildRow('Commission Rate:', `${commissionRate}%`);
+
+        var splitConfirmation = `
+            <div style="max-width:420px;margin:0 auto;text-align:center;">
+                <table style="margin:0 auto;border-collapse:collapse;min-width:260px;">
+                    ${rows}
+                </table>
+            </div>
+        `;
+
+        Swal.fire({
+            icon: 'question',
+            title: 'Confirm New Game',
+            html: splitConfirmation + '<div style="margin-top:12px;">Are you sure you want to proceed?</div>',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Confirm',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            width: '500px'
+        }).then(function (result) {
+            if (!result.isConfirmed) {
+                $btn.prop('disabled', false).text('Submit');
+                return;
+            }
+
+            var payload = {
+                txtAccountCode: $('#txtTrans').val(),
+                txtGameType: $('input[name="txtGameType"]:checked').val(),
+                txtRollerNN: $('#txtRollerNN').val(),
+                txtRollerCC: $('#txtRollerCC').val(),
+                txtCommisionType: $('#commissionType').val(),
+                txtCommisionRate: $('#commissionRate').val(),
+                totalBalanceGuest1: $('#total_balanceGuest1').val(),
+                split_cash_nn: splitCashNN,
+                split_cash_cc: splitCashCC,
+                split_dep_nn: splitDepNN,
+                split_dep_cc: splitDepCC,
+                split_credit_nn: splitCreditNN,
+                split_credit_cc: splitCreditCC
+            };
+
+            $.ajax({
+                url: '/add_game_list_split',
+                type: 'POST',
+                data: payload,
+                success: function () {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: 'New game successfully added.',
+                        confirmButtonText: 'OK',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
+                    }).then(function (swalResult) {
+                        if (swalResult.isConfirmed) {
+                            reloadData();
+                            $('#modal-new-game-list').modal('hide');
+                            window.location.reload();
+                        }
+                    });
+                },
+                error: function (xhr) {
+                    var errorMessage = xhr.responseJSON?.error || "An error occurred.";
+                    Swal.fire({ icon: 'error', title: 'Error', text: errorMessage, confirmButtonText: 'OK' });
+                    $btn.prop('disabled', false).text('Submit');
+                }
+            });
+        });
+        return;
+    }
 
     // Enforce NN Chips as positive thousands (1,000 / 2,000 / 3,000 ...) when provided
     var nnDigits = nnChips.replace(/,/g, '');
@@ -1852,6 +2016,119 @@ $('#add_buyin').submit(function (event) {
 	const transTypeSelected = !!transType;
 
 	const totalBalanceGuest2 = $('#total_balanceGuest2').val().replace(/,/g, '').trim();
+	const splitEnabled = $('#enableSplitBuyin').is(':checked');
+
+	if (splitEnabled) {
+		const parseSplitNum = function (selector) {
+			const v = ($(selector).val() || '').toString().replace(/,/g, '').trim();
+			return v === '' ? 0 : parseFloat(v);
+		};
+		const cashNN = parseSplitNum('#splitBuyinCashNN');
+		const cashCC = parseSplitNum('#splitBuyinCashCC');
+		const depNN = parseSplitNum('#splitBuyinDepNN');
+		const depCC = parseSplitNum('#splitBuyinDepCC');
+		const creditNN = parseSplitNum('#splitBuyinCreditNN');
+		const creditCC = parseSplitNum('#splitBuyinCreditCC');
+		const splitValues = [cashNN, cashCC, depNN, depCC, creditNN, creditCC];
+		['#splitBuyinCashNN', '#splitBuyinCashCC', '#splitBuyinDepNN', '#splitBuyinDepCC', '#splitBuyinCreditNN', '#splitBuyinCreditCC']
+			.forEach(function (s) { $(s).removeClass('is-invalid'); });
+
+		if (splitValues.some(function (n) { return !Number.isFinite(n) || n < 0; })) {
+			Swal.fire({ title: 'Invalid Input', text: 'Please enter valid split amounts.', icon: 'error', confirmButtonText: 'OK' });
+			$btn.prop('disabled', false).text('Submit');
+			return;
+		}
+		if ((cashNN > 0 && cashNN % 1000 !== 0) || (depNN > 0 && depNN % 1000 !== 0) || (creditNN > 0 && creditNN % 1000 !== 0)) {
+			if (cashNN > 0 && cashNN % 1000 !== 0) $('#splitBuyinCashNN').addClass('is-invalid');
+			if (depNN > 0 && depNN % 1000 !== 0) $('#splitBuyinDepNN').addClass('is-invalid');
+			if (creditNN > 0 && creditNN % 1000 !== 0) $('#splitBuyinCreditNN').addClass('is-invalid');
+			Swal.fire({ title: 'Invalid NN Chips amount', text: 'NN split amounts must be in thousands (e.g. 1,000 / 2,000 / 3,000).', icon: 'error', confirmButtonText: 'OK' });
+			$btn.prop('disabled', false).text('Submit');
+			return;
+		}
+
+		const cashTotal = cashNN + cashCC;
+		const depTotal = depNN + depCC;
+		const creditTotal = creditNN + creditCC;
+		const splitTotal = cashTotal + depTotal + creditTotal;
+		if (splitTotal <= 0) {
+			Swal.fire({ title: 'Warning', text: 'Please enter at least one split amount.', icon: 'warning', confirmButtonText: 'OK' });
+			$btn.prop('disabled', false).text('Submit');
+			return;
+		}
+		if (depTotal > (parseFloat(totalBalanceGuest2) || 0)) {
+			Swal.fire({
+				title: 'Insufficient Balance',
+				text: 'Deposit split exceeds available total balance of ₱' + formatNumberWithCommas(totalBalanceGuest2),
+				icon: 'error',
+				confirmButtonText: 'OK'
+			});
+			$btn.prop('disabled', false).text('Submit');
+			return;
+		}
+
+		var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
+		var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
+		var buildRow = function (label, value) {
+			return `<tr><td style="${labelStyle}">${label}</td><td style="${valueStyle}">${value}</td></tr>`;
+		};
+		var rows = '';
+		if (cashNN > 0) rows += buildRow('Cash (NN):', cashNN.toLocaleString());
+		if (cashCC > 0) rows += buildRow('Cash (CC):', cashCC.toLocaleString());
+		if (depNN > 0) rows += buildRow('Deposit (NN):', depNN.toLocaleString());
+		if (depCC > 0) rows += buildRow('Deposit (CC):', depCC.toLocaleString());
+		if (creditNN > 0) rows += buildRow('Credit (NN):', creditNN.toLocaleString());
+		if (creditCC > 0) rows += buildRow('Credit (CC):', creditCC.toLocaleString());
+		rows += buildRow('Total Amount:', splitTotal.toLocaleString());
+
+		Swal.fire({
+			icon: 'question',
+			title: 'Confirm Transaction',
+			html: `<div style="max-width:420px;margin:0 auto;text-align:left;"><div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm Buy In Transaction:</div><table style="margin:0 auto;border-collapse:collapse;min-width:260px;">${rows}</table></div><div style="margin-top:12px;">Are you sure you want to proceed?</div>`,
+			showCancelButton: true,
+			confirmButtonText: 'Yes, Confirm',
+			cancelButtonText: 'Cancel',
+			confirmButtonColor: '#3085d6',
+			cancelButtonColor: '#d33',
+			allowOutsideClick: false,
+			allowEscapeKey: false
+		}).then(function (result) {
+			if (!result.isConfirmed) {
+				$btn.prop('disabled', false).text('Submit');
+				return;
+			}
+			$.ajax({
+				url: '/game_list/add/buyin_split',
+				type: 'POST',
+				data: {
+					game_id: $('#modal-add-buyin .game_list_id').val(),
+					txtAccountCode: $('#modal-add-buyin .txtAccountCode').val(),
+					totalBalanceGuest2: $('#total_balanceGuest2').val(),
+					txtTotalAmountBuyin: $('#total_amount_addbuyin').val(),
+					split_cash_nn: cashNN,
+					split_cash_cc: cashCC,
+					split_dep_nn: depNN,
+					split_dep_cc: depCC,
+					split_credit_nn: creditNN,
+					split_credit_cc: creditCC
+				},
+				success: function () {
+					Swal.fire({ icon: 'success', title: 'Success!', text: 'Additional Buy-in successfully added.', confirmButtonText: 'OK' }).then(() => {
+						reloadData();
+						$('#modal-add-buyin').modal('hide');
+						$('#add_buyin')[0].reset();
+						$btn.prop('disabled', false).text('Submit');
+					});
+				},
+				error: function (xhr) {
+					const errorMessage = xhr.responseJSON?.error || 'An error occurred.';
+					Swal.fire({ icon: 'error', title: 'Error', text: errorMessage, confirmButtonText: 'OK' });
+					$btn.prop('disabled', false).text('Submit');
+				}
+			});
+		});
+		return;
+	}
 	
 	const txtNNamount = parseFloat(nnChips.replace(/,/g, '')) || 0;
 	const txtCCamount = parseFloat(ccChips.replace(/,/g, '')) || 0;
@@ -3018,7 +3295,12 @@ function addBuyin(id, account) {
 	$('.txtAmount').val('');
 	$('.txtNN').val('');
 	$('.txtCC').val('');
-	$('.form-check-input').prop('checked', false);
+	$('#modal-add-buyin input[name="txtTransType"]').prop('checked', false).prop('disabled', false);
+	$('#enableSplitBuyin').prop('checked', false);
+	$('#split-buyin-row').hide();
+	$('#buyin-nncc-row').show();
+	$('#buyin-trans-type-row').show();
+	$('#splitBuyinCashNN, #splitBuyinCashCC, #splitBuyinDepNN, #splitBuyinDepCC, #splitBuyinCreditNN, #splitBuyinCreditCC').val('').removeClass('is-invalid');
 
 	$('.game_list_id').val(id);
 	$('.txtAccountCode').val(account);
@@ -3554,7 +3836,18 @@ function reloadDataRecord() {
             let total_rolling_nn_real = 0;
             let total_rolling_cc_real = 0;
             let total_roller_return_cc = 0;
-            let hasInitialBuyIn = false;
+            let initialBuyinTimestamp = null;
+
+            // For split new game, multiple CAGE_TYPE=1 rows can be created at the same timestamp.
+            // Treat the earliest buy-in timestamp as "initial buy-in", not "additional buy-in".
+            data.forEach(function (row) {
+                if (row.CAGE_TYPE == 1) {
+                    const ts = new Date(row.record_date).getTime();
+                    if (Number.isFinite(ts) && (initialBuyinTimestamp === null || ts < initialBuyinTimestamp)) {
+                        initialBuyinTimestamp = ts;
+                    }
+                }
+            });
 
             const mergedData = {};
 
@@ -3562,8 +3855,17 @@ function reloadDataRecord() {
             const userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
             data.forEach(function (row) {
                 const dateKey = moment(row.record_date).format('MMM DD, YYYY HH:mm:ss');
-                // Split cash-out: two POSTs often share the same second — merge key must be per game_record row or they collapse into one line
-                const mergeKey = row.CAGE_TYPE == 2 ? dateKey + '|co|' + row.game_record_id : dateKey;
+                // Keep split entries visible as separate rows:
+                // - Cash-out split: key by game_record row
+                // - Buy-in split: key by transaction type (1 cash / 2 deposit / 3 credit) so each leg gets its own row
+                // For CAGE_TYPE 3 (paired total rolling), use same split key as CAGE_TYPE 1 so they stay in the same row.
+                const transKey = parseInt(row.TRANSACTION, 10) || 0;
+                let mergeKey = dateKey;
+                if (row.CAGE_TYPE == 2) {
+                    mergeKey = dateKey + '|co|' + row.game_record_id;
+                } else if (row.CAGE_TYPE == 1 || row.CAGE_TYPE == 3) {
+                    mergeKey = dateKey + '|bi|' + transKey;
+                }
 
                 if (!mergedData[mergeKey]) {
                     mergedData[mergeKey] = {
@@ -3624,7 +3926,9 @@ function reloadDataRecord() {
                 if (row.CAGE_TYPE == 1) { // BUY IN
                     const buyInAmount = (row.CC_CHIPS || 0) + (row.NN_CHIPS || 0);
                     var trans = parseInt(row.TRANSACTION, 10) || 1;
-                    if (hasInitialBuyIn) {
+                    const rowTs = new Date(row.record_date).getTime();
+                    const isInitialBuyinRow = initialBuyinTimestamp !== null && rowTs === initialBuyinTimestamp;
+                    if (!isInitialBuyinRow) {
                         // This is an additional buy-in
                         mergedData[mergeKey].additional_buyin += buyInAmount;
                         mergedData[mergeKey].additional_buyin_nn += (row.NN_CHIPS || 0);  // Track NN separately
@@ -3638,7 +3942,6 @@ function reloadDataRecord() {
                         mergedData[mergeKey].buy_in_type = trans;
                         total_nn_init += (row.NN_CHIPS || 0);
                         total_cc_init += (row.CC_CHIPS || 0);
-                        hasInitialBuyIn = true;
                     }
                 }
                 if (row.CAGE_TYPE == 2) { // CASH OUT
