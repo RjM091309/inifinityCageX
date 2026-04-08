@@ -1,4 +1,5 @@
 var account_id;
+var creditDetailsRequestSeq = 0;
 
 // Escape string for safe use inside JavaScript single-quoted string (prevents syntax error when name/remarks have apostrophes, newlines, etc.)
 function escapeJsString(str) {
@@ -317,7 +318,8 @@ $(document).ready(function () {
                     confirmButtonText: 'OK'
                 }).then(() => {
                     $('#modal-transfer_account').modal('hide');
-                    window.location.reload();
+                    // Refresh guest portal data without full page reload.
+                    reloadDataDetails();
                 });
             },
             error: function (xhr, status, error) {
@@ -336,6 +338,168 @@ $(document).ready(function () {
             }
         });
     });
+});
+
+// Quick filter for Deposit / Withdraw / Transfer-related transactions
+$(document).off('click', '#btn-deposit-withdraw-transfer').on('click', '#btn-deposit-withdraw-transfer', function () {
+	if (!$.fn.DataTable.isDataTable('#accountDetails')) return;
+
+	var table = $('#accountDetails').DataTable();
+	var transactionRegex = [
+		'WITHDRAW\\s*-\\s*ACCOUNT DETAILS',
+		'DEPOSIT\\s*-\\s*ACCOUNT DETAILS',
+		'WITHDRAW\\s*\\(\\s*Transferred to',
+		'DEPOSIT\\s*\\(\\s*Received from'
+	].join('|');
+
+	// Clear global search then filter only Transaction column (index 1)
+	table.search('');
+	table.column(1).search(transactionRegex, true, false).draw();
+});
+
+// Open per-account Credit modal and show account-specific credit transactions
+$(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
+	var requestSeq = ++creditDetailsRequestSeq;
+	var accountId = $('#account_id').val() || $('#account_id_add').val();
+	if (!accountId) {
+		if (typeof Swal !== 'undefined') Swal.fire({ icon: 'warning', title: 'No account', text: 'Please open an account first.' });
+		return;
+	}
+
+	var accountCode = ($('#agent_code').text() || '').trim();
+	var accountName = ($('#account_name').text() || '').trim();
+	$('#credit-account-title').text([accountCode, accountName].filter(Boolean).join(' - '));
+
+	function resetCreditTableRows() {
+		if ($.fn.DataTable.isDataTable('#credit-details-table')) {
+			$('#credit-details-table').DataTable().destroy();
+		}
+		$('#credit-details-body').empty();
+	}
+
+	$('#credit-details-loading').removeClass('d-none');
+	$('#credit-junket-balance').text('0');
+	$('#credit-game-balance').text('0');
+	resetCreditTableRows();
+
+	$('#modal-credit-details').modal('show');
+
+	function formatMarkerAmount(value) {
+		var n = value != null ? Number(value) : 0;
+		if (isNaN(n)) return '0';
+		var rounded = Math.round(n * 100) / 100;
+		if (Math.abs(rounded - Math.round(rounded)) < 1e-9) {
+			return Math.round(rounded).toLocaleString('en-US');
+		}
+		return rounded.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+	}
+
+	$.ajax({
+		url: '/marker_data_breakdown',
+		method: 'GET',
+		success: function (rows) {
+			if (requestSeq !== creditDetailsRequestSeq) return;
+			var list = Array.isArray(rows) ? rows : [];
+			var sourceRow = list.filter(function (r) { return String(r.ACCOUNT_ID) === String(accountId); })[0];
+			var junketBalance = sourceRow && sourceRow.BALANCE_CREDIT != null ? Number(sourceRow.BALANCE_CREDIT) : 0;
+			var gameBalance = sourceRow && sourceRow.BALANCE_BUYIN != null ? Number(sourceRow.BALANCE_BUYIN) : 0;
+			$('#credit-junket-balance').text(formatMarkerAmount(junketBalance));
+			$('#credit-game-balance').text(formatMarkerAmount(gameBalance));
+		}
+	});
+
+	$.ajax({
+		url: '/marker_history',
+		method: 'GET',
+		success: function (rows) {
+			if (requestSeq !== creditDetailsRequestSeq) return;
+			var list = Array.isArray(rows) ? rows : [];
+			var creditRows = list.filter(function (row) {
+				return String(row.ACCOUNT_ID) === String(accountId);
+			});
+
+			$('#credit-details-loading').addClass('d-none');
+
+			if (!creditRows.length) {
+				resetCreditTableRows();
+				$('#credit-details-body').html('<tr><td colspan="5" class="text-center text-muted py-4">No credit records for this account.</td></tr>');
+				return;
+			}
+
+			function escapeHtml(s) {
+				if (s == null || s === '') return '';
+				return String(s)
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/"/g, '&quot;');
+			}
+
+			function renderTransactionType(data) {
+				if (!data) return '';
+				var parts = String(data).split('-');
+				var transactionId = parseInt(parts[0], 10);
+				var transactionType = parseInt(parts[1], 10);
+				switch (transactionId) {
+					case 3: return 'Junket Credit';
+					case 11: return 'Credit Returned thru Cash';
+					case 12: return 'Credit Returned thru Deposit';
+					case 10: return 'Buy-in thru Credit';
+					default:
+						return transactionType === 4 ? 'Chips Return thru Credit' : 'Unknown Transaction';
+				}
+			}
+
+			var html = creditRows.map(function (row) {
+				var amountNum = parseFloat(row.AMOUNT) || 0;
+				var encoded = row.ENCODED_DT || '';
+				var dateDisplay = encoded;
+				if (window.moment && encoded) {
+					var m = moment(encoded);
+					if (m.isValid()) dateDisplay = m.format('DD MMM, YYYY HH:mm');
+				}
+				var remarks = row.REMARKS || '—';
+				var accountDisplay = (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')';
+				return '' +
+					'<tr>' +
+						'<td>' + escapeHtml(accountDisplay) + '</td>' +
+						'<td class="text-center">' + amountNum.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + '</td>' +
+						'<td>' + escapeHtml(renderTransactionType(row.TRANSACTION_INFO)) + '</td>' +
+						'<td class="text-center">' + escapeHtml(dateDisplay || '') + '</td>' +
+						'<td>' + escapeHtml(remarks) + '</td>' +
+					'</tr>';
+			}).join('');
+
+			$('#credit-details-body').html(html);
+
+			if ($.fn.DataTable.isDataTable('#credit-details-table')) {
+				$('#credit-details-table').DataTable().destroy();
+			}
+
+			$('#credit-details-table').DataTable({
+				order: [[3, 'desc']],
+				autoWidth: false,
+				pageLength: 10,
+				dom: '<"row g-0 gy-2 mb-2 align-items-center gap-3"<"col-12 col-md-auto"l><"col-12 col-md d-flex justify-content-end align-items-center"f>>rt<"row g-2 mt-2"<"col-12 col-md-6"i><"col-12 col-md-6"p>>',
+				columnDefs: [{
+					targets: 3, // DATE column
+					render: function (data, type) {
+						if (type !== 'sort') return data;
+						if (!window.moment) return data;
+						var m = moment(data, ['DD MMM, YYYY HH:mm', 'MMMM DD, YYYY HH:mm:ss', 'YYYY-MM-DD HH:mm:ss'], true);
+						if (!m.isValid()) m = moment(data);
+						return m.isValid() ? m.format('YYYY-MM-DD HH:mm:ss') : data;
+					}
+				}]
+			});
+		},
+		error: function () {
+			if (requestSeq !== creditDetailsRequestSeq) return;
+			$('#credit-details-loading').addClass('d-none');
+			resetCreditTableRows();
+			$('#credit-details-body').html('<tr><td colspan="5" class="text-center text-muted py-4">No credit records for this account.</td></tr>');
+		}
+	});
 });
 
 
@@ -1002,6 +1166,7 @@ function transfer_account() {
 	$('#modal-account-details').modal('hide');
 	$('#modal-transfer_account').modal('show');
 	$('.txtAmount').val('');
+	$('#transfer_trans').prop('checked', true);
 
 	// Set modal title to current account name if available
 	const accountName = $('#account_name').text();
@@ -1053,6 +1218,12 @@ function transfer_account() {
         }
     });
 }
+
+// Return to Guest Portal after closing Transfer modal
+$('#modal-transfer_account').off('hidden.bs.modal.returnAccountDetails').on('hidden.bs.modal.returnAccountDetails', function () {
+	$('#modal-account-details').modal('show');
+	$('#transfer_trans').prop('checked', false);
+});
 
 function export_data() {
 	var account_id_val = $('#account_id').val();
