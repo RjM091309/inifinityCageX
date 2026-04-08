@@ -898,7 +898,7 @@ router.get('/game_list_data', async (req, res) => {
         }
     }
 
-    // Date range mode: Filter by settlement date range
+    // Date range mode: Filter by game start date range
     if (fromDate && toDate) {
         const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
         if (!isValidDate(fromDate) || !isValidDate(toDate)) {
@@ -907,17 +907,15 @@ router.get('/game_list_data', async (req, res) => {
         }
 
         const query = baseSelect + `
-            JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-            JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
             WHERE game_list.ACTIVE != 0 
-              AND ds.SETTLEMENT_DATE BETWEEN ? AND ?
+              AND DATE(game_list.ENCODED_DT) BETWEEN ? AND ?
             ORDER BY game_list.IDNo ASC
         `;
 
         try {
             const [rows] = await pool.execute(query, [fromDate, toDate]);
 
-            // Settled games (have settlement date) don't need pending flag
+            // Date range mode doesn't use pending settlement state
             rows.forEach(row => { row.is_pending = 0; });
             
             return res.json(rows);
