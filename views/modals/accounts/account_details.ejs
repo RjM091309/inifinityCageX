@@ -4,13 +4,12 @@
         <div class="modal-content">
             <div class="modal-header bg-primary justify-content-center position-relative guest-portal-header">
                 <div class="guest-portal-title-wrap text-center" id="staticBackdropLiveLabel">
-                    <div class="guest-portal-title text-white d-inline-flex align-items-center gap-2">
-                        <span class="guest-portal-icon" aria-hidden="true">
-                            <i class="fa fa-user-circle"></i>
-                        </span>
-                        <span class="guest-portal-text">Guest Portal</span>
-                    </div>
-                    <div class="guest-portal-subtitle text-white-50">Account details & transactions</div>
+                    <img
+                        class="guest-portal-logo"
+                        src="/assets/images/qwe1-removebg-preview.png"
+                        alt="Guest Portal"
+                        decoding="async"
+                    >
                 </div>
                 <button type="button" class="btn-close btn-close-white position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -374,50 +373,40 @@
     box-shadow: 0 14px 36px rgba(15, 23, 42, 0.22);
 }
 #modal-account-details .modal-header.bg-primary {
-    background: linear-gradient(90deg, #3954f4 0%, #4762ff 100%) !important;
+    /* Dark header so the gold logo stays readable */
+    background: linear-gradient(90deg, #0b1020 0%, #131c35 100%) !important;
     padding-top: 0.8rem;
     padding-bottom: 0.8rem;
 }
 #modal-account-details .guest-portal-header {
-    padding-top: 0.95rem;
-    padding-bottom: 0.95rem;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
 }
 #modal-account-details .guest-portal-header::before {
     content: "";
     position: absolute;
     inset: 0;
     pointer-events: none;
-    opacity: 0.22;
+    opacity: 0.28;
     background:
-        radial-gradient(900px 160px at 50% -20px, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 70%),
-        radial-gradient(260px 260px at 14% 30%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%),
-        radial-gradient(240px 240px at 86% 45%, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 70%);
+        radial-gradient(900px 160px at 50% -20px, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0) 70%),
+        radial-gradient(260px 260px at 14% 30%, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 70%),
+        radial-gradient(240px 240px at 86% 45%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 70%);
 }
 #modal-account-details .guest-portal-title-wrap {
     line-height: 1.1;
-}
-#modal-account-details .guest-portal-title {
-    font-weight: 800;
-    letter-spacing: 0.01em;
-    font-size: 1.15rem;
-}
-#modal-account-details .guest-portal-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.14);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
 }
-#modal-account-details .guest-portal-icon i {
-    font-size: 18px;
-}
-#modal-account-details .guest-portal-subtitle {
-    font-size: 12px;
-    margin-top: 0.15rem;
+#modal-account-details .guest-portal-logo {
+    display: block;
+    margin: 0 auto;
+    height: 56px;
+    max-width: min(88vw, 720px);
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.22));
 }
 #modal-account-details .modal-body {
     background: #f8fafd;
