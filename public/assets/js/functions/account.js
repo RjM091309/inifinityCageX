@@ -340,21 +340,46 @@ $(document).ready(function () {
     });
 });
 
-// Quick filter for Deposit / Withdraw / Transfer-related transactions
-$(document).off('click', '#btn-deposit-withdraw-transfer').on('click', '#btn-deposit-withdraw-transfer', function () {
-	if (!$.fn.DataTable.isDataTable('#accountDetails')) return;
+function getAccountDetailsDt() {
+	var $tbl = $('#modal-account-details #accountDetails');
+	if (!$tbl.length) return null;
+	if (!$.fn.DataTable.isDataTable($tbl[0])) return null;
+	return $tbl.DataTable();
+}
 
-	var table = $('#accountDetails').DataTable();
-	var transactionRegex = [
-		'WITHDRAW\\s*-\\s*ACCOUNT DETAILS',
-		'DEPOSIT\\s*-\\s*ACCOUNT DETAILS',
-		'WITHDRAW\\s*\\(\\s*Transferred to',
-		'DEPOSIT\\s*\\(\\s*Received from'
-	].join('|');
-
-	// Clear global search then filter only Transaction column (index 1)
+function applyAccountDetailsTransactionFilter(regex) {
+	var table = getAccountDetailsDt();
+	if (!table) return;
 	table.search('');
-	table.column(1).search(transactionRegex, true, false).draw();
+	table.columns().search('');
+	table.column(1).search(regex, true, false).draw();
+}
+
+// Deposit-only filter
+$(document).off('click', '#btn-filter-deposit').on('click', '#btn-filter-deposit', function (e) {
+	e.preventDefault();
+	applyAccountDetailsTransactionFilter('\\bDEPOSIT\\b');
+});
+
+// Withdraw-only filter
+$(document).off('click', '#btn-filter-withdraw').on('click', '#btn-filter-withdraw', function (e) {
+	e.preventDefault();
+	applyAccountDetailsTransactionFilter('\\bWITHDRAW\\b');
+});
+
+// Transfer-only filter (in/out)
+$(document).off('click', '#btn-filter-transfer').on('click', '#btn-filter-transfer', function (e) {
+	e.preventDefault();
+	applyAccountDetailsTransactionFilter('Received\\s+from|Transferred\\s+to');
+});
+
+// Reset filter for the Account Details table
+$(document).off('click', '#btn-reset-account-details-filter').on('click', '#btn-reset-account-details-filter', function () {
+	var table = getAccountDetailsDt();
+	if (!table) return;
+	table.search('');
+	table.columns().search('');
+	table.draw();
 });
 
 // Open per-account Credit modal and show account-specific credit transactions
