@@ -238,6 +238,12 @@
     border-radius: 999px;
 }
 
+/* Make trash glyph slightly smaller inside square action buttons */
+.action-btn-square .fa-trash-alt,
+.action-btn-square .fa-trash {
+    font-size: 10px !important;
+}
+
 .bg-gradient-secondary {
     background: linear-gradient(135deg, #564428 0%, #9D8559 50%, #EACC90 100%) !important;
 

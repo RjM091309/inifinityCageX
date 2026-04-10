@@ -2029,7 +2029,91 @@ router.post('/add_settlement', async (req, res) => {
 	}
 });
 
+// Update commission / game rate (Rolling, Shared, Loosing) for ACTIVE 1/2/3
+router.put('/game_list/:id/commission_percentage', async (req, res) => {
+	const id = parseInt(req.params.id, 10);
+	const raw = req.body && (req.body.commission_percentage != null ? req.body.commission_percentage : req.body.txtCommisionRate);
+	const rate = parseFloat(String(raw || '').replace(/,/g, ''));
+	const permissions = req.session?.permissions;
+	const allowed = permissions === 0;
+	if (!allowed) {
+		return res.status(403).json({ error: 'Not authorized to edit game rate.' });
+	}
+	if (!id || isNaN(id)) {
+		return res.status(400).json({ error: 'Invalid game ID' });
+	}
+	if (isNaN(rate) || rate < 0 || rate > 100) {
+		return res.status(400).json({ error: 'Rate must be between 0 and 100.' });
+	}
+	try {
+		const [rows] = await pool.execute(
+			'SELECT COMMISSION_TYPE, ACTIVE FROM game_list WHERE IDNo = ?',
+			[id]
+		);
+		const active = Number(rows?.[0]?.ACTIVE);
+		if (rows.length === 0 || ![1, 2, 3].includes(active)) {
+			return res.status(404).json({ error: 'Game not found' });
+		}
+		const ct = parseInt(rows[0].COMMISSION_TYPE, 10);
+		if (ct === 2 && (rate < 50 || rate > 100)) {
+			return res.status(400).json({ error: 'Shared game rate must be between 50% and 100%.' });
+		}
+		await pool.execute(
+			'UPDATE game_list SET COMMISSION_PERCENTAGE = ? WHERE IDNo = ?',
+			[rate, id]
+		);
+		res.json({ success: true, commission_percentage: rate });
+	} catch (err) {
+		console.error('Error updating commission percentage:', err);
+		res.status(500).json({ error: 'Failed to update game rate' });
+	}
+});
 
+// Update commission type (Rolling/Shared) for ACTIVE 1/2/3
+router.put('/game_list/:id/commission_type', async (req, res) => {
+	const id = parseInt(req.params.id, 10);
+	const newType = parseInt(req.body?.commission_type, 10);
+	const hasRate = req.body && req.body.commission_percentage != null && req.body.commission_percentage !== '';
+	const reqRate = hasRate ? parseFloat(String(req.body.commission_percentage).replace(/,/g, '')) : null;
+	const permissions = req.session?.permissions;
+	const allowed = permissions === 0;
+	if (!allowed) {
+		return res.status(403).json({ error: 'Not authorized to edit commission type.' });
+	}
+	if (!id || isNaN(id)) {
+		return res.status(400).json({ error: 'Invalid game ID' });
+	}
+	if (![1, 2].includes(newType)) {
+		return res.status(400).json({ error: 'Invalid commission type.' });
+	}
+	if (hasRate && (isNaN(reqRate) || reqRate < 0 || reqRate > 100)) {
+		return res.status(400).json({ error: 'Rate must be between 0 and 100.' });
+	}
+	try {
+		const [rows] = await pool.execute(
+			'SELECT COMMISSION_PERCENTAGE, ACTIVE FROM game_list WHERE IDNo = ?',
+			[id]
+		);
+		const active = Number(rows?.[0]?.ACTIVE);
+		if (rows.length === 0 || ![1, 2, 3].includes(active)) {
+			return res.status(404).json({ error: 'Game not found' });
+		}
+		let rate = hasRate ? reqRate : (Number(rows[0].COMMISSION_PERCENTAGE) || 0);
+		// Shared game requires minimum 50%.
+		if (newType === 2 && rate < 50) {
+			if (hasRate) return res.status(400).json({ error: 'Shared game rate must be between 50% and 100%.' });
+			rate = 50;
+		}
+		await pool.execute(
+			'UPDATE game_list SET COMMISSION_TYPE = ?, COMMISSION_PERCENTAGE = ? WHERE IDNo = ?',
+			[newType, rate, id]
+		);
+		res.json({ success: true, commission_type: newType, commission_percentage: rate });
+	} catch (err) {
+		console.error('Error updating commission type:', err);
+		res.status(500).json({ error: 'Failed to update commission type' });
+	}
+});
 
 // EDIT GAME LIST COMMISSION
 router.put('/game_list/:id', async (req, res) => {

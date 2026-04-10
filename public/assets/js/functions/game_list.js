@@ -86,6 +86,121 @@ function translateGameSource(source) {
 	return source;
 }
 
+function buildGameRateCell(row, userPermissions, isSettled) {
+	var pct = Number(row.COMMISSION_PERCENTAGE);
+	if (isNaN(pct)) pct = 0;
+	var isEditableActive = [1, 2, 3].includes(parseInt(row.game_status, 10));
+	var canEditType = (userPermissions === 0) && isEditableActive;
+	var badgeClass = 'commission-badge-r';
+	var badgeTitle = 'Rolling Game';
+	var badgeText = 'R';
+	if (row.COMMISSION_TYPE == 2) {
+		badgeClass = 'commission-badge-s';
+		badgeTitle = 'Shared Game';
+		badgeText = 'S';
+	} else if (row.COMMISSION_TYPE == 3) {
+		badgeClass = 'commission-badge-l';
+		badgeTitle = 'Loosing Game';
+		badgeText = 'L';
+	}
+	var badgePart;
+	if (canEditType) {
+		badgePart = '<button type="button" class="btn btn-link p-0" style="line-height:1;" onclick="editGameCommissionType(' + row.game_list_id + ', ' + row.COMMISSION_TYPE + ', ' + pct + ', ' + (isSettled ? 1 : 0) + ')" title="Edit commission type"><span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span></button>';
+	} else {
+		badgePart = '<span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span>';
+	}
+	return pct + '% ' + badgePart;
+}
+
+function getCommissionRateRules(typeVal) {
+	var t = parseInt(typeVal, 10);
+	if (t === 2) return { min: 50, max: 100, step: 0.1 };
+	return { min: 0, max: 100, step: 0.05 };
+}
+
+function editGameCommissionType(gameId, currentType, currentPct, settledFlag) {
+	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
+	var canEdit = (userPermissions === 0);
+	if (!canEdit) {
+		Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot edit this commission type.' });
+		return;
+	}
+	var $modal = $('#modal-edit-commission-type');
+	var currentTypeNum = parseInt(currentType, 10);
+	var targetType = currentTypeNum === 1 ? 2 : 1; // Toggle only: Rolling <-> Shared
+	var targetTypeLabel = targetType === 2 ? 'Shared Game' : 'Rolling Game';
+	$('#edit-commission-game-id').val(gameId);
+	$('#edit-commission-type').val(String(targetType));
+	$('#edit-commission-type-display').val(targetTypeLabel);
+	var defaultRate = targetType === 1 ? 1.45 : (Number(currentPct) || 0);
+	$('#edit-commission-rate').val(defaultRate.toString());
+	$('#edit-commission-save-btn').prop('disabled', false).text('Update');
+	$('#edit-commission-rate').removeClass('is-invalid');
+
+	var rules = getCommissionRateRules(targetType);
+	var $rate = $('#edit-commission-rate');
+	$rate.attr('min', String(rules.min));
+	$rate.attr('max', String(rules.max));
+	$rate.attr('step', String(rules.step));
+	var cur = parseFloat($rate.val());
+	if (isNaN(cur) || cur < rules.min) $rate.val(String(rules.min));
+	if (cur > rules.max) $rate.val(String(rules.max));
+	$modal.modal('show');
+}
+window.editGameCommissionType = editGameCommissionType;
+
+$(document).on('submit', '#form-edit-commission-type', function (e) {
+	e.preventDefault();
+	var gameId = parseInt($('#edit-commission-game-id').val(), 10);
+	var typeVal = parseInt($('#edit-commission-type').val(), 10);
+	var rateVal = parseFloat($('#edit-commission-rate').val());
+	if (!gameId || ![1, 2].includes(typeVal)) {
+		Swal.fire({ icon: 'error', title: 'Error', text: 'Invalid commission data.' });
+		return;
+	}
+	var rules = getCommissionRateRules(typeVal);
+	if (isNaN(rateVal) || rateVal < rules.min || rateVal > rules.max) {
+		$('#edit-commission-rate').addClass('is-invalid');
+		Swal.fire({ icon: 'warning', title: 'Invalid rate', text: 'Rate must be between ' + rules.min + '% and ' + rules.max + '%.' });
+		return;
+	}
+	$('#edit-commission-rate').removeClass('is-invalid');
+	var typeLabel = typeVal === 2 ? 'Shared Game' : 'Rolling Game';
+	Swal.fire({
+		icon: 'question',
+		title: 'Confirm update',
+		html: '<div class="text-center">' +
+			'<div><strong>Type:</strong> ' + typeLabel + '</div>' +
+			'<div><strong>Rate:</strong> ' + rateVal + '%</div>' +
+			'</div>',
+		showCancelButton: true,
+		confirmButtonText: 'Yes, update',
+		cancelButtonText: 'Cancel'
+	}).then(function (result) {
+		if (!result.isConfirmed) return;
+		var $btn = $('#edit-commission-save-btn');
+		$btn.prop('disabled', true).text('Saving...');
+		$.ajax({
+			url: '/game_list/' + gameId + '/commission_type',
+			method: 'PUT',
+			contentType: 'application/json',
+			data: JSON.stringify({ commission_type: typeVal, commission_percentage: rateVal }),
+			success: function () {
+				$('#modal-edit-commission-type').modal('hide');
+				Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
+				if (typeof window.reloadData === 'function') window.reloadData();
+			},
+			error: function (xhr) {
+				var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';
+				Swal.fire({ icon: 'error', title: 'Error', text: msg });
+			},
+			complete: function () {
+				$btn.prop('disabled', false).text('Update');
+			}
+		});
+	});
+});
+
 $(document).ready(function () {
 
 	// Custom sort for GAME # column: works for both game view (INF500) and account view ("2 games")
@@ -630,16 +745,6 @@ $(document).ready(function () {
 									var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
 								
-								// Get commission type badge (R/S/L)
-								var commissionTypeBadge = '';
-								if (row.COMMISSION_TYPE == 1) {
-									commissionTypeBadge = '<span class="badge commission-badge commission-badge-r" title="Rolling Game">R</span>';
-								} else if (row.COMMISSION_TYPE == 2) {
-									commissionTypeBadge = '<span class="badge commission-badge commission-badge-s" title="Shared Game">S</span>';
-								} else if (row.COMMISSION_TYPE == 3) {
-									commissionTypeBadge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
-								}
-								
 								// const highlightId = getQueryParam('highlight_id');
 								// const gameListIdText = $('<div>').html(row.game_list_id).text();
 								// const isHighlighted = highlightId && parseInt(highlightId) === parseInt(gameListIdText);
@@ -670,7 +775,7 @@ $(document).ready(function () {
                                     rolling_td,
                                     parseFloat(total_rolling_chips).toLocaleString(),
                                     roller_chips_td,
-                                    `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`,
+                                    buildGameRateCell(row, userPermissions, isSettled),
                                     formattedNet,
                                     winloss,
                                     translateGameSource(row.INITIAL_MOP),
@@ -769,16 +874,6 @@ $(document).ready(function () {
 								var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
 								
-								// Get commission type badge (R/S/L)
-								var commissionTypeBadge = '';
-								if (row.COMMISSION_TYPE == 1) {
-									commissionTypeBadge = '<span class="badge commission-badge commission-badge-r" title="Rolling Game">R</span>';
-								} else if (row.COMMISSION_TYPE == 2) {
-									commissionTypeBadge = '<span class="badge commission-badge commission-badge-s" title="Shared Game">S</span>';
-								} else if (row.COMMISSION_TYPE == 3) {
-									commissionTypeBadge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
-								}
-								
 								var actionButtons = btn_services + btn_settle;
 								if (userPermissions === 0) {
 									actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
@@ -795,7 +890,7 @@ $(document).ready(function () {
 									rolling_td,
 									parseFloat(total_rolling_chips).toLocaleString(),
 									roller_chips_td,
-									`${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`,
+									buildGameRateCell(row, userPermissions, isSettled),
 									formattedNet,
 									winloss,
 									translateGameSource(row.INITIAL_MOP),
@@ -886,23 +981,13 @@ $(document).ready(function () {
 						   // Format net value as an integer
 						   var formattedNet = net.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 						   
-						   // Get commission type badge (R/S/L)
-						   var commissionTypeBadge = '';
-						   if (row.COMMISSION_TYPE == 1) {
-							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-r" title="Rolling Game">R</span>';
-						   } else if (row.COMMISSION_TYPE == 2) {
-							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-s" title="Shared Game">S</span>';
-						   } else if (row.COMMISSION_TYPE == 3) {
-							   commissionTypeBadge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
-						   }
-						   
 						   var game_start = moment.utc(row.GAME_DATE_START).utcOffset(8).format('MMMM DD, HH:mm');
 						   var actionButtons = btn_services + btn_settle;
 						   if (userPermissions === 0) {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
 						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-						   let rowNode = dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, `${row.COMMISSION_PERCENTAGE}% ${commissionTypeBadge}`, formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw().node();
+						   let rowNode = dataTable.row.add([game_start,`${row.GAME_TYPE}`, `${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw().node();
 						   
 						   // Add pending styling if game was created before settlement run but still ON GAME
 						   if (row.is_pending === 1) {
