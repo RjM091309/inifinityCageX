@@ -109,6 +109,7 @@
 		"guest": "Guest",
 		"account_list": "Account List",
 		"junket_expenses": "Junket Expenses",
+		"junket_loss": "Junket Loss",
 		"all_agent": "All Agent",
 		"game": "Game",
 		"user_accounts": "User Accounts",
@@ -300,12 +301,18 @@
 		"receipt_no": "DESCRIPTION",
 		"description": "IN-CHARGE",
 		"amount": "AMOUNT",
+		"edit_history": "Edit history",
+		"edit_history_title": "Edit history",
+		"edit_history_error": "Could not load edit history.",
+		"edit_history_empty": "No edit history.",
+		"edit_history_editor": "Edited by",
 		"encoded_by": "ENCODED BY",
 		"date_time": "DATE & TIME",
 		"action": "ACTION",
 		"grand_total": "GRAND TOTAL",
 		"total_expenses": "TOTAL EXPENSES",
 		"total_return_money": "TOTAL RETURN MONEY",
+		"total_net_expenses": "TOTAL NET EXPENSES",
 		"select_date_range": "Select Date Range",
 		"no_data_found": "No data found",
 		"invalid_date": "Invalid Date",
@@ -419,6 +426,10 @@
 		"next": "Next",
 		"please_select_date_range": "Please select a date range.",
 		"no_data_found": "No data found"
+	},
+	"junket_loss": {
+		"junket": "Junket",
+		"title": "Junket Loss"
 	},
 	"agent_statistic": {
 		"statistics": "Statistics",

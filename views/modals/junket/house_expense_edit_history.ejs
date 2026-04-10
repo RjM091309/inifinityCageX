@@ -1,0 +1,50 @@
+<div class="modal fade" id="modal-house-expense-edit-history" tabindex="-1" aria-labelledby="modal-house-expense-edit-history-label" aria-hidden="true" style="z-index: 1060 !important;">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white border-0 py-3 house-expense-edit-history-header">
+                <h5 class="modal-title text-white d-flex align-items-center gap-2 mb-0" id="modal-house-expense-edit-history-label">
+                    <i class="fa fa-history text-white" aria-hidden="true"></i>
+                    <span class="text-white"><%= __('house_expense.edit_history_title') %></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3 bg-body-secondary" id="house-expense-edit-history-body"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* White title + icon (theme may override .modal-title on modals) */
+    #modal-house-expense-edit-history .house-expense-edit-history-header,
+    #modal-house-expense-edit-history .house-expense-edit-history-header .modal-title,
+    #modal-house-expense-edit-history .house-expense-edit-history-header .fa {
+        color: #fff !important;
+    }
+
+    #modal-house-expense-edit-history .house-expense-history-card {
+        border-radius: 0.5rem;
+        overflow: hidden;
+        border: 1px solid rgba(13, 110, 253, 0.15);
+    }
+    #modal-house-expense-edit-history .house-expense-history-card-head {
+        background: linear-gradient(135deg, rgba(13, 110, 253, 0.08) 0%, rgba(13, 110, 253, 0.02) 100%);
+        border-bottom: 1px solid rgba(13, 110, 253, 0.12);
+    }
+    #modal-house-expense-edit-history .house-expense-history-fields {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    #modal-house-expense-edit-history .house-expense-history-row:last-child {
+        border-bottom: none !important;
+    }
+    #modal-house-expense-edit-history .house-expense-history-label {
+        font-size: 0.75rem;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    #modal-house-expense-edit-history .house-expense-history-value {
+        font-size: 0.875rem;
+        color: #1e293b;
+        word-break: break-word;
+    }
+</style>

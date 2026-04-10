@@ -109,6 +109,7 @@
 		"guest": "ゲスト",
 		"account_list": "アカウントリスト",
 		"junket_expenses": "ジャンケット経費",
+		"junket_loss": "ジャンケット損失",
 		"all_agent": "全エージェント",
 		"game": "ゲーム",
 		"user_accounts": "ユーザーアカウント",
@@ -295,12 +296,18 @@
 		"receipt_no": "説明",
 		"description": "担当",
 		"amount": "金額",
+		"edit_history": "編集履歴",
+		"edit_history_title": "編集履歴",
+		"edit_history_error": "編集履歴を読み込めませんでした。",
+		"edit_history_empty": "編集履歴はありません。",
+		"edit_history_editor": "編集者",
 		"encoded_by": "エンコードされた",
 		"date_time": "日時",
 		"action": "アクション",
 		"grand_total": "合計",
 		"total_expenses": "経費合計",
 		"total_return_money": "返金合計",
+		"total_net_expenses": "純経費合計",
 		"select_date_range": "日付範囲を選択",
 		"no_data_found": "データが見つかりません",
 		"invalid_date": "無効な日付",
@@ -417,6 +424,10 @@
 		"next": "次へ",
 		"please_select_date_range": "日付範囲を選択してください。",
 		"no_data_found": "データが見つかりません"
+	},
+	"junket_loss": {
+		"junket": "ジャンケット",
+		"title": "ジャンケット損失"
 	},
 	"agent_statistic": {
 		"statistics": "統計",

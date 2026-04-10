@@ -109,6 +109,7 @@
 		"guest": "客人",
 		"account_list": "账户列表",
 		"junket_expenses": "接待费用",
+		"junket_loss": "接待损失",
 		"all_agent": "所有代理",
 		"game": "游戏",
 		"user_accounts": "用户账户",
@@ -297,12 +298,18 @@
 		"receipt_no": "说明",
 		"description": "负责人",
 		"amount": "金额",
+		"edit_history": "编辑记录",
+		"edit_history_title": "编辑记录",
+		"edit_history_error": "无法加载编辑记录。",
+		"edit_history_empty": "无编辑记录。",
+		"edit_history_editor": "编辑者",
 		"encoded_by": "编码",
 		"date_time": "日期 & 时间",
 		"action": "操作",
 		"grand_total": "总计",
 		"total_expenses": "费用总计",
 		"total_return_money": "退款总计",
+		"total_net_expenses": "净费用总计",
 		"select_date_range": "选择日期范围",
 		"no_data_found": "未找到数据",
 		"invalid_date": "无效日期",
@@ -419,6 +426,10 @@
 		"next": "下一页",
 		"please_select_date_range": "请选择日期范围。",
 		"no_data_found": "未找到数据"
+	},
+	"junket_loss": {
+		"junket": "接待",
+		"title": "接待损失"
 	},
 	"agent_statistic": {
 		"statistics": "统计",

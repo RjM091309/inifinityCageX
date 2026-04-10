@@ -211,7 +211,7 @@ aside.sidebar .sidebar-footer {
                 </a>
                 </li>
               <li class="nav-item">
-                  <a class="nav-link <%= currentPage === 'house_expense' || currentPage === 'booking' ||  currentPage === 'commission'  ? 'open' : '' %>" data-bs-toggle="collapse" href="#sidebar-user" role="button" aria-expanded="false" aria-controls="sidebar-user">
+                  <a class="nav-link <%= currentPage === 'house_expense' || currentPage === 'booking' || currentPage === 'commission' || currentPage === 'fnb-hotel' || currentPage === 'junket_loss' ? 'open' : '' %>" data-bs-toggle="collapse" href="#sidebar-user" role="button" aria-expanded="false" aria-controls="sidebar-user">
                       <i class="icon">
                     
 
@@ -281,6 +281,19 @@ aside.sidebar .sidebar-footer {
                               <span class="item-name"><%= __('sidebar.commission') %></span>
                           </a>
                       </li>
+                      <li class="nav-item">
+                          <a class="nav-link <%= currentPage === 'junket_loss' ? 'active bg-gradient-primary text-white' : '' %>" href="/junket_loss">
+                              <i class="icon">
+                                  <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                                      <g>
+                                      <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
+                                      </g>
+                                  </svg>
+                              </i>
+                              <i class="sidenav-mini-icon"> L </i>
+                              <span class="item-name"><%= __('sidebar.junket_loss') %></span>
+                          </a>
+                      </li>
                   </ul>
               </li>
               <li class="nav-item">
@@ -295,7 +308,7 @@ aside.sidebar .sidebar-footer {
                 </a>
                 </li>
               <li class="nav-item">
-                <a class="nav-link <%= currentPage === 'others' ? 'active bg-gradient-primary' : '' %>" href="/others">
+                <a class="nav-link <%= currentPage === 'money_exchange' ? 'active bg-gradient-primary' : '' %>" href="/money_exchange">
                     <i class="icon">
                       <svg class="icon-20" xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 24 24" fill="none">
                           <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor"></rect>
@@ -304,7 +317,7 @@ aside.sidebar .sidebar-footer {
                           <rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor"></rect>
                       </svg>
                     </i>
-                    <span class="item-name">Others</span>
+                    <span class="item-name">Money Exchange</span>
                 </a>
               </li>
             <!-- <li class="nav-item">

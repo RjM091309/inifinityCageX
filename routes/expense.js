@@ -324,6 +324,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						e.EDITED_DT,
 						e.ACTIVE,
 						e.RESET,
+						(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 						e.IDNo AS expense_id,
 						ec.IDNo AS expense_category_id,
 						ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
@@ -352,6 +353,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						rm.EDITED_DT,
 						rm.ACTIVE,
 						NULL AS RESET,
+						0 AS EDIT_LOG_COUNT,
 						rm.IDNo AS expense_id,
 						NULL AS expense_category_id,
 						'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
@@ -398,6 +400,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.EDITED_DT,
 							e.ACTIVE,
 							e.RESET,
+							(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 							e.IDNo AS expense_id,
 							ec.IDNo AS expense_category_id,
 							ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
@@ -428,6 +431,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							rm.EDITED_DT,
 							rm.ACTIVE,
 							NULL AS RESET,
+							0 AS EDIT_LOG_COUNT,
 							rm.IDNo AS expense_id,
 							NULL AS expense_category_id,
 							'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
@@ -492,6 +496,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.EDITED_DT,
 							e.ACTIVE,
 							e.RESET,
+							(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 							e.IDNo AS expense_id,
 							ec.IDNo AS expense_category_id,
 							ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
@@ -520,6 +525,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							rm.EDITED_DT,
 							rm.ACTIVE,
 							NULL AS RESET,
+							0 AS EDIT_LOG_COUNT,
 							rm.IDNo AS expense_id,
 							NULL AS expense_category_id,
 							'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
@@ -607,6 +613,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				e.EDITED_DT,
 				e.ACTIVE,
 				e.RESET,
+				(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 				e.IDNo AS expense_id,
 				ec.IDNo AS expense_category_id,
 				ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
@@ -638,6 +645,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				rm.EDITED_DT,
 				rm.ACTIVE,
 				NULL AS RESET,
+				0 AS EDIT_LOG_COUNT,
 				rm.IDNo AS expense_id,
 				NULL AS expense_category_id,
 				'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
@@ -672,6 +680,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				e.EDITED_DT,
 				e.ACTIVE,
 				e.RESET,
+				(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 				e.IDNo AS expense_id,
 				ec.IDNo AS expense_category_id,
 				ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
@@ -701,6 +710,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				rm.EDITED_DT,
 				rm.ACTIVE,
 				NULL AS RESET,
+				0 AS EDIT_LOG_COUNT,
 				rm.IDNo AS expense_id,
 				NULL AS expense_category_id,
 				'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
@@ -732,6 +742,29 @@ router.get('/junket_house_expense_data', async (req, res) => {
 	}
 });
 
+// GET junket house expense edit history (junket_house_expense_edit_log)
+router.get('/junket_house_expense/:id/edit_log', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (Number.isNaN(id)) {
+			return res.status(400).json({ error: 'Invalid id' });
+		}
+		const [rows] = await pool.execute(
+			`SELECT el.IDNo, el.EDITED_BY, el.EDITED_DT, el.CHANGES_TEXT,
+				u.FIRSTNAME AS edited_by_name
+			 FROM junket_house_expense_edit_log el
+			 LEFT JOIN user_info u ON u.IDNo = el.EDITED_BY
+			 WHERE el.EXPENSE_ID = ?
+			 ORDER BY el.IDNo DESC`,
+			[id]
+		);
+		res.json(rows);
+	} catch (err) {
+		console.error('junket_house_expense edit_log:', err);
+		res.status(500).json({ error: 'Internal Server Error' });
+	}
+});
+
 // EDIT JUNKET EXPENSE
 router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async (req, res) => {
 	try {
@@ -748,12 +781,77 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		const editXAmount = parseFloat(txtAmount.replace(/,/g, ''));
 		const safeDateTime = txtDateandTime || null;
 
-		// Get previous amount before updating (for Telegram \"before amount\")
+		// Build diff text; store in junket_house_expense_edit_log (full history, one row per save with changes)
 		const [oldRows] = await pool.execute(
-			'SELECT AMOUNT FROM junket_house_expense WHERE IDNo = ? LIMIT 1',
+			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.AMOUNT, e.PHOTO,
+				ec.CATEGORY AS category_name
+			 FROM junket_house_expense e
+			 LEFT JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+			 WHERE e.IDNo = ? LIMIT 1`,
 			[id]
 		);
-		const oldAmount = oldRows.length > 0 ? Number(oldRows[0].AMOUNT) : null;
+		const old = oldRows[0];
+		const oldAmount = old ? Number(old.AMOUNT) : null;
+		let changesText = null;
+		if (old) {
+			const norm = (s) => (s == null || s === '' ? '' : String(s).trim());
+			const ts = (v) => {
+				if (v == null || v === '') return null;
+				const d = v instanceof Date ? v : new Date(v);
+				return isNaN(d.getTime()) ? null : d.getTime();
+			};
+			const amtEq = (a, b) => Math.abs(Number(a) - Number(b)) < 0.005;
+
+			const lines = [];
+			const newCat = parseInt(txtCategory, 10);
+			const oldCat = parseInt(old.CATEGORY_ID, 10);
+			if (!Number.isNaN(newCat) && !Number.isNaN(oldCat) && newCat !== oldCat) {
+				lines.push(`Category: ${old.category_name || 'N/A'}`);
+			}
+			if (norm(old.RECEIPT_NO) !== norm(txtReceiptNo)) {
+				const v = norm(old.RECEIPT_NO) || 'N/A';
+				lines.push(`Description: ${v}`);
+			}
+			if (norm(old.DESCRIPTION) !== norm(txtDescription)) {
+				const v = norm(old.DESCRIPTION) || 'N/A';
+				lines.push(`In-charge: ${v}`);
+			}
+			if (!amtEq(old.AMOUNT, editXAmount)) {
+				lines.push(`Amount: ${Number(old.AMOUNT).toLocaleString('en-US')}`);
+			}
+			if (ts(old.DATE_TIME) !== ts(safeDateTime)) {
+				let expStr = 'N/A';
+				if (old.DATE_TIME != null) {
+					const d =
+						old.DATE_TIME instanceof Date ? old.DATE_TIME : new Date(old.DATE_TIME);
+					expStr = isNaN(d.getTime()) ? String(old.DATE_TIME) : d.toLocaleString('en-PH');
+				}
+				lines.push(`Expense date: ${expStr}`);
+			}
+			if (req.file) {
+				if (old.PHOTO) {
+					lines.push(`Receipt image (before): ${old.PHOTO}`);
+				} else {
+					lines.push('Receipt image: added');
+				}
+			}
+
+			if (lines.length > 0) {
+				const [footerUserRows] = await pool.execute(
+					'SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1',
+					[req.session.user_id]
+				);
+				const saveByStr =
+					footerUserRows[0]?.FIRSTNAME != null &&
+					String(footerUserRows[0].FIRSTNAME).trim() !== ''
+						? String(footerUserRows[0].FIRSTNAME)
+						: `User ID: ${req.session.user_id}`;
+				const saveDtStr = date_now.toLocaleString('en-PH');
+				lines.push(`Edited by: ${saveByStr}`);
+				lines.push(`Date: ${saveDtStr}`);
+				changesText = lines.join('\n');
+			}
+		}
 
 		let query = `
 			UPDATE junket_house_expense 
@@ -770,6 +868,12 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		params.push(id);
 
 		await pool.execute(query, params);
+		if (changesText) {
+			await pool.execute(
+				'INSERT INTO junket_house_expense_edit_log (EXPENSE_ID, EDITED_BY, EDITED_DT, CHANGES_TEXT) VALUES (?, ?, ?, ?)',
+				[id, req.session.user_id, date_now, changesText]
+			);
+		}
 		const [categoryRows] = await pool.execute('SELECT CATEGORY FROM expense_category WHERE IDNo = ? LIMIT 1', [
 			txtCategory
 		]);

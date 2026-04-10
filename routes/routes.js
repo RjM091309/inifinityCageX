@@ -1128,6 +1128,12 @@ pageRouter.get("/commission", function (req, res) {
 	res.render("junket/commission", data);
 });
 
+pageRouter.get("/junket_loss", function (req, res) {
+	const data = sessions(req, 'junket_loss');
+	data.permissions = req.session.permissions;
+	res.render("junket/junket_loss", data);
+});
+
 pageRouter.get("/markerHistory", checkSession, async function (req, res) {
 	const sqlMarkerIssueGame = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_ISSUE_GAME FROM game_record WHERE ACTIVE =1 AND TRANSACTION = 3 AND CAGE_TYPE = 1';
 	const sqlMarkerIssueAccount = `SELECT SUM(account_ledger.AMOUNT) AS TOTAL_ISSUE_RECORD FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE = 1 AND account_ledger.TRANSACTION_ID = 3 AND account.ACTIVE = 1 AND agent.ACTIVE = 1`;
@@ -1175,11 +1181,14 @@ pageRouter.get("/main_cage", function (req, res) {
 	res.render("junket/main_cage", sessions(req, 'main_cage'));
 });
 
-// ========== OTHERS PAGE ==========
+// ========== MONEY EXCHANGE PAGE ==========
 pageRouter.get("/others", checkSession, function (req, res) {
-	const data = sessions(req, 'others');
+	res.redirect(301, "/money_exchange");
+});
+pageRouter.get("/money_exchange", checkSession, function (req, res) {
+	const data = sessions(req, 'money_exchange');
 	data.permissions = req.session.permissions;
-	res.render("others/others", data);
+	res.render("money_exchange/money_exchange", data);
 });
 
 //========== USER ACCOUNTS ================
@@ -3240,6 +3249,7 @@ pageRouter.get('/junket_house_expense_data', (req, res) => {
             e.EDITED_DT,
             e.ACTIVE,
             e.RESET,
+            (SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
             e.IDNo AS expense_id,
             ec.IDNo AS expense_category_id,
             ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
@@ -3268,6 +3278,7 @@ pageRouter.get('/junket_house_expense_data', (req, res) => {
             rm.EDITED_DT,
             rm.ACTIVE,
             NULL AS RESET,
+            0 AS EDIT_LOG_COUNT,
             rm.IDNo AS expense_id,
             NULL AS expense_category_id,
             'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,

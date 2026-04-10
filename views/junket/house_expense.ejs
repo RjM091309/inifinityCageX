@@ -110,6 +110,11 @@
                                         <th id="TOTAL_RETURN_MONEY_AMOUNT">₱0.00</th>
                                         <th colspan="5"></th>
                                     </tr>
+                                    <tr>
+                                        <th colspan="1"><%= __('house_expense.total_net_expenses') || 'TOTAL NET EXPENSES' %></th>
+                                        <th id="TOTAL_NET_EXPENSES_AMOUNT">₱0.00</th>
+                                        <th colspan="5"></th>
+                                    </tr>
                                 </tfoot>
                             </table>
        
@@ -126,6 +131,7 @@
         <%- include ('../modals/junket/new_return_money') %>
         <%- include ('../modals/junket/edit_house_expense') %>
         <%- include ('../modals/junket/new_house_expense') %>
+        <%- include ('../modals/junket/house_expense_edit_history') %>
         <%- include ('../partials/permission_view_only_script') %>
         <%- include ('../partials/footer'); -%>     
        
@@ -165,7 +171,12 @@
                 ,
                 type: "<%= __('house_expense.type') %>",
                 type_goods: "<%= __('house_expense.type_goods') %>",
-                type_non_goods: "<%= __('house_expense.type_non_goods') %>"
+                type_non_goods: "<%= __('house_expense.type_non_goods') %>",
+                edit_history: "<%= __('house_expense.edit_history') %>",
+                edit_history_title: "<%= __('house_expense.edit_history_title') %>",
+                edit_history_error: "<%= __('house_expense.edit_history_error') %>",
+                edit_history_empty: "<%= __('house_expense.edit_history_empty') %>",
+                edit_history_editor: "<%= __('house_expense.edit_history_editor') %>"
             };
         </script>
         
@@ -524,7 +535,20 @@
                 color: #ffffff !important;
                 border-color: #28a745 !important;
             }
-            
+
+            /* House expense table: compact action icons with space between */
+            #expense-tbl .house-expense-actions {
+                display: inline-flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 0.35rem;
+            }
+            #expense-tbl .house-expense-actions .btn i.fa {
+                font-size: 0.72rem;
+            }
+            #expense-tbl .house-expense-actions .btn {
+                padding: 0.2rem 0.42rem;
+            }
                      </style>
 
  

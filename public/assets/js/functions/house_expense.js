@@ -13,6 +13,155 @@ function attrEncode(str) {
         .replace(/\r\n|\r|\n/g, '&#10;');
 }
 
+function formatHouseExpensePeso(n) {
+    var v = Number(n) || 0;
+    return '₱' + v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function houseExpenseEditLogCount(row) {
+    if (row.record_type === 'return_money') return 0;
+    var n = row.EDIT_LOG_COUNT != null ? row.EDIT_LOG_COUNT : row.edit_log_count;
+    return parseInt(n, 10) || 0;
+}
+
+function houseExpenseHtmlEscape(s) {
+    if (s == null) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/** Amount line in edit log: show number only (no ₱) in the modal. */
+function houseExpenseEditLogValueForDisplay(label, value) {
+    if (value == null) return '';
+    var v = String(value);
+    if (/^amount$/i.test(String(label || '').trim())) {
+        v = v.replace(/^\s*\u20B1\s*/, '').trim();
+    }
+    return v;
+}
+
+/** Parses CHANGES_TEXT into rows; drops Edited by/Date lines (shown in card header). */
+function houseExpenseRenderEditLogFieldRows(changesText) {
+    var lines = String(changesText || '').split(/\r\n|\r|\n/);
+    var rows = [];
+    for (var i = 0; i < lines.length; i++) {
+        var trimmed = lines[i].trim();
+        if (!trimmed) continue;
+        if (/^edited by\s*:/i.test(trimmed)) continue;
+        if (/^date\s*:/i.test(trimmed)) continue;
+        var colon = trimmed.indexOf(':');
+        if (colon > 0) {
+            rows.push({
+                label: trimmed.slice(0, colon).trim(),
+                value: trimmed.slice(colon + 1).trim()
+            });
+        } else {
+            rows.push({ label: '', value: trimmed });
+        }
+    }
+    if (rows.length === 0) {
+        return '<p class="text-muted small mb-0 py-3 px-3">—</p>';
+    }
+    var out = [];
+    for (var j = 0; j < rows.length; j++) {
+        var r = rows[j];
+        if (r.label) {
+            var displayVal = houseExpenseEditLogValueForDisplay(r.label, r.value);
+            out.push(
+                '<div class="row g-0 house-expense-history-row border-bottom border-light mx-0">' +
+                    '<div class="col-12 col-sm-4 py-2 px-3 align-self-start house-expense-history-label">' +
+                    houseExpenseHtmlEscape(r.label) +
+                    '</div>' +
+                    '<div class="col-12 col-sm-8 py-2 px-3 house-expense-history-value">' +
+                    houseExpenseHtmlEscape(displayVal) +
+                    '</div>' +
+                    '</div>'
+            );
+        } else {
+            out.push(
+                '<div class="py-2 px-3 small text-secondary border-bottom border-light">' +
+                    houseExpenseHtmlEscape(r.value) +
+                    '</div>'
+            );
+        }
+    }
+    return '<div class="house-expense-history-fields bg-white rounded-bottom">' + out.join('') + '</div>';
+}
+
+window.showHouseExpenseEditHistory = function (expenseId) {
+    var t = window.houseExpenseTranslations || {};
+    var editorLbl = t.edit_history_editor || 'Edited by';
+    $.getJSON('/junket_house_expense/' + expenseId + '/edit_log')
+        .done(function (entries) {
+            var $body = $('#house-expense-edit-history-body');
+            if (!entries || entries.length === 0) {
+                $body.html(
+                    '<div class="text-center py-5 text-muted"><i class="fa fa-inbox fa-2x mb-3 opacity-50"></i><p class="mb-0">' +
+                        houseExpenseHtmlEscape(t.edit_history_empty || 'No edit history.') +
+                        '</p></div>'
+                );
+            } else {
+                var html = entries
+                    .map(function (e) {
+                        var dt = e.EDITED_DT != null ? e.EDITED_DT : e.edited_dt;
+                        var name =
+                            e.edited_by_name != null
+                                ? e.edited_by_name
+                                : e.EDITED_BY != null
+                                  ? 'User ' + e.EDITED_BY
+                                  : '—';
+                        var text = String(e.CHANGES_TEXT != null ? e.CHANGES_TEXT : e.changes_text || '');
+                        var dtStr = dt ? moment(dt).format('DD MMM YYYY, HH:mm:ss') : '—';
+                        return (
+                            '<div class="house-expense-history-card card border-0 shadow-sm mb-3 bg-white">' +
+                                '<div class="house-expense-history-card-head px-3 py-3">' +
+                                '<div class="fs-6 fw-semibold text-dark">' +
+                                houseExpenseHtmlEscape(dtStr) +
+                                '</div>' +
+                                '<div class="small text-muted mt-1">' +
+                                '<span class="text-secondary">' +
+                                houseExpenseHtmlEscape(editorLbl) +
+                                '</span>' +
+                                ' <span class="mx-1">·</span> ' +
+                                '<span class="text-dark fw-medium">' +
+                                houseExpenseHtmlEscape(name) +
+                                '</span>' +
+                                '</div>' +
+                                '</div>' +
+                                houseExpenseRenderEditLogFieldRows(text) +
+                                '</div>'
+                        );
+                    })
+                    .join('');
+                $body.html(html);
+            }
+            var $modal = $('#modal-house-expense-edit-history');
+            if ($modal.length) {
+                $modal.appendTo('body');
+                $modal.modal('show');
+            }
+        })
+        .fail(function () {
+            if (window.Swal) {
+                Swal.fire(t.error || 'Error', t.edit_history_error || 'Could not load edit history.', 'error');
+            } else {
+                alert(t.edit_history_error || 'Could not load edit history.');
+            }
+        });
+};
+
+/** Updates expense, return money, and net (expense − return) footer amounts. */
+function setHouseExpenseFooterTotals(totalExpense, totalReturnMoney) {
+    var te = Number(totalExpense) || 0;
+    var tr = Number(totalReturnMoney) || 0;
+    $('#TOTAL_EXPENSE_AMOUNT').text(formatHouseExpensePeso(te));
+    $('#TOTAL_RETURN_MONEY_AMOUNT').text(formatHouseExpensePeso(tr));
+    $('#TOTAL_NET_EXPENSES_AMOUNT').text(formatHouseExpensePeso(te - tr));
+}
+
 $(document).ready(function () {
     function clearExpenseTableDisplay() {
         if ($.fn.DataTable.isDataTable('#expense-tbl')) {
@@ -20,8 +169,7 @@ $(document).ready(function () {
             dt.clear();
             dt.draw();
         }
-        $('#TOTAL_EXPENSE_AMOUNT').text('₱0.00');
-        $('#TOTAL_RETURN_MONEY_AMOUNT').text('₱0.00');
+        setHouseExpenseFooterTotals(0, 0);
     }
 
     function initializeExpenseTable() {
@@ -123,8 +271,7 @@ $(document).ready(function () {
                         const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
                         var tbody = dataTable.table().body();
                         $(tbody).html('<tr><td colspan="7" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
-                        $('#TOTAL_EXPENSE_AMOUNT').text(`₱0.00`);
-                        $('#TOTAL_RETURN_MONEY_AMOUNT').text(`₱0.00`);
+                        setHouseExpenseFooterTotals(0, 0);
                         return;
                     }
 
@@ -139,17 +286,33 @@ $(document).ready(function () {
                         }
                     
                         const permissions = parseInt($('#user-role').data('permissions'));
+                        const logCount = houseExpenseEditLogCount(row);
+                        const histTitle =
+                            (window.houseExpenseTranslations && window.houseExpenseTranslations.edit_history) ||
+                            'Edit history';
+                        const historyBtnHtml =
+                            logCount > 0
+                                ? '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="showHouseExpenseEditHistory(' +
+                                  row.expense_id +
+                                  ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+                                  String(histTitle).replace(/"/g, '&quot;') +
+                                  '"><i class="fa fa-history"></i></button>'
+                                : '';
+                        const editBtnClass =
+                            logCount > 0 ? 'btn btn-sm btn-alt-success btn-edit-row' : 'btn btn-sm btn-alt-secondary btn-edit-row';
+                        const editBtnClassReadonly =
+                            logCount > 0 ? 'btn btn-sm btn-alt-success' : 'btn btn-sm btn-alt-secondary';
                         let btn = '';
                         if (permissions !== 2) {
                             btn = `
-                                <div class="btn-group">
+                                <div class="house-expense-actions">
                                     <button type="button" class="btn btn-sm btn-alt-secondary"
                                             onclick="viewReceipt('${row.photoUrl}')"
                                             ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                         <i class="fa fa-eye"></i>
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-alt-secondary btn-edit-row"
+                                    <button type="button" class="${editBtnClass}"
                                             data-record-type="${row.record_type || 'expense'}"
                                             data-expense-id="${row.expense_id}"
                                             data-category-id="${attrEncode(row.expense_category_id || '')}"
@@ -161,13 +324,14 @@ $(document).ready(function () {
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
                                         <i class="fa fa-pencil-alt"></i>
                                     </button>
+                                    ${historyBtnHtml}
                                     <button type="button" class="btn btn-sm btn-alt-secondary"
                                             onclick="downloadReceipt('${row.photoUrl}')"
                                             ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                         <i class="fa fa-download"></i>
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-alt-danger"
+                                    <button type="button" class="btn btn-sm btn-alt-secondary"
                                             onclick="${row.record_type === 'return_money' ? `archive_return_money(${row.expense_id})` : `archive_expense(${row.expense_id})`}"
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
                                         <i class="fa fa-trash-alt"></i>
@@ -175,24 +339,25 @@ $(document).ready(function () {
                                 </div>`;
                         } else {
                             btn = `
-                                <div class="btn-group">
+                                <div class="house-expense-actions">
                                     <button type="button" class="btn btn-sm btn-primary"
                                             onclick="viewReceipt('${row.photoUrl}')"
                                             ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                         <i class="fa fa-eye"></i>
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-alt-secondary" disabled
+                                    <button type="button" class="${editBtnClassReadonly}" disabled
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
                                         <i class="fa fa-pencil-alt"></i>
                                     </button>
+                                    ${historyBtnHtml}
                                     <button type="button" class="btn btn-sm btn-secondary"
                                             onclick="downloadReceipt('${row.photoUrl}')"
                                             ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                         <i class="fa fa-download"></i>
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-alt-danger" disabled
+                                    <button type="button" class="btn btn-sm btn-alt-secondary" disabled
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
                                         <i class="fa fa-trash-alt"></i>
                                     </button>
@@ -229,10 +394,7 @@ $(document).ready(function () {
                     ]).draw();
                     });
                     
-                    // Update separate totals
-                    $('#TOTAL_EXPENSE_AMOUNT').text(`₱${total_expense.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
-                    $('#TOTAL_RETURN_MONEY_AMOUNT').text(`₱${total_return_money.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
-                    
+                    setHouseExpenseFooterTotals(total_expense, total_return_money);
 
                 },
                 error: function (xhr, status, error) {
@@ -671,8 +833,7 @@ $(document).ready(function () {
                             const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
                             var tbody = dataTable.table().body();
                             $(tbody).html('<tr><td colspan="7" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
-                            $('#TOTAL_EXPENSE_AMOUNT').text(`₱0.00`);
-                            $('#TOTAL_RETURN_MONEY_AMOUNT').text(`₱0.00`);
+                            setHouseExpenseFooterTotals(0, 0);
                             if (typeof window.updateSettleButtonState === 'function') {
                                 window.updateSettleButtonState(0);
                             }
@@ -692,17 +853,33 @@ $(document).ready(function () {
                             }
                         
                             const permissions = parseInt($('#user-role').data('permissions'));
+                            const logCount = houseExpenseEditLogCount(row);
+                            const histTitle =
+                                (window.houseExpenseTranslations && window.houseExpenseTranslations.edit_history) ||
+                                'Edit history';
+                            const historyBtnHtml =
+                                logCount > 0
+                                    ? '<button type="button" class="btn btn-sm btn-alt-secondary" onclick="showHouseExpenseEditHistory(' +
+                                      row.expense_id +
+                                      ')" data-bs-toggle="tooltip" data-bs-placement="top" title="' +
+                                      String(histTitle).replace(/"/g, '&quot;') +
+                                      '"><i class="fa fa-history"></i></button>'
+                                    : '';
+                            const editBtnClass =
+                                logCount > 0 ? 'btn btn-sm btn-alt-success btn-edit-row' : 'btn btn-sm btn-alt-secondary btn-edit-row';
+                            const editBtnClassReadonly =
+                                logCount > 0 ? 'btn btn-sm btn-alt-success' : 'btn btn-sm btn-alt-secondary';
                             let btn = '';
                             if (permissions !== 2) {
                                 btn = `
-                                    <div class="btn-group">
+                                    <div class="house-expense-actions">
                                         <button type="button" class="btn btn-sm btn-alt-secondary"
                                                 onclick="viewReceipt('${row.photoUrl}')"
                                                 ${row.record_type === 'return_money' ? 'disabled' : ''}
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                             <i class="fa fa-eye"></i>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-alt-secondary btn-edit-row"
+                                        <button type="button" class="${editBtnClass}"
                                                 data-record-type="${row.record_type || 'expense'}"
                                                 data-expense-id="${row.expense_id}"
                                                 data-category-id="${attrEncode(row.expense_category_id || '')}"
@@ -714,13 +891,14 @@ $(document).ready(function () {
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
                                             <i class="fa fa-pencil-alt"></i>
                                         </button>
+                                        ${historyBtnHtml}
                                         <button type="button" class="btn btn-sm btn-alt-secondary"
                                                 onclick="downloadReceipt('${row.photoUrl}')"
                                                 ${row.record_type === 'return_money' ? 'disabled' : ''}
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                             <i class="fa fa-download"></i>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-alt-danger"
+                                        <button type="button" class="btn btn-sm btn-alt-secondary"
                                                 onclick="${row.record_type === 'return_money' ? `archive_return_money(${row.expense_id})` : `archive_expense(${row.expense_id})`}"
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
                                             <i class="fa fa-trash-alt"></i>
@@ -728,24 +906,25 @@ $(document).ready(function () {
                                     </div>`;
                             } else {
                                 btn = `
-                                    <div class="btn-group">
+                                    <div class="house-expense-actions">
                                         <button type="button" class="btn btn-sm btn-primary"
                                                 onclick="viewReceipt('${row.photoUrl}')"
                                                 ${row.record_type === 'return_money' ? 'disabled' : ''}
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                             <i class="fa fa-eye"></i>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-alt-secondary" disabled
+                                        <button type="button" class="${editBtnClassReadonly}" disabled
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.edit_expense || 'Edit Expense'}">
                                             <i class="fa fa-pencil-alt"></i>
                                         </button>
+                                        ${historyBtnHtml}
                                         <button type="button" class="btn btn-sm btn-secondary"
                                                 onclick="downloadReceipt('${row.photoUrl}')"
                                                 ${row.record_type === 'return_money' ? 'disabled' : ''}
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                             <i class="fa fa-download"></i>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-alt-danger" disabled
+                                        <button type="button" class="btn btn-sm btn-alt-secondary" disabled
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.archive_expense || 'Archive Expense'}">
                                             <i class="fa fa-trash-alt"></i>
                                         </button>
@@ -780,8 +959,7 @@ $(document).ready(function () {
                             ]).draw();
                         });
                         
-                        $('#TOTAL_EXPENSE_AMOUNT').text(`₱${total_expense.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
-                        $('#TOTAL_RETURN_MONEY_AMOUNT').text(`₱${total_return_money.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`);
+                        setHouseExpenseFooterTotals(total_expense, total_return_money);
                         
                         if (typeof window.updateSettleButtonState === 'function') {
                             window.updateSettleButtonState(data.length);
