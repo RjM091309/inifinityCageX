@@ -7,6 +7,7 @@
   <div class="row">
     <div class="col-sm-12">
       <div class="card">
+        <div id="user-role" data-permissions="<%= permissions %>"></div>
         <div class="card-header d-flex justify-content-between align-items-center">
           <h3 class="card-title">
             <div class="breadcrumb1 flat">
@@ -15,13 +16,170 @@
               <a href="/junket_loss" class="active"><%= __('junket_loss.title') %></a>
             </div>
           </h3>
+          <button type="button" class="btn btn-primary" id="btn-add-junket-loss">
+            <i class="fa fa-plus me-1"></i> Add Junket Loss
+          </button>
+        </div>
+        <div class="dataTables_wrapper">
+          <div class="row mb-2">
+            <div class="col-sm-4">
+              <input type="text" id="junket-loss-daterange" class="input-daterange input-group" placeholder="Select date range" autocomplete="off" />
+            </div>
+          </div>
         </div>
         <div class="card-body">
-          <p class="text-muted mb-0"></p>
+          <div class="table-responsive">
+            <table id="junket-loss-tbl" class="table nowrap small-text" style="width:100%">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>In-charge</th>
+                  <th>Encoded By</th>
+                  <th>Date &amp; Time</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+<div class="modal fade" id="modal-junket-loss" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="junket-loss-modal-title">Add Junket Expense</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="junket-loss-form">
+        <div class="modal-body">
+          <input type="hidden" id="junket-loss-id" />
+          <div class="mb-3">
+            <label for="junket-loss-description" class="form-label">Description</label>
+            <textarea id="junket-loss-description" class="form-control" rows="3" required></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="junket-loss-amount" class="form-label">Amount</label>
+            <input type="text" id="junket-loss-amount" class="form-control" inputmode="decimal" autocomplete="off" required />
+          </div>
+          <div class="mb-3">
+            <label for="junket-loss-incharge" class="form-label">In-charge</label>
+            <input type="text" id="junket-loss-incharge" class="form-control" maxlength="150" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary" id="junket-loss-save-btn">Save</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include ('../partials/permission_view_only_script') %>
 <%- include('../partials/footer') %>
+
+<script src="/assets/js/functions/junket_loss.js"></script>
+
+<style>
+  .card-body {
+    overflow-x: auto;
+  }
+
+  #junket-loss-tbl {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+  }
+
+  #junket-loss-tbl thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    text-align: center;
+    border: none;
+  }
+
+  #junket-loss-tbl tbody tr {
+    border-bottom: 1px solid #eee;
+  }
+
+  #junket-loss-tbl td {
+    padding: 12px 15px;
+    color: #666;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  #junket-loss-tbl tbody tr:hover {
+    background-color: #f5f5f5 !important;
+  }
+
+  #junket-loss-tbl td:last-child {
+    text-align: center;
+    color: #333;
+  }
+
+  .dataTables_length label {
+    font-size: 0;
+  }
+
+  .dataTables_length select {
+    font-size: 12px;
+  }
+
+  .dataTables_wrapper .row {
+    margin-bottom: 15px;
+    font-size: 12px;
+  }
+
+  .input-daterange {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    left: 9rem;
+    top: 4rem;
+    max-width: 220px;
+    font-size: 12px;
+  }
+
+  .input-daterange .form-control {
+    flex: 1;
+    margin-right: 5px;
+    max-width: 100px;
+    font-size: 12px;
+    padding: 8px;
+    text-align: center;
+  }
+
+  .input-daterange .form-control:last-child {
+    margin-right: 0;
+  }
+
+  @media (max-width: 768px) {
+    #junket-loss-tbl {
+      font-size: 10px;
+    }
+
+    .dataTables_wrapper .row,
+    .input-daterange,
+    .input-daterange .form-control {
+      font-size: 10px;
+    }
+
+    .input-daterange .form-control {
+      padding: 5px;
+    }
+
+    #junket-loss-tbl th,
+    #junket-loss-tbl td {
+      padding: 5px;
+    }
+  }
+</style>

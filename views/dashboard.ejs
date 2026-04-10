@@ -217,7 +217,8 @@
                      (+sqlServiceCashJunket[0].TOTAL || 0) +
                      (+sqlServiceDepositJunket[0].TOTAL || 0) +
                      (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
-                     (+sqlManualBalancing[0].MANUAL_BALANCING || 0);
+                     (+sqlManualBalancing[0].MANUAL_BALANCING || 0) +
+                     (+sqlJunketLoss[0].JUNKET_LOSS || 0);
                   
                   // Cash Balance = Pure Cash In/Out ONLY
                   // Only includes transactions from junket_capital and junket_house_expense tables

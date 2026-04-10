@@ -10,6 +10,7 @@ module.exports = [
     require('./changeGame'),
     require('./dashboard'),
     require('./activity_log'),
+    require('./junket_loss'),
     require('./routes.js'), // pageRouter with page routes like /activity_log, /game_list, etc.
     require('./telegramData'),
     require('./fnb_hotel'),

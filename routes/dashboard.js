@@ -169,6 +169,7 @@ ON
 	let sqlAgentCount = 'SELECT COUNT(*) AS TOTAL_AGENT FROM agent WHERE ACTIVE =1';
 	let sqlJunketCredit = 'SELECT SUM(AMOUNT) AS JUNKET_CREDIT FROM junket_credit WHERE ACTIVE =1';
 	let sqlJunketExpense = 'SELECT SUM(AMOUNT) AS JUNKET_EXPENSE FROM junket_house_expense WHERE ACTIVE =1';
+	let sqlJunketLoss = 'SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE =1';
 	let sqlJunketExpenseGoods = `
 		SELECT SUM(jhe.AMOUNT) AS JUNKET_EXPENSE_GOODS
 		FROM junket_house_expense jhe
@@ -480,6 +481,7 @@ let sqlServiceSettle = `
 		const [CChipsBuyinGameResetResult] = await pool.execute(sqlCCChipsBuyinGameReset);
 		const [JunketCreditResult] = await pool.execute(sqlJunketCredit);
 		const [JunketExpenseResult] = await pool.execute(sqlJunketExpense);
+		const [JunketLossResult] = await pool.execute(sqlJunketLoss);
 		const [JunketExpenseGoodsResult] = await pool.execute(sqlJunketExpenseGoods);
 		const [JunketExpenseNonGoodsResult] = await pool.execute(sqlJunketExpenseNonGoods);
 		const [ReturnMoneyResult] = await pool.execute(sqlReturnMoney);
@@ -768,6 +770,7 @@ let sqlServiceSettle = `
 			sqlCCChipsBuyinGameReset: CChipsBuyinGameResetResult,
 			sqlJunketCredit: JunketCreditResult,
 			sqlJunketExpense: JunketExpenseResult,
+			sqlJunketLoss: JunketLossResult,
 			sqlJunketExpenseGoods: JunketExpenseGoodsResult,
 			sqlJunketExpenseNonGoods: JunketExpenseNonGoodsResult,
 			sqlReturnMoney: ReturnMoneyResult,

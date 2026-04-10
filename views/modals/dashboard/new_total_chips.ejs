@@ -105,7 +105,8 @@
                                 (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
                                 (+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
                                 (+sqlReturnMoney[0].RETURN_MONEY || 0) -
-                                (+sqlManualBalancing[0].MANUAL_BALANCING || 0)
+                                (+sqlManualBalancing[0].MANUAL_BALANCING || 0) -
+                                (+sqlJunketLoss[0].JUNKET_LOSS || 0)
                         ).toLocaleString() %>" id="total-chips-cash-balance" name="txtcashbal" />
 
                         <input type="hidden" name="typedescription" id="typedescription" value="Chips Buy-in">

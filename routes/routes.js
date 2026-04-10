@@ -1128,12 +1128,6 @@ pageRouter.get("/commission", function (req, res) {
 	res.render("junket/commission", data);
 });
 
-pageRouter.get("/junket_loss", function (req, res) {
-	const data = sessions(req, 'junket_loss');
-	data.permissions = req.session.permissions;
-	res.render("junket/junket_loss", data);
-});
-
 pageRouter.get("/markerHistory", checkSession, async function (req, res) {
 	const sqlMarkerIssueGame = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_ISSUE_GAME FROM game_record WHERE ACTIVE =1 AND TRANSACTION = 3 AND CAGE_TYPE = 1';
 	const sqlMarkerIssueAccount = `SELECT SUM(account_ledger.AMOUNT) AS TOTAL_ISSUE_RECORD FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE = 1 AND account_ledger.TRANSACTION_ID = 3 AND account.ACTIVE = 1 AND agent.ACTIVE = 1`;
