@@ -219,11 +219,15 @@
                      (+sqlAccountTransfer[0].ACCOUNT_TRANSFER || 0) +
                      (+sqlManualBalancing[0].MANUAL_BALANCING || 0) +
                      (+sqlJunketLoss[0].JUNKET_LOSS || 0);
+
+                  // Money Exchange net cash effect:
+                  // pending principal OR realized margin (if already returned)
+                  const mxCashNet = (+sqlMxCashNet[0].MX_CASH_NET || 0);
                   
                   // Cash Balance = Pure Cash In/Out ONLY
                   // Only includes transactions from junket_capital and junket_house_expense tables
                   // NO chips, NO guest transactions, NO buy-ins, NO returns - just pure cash movement
-                  const cashBalance = cashInTotal - cashOutTotal;
+                  const cashBalance = cashInTotal - cashOutTotal + mxCashNet;
                   
                   const guestBalance = Math.round(
                      (+sqlAccountDeposit[0].ACCOUNT_DEPOSIT || 0) + 

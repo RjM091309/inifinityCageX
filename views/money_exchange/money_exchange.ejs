@@ -7,22 +7,1028 @@
   <div class="row">
     <div class="col-sm-12">
       <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h3 class="card-title">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h3 class="card-title mb-0">
             <div class="breadcrumb1 flat">
               <a href="/dashboard"><span class="fa fa-home"></span></a>
               <a href="/money_exchange" class="active">Money Exchange</a>
             </div>
           </h3>
+          <button type="button" class="btn btn-outline-primary" id="btn-currency-master">
+            <i class="fa fa-coins me-1"></i> Currency
+          </button>
         </div>
         <div class="card-body">
-          <p class="text-muted mb-0">
-            
-          </p>
+          <div class="money-exchange-board<% if (typeof permissions !== 'undefined' && Number(permissions) === 0) { %> mx-superadmin-history<% } %>">
+            <% if (typeof permissions !== 'undefined') { %>
+            <div id="user-role" class="d-none" data-permissions="<%= permissions %>"></div>
+            <% } %>
+            <div class="exchange-title exchange-title-blue">
+              DEPOSIT
+            </div>
+
+            <div class="row g-3 mt-1">
+              <div class="col-md-3">
+                <label class="form-label fw-bold" for="mx-account">Account</label>
+                <select class="js-select2 form-select" id="mx-account" name="mxAccount" style="width: 100%;" data-placeholder="No account" autocomplete="off">
+                  <option value="">No account</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-bold" for="mx-guest-name">Name</label>
+                <input type="text" class="form-control" id="mx-guest-name" maxlength="255" placeholder="Guest Name" autocomplete="off" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold" for="mx-remark">Remark</label>
+                <input type="text" class="form-control" id="mx-remark" maxlength="500" placeholder="Remark" autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="row g-3 mt-1">
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold text-nowrap" for="in-currency">In Currency</label>
+                <select class="form-select" name="IN_CURRENCY_ID" id="in-currency" autocomplete="off">
+                  <option value="" selected disabled>Select currency</option>
+                  <% if (typeof currencies !== 'undefined' && currencies && currencies.length) { %>
+                    <% currencies.forEach(function (c) { %>
+                      <option value="<%= c.id %>"><%= c.code %></option>
+                    <% }); %>
+                  <% } %>
+                </select>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold text-nowrap" for="mx-amount-in">Amount</label>
+                <input type="text" class="form-control" id="mx-amount-in" inputmode="numeric" placeholder="0" />
+              </div>
+            </div>
+            <div class="row row-cols-1 row-cols-md-3 g-3 mt-1">
+              <div class="col">
+                <label class="form-label fw-bold text-nowrap" for="exchange-currency" title="Exchange currency">Exchange Currency</label>
+                <select class="form-select" name="EXCHANGE_CURRENCY_ID" id="exchange-currency" autocomplete="off">
+                  <option value="" selected disabled>Select currency</option>
+                  <% if (typeof currencies !== 'undefined' && currencies && currencies.length) { %>
+                    <% currencies.forEach(function (c) { %>
+                      <option value="<%= c.id %>"><%= c.code %></option>
+                    <% }); %>
+                  <% } %>
+                </select>
+              </div>
+              <div class="col">
+                <label class="form-label fw-bold text-nowrap" for="mx-rate-percent">Rate</label>
+                <input type="number" class="form-control" id="mx-rate-percent" inputmode="decimal" step="0.01" placeholder="0.00" />
+              </div>
+              <div class="col">
+                <label class="form-label fw-bold text-nowrap" for="mx-exchange-amount" title="Exchange amount">Exchange Amount</label>
+                <input type="text" class="form-control" id="mx-exchange-amount" inputmode="numeric" placeholder="0" readonly tabindex="-1" />
+              </div>
+            </div>
+
+            <div class="row mt-2">
+              <div class="col-12 text-end">
+                <button type="button" class="btn btn-primary px-4" id="btn-mx-save-deposit">
+                  <i class="fa fa-save me-1"></i> Save Deposit
+                </button>
+              </div>
+            </div>
+
+            <div class="exchange-title exchange-title-orange mt-4">
+              RETURN
+            </div>
+            <input type="hidden" id="mx-source-deposit-id" value="" />
+            <div id="mx-source-deposit-note" class="small text-muted mt-2 mb-1">
+              Select a deposit to return.
+            </div>
+
+            <div class="row g-3 mt-1">
+              <div class="col-12 col-md-3">
+                <label class="form-label fw-bold" for="mx-return-amount">Return Amount</label>
+                <input type="text" class="form-control" id="mx-return-amount" inputmode="numeric" placeholder="0" disabled />
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label fw-bold" for="mx-margin-return">Margin</label>
+                <input type="text" class="form-control" id="mx-margin-return" inputmode="numeric" placeholder="0" disabled readonly tabindex="-1" />
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold" for="mx-return-remark">Remark</label>
+                <input type="text" class="form-control" id="mx-return-remark" maxlength="500" placeholder="Remark" autocomplete="off" disabled />
+              </div>
+            </div>
+
+            <div class="row mt-2">
+              <div class="col-12 text-end">
+                <button type="button" class="btn btn-primary px-4" id="btn-mx-save-return" style="background-color: #E89149; border-color: #d67d35;" disabled>
+                  <i class="fa fa-save me-1"></i> Save Return
+                </button>
+              </div>
+            </div>
+
+            <div class="exchange-history mt-4">
+              <div class="mb-2 fw-bold text-primary">Deposit History</div>
+              <div id="deposit-history-pane"> 
+                <div class="marker-history-dt-wrap marker-history-card table-responsive">
+                  <table id="mx-deposit-history-tbl" class="table table-bordered table-hover align-middle cage-modal-data-table mx-history-table mb-0">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Account</th>
+                        <th>Name</th>
+                        <th>In Cur</th>
+                        <th>Amount</th>
+                        <th>Exch Cur</th>
+                        <th>Rate</th>
+                        <th>Exch Amount</th>
+                        <th>Status</th>
+                        <th>Remark</th>
+                        <% if (typeof permissions !== 'undefined' && Number(permissions) === 0) { %>
+                        <th class="text-center mx-history-col-actions">Actions</th>
+                        <% } %>
+                      </tr>
+                    </thead>
+                    <tbody id="mx-deposit-history-tbody">
+                      <tr>
+                        <td colspan="<%= typeof permissions !== 'undefined' && Number(permissions) === 0 ? 12 : 11 %>" class="text-center text-muted py-3">Loading…</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+<div class="modal fade" id="modal-mx-return-details" tabindex="-1" aria-labelledby="modal-mx-return-details-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <div>
+          <h5 class="modal-title text-white mb-0" id="modal-mx-return-details-label">Return History</h5>
+          <div class="mx-ret-header-meta text-white-50" id="mx-ret-header-meta">Deposit #— | —</div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body mx-return-details-body">
+        <div class="mx-ret-row">
+          <div class="mx-ret-label">Return Date/Time</div>
+          <div class="mx-ret-value" id="mx-ret-detail-datetime">—</div>
+        </div>
+        <div class="mx-ret-row">
+          <div class="mx-ret-label">Return Amount</div>
+          <div class="mx-ret-value" id="mx-ret-detail-amount">—</div>
+        </div>
+        <div class="mx-ret-row">
+          <div class="mx-ret-label">Margin</div>
+          <div class="mx-ret-value" id="mx-ret-detail-margin">—</div>
+        </div>
+        <div class="mx-ret-row">
+          <div class="mx-ret-label">Remark</div>
+          <div class="mx-ret-value mx-ret-remark" id="mx-ret-detail-remark">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-mx-edit-txn" tabindex="-1" aria-labelledby="modal-mx-edit-txn-label" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="modal-mx-edit-txn-label">Edit transaction</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="form-mx-edit-txn">
+        <div class="modal-body">
+          <input type="hidden" id="mx-edit-txn-id" />
+          <input type="hidden" id="mx-edit-trans-type" />
+          <input type="hidden" id="mx-edit-source-deposit-id" />
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold" for="mx-edit-account">Account</label>
+              <select class="js-select2 form-select" id="mx-edit-account" style="width: 100%;" data-placeholder="No account" autocomplete="off">
+                <option value="">No account</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold" for="mx-edit-guest-name">Name</label>
+              <input type="text" class="form-control" id="mx-edit-guest-name" maxlength="255" placeholder="Guest name" autocomplete="off" />
+            </div>
+          </div>
+          <div class="mb-3 mt-2">
+            <label class="form-label fw-bold" for="mx-edit-remark">Remark</label>
+            <input type="text" class="form-control" id="mx-edit-remark" maxlength="500" placeholder="Remark" autocomplete="off" />
+          </div>
+          <div id="mx-edit-deposit-fields" class="d-none">
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold text-nowrap" for="mx-edit-in-currency">In Currency</label>
+                <select class="form-select" id="mx-edit-in-currency" autocomplete="off">
+                  <option value="" selected disabled>Select currency</option>
+                </select>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold text-nowrap" for="mx-edit-amount-in">Amount</label>
+                <input type="number" class="form-control" id="mx-edit-amount-in" inputmode="decimal" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+            <div class="row row-cols-1 row-cols-md-3 g-3 mt-1">
+              <div class="col">
+                <label class="form-label fw-bold text-nowrap" for="mx-edit-exchange-currency" title="Exchange currency">Exch. Curr.</label>
+                <select class="form-select" id="mx-edit-exchange-currency" autocomplete="off">
+                  <option value="" selected disabled>Select currency</option>
+                </select>
+              </div>
+              <div class="col">
+                <label class="form-label fw-bold text-nowrap" for="mx-edit-rate-percent">Rate</label>
+                <input type="number" class="form-control" id="mx-edit-rate-percent" inputmode="decimal" step="0.01" placeholder="0.00" />
+              </div>
+              <div class="col">
+                <label class="form-label fw-bold text-nowrap" for="mx-edit-exchange-amount" title="Exchange amount">Exch. Amt.</label>
+                <input type="number" class="form-control" id="mx-edit-exchange-amount" inputmode="decimal" min="0" step="1" placeholder="0" readonly tabindex="-1" />
+              </div>
+            </div>
+          </div>
+          <div id="mx-edit-return-fields" class="d-none">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold" for="mx-edit-return-amount">Return Amount</label>
+                <input type="number" class="form-control" id="mx-edit-return-amount" inputmode="decimal" min="0" step="1" placeholder="0" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold" for="mx-edit-margin-return">Margin</label>
+                <input type="number" class="form-control" id="mx-edit-margin-return" inputmode="decimal" min="0" step="1" placeholder="0" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary" id="btn-mx-edit-txn-save">
+            <i class="fa fa-save me-1"></i> Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-currency-master" tabindex="-1" aria-labelledby="modal-currency-master-label" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered modal-currency-master-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="modal-currency-master-label">Currency master</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-3">
+          <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 px-3 shadow-sm" id="btn-open-add-currency">
+            <i class="fa fa-plus"></i><span>Add Currency</span>
+          </button>
+        </div>
+        <div class="currency-master-dt-wrap table-responsive">
+          <table class="table currency-master-table w-100 mb-0" id="currency-master-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th class="text-center">Status</th>
+                <th class="text-end currency-master-col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="currency-master-tbody">
+              <tr>
+                <td colspan="4" class="text-center text-muted py-4">Open this dialog to load currencies.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-add-currency" tabindex="-1" aria-labelledby="modal-add-currency-label" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="modal-add-currency-label">Add currency</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="form-add-currency">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label" for="add-currency-code">Code</label>
+            <input type="text" class="form-control" id="add-currency-code" name="txtCode" maxlength="10" placeholder="e.g. USD" autocomplete="off" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="add-currency-name">Name</label>
+            <input type="text" class="form-control" id="add-currency-name" name="txtName" maxlength="64" placeholder="Display name" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary" id="btn-add-currency-save">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal-edit-currency" tabindex="-1" aria-labelledby="modal-edit-currency-label" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="modal-edit-currency-label">Edit currency</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="form-edit-currency">
+        <input type="hidden" id="edit-currency-id" value="" />
+        <div class="modal-body">
+          <input type="hidden" name="txtActive" id="edit-currency-txt-active" value="1" />
+          <div class="mb-3">
+            <label class="form-label" for="edit-currency-code">Code</label>
+            <input type="text" class="form-control" id="edit-currency-code" name="txtCode" maxlength="10" placeholder="e.g. USD" autocomplete="off" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="edit-currency-name">Name</label>
+            <input type="text" class="form-control" id="edit-currency-name" name="txtName" maxlength="64" placeholder="Display name" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary" id="btn-edit-currency-save">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Child modals (Add/Edit) above parent Currency master when both are open */
+  #modal-add-currency.modal.show,
+  #modal-edit-currency.modal.show {
+    z-index: 1060;
+  }
+
+  .modal-currency-master-dialog {
+    max-width: min(96vw, 52rem);
+  }
+
+  /* Currency master table — aligned with marker / dashboard modal tables */
+  #modal-currency-master .currency-master-dt-wrap {
+    border-radius: 0.375rem;
+  }
+
+  #modal-currency-master .currency-master-table {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  }
+
+  #modal-currency-master .currency-master-table thead th {
+    background: linear-gradient(180deg, #eef4ff 0%, #e8efff 100%);
+    color: #1e3a5f;
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 0.65rem 0.75rem;
+    border-bottom: 1px solid #d5e0f0 !important;
+    border-color: #eef2f7 !important;
+    vertical-align: middle;
+  }
+
+  #modal-currency-master .currency-master-table tbody td {
+    padding: 0.65rem 0.75rem;
+    color: #334155;
+    border-color: #eef2f7 !important;
+    vertical-align: middle;
+  }
+
+  #modal-currency-master .currency-master-table tbody td.currency-master-col-code {
+    color: #0f172a;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #modal-currency-master .currency-master-table tbody tr:nth-child(even) td {
+    background-color: #fafbfd;
+  }
+
+  #modal-currency-master .currency-master-table tbody tr:nth-child(odd) td {
+    background-color: #fff;
+  }
+
+  #modal-currency-master .currency-master-table tbody tr:hover td {
+    background-color: #f0f6ff !important;
+  }
+
+  #modal-currency-master .currency-master-table tbody tr:hover td:first-child {
+    box-shadow: inset 3px 0 0 var(--bs-primary);
+  }
+
+  #modal-currency-master .currency-master-table .currency-master-col-actions {
+    white-space: nowrap;
+  }
+
+  #modal-currency-master .currency-master-table .currency-master-col-actions .btn {
+    padding: 0.2rem 0.45rem;
+  }
+
+  .money-exchange-board .exchange-title {
+    color: #fff;
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 1.7rem;
+  }
+
+  .money-exchange-board .exchange-title-blue {
+    background-color: #4682b4;
+  }
+
+  .money-exchange-board .exchange-title-orange {
+    background-color: #E89149;
+  }
+
+  .money-exchange-board .form-label {
+    margin-bottom: 6px;
+  }
+
+  /* Keep return inputs visually white even when disabled */
+  .money-exchange-board #mx-return-amount:disabled,
+  .money-exchange-board #mx-margin-return:disabled,
+  .money-exchange-board #mx-return-remark:disabled {
+    background-color: #fff;
+    opacity: 1;
+  }
+
+  .money-exchange-board .exchange-history-tabs {
+    border-bottom: 1px solid #e6e9f2;
+  }
+
+  .money-exchange-board .exchange-history-tabs .nav-link {
+    border: none;
+    color: #7f8aa3;
+    font-weight: 600;
+    background: transparent;
+    padding: 8px 4px;
+    margin-right: 24px;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+  }
+
+  .money-exchange-board .exchange-history-tabs .nav-link.active {
+    color: #2d5bff;
+    border-bottom-color: #2d5bff;
+  }
+
+  /* History tables — base look (scoped to this page only) */
+  .money-exchange-board .cage-modal-table-wrap.table-responsive {
+    border-radius: 0.375rem;
+  }
+
+  .money-exchange-board table.table.cage-modal-data-table {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    margin-bottom: 0;
+  }
+
+  .money-exchange-board table.table.cage-modal-data-table thead th {
+    background: linear-gradient(180deg, #eef4ff 0%, #e8efff 100%);
+    color: #1e3a5f;
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 0.65rem 0.75rem;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid #d5e0f0 !important;
+    border-color: #eef2f7 !important;
+  }
+
+  .money-exchange-board table.table.cage-modal-data-table thead th.text-end,
+  .money-exchange-board table.table.cage-modal-data-table tbody td.text-end {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .money-exchange-board table.table.cage-modal-data-table thead th.text-center {
+    text-align: center !important;
+  }
+
+  .money-exchange-board table.table.cage-modal-data-table tbody td {
+    padding: 0.65rem 0.75rem;
+    color: #334155;
+    border-color: #eef2f7 !important;
+    vertical-align: middle;
+  }
+
+  .money-exchange-board table.table.cage-modal-data-table tbody tr:nth-child(even) td {
+    background-color: #fafbfd;
+  }
+
+  .money-exchange-board table.table.cage-modal-data-table tbody tr:nth-child(odd) td {
+    background-color: #fff;
+  }
+
+  .money-exchange-board table.table.cage-modal-data-table tbody tr:hover td {
+    background-color: #f0f6ff !important;
+  }
+
+  /* Select2 — match dashboard marker modal */
+  .money-exchange-board .select2-container .select2-selection--single {
+    height: calc(1.5em + 0.75rem + 6px);
+  }
+
+  .money-exchange-board .select2-container .select2-search--inline .select2-search__field {
+    margin-top: 0;
+    margin: 0.25rem 0.25rem 0.25rem 0;
+    height: 1.375rem;
+    line-height: 1.375rem;
+  }
+
+  .money-exchange-board .select2-container--default .select2-selection--single {
+    border-color: #eee;
+  }
+
+  .money-exchange-board .select2-container--default .select2-selection--single .select2-selection__rendered {
+    display: flex;
+    align-items: center;
+    padding-left: 0.75rem;
+    height: calc(1.5em + 0.75rem + 6px);
+    line-height: 1.5;
+  }
+
+  .money-exchange-board .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + 0.75rem + 6px);
+  }
+
+  .money-exchange-board .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #8A92A6;
+  }
+
+  .money-exchange-board .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+  }
+
+  /* Edit modal: Select2 Account — same outer height as .form-control / .form-select in modal */
+  #modal-mx-edit-txn .select2-container {
+    display: block;
+  }
+
+  #modal-mx-edit-txn .select2-container .select2-selection--single {
+    height: calc(1.5em + 0.75rem + 6px);
+    min-height: calc(1.5em + 0.75rem + 6px);
+  }
+
+  #modal-mx-edit-txn .select2-container .select2-search--inline .select2-search__field {
+    margin-top: 0;
+    margin: 0.25rem 0.25rem 0.25rem 0;
+    height: 1.375rem;
+    line-height: 1.375rem;
+  }
+
+  #modal-mx-edit-txn .select2-container--default .select2-selection--single {
+    border-color: #dee2e6;
+  }
+
+  #modal-mx-edit-txn .select2-container--default .select2-selection--single .select2-selection__rendered {
+    display: flex;
+    align-items: center;
+    padding-left: 0.75rem;
+    height: calc(1.5em + 0.75rem + 6px);
+    min-height: calc(1.5em + 0.75rem + 6px);
+    line-height: 1.5;
+  }
+
+  #modal-mx-edit-txn .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + 0.75rem + 6px);
+    min-height: calc(1.5em + 0.75rem + 6px);
+  }
+
+  #modal-mx-edit-txn .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #8A92A6;
+  }
+
+  /* Deposit / return history — centered cells; date from server as "Apr 13, 2026 11:15" */
+  .money-exchange-board .mx-history-table thead th,
+  .money-exchange-board .mx-history-table tbody td {
+    text-align: center !important;
+    vertical-align: middle;
+  }
+
+  .money-exchange-board .mx-history-table tbody td {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Single-line headers (short labels + nowrap) */
+  #deposit-history-pane .mx-history-table thead th,
+  #return-history-pane .mx-history-table thead th {
+    white-space: nowrap;
+    line-height: 1.2;
+    padding: 0.5rem 0.35rem;
+    font-size: 0.6875rem;
+  }
+
+  /* Fixed column widths — deposit */
+  #deposit-history-pane .mx-history-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  #deposit-history-pane .mx-history-table th:nth-child(1),
+  #deposit-history-pane .mx-history-table td:nth-child(1) {
+    width: 4%;
+  }
+
+  #deposit-history-pane .mx-history-table th:nth-child(2),
+  #deposit-history-pane .mx-history-table td:nth-child(2) {
+    width: 10%;
+  }
+
+  #deposit-history-pane .mx-history-table th:nth-child(3),
+  #deposit-history-pane .mx-history-table td:nth-child(3) {
+    width: 10%;
+  }
+
+  #deposit-history-pane .mx-history-table th:nth-child(4),
+  #deposit-history-pane .mx-history-table td:nth-child(4) {
+    width: 8%;
+  }
+
+  #deposit-history-pane .mx-history-table th:nth-child(5),
+  #deposit-history-pane .mx-history-table td:nth-child(5) {
+    width: 5%;
+  }
+
+  #deposit-history-pane .mx-history-table th:nth-child(6),
+  #deposit-history-pane .mx-history-table td:nth-child(6) {
+    width: 10%;
+  }
+
+  #deposit-history-pane .mx-history-table th:nth-child(7),
+  #deposit-history-pane .mx-history-table td:nth-child(7) {
+    width: 5%;
+  }
+
+  #deposit-history-pane .mx-history-table th:nth-child(8),
+  #deposit-history-pane .mx-history-table td:nth-child(8) {
+    width: 5%;
+  }
+
+  #deposit-history-pane .mx-history-table th:nth-child(9),
+  #deposit-history-pane .mx-history-table td:nth-child(9) {
+    width: 10%;
+  }
+
+  #deposit-history-pane .mx-history-table th:nth-child(10),
+  #deposit-history-pane .mx-history-table td:nth-child(10) {
+    width: 7%;
+    min-width: 0;
+  }
+
+  /* Deposit: 11 columns (default); + Actions column for Super Admin only */
+  .money-exchange-board:not(.mx-superadmin-history) #deposit-history-pane .mx-history-table th:nth-child(11),
+  .money-exchange-board:not(.mx-superadmin-history) #deposit-history-pane .mx-history-table td:nth-child(11) {
+    width: 21%;
+    min-width: 0;
+  }
+
+  .money-exchange-board.mx-superadmin-history #deposit-history-pane .mx-history-table th:nth-child(11),
+  .money-exchange-board.mx-superadmin-history #deposit-history-pane .mx-history-table td:nth-child(11) {
+    width: 15%;
+    min-width: 0;
+  }
+
+  .money-exchange-board.mx-superadmin-history #deposit-history-pane .mx-history-table th:nth-child(12),
+  .money-exchange-board.mx-superadmin-history #deposit-history-pane .mx-history-table td:nth-child(12) {
+    width: 6%;
+    min-width: 5.5rem;
+  }
+
+  .money-exchange-board .mx-history-col-actions .btn {
+    padding: 0.15rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .money-exchange-board .mx-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 4.75rem;
+    padding: 0.24rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .money-exchange-board .mx-status-returned {
+    color: #fff;
+    background: linear-gradient(180deg, #25b36a 0%, #179c57 100%);
+    box-shadow: 0 1px 2px rgba(14, 116, 62, 0.25);
+    border: none;
+    cursor: pointer;
+  }
+
+  .money-exchange-board .mx-status-returned:hover {
+    filter: brightness(1.04);
+  }
+
+  #modal-mx-return-details .modal-content {
+    border: 1px solid #dbe6f2;
+    border-radius: 0.55rem;
+    overflow: hidden;
+  }
+
+  #modal-mx-return-details .modal-header {
+    background: linear-gradient(180deg, #3f86f7 0%, #2b6fe0 100%) !important;
+    border-bottom: none;
+    padding: 0.72rem 0.95rem;
+  }
+
+  #modal-mx-return-details .modal-title {
+    font-size: 0.98rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  #modal-mx-return-details .mx-ret-header-meta {
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-top: 0.1rem;
+    opacity: 0.95;
+    letter-spacing: 0.01em;
+  }
+
+  #modal-mx-return-details .mx-return-details-body {
+    padding: 0.9rem 0.95rem 0.65rem;
+  }
+
+  #modal-mx-return-details .mx-ret-row {
+    display: grid;
+    grid-template-columns: 9.75rem 1fr;
+    gap: 0.65rem;
+    padding: 0.42rem 0.1rem;
+    border-bottom: 1px dashed #e8eef6;
+    align-items: start;
+  }
+
+  #modal-mx-return-details .mx-ret-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0.15rem;
+  }
+
+  #modal-mx-return-details .mx-ret-label {
+    color: #64748b;
+    font-weight: 700;
+    font-size: 0.79rem;
+    letter-spacing: 0.01em;
+  }
+
+  #modal-mx-return-details .mx-ret-value {
+    color: #0f172a;
+    font-weight: 600;
+    font-size: 0.86rem;
+    word-break: break-word;
+  }
+
+  #modal-mx-return-details .mx-ret-remark {
+    font-weight: 500;
+    color: #334155;
+  }
+
+  /* Return: 4 cols (default); + Actions for Super Admin */
+  #return-history-pane .mx-history-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  #return-history-pane .mx-history-table th:nth-child(1),
+  #return-history-pane .mx-history-table td:nth-child(1) {
+    width: 18%;
+  }
+
+  #return-history-pane .mx-history-table th:nth-child(2),
+  #return-history-pane .mx-history-table td:nth-child(2) {
+    width: 16%;
+  }
+
+  #return-history-pane .mx-history-table th:nth-child(3),
+  #return-history-pane .mx-history-table td:nth-child(3) {
+    width: 14%;
+  }
+
+  .money-exchange-board:not(.mx-superadmin-history) #return-history-pane .mx-history-table th:nth-child(4),
+  .money-exchange-board:not(.mx-superadmin-history) #return-history-pane .mx-history-table td:nth-child(4) {
+    width: 52%;
+    min-width: 0;
+  }
+
+  .money-exchange-board.mx-superadmin-history #return-history-pane .mx-history-table th:nth-child(4),
+  .money-exchange-board.mx-superadmin-history #return-history-pane .mx-history-table td:nth-child(4) {
+    width: 44%;
+    min-width: 0;
+  }
+
+  .money-exchange-board.mx-superadmin-history #return-history-pane .mx-history-table th:nth-child(5),
+  .money-exchange-board.mx-superadmin-history #return-history-pane .mx-history-table td:nth-child(5) {
+    width: 8%;
+    min-width: 5.5rem;
+  }
+
+  /* DataTables toolbar + search + pagination — copied from marker.ejs (#modal-new-marker → .money-exchange-board) */
+  .money-exchange-board .marker-history-dt-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .money-exchange-board .marker-history-card {
+    border-radius: 0.5rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: linear-gradient(180deg, #fafbfc 0%, #ffffff 48px);
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 4px 12px rgba(15, 23, 42, 0.06);
+    padding: 0.65rem 0.30rem 0.5rem 0.75rem;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_wrapper {
+    width: 100% !important;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_wrapper > .row:first-child {
+    margin-bottom: 0.65rem !important;
+    padding: 0.35rem 0 0.35rem 0;
+    align-items: center;
+    justify-content: space-between;
+    --bs-gutter-x: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_wrapper > .row:first-child > div:last-child {
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_length,
+  .money-exchange-board .marker-history-dt-wrap .dataTables_filter {
+    max-width: 100%;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_filter {
+    margin-right: 0 !important;
+    margin-left: 0;
+    flex: 0 0 auto;
+    text-align: right;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_length label,
+  .money-exchange-board .marker-history-dt-wrap .dataTables_filter label {
+    font-size: 0.8125rem;
+    color: #64748b;
+    font-weight: 500;
+    gap: 0.35rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_filter label {
+    justify-content: flex-end;
+    width: 100%;
+  }
+
+  @media (min-width: 768px) {
+    .money-exchange-board .marker-history-dt-wrap .dataTables_filter label {
+      width: auto;
+    }
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_length select {
+    display: inline-block;
+    min-width: 4.25rem;
+    padding: 0.3rem 2rem 0.3rem 0.55rem;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: #334155;
+    background-color: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.375rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_filter input {
+    max-width: 100%;
+    width: 100% !important;
+    box-sizing: border-box;
+    margin-left: 0.35rem !important;
+    padding: 0.4rem 0.65rem;
+    font-size: 0.8125rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.375rem;
+    background: #fff;
+    color: #334155;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_filter input:focus {
+    outline: none;
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+  }
+
+  @media (min-width: 768px) {
+    .money-exchange-board .marker-history-dt-wrap .dataTables_filter input {
+      width: auto !important;
+      min-width: 11rem;
+      max-width: 17rem;
+    }
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_wrapper > .row:last-child {
+    margin-top: 0.65rem !important;
+    padding: 0.55rem 0.35rem 0.15rem;
+    border-top: 1px solid #eef2f7;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_info {
+    font-size: 0.8125rem;
+    color: #64748b;
+    padding-top: 0.35rem !important;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_paginate {
+    overflow-x: auto;
+    max-width: 100%;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.25rem;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_paginate .pagination {
+    margin-bottom: 0;
+    gap: 0.2rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_paginate .page-link {
+    font-size: 0.8125rem;
+    padding: 0.3rem 0.55rem;
+    border-radius: 0.3rem;
+    border-color: #e2e8f0;
+    color: #475569;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_paginate .page-item.active .page-link {
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: #fff;
+  }
+
+  .money-exchange-board .marker-history-dt-wrap .dataTables_paginate .page-link:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: var(--bs-primary);
+  }
+</style>
+
 <%- include('../partials/footer') %>
+<script src="/assets/js/functions/money_exchange.js"></script>

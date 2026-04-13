@@ -1175,16 +1175,6 @@ pageRouter.get("/main_cage", function (req, res) {
 	res.render("junket/main_cage", sessions(req, 'main_cage'));
 });
 
-// ========== MONEY EXCHANGE PAGE ==========
-pageRouter.get("/others", checkSession, function (req, res) {
-	res.redirect(301, "/money_exchange");
-});
-pageRouter.get("/money_exchange", checkSession, function (req, res) {
-	const data = sessions(req, 'money_exchange');
-	data.permissions = req.session.permissions;
-	res.render("money_exchange/money_exchange", data);
-});
-
 //========== USER ACCOUNTS ================
 pageRouter.get("/user_roles", function (req, res) {
 	const data = sessions(req, 'user_roles');

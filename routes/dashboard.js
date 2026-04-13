@@ -380,6 +380,48 @@ ON
 	let sqlTotalCashOutRolling = 'SELECT SUM(NN_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2';
 	let sqlTotalCashOut = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 2 AND TRANSACTION != 4';
 
+	/* money_exchange_transaction — deposit: EXCHANGE_AMOUNT; return: RETURN_AMOUNT + MARGIN_RETURN */
+	let sqlMxDepositExchangeAmount = 'SELECT SUM(EXCHANGE_AMOUNT) AS MX_DEPOSIT_EXCHANGE FROM money_exchange_transaction WHERE ACTIVE = 1 AND TRANS_TYPE = 1';
+	let sqlMxReturnAmount = 'SELECT SUM(RETURN_AMOUNT) AS MX_RETURN_AMOUNT FROM money_exchange_transaction WHERE ACTIVE = 1 AND TRANS_TYPE = 2';
+	let sqlMxMarginReturn = 'SELECT SUM(MARGIN_RETURN) AS MX_MARGIN_RETURN FROM money_exchange_transaction WHERE ACTIVE = 1 AND TRANS_TYPE = 2';
+	// PHP-aware movement for cash balance:
+	// - IN_CURRENCY = PHP  -> cash IN by AMOUNT_IN
+	// - EXCHANGE_CURRENCY = PHP -> cash OUT by EXCHANGE_AMOUNT
+	let sqlMxPhpDepositIn = `
+		SELECT SUM(t.AMOUNT_IN) AS MX_PHP_DEPOSIT_IN
+		FROM money_exchange_transaction t
+		INNER JOIN currency_master c ON c.ID = t.IN_CURRENCY_ID
+		WHERE t.ACTIVE = 1 AND t.TRANS_TYPE = 1 AND c.CODE = 'PHP'
+	`;
+	let sqlMxPhpDepositOut = `
+		SELECT SUM(t.EXCHANGE_AMOUNT) AS MX_PHP_DEPOSIT_OUT
+		FROM money_exchange_transaction t
+		INNER JOIN currency_master c ON c.ID = t.EXCHANGE_CURRENCY_ID
+		WHERE t.ACTIVE = 1 AND t.TRANS_TYPE = 1 AND c.CODE = 'PHP'
+	`;
+	// Net MX cash impact for dashboard:
+	// - Pending deposit: include principal cash movement
+	// - Returned deposit: include realized margin only
+	let sqlMxCashNet = `
+		SELECT
+			COALESCE(SUM(
+				CASE
+					WHEN r.ID IS NOT NULL THEN COALESCE(r.MARGIN_RETURN, 0)
+					WHEN in_ccy.CODE = 'PHP' AND ex_ccy.CODE <> 'PHP' THEN COALESCE(d.AMOUNT_IN, 0)
+					WHEN ex_ccy.CODE = 'PHP' AND in_ccy.CODE <> 'PHP' THEN -COALESCE(d.EXCHANGE_AMOUNT, 0)
+					ELSE 0
+				END
+			), 0) AS MX_CASH_NET
+		FROM money_exchange_transaction d
+		LEFT JOIN currency_master in_ccy ON in_ccy.ID = d.IN_CURRENCY_ID
+		LEFT JOIN currency_master ex_ccy ON ex_ccy.ID = d.EXCHANGE_CURRENCY_ID
+		LEFT JOIN money_exchange_transaction r
+			ON r.SOURCE_DEPOSIT_ID = d.ID
+			AND r.TRANS_TYPE = 2
+			AND r.ACTIVE = 1
+		WHERE d.ACTIVE = 1 AND d.TRANS_TYPE = 1
+	`;
+
 	let sqlWinLoss = 'SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHIN FROM game_record WHERE ACTIVE =1 AND CAGE_TYPE = 1';
 	
 let sqlServiceCashGuest = `
@@ -492,6 +534,12 @@ let sqlServiceSettle = `
 		const [TotalCashOutRollingResetResult] = await pool.execute(sqlTotalCashOutRollingReset);
 		const [WinLossResetResult] = await pool.execute(sqlWinLossReset);
 		const [AccountMarkerReturnResult] = await pool.execute(sqlAccountMarkerReturn);
+		const [MxDepositExchangeAmountResult] = await pool.execute(sqlMxDepositExchangeAmount);
+		const [MxReturnAmountResult] = await pool.execute(sqlMxReturnAmount);
+		const [MxMarginReturnResult] = await pool.execute(sqlMxMarginReturn);
+		const [MxPhpDepositInResult] = await pool.execute(sqlMxPhpDepositIn);
+		const [MxPhpDepositOutResult] = await pool.execute(sqlMxPhpDepositOut);
+		const [MxCashNetResult] = await pool.execute(sqlMxCashNet);
 		const [ChipsReturnMarkerResult] = await pool.execute(sqlChipsReturnMarker);
 		const [MArkerReturnDepositResult] = await pool.execute(sqlMArkerReturnDeposit);
 		const [MArkerReturnCashResult] = await pool.execute(sqlMArkerReturnCash);
@@ -779,6 +827,12 @@ let sqlServiceSettle = `
 			sqlAccountTransfer: AccountTransferResult,
 
 			sqlAccountMarkerReturn: AccountMarkerReturnResult,
+			sqlMxDepositExchangeAmount: MxDepositExchangeAmountResult,
+			sqlMxReturnAmount: MxReturnAmountResult,
+			sqlMxMarginReturn: MxMarginReturnResult,
+			sqlMxPhpDepositIn: MxPhpDepositInResult,
+			sqlMxPhpDepositOut: MxPhpDepositOutResult,
+			sqlMxCashNet: MxCashNetResult,
 			sqlChipsReturnMarker: ChipsReturnMarkerResult,
 			sqlMArkerReturnDeposit: MArkerReturnDepositResult,
 			sqlMArkerReturnCash: MArkerReturnCashResult,

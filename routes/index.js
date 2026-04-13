@@ -11,6 +11,7 @@ module.exports = [
     require('./dashboard'),
     require('./activity_log'),
     require('./junket_loss'),
+    require('./money_exchange'),
     require('./routes.js'), // pageRouter with page routes like /activity_log, /game_list, etc.
     require('./telegramData'),
     require('./fnb_hotel'),
