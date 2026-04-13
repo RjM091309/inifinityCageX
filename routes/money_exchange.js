@@ -216,7 +216,7 @@ router.get('/money_exchange_deposit_history', checkSession, async (req, res) => 
 			Math.max(parseInt(req.query.limit, 10) || 200, 1),
 			500
 		);
-		const [rows] = await pool.execute(
+		const [rows] = await pool.query(
 			`SELECT
 				t.ID AS id,
 				DATE_FORMAT(t.TRANS_DATETIME, '%b %e, %Y %H:%i') AS trans_datetime,
@@ -252,8 +252,7 @@ router.get('/money_exchange_deposit_history', checkSession, async (req, res) => 
 				AND r.ACTIVE = 1
 			WHERE t.TRANS_TYPE = 1 AND t.ACTIVE = 1
 			ORDER BY t.TRANS_DATETIME DESC, t.ID DESC
-			LIMIT ?`,
-			[limit]
+			LIMIT ${limit}`
 		);
 		res.json(rows || []);
 	} catch (err) {
@@ -269,7 +268,7 @@ router.get('/money_exchange_return_history', checkSession, async (req, res) => {
 			Math.max(parseInt(req.query.limit, 10) || 200, 1),
 			500
 		);
-		const [rows] = await pool.execute(
+		const [rows] = await pool.query(
 			`SELECT
 				t.ID AS id,
 				DATE_FORMAT(t.TRANS_DATETIME, '%b %e, %Y %H:%i') AS trans_datetime,
@@ -287,8 +286,7 @@ router.get('/money_exchange_return_history', checkSession, async (req, res) => {
 			LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			WHERE t.TRANS_TYPE = 2 AND t.ACTIVE = 1
 			ORDER BY t.TRANS_DATETIME DESC, t.ID DESC
-			LIMIT ?`,
-			[limit]
+			LIMIT ${limit}`
 		);
 		res.json(rows || []);
 	} catch (err) {
