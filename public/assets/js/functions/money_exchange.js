@@ -20,6 +20,15 @@
 		return d.innerHTML;
 	}
 
+	function escapeAttr(s) {
+		if (s == null) return '';
+		return String(s)
+			.replace(/&/g, '&amp;')
+			.replace(/"/g, '&quot;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;');
+	}
+
 	function fmtNum(n) {
 		if (n == null || n === '') return '—';
 		const x = Number(n);
@@ -77,16 +86,26 @@
 		return String(Math.round(n));
 	}
 
-	/** Account column: "CODE - NAME" when linked; em dash if walk-in */
+	/** Account column: "CODE - NAME" when linked; em dash if walk-in (truncated + title tooltip) */
 	function mxHistoryAccountCell(row) {
+		let text = '';
 		if (row.account_id && (row.agent_code || row.agent_name)) {
 			const code = row.agent_code != null ? String(row.agent_code).trim() : '';
 			const name = row.agent_name != null ? String(row.agent_name).trim() : '';
-			if (code && name) return escapeHtml(code + ' - ' + name);
-			if (code) return escapeHtml(code);
-			if (name) return escapeHtml(name);
+			if (code && name) text = code + ' - ' + name;
+			else if (code) text = code;
+			else if (name) text = name;
 		}
-		return '—';
+		if (!text) return '—';
+		const esc = escapeHtml(text);
+		const title = escapeAttr(text);
+		return (
+			'<span class="mx-history-account-truncate d-block text-truncate" title="' +
+			title +
+			'">' +
+			esc +
+			'</span>'
+		);
 	}
 
 	/** Name column: typed guest name only, or em dash if empty */

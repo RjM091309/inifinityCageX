@@ -675,6 +675,17 @@
   #deposit-history-pane .mx-history-table th:nth-child(3),
   #deposit-history-pane .mx-history-table td:nth-child(3) {
     width: 10%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  #deposit-history-pane .mx-history-table td:nth-child(3) {
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+
+  #deposit-history-pane .mx-history-table td:nth-child(3) .mx-history-account-truncate {
+    max-width: 100%;
   }
 
   #deposit-history-pane .mx-history-table th:nth-child(4),
