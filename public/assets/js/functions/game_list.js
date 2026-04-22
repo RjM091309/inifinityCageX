@@ -86,6 +86,12 @@ function translateGameSource(source) {
 	return source;
 }
 
+function formatCommissionRateDisplay(rate) {
+	var numRate = Number(rate);
+	if (isNaN(numRate)) numRate = 0;
+	return numRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+}
+
 function buildGameRateCell(row, userPermissions, isSettled) {
 	var pct = Number(row.COMMISSION_PERCENTAGE);
 	if (isNaN(pct)) pct = 0;
@@ -109,7 +115,7 @@ function buildGameRateCell(row, userPermissions, isSettled) {
 	} else {
 		badgePart = '<span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span>';
 	}
-	return pct + '% ' + badgePart;
+	return formatCommissionRateDisplay(pct) + ' ' + badgePart;
 }
 
 function getCommissionRateRules(typeVal) {
@@ -5359,7 +5365,7 @@ $(document).ready(function () {
 								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
                                 var actionButtons = btn_services + btn_his;
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-                                dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
+                                dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), formatCommissionRateDisplay(row.COMMISSION_PERCENTAGE), net, winloss, status, actionButtons]).draw();
 							} else if (row.game_status == 3) {
 								// PENDING STATUS (discrepancy in roller chips return)
 								const pendingText = "PENDING";
@@ -5370,7 +5376,7 @@ $(document).ready(function () {
 								cashout_td = parseFloat(total_cash_out_chips).toLocaleString();
                                 var actionButtons = btn_services + btn_his;
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-                                dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
+                                dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), formatCommissionRateDisplay(row.COMMISSION_PERCENTAGE), net, winloss, status, actionButtons]).draw();
 							} else {
 								
 								//END GAME STATUS EDITABLE(ON GAME & END GAME)
@@ -5400,7 +5406,7 @@ $(document).ready(function () {
 						   </div>`;
 						   var actionButtons = btn_services + btn_settle;
 						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-						   dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), `${row.COMMISSION_PERCENTAGE}%`, net, winloss, status, actionButtons]).draw();
+						   dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), formatCommissionRateDisplay(row.COMMISSION_PERCENTAGE), net, winloss, status, actionButtons]).draw();
 
 							}
 
