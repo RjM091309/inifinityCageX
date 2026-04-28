@@ -1,6 +1,12 @@
 // ============== FRONTEND (house_expense.js) =======================
 var expense_id;
 var return_money_id;
+window.houseExpenseLastRows = [];
+window.houseExpenseBreakdownState = {
+    rows: [],
+    sortKey: 'date_time',
+    sortDir: 'desc'
+};
 
 // Helper: encode string for safe use in HTML data attributes (handles newlines, quotes, etc.)
 function attrEncode(str) {
@@ -16,6 +22,36 @@ function attrEncode(str) {
 function formatHouseExpensePeso(n) {
     var v = Number(n) || 0;
     return '₱' + v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function formatHouseExpenseNumber(n) {
+    var v = Number(n) || 0;
+    return v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+// Eight distinct category colors (no repeat within top 8). Green reserved for Return Money only.
+var HOUSE_EXPENSE_ANALYTICS_SOLIDS = [
+    { bar: '#3b59ff', text: '#1e3a8a', track: 'rgba(59, 89, 255, 0.14)' },
+    { bar: '#f06522', text: '#9a3412', track: 'rgba(240, 101, 34, 0.16)' },
+    { bar: '#7c3aed', text: '#4c1d95', track: 'rgba(124, 58, 237, 0.14)' },
+    { bar: '#db2777', text: '#831843', track: 'rgba(219, 39, 119, 0.14)' },
+    { bar: '#0891b2', text: '#164e63', track: 'rgba(8, 145, 178, 0.14)' },
+    { bar: '#ca8a04', text: '#713f12', track: 'rgba(202, 138, 4, 0.15)' },
+    { bar: '#4f46e5', text: '#312e81', track: 'rgba(79, 70, 229, 0.14)' },
+    { bar: '#b45309', text: '#78350f', track: 'rgba(180, 83, 9, 0.14)' }
+];
+
+function houseExpenseAnalyticsSolidAtRow(rowIndex) {
+    var i = Math.max(0, parseInt(rowIndex, 10) || 0);
+    return HOUSE_EXPENSE_ANALYTICS_SOLIDS[i % HOUSE_EXPENSE_ANALYTICS_SOLIDS.length];
+}
+
+function houseExpenseAnalyticsReturnMoneySolid() {
+    return {
+        bar: '#109d59',
+        text: '#065f46',
+        track: 'rgba(16, 157, 89, 0.14)'
+    };
 }
 
 function houseExpenseEditLogCount(row) {
@@ -162,6 +198,209 @@ function setHouseExpenseFooterTotals(totalExpense, totalReturnMoney) {
     $('#TOTAL_NET_EXPENSES_AMOUNT').text(formatHouseExpensePeso(te - tr));
 }
 
+function renderHouseExpenseAnalytics(data, totalExpense, totalReturnMoney) {
+    var te = Number(totalExpense) || 0;
+    var tr = Number(totalReturnMoney) || 0;
+    var net = te - tr;
+
+    $('#analytics-total-expense').text(formatHouseExpensePeso(te));
+    $('#analytics-total-return').text(formatHouseExpensePeso(tr));
+    $('#analytics-total-net').text(formatHouseExpensePeso(net));
+
+    var expenseRows = (data || []).filter(function (row) {
+        return row && row.record_type !== 'return_money';
+    });
+    var returnMoneyRows = (data || []).filter(function (row) {
+        return row && row.record_type === 'return_money';
+    });
+
+    if (expenseRows.length === 0 && returnMoneyRows.length === 0) {
+        $('#analytics-category-breakdown').html('<div class="text-muted small">No expense data yet.</div>');
+        $('#analytics-return-breakdown').html('');
+        return;
+    }
+
+    var byCategory = {};
+    expenseRows.forEach(function (row) {
+        var amount = Number(row.AMOUNT) || 0;
+        var category = row.expense_category || 'Uncategorized';
+        byCategory[category] = (byCategory[category] || 0) + amount;
+    });
+
+    var categoryEntries = Object.keys(byCategory)
+        .map(function (key) {
+            return { name: key, amount: byCategory[key], isReturnMoney: false };
+        })
+        .sort(function (a, b) {
+            return b.amount - a.amount;
+        });
+    categoryEntries = categoryEntries.slice(0, 8);
+
+    var maxCategoryAmount = categoryEntries.length > 0 ? categoryEntries[0].amount : 0;
+    var percentageBase = te > 0 ? te : 0;
+    var categoryHtml = categoryEntries
+        .map(function (entry, rowIdx) {
+            var pal = houseExpenseAnalyticsSolidAtRow(rowIdx);
+            var percent = maxCategoryAmount > 0 ? (entry.amount / maxCategoryAmount) * 100 : 0;
+            var shareOfTotal = percentageBase > 0 ? (entry.amount / percentageBase) * 100 : 0;
+            var shareText = shareOfTotal.toFixed(1) + '%';
+            var fillStyle =
+                'width:' + percent.toFixed(2) + '%;background:' + pal.bar + ';background-image:none;';
+            return (
+                '<div class="analytics-breakdown-row js-analytics-category-row" data-category="' + houseExpenseHtmlEscape(entry.name) + '">' +
+                    '<div class="analytics-breakdown-head">' +
+                        '<div class="analytics-breakdown-label" title="' + houseExpenseHtmlEscape(entry.name) + '">' +
+                            houseExpenseHtmlEscape(entry.name) +
+                        '</div>' +
+                        '<div class="analytics-breakdown-amount" style="color:' +
+                        pal.text +
+                        ';">' +
+                        formatHouseExpensePeso(entry.amount) +
+                        ' <span style="font-weight:700;opacity:0.92">(' +
+                        shareText +
+                        ')</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="analytics-breakdown-track" style="background:' +
+                    pal.track +
+                    '">' +
+                        '<div class="analytics-breakdown-fill" style="' + fillStyle + '"></div>' +
+                    '</div>' +
+                '</div>'
+            );
+        })
+        .join('');
+    if (categoryEntries.length === 0) {
+        $('#analytics-category-breakdown').html(
+            '<div class="text-muted small">No expense data yet.</div>'
+        );
+    } else {
+        $('#analytics-category-breakdown').html(categoryHtml);
+    }
+
+    // Return Money row: amount + bar only — no (%) (percentages above are share of total expenses only).
+    if (tr > 0) {
+        var retPal = houseExpenseAnalyticsReturnMoneySolid();
+        var maxDisplayAmount = Math.max(maxCategoryAmount, tr);
+        var returnPercentWidth = maxDisplayAmount > 0 ? (tr / maxDisplayAmount) * 100 : 0;
+        var returnFillStyle =
+            'width:' +
+            returnPercentWidth.toFixed(2) +
+            '%;background:' +
+            retPal.bar +
+            ';background-image:none;';
+        var returnHtml =
+            '<div class="analytics-breakdown-row js-analytics-category-row" data-category="Return Money">' +
+                '<div class="analytics-breakdown-head">' +
+                    '<div class="analytics-breakdown-label">Return Money</div>' +
+                    '<div class="analytics-breakdown-amount" style="color:' +
+                    retPal.text +
+                    '">' +
+                    formatHouseExpensePeso(tr) +
+                    '</div>' +
+                '</div>' +
+                '<div class="analytics-breakdown-track" style="background:' +
+                retPal.track +
+                '">' +
+                    '<div class="analytics-breakdown-fill" style="' + returnFillStyle + '"></div>' +
+                '</div>' +
+            '</div>';
+        $('#analytics-return-breakdown').html(returnHtml);
+    } else {
+        $('#analytics-return-breakdown').html('');
+    }
+}
+
+function showExpenseBreakdownModalByCategory(categoryName) {
+    var category = String(categoryName || '').trim();
+    if (!category) return;
+
+    var rows = (window.houseExpenseLastRows || []).filter(function (row) {
+        if (!row) return false;
+        if (category === 'Return Money') {
+            return row.record_type === 'return_money';
+        }
+        return row.record_type !== 'return_money' && String(row.expense_category || '').trim() === category;
+    });
+
+    $('#breakdown-modal-category-name').text(category);
+
+    if (rows.length === 0) {
+        $('#breakdown-modal-tbody').html('<tr><td colspan="5" class="text-center text-muted py-3">No entries found.</td></tr>');
+        $('#breakdown-modal-grand-total').text(formatHouseExpenseNumber(0));
+    } else {
+        window.houseExpenseBreakdownState.rows = rows.slice();
+        window.houseExpenseBreakdownState.sortKey = 'date_time';
+        window.houseExpenseBreakdownState.sortDir = 'desc';
+        renderExpenseBreakdownModalRows();
+    }
+
+    var $breakdownModal = $('#modal-expense-breakdown-details');
+    if ($breakdownModal.length) {
+        $breakdownModal.appendTo('body');
+        $breakdownModal.modal('show');
+    }
+}
+
+function getBreakdownSortValue(row, key) {
+    if (!row) return '';
+    if (key === 'amount') return Number(row.AMOUNT) || 0;
+    if (key === 'description') return String(row.RECEIPT_NO || '').toLowerCase();
+    if (key === 'in_charge') return String(row.OIC || row.DESCRIPTION || '').toLowerCase();
+    if (key === 'encoded_by') return String(row.FIRSTNAME || '').toLowerCase();
+    if (key === 'date_time') return new Date(row.ENCODED_DT || 0).getTime();
+    return '';
+}
+
+function renderExpenseBreakdownModalRows() {
+    var state = window.houseExpenseBreakdownState || {};
+    var rows = (state.rows || []).slice();
+    var key = state.sortKey || 'date_time';
+    var dir = state.sortDir === 'asc' ? 'asc' : 'desc';
+
+    rows.sort(function (a, b) {
+        var av = getBreakdownSortValue(a, key);
+        var bv = getBreakdownSortValue(b, key);
+        if (av < bv) return dir === 'asc' ? -1 : 1;
+        if (av > bv) return dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    var total = 0;
+    var html = rows.map(function (row) {
+        var amount = Number(row.AMOUNT) || 0;
+        total += amount;
+        var displayDate = row.ENCODED_DT
+            ? moment.utc(row.ENCODED_DT).utcOffset(8).format('DD MMM YYYY, HH:mm:ss')
+            : '-';
+        var isReturnMoney = row.record_type === 'return_money';
+        var descriptionText = isReturnMoney ? (row.DESCRIPTION || '-') : (row.RECEIPT_NO || '-');
+        var inChargeText = isReturnMoney ? '-' : (row.OIC || row.DESCRIPTION || '-');
+        return (
+            '<tr>' +
+                '<td>' + houseExpenseHtmlEscape(descriptionText) + '</td>' +
+                '<td>' + houseExpenseHtmlEscape(inChargeText) + '</td>' +
+                '<td class="fw-semibold text-end">' + formatHouseExpenseNumber(amount) + '</td>' +
+                '<td>' + houseExpenseHtmlEscape(row.FIRSTNAME || '-') + '</td>' +
+                '<td>' + houseExpenseHtmlEscape(displayDate) + '</td>' +
+            '</tr>'
+        );
+    }).join('');
+
+    $('#breakdown-modal-tbody').html(html || '<tr><td colspan="5" class="text-center text-muted py-3">No entries found.</td></tr>');
+    $('#breakdown-modal-grand-total').text(formatHouseExpenseNumber(total));
+
+    $('#breakdown-modal-head-table thead th.sortable-col').each(function () {
+        var $th = $(this);
+        var thKey = $th.attr('data-sort-key');
+        var indicator = '-';
+        if (thKey === key) {
+            indicator = dir === 'asc' ? '▲' : '▼';
+        }
+        $th.find('.sort-indicator').text(indicator);
+    });
+}
+
 $(document).ready(function () {
     function clearExpenseTableDisplay() {
         if ($.fn.DataTable.isDataTable('#expense-tbl')) {
@@ -170,6 +409,7 @@ $(document).ready(function () {
             dt.draw();
         }
         setHouseExpenseFooterTotals(0, 0);
+        renderHouseExpenseAnalytics([], 0, 0);
     }
 
     function initializeExpenseTable() {
@@ -272,6 +512,8 @@ $(document).ready(function () {
                         var tbody = dataTable.table().body();
                         $(tbody).html('<tr><td colspan="7" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
                         setHouseExpenseFooterTotals(0, 0);
+                        renderHouseExpenseAnalytics([], 0, 0);
+                        window.houseExpenseLastRows = [];
                         return;
                     }
 
@@ -395,6 +637,8 @@ $(document).ready(function () {
                     });
                     
                     setHouseExpenseFooterTotals(total_expense, total_return_money);
+                    renderHouseExpenseAnalytics(data, total_expense, total_return_money);
+                    window.houseExpenseLastRows = data;
 
                 },
                 error: function (xhr, status, error) {
@@ -834,6 +1078,8 @@ $(document).ready(function () {
                             var tbody = dataTable.table().body();
                             $(tbody).html('<tr><td colspan="7" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
                             setHouseExpenseFooterTotals(0, 0);
+                            renderHouseExpenseAnalytics([], 0, 0);
+                            window.houseExpenseLastRows = [];
                             if (typeof window.updateSettleButtonState === 'function') {
                                 window.updateSettleButtonState(0);
                             }
@@ -960,6 +1206,8 @@ $(document).ready(function () {
                         });
                         
                         setHouseExpenseFooterTotals(total_expense, total_return_money);
+                        renderHouseExpenseAnalytics(data, total_expense, total_return_money);
+                        window.houseExpenseLastRows = data;
                         
                         if (typeof window.updateSettleButtonState === 'function') {
                             window.updateSettleButtonState(data.length);
@@ -1082,6 +1330,24 @@ $(document).ready(function () {
             var oic = $btn.attr('data-oic') || '';
             edit_expense(id, categoryId, receiptNo, dateTime, description, amount, oic);
         }
+    });
+
+    $(document).on('click', '.js-analytics-category-row', function () {
+        var categoryName = $(this).attr('data-category') || '';
+        showExpenseBreakdownModalByCategory(categoryName);
+    });
+
+    $(document).on('click', '#breakdown-modal-head-table thead th.sortable-col', function () {
+        var key = $(this).attr('data-sort-key') || 'date_time';
+        var state = window.houseExpenseBreakdownState || {};
+        if (state.sortKey === key) {
+            state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            state.sortKey = key;
+            state.sortDir = key === 'date_time' ? 'desc' : 'asc';
+        }
+        window.houseExpenseBreakdownState = state;
+        renderExpenseBreakdownModalRows();
     });
 
     // Utility functions for receipt actions

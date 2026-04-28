@@ -33,54 +33,84 @@
                             </div>
                         </div>
        
-                        <div class="dataTables_wrapper">
-                            <div class="row mb-2">
-                                <div class="col-sm-6">
-                                    <!-- Filter Mode Radio Buttons - Single set for both wrappers -->
-                                    <div class="filter-mode-container">
-                                        <div class="d-flex align-items-center gap-3">
-                                            <label class="mb-0">
-                                                <input type="radio" name="filter-mode" value="settlement" checked id="filter-settlement">
-                                                <span class="ms-1">Settlement Date</span>
-                                            </label>
-                                            <label class="mb-0">
-                                                <input type="radio" name="filter-mode" value="daterange" id="filter-daterange">
-                                                <span class="ms-1">Date Range</span>
-                                            </label>
+                        <div class="card-body">
+                            <div id="house-expense-analytics" class="mb-4">
+                                <%
+                                    const now = new Date();
+                                    const pad = value => value.toString().padStart(2, '0');
+                                    const todayStrValue = typeof todayStr !== 'undefined' ? todayStr : `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+                                    const initialDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStrValue;
+                                    const maxPickerDate = typeof maxSettlementDate !== 'undefined' ? maxSettlementDate : initialDate;
+                                %>
+
+                                <div class="row g-3 mb-3 align-items-stretch analytics-summary-row">
+                                    <div class="col-12 col-lg-3 d-flex flex-column">
+                                        <div class="analytics-date-filter h-100 flex-grow-1">
+                                            <div class="filter-mode-container mb-2">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <label class="mb-0">
+                                                        <input type="radio" name="filter-mode" value="settlement" checked id="filter-settlement">
+                                                        <span class="ms-1">Settlement Date</span>
+                                                    </label>
+                                                    <label class="mb-0">
+                                                        <input type="radio" name="filter-mode" value="daterange" id="filter-daterange">
+                                                        <span class="ms-1">Date Range</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div id="settlement-date-wrapper" class="day-selector-wrapper">
+                                                <div class="input-group" data-today="<%= todayStrValue %>" data-default-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
+                                                    <button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
+                                                        <i class="fa fa-chevron-left"></i>
+                                                    </button>
+                                                    <input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
+                                                    <button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
+                                                        <i class="fa fa-chevron-right"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div id="daterange-wrapper" class="day-selector-wrapper" style="display: none;">
+                                                <div class="input-group">
+                                                    <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Settlement Date Picker -->
-                                    <div id="settlement-date-wrapper" class="day-selector-wrapper mb-3">
-                                        <%
-                                            const now = new Date();
-                                            const pad = value => value.toString().padStart(2, '0');
-                                            const todayStrValue = typeof todayStr !== 'undefined' ? todayStr : `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-                                            const initialDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStrValue;
-                                            const maxPickerDate = typeof maxSettlementDate !== 'undefined' ? maxSettlementDate : initialDate;
-                                        %>
-                                        <div class="input-group" data-today="<%= todayStrValue %>" data-default-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
-                                            <button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
-                                                <i class="fa fa-chevron-left"></i>
-                                            </button>
-                                            <input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
-                                            <button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
-                                                <i class="fa fa-chevron-right"></i>
-                                            </button>
+
+                                    <div class="col-12 col-lg-3 analytics-stat-col">
+                                        <div class="analytics-stat-card">
+                                            <div class="analytics-stat-label">Total Expenses</div>
+                                            <div id="analytics-total-expense" class="analytics-stat-value">₱0</div>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Date Range Picker -->
-                                    <div id="daterange-wrapper" class="day-selector-wrapper mb-3" style="display: none;">
-                                        <div class="input-group">
-                                            <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
+                                    <div class="col-12 col-lg-3 analytics-stat-col">
+                                        <div class="analytics-stat-card">
+                                            <div class="analytics-stat-label">Total Return Money</div>
+                                            <div id="analytics-total-return" class="analytics-stat-value text-success">₱0</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-lg-3 analytics-stat-col">
+                                        <div class="analytics-stat-card">
+                                            <div class="analytics-stat-label"><%= __('house_expense.total_net_expenses') || 'TOTAL NET EXPENSES' %></div>
+                                            <div id="analytics-total-net" class="analytics-stat-value">₱0</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <div class="analytics-panel">
+                                            <div class="analytics-panel-title">Expense Breakdown by Category</div>
+                                            <div id="analytics-category-breakdown" class="analytics-breakdown-list">
+                                                <div class="text-muted small">No expense data yet.</div>
+                                            </div>
+                                            <div id="analytics-return-breakdown" class="analytics-return-breakdown"></div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-       
-                        <div class="card-body">
        
                             <table id="expense-tbl" class="table  nowrap small-text" style="width:100%"> 
                                 <thead>
@@ -132,6 +162,72 @@
         <%- include ('../modals/junket/edit_house_expense') %>
         <%- include ('../modals/junket/new_house_expense') %>
         <%- include ('../modals/junket/house_expense_edit_history') %>
+        <div class="modal fade" id="modal-expense-breakdown-details" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            Category Breakdown: <span id="breakdown-modal-category-name">-</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="small text-muted mb-2">Showing expense entries for selected category.</div>
+                        <div class="breakdown-modal-table-shell">
+                            <table class="table table-sm align-middle mb-0 breakdown-modal-table-fixed" id="breakdown-modal-head-table">
+                                <colgroup>
+                                    <col style="width:42%">
+                                    <col style="width:12%">
+                                    <col style="width:14%">
+                                    <col style="width:12%">
+                                    <col style="width:20%">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th class="sortable-col" data-sort-key="description">Description <span class="sort-indicator">-</span></th>
+                                        <th class="sortable-col" data-sort-key="in_charge">In-Charge <span class="sort-indicator">-</span></th>
+                                        <th class="sortable-col text-end" data-sort-key="amount">Amount <span class="sort-indicator">-</span></th>
+                                        <th class="sortable-col" data-sort-key="encoded_by">Encoded By <span class="sort-indicator">-</span></th>
+                                        <th class="sortable-col" data-sort-key="date_time">Date & Time <span class="sort-indicator">-</span></th>
+                                    </tr>
+                                </thead>
+                            </table>
+
+                            <div class="breakdown-modal-table-wrap">
+                                <table class="table table-sm table-striped align-middle mb-0" id="breakdown-modal-body-table">
+                                    <colgroup>
+                                        <col style="width:42%">
+                                        <col style="width:12%">
+                                        <col style="width:14%">
+                                        <col style="width:12%">
+                                        <col style="width:20%">
+                                    </colgroup>
+                                    <tbody id="breakdown-modal-tbody">
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <table class="table table-sm align-middle mb-0 breakdown-modal-table-fixed" id="breakdown-modal-foot-table">
+                                <colgroup>
+                                    <col style="width:42%">
+                                    <col style="width:12%">
+                                    <col style="width:14%">
+                                    <col style="width:12%">
+                                    <col style="width:20%">
+                                </colgroup>
+                                <tfoot>
+                                    <tr>
+                                        <th colspan="2" class="text-end">Grand Total</th>
+                                        <th id="breakdown-modal-grand-total" class="text-end">0</th>
+                                        <th colspan="2"></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <%- include ('../partials/permission_view_only_script') %>
         <%- include ('../partials/footer'); -%>     
        
@@ -372,10 +468,8 @@
 
             /* Filter Mode Radio Buttons Container */
             .filter-mode-container {
-                position: absolute;
-                top: 125px;      /* Position above day-selector-wrapper */
-                left: 160px;    /* Same left position as day-selector-wrapper */
-                z-index: 10;
+                position: static;
+                z-index: 1;
             }
             
             .filter-mode-container label {
@@ -388,12 +482,8 @@
             
             /* Day selector - usog lang ito, hindi gagalaw ibang element (position, hindi margin) */
             .day-selector-wrapper {
-                position: relative;
-                top: 83px;      /* positive = pababa, negative = pataas */
-                right: 0;    /* positive = kaliwa, negative = kanan */
-                bottom: 0;
-                left: 120px;
-                width: 320px;     /* Increased width to accommodate buttons */
+                position: static;
+                width: 100%;
             }
 
             /* Settlement Date Navigation Buttons */
@@ -539,15 +629,341 @@
             /* House expense table: compact action icons with space between */
             #expense-tbl .house-expense-actions {
                 display: inline-flex;
-                flex-wrap: wrap;
+                flex-wrap: nowrap;
                 align-items: center;
                 gap: 0.35rem;
+                white-space: nowrap;
             }
             #expense-tbl .house-expense-actions .btn i.fa {
                 font-size: 0.72rem;
             }
             #expense-tbl .house-expense-actions .btn {
                 padding: 0.2rem 0.42rem;
+                flex: 0 0 auto;
+            }
+
+            /* Keep action column in single line (no two-line wrap) */
+            #expense-tbl th:last-child,
+            #expense-tbl td:last-child {
+                min-width: 145px;
+                white-space: nowrap;
+                text-align: center !important;
+            }
+
+            /* Stat columns stretch with date column; card fills column height */
+            .analytics-stat-col {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .analytics-stat-card {
+                flex: 1 1 auto;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                width: 100%;
+                min-height: 0;
+                background: linear-gradient(180deg, #f9faff 0%, #f4f7ff 100%);
+                border: 1px solid #e4e9ff;
+                border-radius: 10px;
+                padding: 10px 14px;
+                box-shadow: 0 1px 4px rgba(31, 45, 61, 0.06);
+            }
+
+            .analytics-date-filter {
+                padding: 4px 0;
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
+                height: 100%;
+                min-height: 100%;
+            }
+
+            .analytics-summary-row {
+                margin-bottom: 1rem !important;
+                align-items: stretch;
+            }
+
+            .analytics-date-filter .filter-mode-container label {
+                font-size: 0.95rem;
+                color: #667085;
+            }
+
+            .analytics-date-filter .input-group {
+                border-radius: 10px;
+                box-shadow: 0 1px 6px rgba(17, 24, 39, 0.08);
+            }
+
+            .analytics-stat-label {
+                color: #7a8599;
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                line-height: 1.25;
+            }
+
+            .analytics-stat-value {
+                color: #1f2d3d;
+                font-size: clamp(1.05rem, 2.1vw, 1.45rem);
+                font-weight: 700;
+                margin-top: 4px;
+                line-height: 1.15;
+            }
+
+            .analytics-panel {
+                background: #ffffff;
+                border: 1px solid #eceff4;
+                border-radius: 12px;
+                padding: 10px 12px;
+                height: 100%;
+                box-shadow: 0 2px 10px rgba(31, 45, 61, 0.04);
+            }
+
+            .analytics-panel-title {
+                font-size: 14px;
+                font-weight: 700;
+                color: #344054;
+                margin-bottom: 8px;
+            }
+
+            .analytics-breakdown-row {
+                margin-bottom: 8px;
+                cursor: pointer;
+                border-radius: 8px;
+                padding: 2px 4px;
+                transition: background-color 0.15s ease, transform 0.12s ease;
+            }
+
+            .analytics-breakdown-row:hover {
+                background: #f6f8ff;
+                transform: translateX(2px);
+            }
+
+            .analytics-breakdown-head {
+                display: flex;
+                justify-content: space-between;
+                font-size: 11px;
+                margin-bottom: 4px;
+                align-items: center;
+            }
+
+            .analytics-breakdown-label {
+                color: #495057;
+                font-weight: 700;
+                margin-right: 10px;
+                max-width: 68%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .analytics-breakdown-amount {
+                color: #212529;
+                font-weight: 700;
+                white-space: nowrap;
+            }
+
+            .analytics-breakdown-track {
+                height: 6px;
+                background: #eef2ff;
+                border-radius: 999px;
+                overflow: hidden;
+            }
+
+            .analytics-breakdown-fill {
+                height: 100%;
+                border-radius: 999px;
+                background: linear-gradient(90deg, #3b59ed, #6f86ff);
+            }
+
+            .analytics-return-breakdown {
+                margin-top: 8px;
+                padding-top: 8px;
+                border-top: 1px dashed #dbe2f3;
+            }
+
+            .analytics-return-breakdown:empty {
+                display: none;
+                margin: 0;
+                padding: 0;
+                border: none;
+            }
+
+            .analytics-return-breakdown .analytics-breakdown-fill {
+                background: linear-gradient(90deg, #16a34a, #22c55e);
+            }
+
+            #analytics-category-breakdown {
+                max-height: none;
+                overflow: visible;
+                padding-right: 0;
+            }
+
+            @media (max-width: 992px) {
+                .analytics-stat-value {
+                    font-size: 1.2rem;
+                }
+                .analytics-date-filter .filter-mode-container label {
+                    font-size: 0.9rem;
+                }
+            }
+
+            .analytics-rank-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                border-bottom: 1px solid #f1f3f5;
+                padding: 8px 0;
+                font-size: 12px;
+            }
+
+            .analytics-rank-item:last-child {
+                border-bottom: none;
+            }
+
+            .analytics-rank-name {
+                color: #495057;
+                font-weight: 600;
+                max-width: 68%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .analytics-rank-amount {
+                color: #212529;
+                font-weight: 700;
+            }
+
+            /* Breakdown modal table style (aligned with expenses table look) */
+            #breakdown-modal-head-table,
+            #breakdown-modal-body-table,
+            #breakdown-modal-foot-table {
+                width: 100%;
+                font-size: 13px;
+                border-collapse: separate;
+                border-spacing: 0;
+                table-layout: auto;
+            }
+
+            .breakdown-modal-table-fixed {
+                border-left: 1px solid #e8ecf3;
+                border-right: 1px solid #e8ecf3;
+            }
+
+            #breakdown-modal-head-table thead th {
+                background: var(--bs-primary-bg-subtle);
+                color: var(--bs-primary);
+                font-weight: 600;
+                padding: 10px 12px;
+                text-align: left;
+                border: none;
+                white-space: nowrap;
+            }
+
+            #breakdown-modal-head-table thead th.sortable-col {
+                cursor: pointer;
+                user-select: none;
+            }
+
+            #breakdown-modal-head-table thead th.sortable-col:hover {
+                background: #dfe6ff;
+            }
+
+            #breakdown-modal-head-table .sort-indicator {
+                font-size: 10px;
+                margin-left: 4px;
+                color: #6c757d;
+            }
+
+            .breakdown-modal-table-shell {
+                border: 1px solid #e8ecf3;
+                border-radius: 8px;
+                overflow: hidden;
+            }
+
+            .breakdown-modal-table-wrap {
+                height: 52vh;
+                overflow-y: auto;
+                position: relative;
+            }
+
+            #breakdown-modal-foot-table tfoot th {
+                background: #f4f6fa;
+                border-top: 2px solid #dee2e6;
+                padding: 10px 12px;
+                color: #212529;
+                font-weight: 700;
+            }
+
+            #breakdown-modal-body-table tbody tr {
+                border-bottom: 1px solid #eee;
+            }
+
+            #breakdown-modal-body-table tbody tr:hover {
+                background-color: #f7f9ff;
+            }
+
+            #breakdown-modal-body-table td {
+                padding: 10px 12px;
+                color: #495057;
+                vertical-align: middle;
+            }
+
+            /* Column sizing/alignment to keep Description wider and In-Charge compact */
+            #breakdown-modal-head-table th:nth-child(1),
+            #breakdown-modal-body-table td:nth-child(1) {
+                width: 42%;
+                white-space: normal;
+                word-break: break-word;
+            }
+
+            #breakdown-modal-head-table th:nth-child(2),
+            #breakdown-modal-body-table td:nth-child(2) {
+                width: 12%;
+                text-align: right;
+                white-space: nowrap;
+            }
+
+            #breakdown-modal-head-table th:nth-child(3),
+            #breakdown-modal-body-table td:nth-child(3) {
+                width: 14%;
+                text-align: right;
+                white-space: nowrap;
+            }
+
+            #breakdown-modal-head-table th:nth-child(4),
+            #breakdown-modal-body-table td:nth-child(4) {
+                width: 12%;
+                white-space: nowrap;
+            }
+
+            #breakdown-modal-head-table th:nth-child(5),
+            #breakdown-modal-body-table td:nth-child(5) {
+                width: 20%;
+                white-space: nowrap;
+            }
+
+            #breakdown-modal-body-table td:nth-child(3),
+            #breakdown-modal-head-table th:nth-child(3),
+            #breakdown-modal-foot-table th:nth-child(3) {
+                text-align: right;
+            }
+
+            #modal-expense-breakdown-details .modal-header {
+                background: #f4f6fb;
+                border-bottom: 1px solid #e6e9f2;
+            }
+
+            #modal-expense-breakdown-details .modal-title {
+                font-weight: 700;
+                color: #1f2d3d;
+            }
+
+            /* Force single scroll container: rows area only */
+            #modal-expense-breakdown-details .modal-body {
+                overflow: hidden !important;
             }
                      </style>
 
