@@ -1101,10 +1101,24 @@ pageRouter.get("/house_expense", function (req, res) {
 
 	const permissions = req.session.permissions;
 
-	res.render("junket/house_expense", {
-		...sessions(req, 'house_expense'),
-		permissions: permissions
-	});
+	connection.query(
+		'SELECT CATEGORY FROM expense_category WHERE ACTIVE = 1 ORDER BY CATEGORY ASC',
+		function (err, catRows) {
+			var expenseCategoryCatalog = [];
+			if (!err && catRows && catRows.length) {
+				expenseCategoryCatalog = catRows
+					.map(function (r) {
+						return r.CATEGORY != null ? String(r.CATEGORY).trim() : '';
+					})
+					.filter(Boolean);
+			}
+			res.render("junket/house_expense", {
+				...sessions(req, 'house_expense'),
+				permissions: permissions,
+				expenseCategoryCatalog: expenseCategoryCatalog
+			});
+		}
+	);
 });
 
 pageRouter.get("/booking", function (req, res) {
