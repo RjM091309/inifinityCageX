@@ -311,6 +311,10 @@ function renderHouseExpenseAnalytics(data, totalExpense, totalReturnMoney) {
     }
 }
 
+function toggleHouseExpenseBreakdownPanel(mode) {
+    $('#analytics-breakdown-panel').hide();
+}
+
 function showExpenseBreakdownModalByCategory(categoryName) {
     var category = String(categoryName || '').trim();
     if (!category) return;
@@ -416,15 +420,28 @@ $(document).ready(function () {
 
         // 1. Initialize DataTable (date range picker removed - using settlement date picker instead)
         if ($.fn.DataTable.isDataTable('#expense-tbl')) {
+            var $shell = $('#house-expense-filter-shell');
+            if ($shell.length && $('#expense-tbl_wrapper').length) {
+                $shell.insertBefore('#expense-tbl_wrapper');
+            }
             $('#expense-tbl').DataTable().destroy();
         }
 
         const goodsTypeLabel = window.houseExpenseTranslations?.type_goods || 'Goods / Consumables';
         const nonGoodsTypeLabel = window.houseExpenseTranslations?.type_non_goods || 'Non-goods / Services';
         var dataTable = $('#expense-tbl').DataTable({
+            "dom": '<"house-expense-dt-toolbar d-flex flex-wrap align-items-end justify-content-between gap-3 mb-2"<"d-flex flex-wrap align-items-end gap-3 flex-grow-1 min-w-0"<"flex-shrink-0 align-self-end"l><"house-expense-filter-mount flex-grow-1 min-w-0"div>><"flex-shrink-0 align-self-end ms-md-auto house-expense-dt-search"f>>' +
+                'rt<"row mt-2"<"col-12 d-flex justify-content-end"p>>',
             "order": [[5, 'desc']],
             "pageLength": 100,
             "lengthMenu": [[100, 50, 25, 10, -1], [100, 50, 25, 10, "All"]],
+            "initComplete": function () {
+                var $mount = $('#expense-tbl_wrapper .house-expense-filter-mount');
+                var $filter = $('#house-expense-filter-shell');
+                if ($mount.length && $filter.length) {
+                    $mount.append($filter);
+                }
+            },
             "columnDefs": [
                 {
                     "targets": 5,
@@ -446,10 +463,9 @@ $(document).ready(function () {
                     }
                 }
             ],
-            "info": true,
+            "info": false,
             "language": {
                 "search": (window.houseExpenseTranslations?.search || "Search:"),
-                "info": (window.houseExpenseTranslations?.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries"),
                 "paginate": {
                     "previous": (window.houseExpenseTranslations?.previous || "Previous"),
                     "next": (window.houseExpenseTranslations?.next || "Next")
@@ -661,6 +677,7 @@ $(document).ready(function () {
     // Filter mode toggle handler
     $('input[name="filter-mode"]').on('change', function() {
         var mode = $(this).val();
+        toggleHouseExpenseBreakdownPanel(mode);
         if (mode === 'settlement') {
             $('#settlement-date-wrapper').show();
             $('#daterange-wrapper').hide();
@@ -681,6 +698,9 @@ $(document).ready(function () {
             clearExpenseTableDisplay();
         }
     });
+
+    // Initial visibility based on default selected mode.
+    toggleHouseExpenseBreakdownPanel();
     
     // Initialize date range picker (single input with range mode)
     var dateRangePicker = null;

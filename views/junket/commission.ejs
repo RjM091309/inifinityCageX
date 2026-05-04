@@ -17,17 +17,13 @@
 							<a href="/dashboard" ><span class="fa fa-home"></span></a>
 							<a href="#" ><%= __('commission.junket') %></a>
 							<a href="/commission"class="active"><%= __('commission.commission') %></a>
+							<a href="/commission_panel">Analytics</a>
 							</div>
 						</h3>
 						
 					</div>
-					<!-- DATE FILTER -->
-					<div class="dataTables_wrapper">
-						<div class="row mb-2">
-							<div class="col-sm-4">
-								<input type="text" id="daterange" class="input-daterange input-group" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off"/>
-							</div>
-						</div>
+					<div class="commission-date-filter-wrap">
+						<input type="text" id="daterange" class="input-daterange input-group" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off"/>
 					</div>
 							<div class="card-body">
 								<!-- DataTables init on table by adding .js-dataTable-responsive class, functionality is initialized in js/pages/be_tables_datatables.min.js which was auto compiled from _js/pages/be_tables_datatables.js -->
@@ -239,6 +235,116 @@
 			});
 
 		</script>
+		<div class="modal fade" id="modal-commission-guest-transactions" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-xl modal-dialog-scrollable">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title mb-0">Guest Commission Transactions</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+					<div class="modal-body commission-guest-modal-body">
+						<div class="small mb-2 d-flex justify-content-between align-items-center" id="commission-guest-modal-subtitle-row">
+							<span id="commission-guest-modal-subtitle">-</span>
+							<span id="commission-guest-modal-count">-</span>
+						</div>
+						<div class="commission-guest-table-shell">
+							<table class="table table-sm align-middle mb-0 commission-guest-table-fixed" id="commission-guest-head-table">
+								<colgroup>
+									<col style="width:8%">
+									<col style="width:11%">
+									<col style="width:11%">
+									<col style="width:10%">
+									<col style="width:11%">
+									<col style="width:8%">
+									<col style="width:11%">
+									<col style="width:6%">
+									<col style="width:9%">
+									<col style="width:15%">
+								</colgroup>
+								<thead>
+									<tr>
+										<th class="commission-sortable-col" data-sort-key="gameNo">Game # <span class="commission-sort-indicator">-</span></th>
+										<th class="commission-sortable-col" data-sort-key="totalBuyIn">Buy-in <span class="commission-sort-indicator">-</span></th>
+										<th class="commission-sortable-col" data-sort-key="chipsReturn">Chips Return <span class="commission-sort-indicator">-</span></th>
+										<th class="commission-sortable-col" data-sort-key="winLoss">Win/Loss <span class="commission-sort-indicator">-</span></th>
+										<th class="commission-sortable-col" data-sort-key="totalRolling">Rolling <span class="commission-sort-indicator">-</span></th>
+										<th class="commission-sortable-col" data-sort-key="rollingRate">Rate <span class="commission-sort-indicator">-</span></th>
+										<th class="commission-sortable-col" data-sort-key="settlement">Settlement <span class="commission-sort-indicator">-</span></th>
+										<th class="commission-sortable-col" data-sort-key="fnb">F&B <span class="commission-sort-indicator">-</span></th>
+										<th class="commission-sortable-col" data-sort-key="payment">Payment <span class="commission-sort-indicator">-</span></th>
+										<th class="commission-sortable-col" data-sort-key="dateTime">Date & Time <span class="commission-sort-indicator">-</span></th>
+									</tr>
+								</thead>
+							</table>
+							<div class="commission-guest-table-wrap">
+								<table class="table table-sm table-striped align-middle mb-0" id="commission-guest-body-table">
+									<colgroup>
+										<col style="width:8%">
+										<col style="width:11%">
+										<col style="width:11%">
+										<col style="width:10%">
+										<col style="width:11%">
+										<col style="width:8%">
+										<col style="width:11%">
+										<col style="width:6%">
+										<col style="width:9%">
+										<col style="width:15%">
+									</colgroup>
+									<tbody id="commission-guest-transactions-body">
+										<tr><td colspan="10" class="text-center text-muted">No transactions found.</td></tr>
+									</tbody>
+								</table>
+							</div>
+							<table class="table table-sm align-middle mb-0 commission-guest-table-fixed" id="commission-guest-foot-table">
+								<colgroup>
+									<col style="width:8%">
+									<col style="width:11%">
+									<col style="width:11%">
+									<col style="width:10%">
+									<col style="width:11%">
+									<col style="width:8%">
+									<col style="width:11%">
+									<col style="width:6%">
+									<col style="width:9%">
+									<col style="width:15%">
+								</colgroup>
+								<tfoot>
+									<tr>
+										<th colspan="1">Grand Total</th>
+										<th id="commission-guest-total-buyin" class="text-end">0</th>
+										<th id="commission-guest-total-return" class="text-end">0</th>
+										<th id="commission-guest-total-winloss" class="text-end">0</th>
+										<th id="commission-guest-total-rolling" class="text-end">0</th>
+										<th></th>
+										<th id="commission-guest-total-settlement" class="text-end">0</th>
+										<th id="commission-guest-total-fnb" class="text-end">0</th>
+										<th id="commission-guest-total-payment" class="text-end">0</th>
+										<th></th>
+									</tr>
+								</tfoot>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="modal fade" id="modal-commission-agency-guests" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog modal-lg modal-dialog-scrollable">
+				<div class="modal-content commission-agency-modal-content">
+					<div class="modal-header commission-agency-modal-header">
+						<h5 class="modal-title">Guests by Agent</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+					<div class="modal-body commission-agency-modal-body">
+						<div class="small mb-2 commission-agency-modal-subtitle" id="commission-agency-modal-subtitle">-</div>
+						<div id="commission-agency-guests-list" class="commission-top-agents-list commission-agency-guests-list">
+							<div class="commission-top-agent-empty">No guest data yet.</div>
+						</div>
+						<div id="commission-agency-guests-pagination" class="commission-agency-guests-pagination mt-2"></div>
+					</div>
+				</div>
+			</div>
+		</div>
 
 		<%- include ('../modals/junket/edit_commission') %>
 
@@ -341,47 +447,370 @@
 
 
 
-	/* Adjust spacing and alignment for date range picker */
-.dataTables_wrapper .row {
-    margin-bottom: 15px;
-    font-size: 12px; /* Pareho sa commission-tbl */
+/* Date range card in KPI row */
+.commission-date-filter-wrap {
+    max-width: 260px;
+    margin: 8px 24px 0;
 }
 
-/* Flexbox layout for the date range picker */
 .input-daterange {
+    width: 100%;
+    max-width: 100%;
+    margin: 4px 0 0 0;
+    font-size: 12px;
+    border: 1px solid #dbe2f3;
+    border-radius: 8px;
+    background: #fff;
+    padding: 8px 10px;
+    line-height: 1.2;
+    color: #344054;
+}
+
+.commission-date-slot .flatpickr-input[readonly] {
+    cursor: pointer;
+}
+
+.commission-date-slot {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8px 0 0;
+}
+
+.commission-analytics {
+    margin: 0 24px 10px;
+}
+
+.commission-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.commission-kpi-card {
+    background: linear-gradient(180deg, #f9faff 0%, #f4f7ff 100%);
+    border: 1px solid #e4e9ff;
+    border-radius: 10px;
+    padding: 8px 10px;
+}
+
+.commission-kpi-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.45px;
+    color: #7a8599;
+    font-weight: 700;
+}
+
+.commission-kpi-value {
+    margin-top: 2px;
+    font-size: 19px;
+    line-height: 1.15;
+    font-weight: 700;
+    color: #1f2d3d;
+}
+
+.commission-top-agents {
+    border: 1px solid #eceff4;
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: #fff;
+}
+
+.commission-top-agents-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 6px;
+}
+
+.commission-top-agents-list {
+    display: grid;
+    gap: 6px;
+}
+
+.commission-top-agent-row {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) 2fr auto;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+}
+
+.commission-top-agent-row.is-clickable {
+    cursor: pointer;
+}
+
+.commission-top-agent-name {
+    color: #334155;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.commission-top-agent-bar {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: #e8ecff;
+    overflow: hidden;
+}
+
+.commission-top-agent-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: #3b59ff;
+}
+
+.commission-top-agent-value {
+    color: #1e3a8a;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.commission-top-agent-empty {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.commission-top-agent-row:hover .commission-top-agent-name {
+    text-decoration: underline;
+}
+
+.commission-agency-modal-content {
+    border: 1px solid #e7ebf6;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.commission-agency-modal-header {
+    background: #f4f6fb;
+    border-bottom: 1px solid #e6e9f2;
+}
+
+.commission-agency-modal-header .modal-title {
+    font-weight: 700;
+    color: #1f2d3d;
+}
+
+.commission-agency-modal-body {
+    padding-top: 10px;
+}
+
+.commission-agency-modal-subtitle {
+    color: #111827;
+    font-weight: 600;
+}
+
+.commission-agency-guests-list {
+    border: 1px solid #e8ecf3;
+    border-radius: 8px;
+    padding: 10px;
+    max-height: none;
+    overflow-y: visible;
+    background: #fff;
+}
+
+.commission-agency-guests-list .commission-top-agent-row {
+    padding: 3px 2px;
+    border-radius: 6px;
+}
+
+.commission-agency-guests-list .commission-top-agent-row:hover {
+    background: #f7f9ff;
+}
+
+.commission-agency-guests-list .commission-top-agent-bar {
+    height: 7px;
+    background: #e9eeff;
+}
+
+.commission-agency-guests-pagination {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+}
+
+.commission-agency-guests-pagination .commission-guests-page-info {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.commission-agency-guests-pagination .btn {
+    min-width: 64px;
+}
+
+.commission-guest-modal-body {
+    padding-top: 10px;
+    overflow: hidden !important;
+}
+
+.commission-guest-table-shell {
+    border: 1px solid #e8ecf3;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+}
+
+#commission-guest-head-table,
+#commission-guest-body-table,
+#commission-guest-foot-table {
+    width: 100%;
+    font-size: 13px;
+    margin: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+}
+
+.commission-guest-table-fixed {
+    border-left: 1px solid #e8ecf3;
+    border-right: 1px solid #e8ecf3;
+}
+
+.commission-guest-table-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 52vh;
+    overflow-y: auto;
     position: relative;
-    left: 7.5rem;
-    top: 4rem;
-    max-width: 300px;
-    font-size: 12px; /* Pareho sa commission-tbl */
 }
 
-/* Styling for form controls */
-.input-daterange .form-control {
-    flex: 1;
-    margin-right: 5px;
-    max-width: 120px;
-    font-size: 12px; /* Pareho sa commission-tbl */
-    padding: 8px; /* Pareho sa cell padding ng table */
+#commission-guest-head-table thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 600;
+    font-size: 13px;
+    border: none;
+    white-space: nowrap;
+    padding: 10px 12px;
 }
 
-/* Remove margin from the last input */
-.input-daterange .form-control:last-child {
-    margin-right: 0;
+.commission-sortable-col {
+    cursor: pointer;
+    user-select: none;
+}
+
+.commission-sortable-col:hover {
+    background: #dfe6ff !important;
+}
+
+.commission-sort-indicator {
+    font-size: 10px;
+    margin-left: 4px;
+    color: #6c757d;
+}
+
+#commission-guest-body-table tbody td {
+    font-size: 13px;
+    color: #495057;
+    border-top: 1px solid #eee;
+    white-space: nowrap;
+    padding: 10px 12px;
+    vertical-align: middle;
+}
+
+#commission-guest-body-table tbody tr:nth-child(even) td {
+    background: #f8f9fc;
+}
+
+#commission-guest-body-table tbody tr:hover td {
+    background: #f7f9ff;
+}
+
+#commission-guest-foot-table tfoot th {
+    background: #f4f6fa;
+    color: #212529;
+    font-weight: 700;
+    border-top: 2px solid #dee2e6;
+    white-space: nowrap;
+    padding: 10px 12px;
+}
+
+#commission-guest-head-table th:nth-child(1),
+#commission-guest-body-table td:nth-child(1) {
+    width: 8%;
+}
+
+#commission-guest-head-table th:nth-child(10),
+#commission-guest-body-table td:nth-child(10) {
+    width: 20%;
+}
+
+#commission-guest-body-table td:nth-child(2),
+#commission-guest-body-table td:nth-child(3),
+#commission-guest-body-table td:nth-child(4),
+#commission-guest-body-table td:nth-child(5),
+#commission-guest-body-table td:nth-child(6),
+#commission-guest-body-table td:nth-child(7),
+#commission-guest-body-table td:nth-child(8),
+#commission-guest-body-table td:nth-child(9),
+#commission-guest-head-table th:nth-child(2),
+#commission-guest-head-table th:nth-child(3),
+#commission-guest-head-table th:nth-child(4),
+#commission-guest-head-table th:nth-child(5),
+#commission-guest-head-table th:nth-child(6),
+#commission-guest-head-table th:nth-child(7),
+#commission-guest-head-table th:nth-child(8),
+#commission-guest-head-table th:nth-child(9),
+#commission-guest-foot-table th:nth-child(2),
+#commission-guest-foot-table th:nth-child(3),
+#commission-guest-foot-table th:nth-child(4),
+#commission-guest-foot-table th:nth-child(5),
+#commission-guest-foot-table th:nth-child(6),
+#commission-guest-foot-table th:nth-child(7),
+#commission-guest-foot-table th:nth-child(8),
+#commission-guest-foot-table th:nth-child(9) {
+    text-align: right;
+}
+
+#modal-commission-guest-transactions .modal-header {
+    background: #f4f6fb;
+    border-bottom: 1px solid #e6e9f2;
+}
+
+#modal-commission-guest-transactions .modal-title {
+    font-weight: 700;
+    color: #1f2d3d;
+}
+
+#commission-guest-modal-subtitle {
+    color: #111827 !important;
+    font-weight: 500;
+}
+
+#commission-guest-modal-count {
+    color: #111827 !important;
+    font-weight: 500;
+    white-space: nowrap;
 }
 
 /* Responsive tweaks */
 @media (max-width: 768px) {
-    .dataTables_wrapper .row,
-    .input-daterange,
-    .input-daterange .form-control {
-        font-size: 10px; /* Mas maliit sa mobile */
+    .commission-date-filter-wrap {
+        max-width: 100%;
+        margin: 8px 12px 0;
     }
-
-    .input-daterange .form-control {
-        padding: 5px; /* Mas maliit na padding */
+    .input-daterange {
+        margin-top: 4px;
+        font-size: 10px;
+        padding: 7px 9px;
+    }
+    .commission-analytics {
+        margin: 0 12px 8px;
+    }
+    .commission-kpi-grid {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+    .commission-top-agent-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
     }
 }
 

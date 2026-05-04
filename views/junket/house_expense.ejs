@@ -43,64 +43,8 @@
                                     const maxPickerDate = typeof maxSettlementDate !== 'undefined' ? maxSettlementDate : initialDate;
                                 %>
 
-                                <div class="row g-3 mb-3 align-items-stretch analytics-summary-row">
-                                    <div class="col-12 col-lg-3 d-flex flex-column">
-                                        <div class="analytics-date-filter h-100 flex-grow-1">
-                                            <div class="filter-mode-container mb-2">
-                                                <div class="d-flex align-items-center gap-3">
-                                                    <label class="mb-0">
-                                                        <input type="radio" name="filter-mode" value="settlement" checked id="filter-settlement">
-                                                        <span class="ms-1">Settlement Date</span>
-                                                    </label>
-                                                    <label class="mb-0">
-                                                        <input type="radio" name="filter-mode" value="daterange" id="filter-daterange">
-                                                        <span class="ms-1">Date Range</span>
-                                                    </label>
-                                                </div>
-                                            </div>
-
-                                            <div id="settlement-date-wrapper" class="day-selector-wrapper">
-                                                <div class="input-group" data-today="<%= todayStrValue %>" data-default-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
-                                                    <button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
-                                                        <i class="fa fa-chevron-left"></i>
-                                                    </button>
-                                                    <input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
-                                                    <button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
-                                                        <i class="fa fa-chevron-right"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            <div id="daterange-wrapper" class="day-selector-wrapper" style="display: none;">
-                                                <div class="input-group">
-                                                    <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-12 col-lg-3 analytics-stat-col">
-                                        <div class="analytics-stat-card">
-                                            <div class="analytics-stat-label">Total Expenses</div>
-                                            <div id="analytics-total-expense" class="analytics-stat-value">₱0</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-12 col-lg-3 analytics-stat-col">
-                                        <div class="analytics-stat-card">
-                                            <div class="analytics-stat-label">Total Return Money</div>
-                                            <div id="analytics-total-return" class="analytics-stat-value text-success">₱0</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-12 col-lg-3 analytics-stat-col">
-                                        <div class="analytics-stat-card">
-                                            <div class="analytics-stat-label"><%= __('house_expense.total_net_expenses') || 'TOTAL NET EXPENSES' %></div>
-                                            <div id="analytics-total-net" class="analytics-stat-value">₱0</div>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 <div class="row g-3">
-                                    <div class="col-12">
+                                    <div class="col-12" id="analytics-breakdown-panel">
                                         <div class="analytics-panel">
                                             <div class="analytics-panel-title">Expense Breakdown by Category</div>
                                             <div id="analytics-category-breakdown" class="analytics-breakdown-list">
@@ -111,7 +55,41 @@
                                     </div>
                                 </div>
                             </div>
-       
+
+                            <%# Moved beside row-count via DataTables dom + initComplete in house_expense.js; restored before destroy. %>
+                            <div id="house-expense-filter-shell" class="house-expense-filter-shell d-flex flex-column align-items-start gap-2">
+                                <div class="filter-mode-container mb-0 w-100">
+                                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                                        <label class="mb-0">
+                                            <input type="radio" name="filter-mode" value="settlement" checked id="filter-settlement">
+                                            <span class="ms-1">Settlement Date</span>
+                                        </label>
+                                        <label class="mb-0">
+                                            <input type="radio" name="filter-mode" value="daterange" id="filter-daterange">
+                                            <span class="ms-1">Date Range</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div id="settlement-date-wrapper" class="day-selector-wrapper">
+                                    <div class="input-group" data-today="<%= todayStrValue %>" data-default-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
+                                        <button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
+                                            <i class="fa fa-chevron-left"></i>
+                                        </button>
+                                        <input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
+                                        <button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
+                                            <i class="fa fa-chevron-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div id="daterange-wrapper" class="day-selector-wrapper" style="display: none;">
+                                    <div class="input-group">
+                                        <input type="text" id="daterange-picker" class="form-control text-center" placeholder="Select date range" autocomplete="off" />
+                                    </div>
+                                </div>
+                            </div>
+
                             <table id="expense-tbl" class="table  nowrap small-text" style="width:100%"> 
                                 <thead>
                                     <tr>
@@ -163,7 +141,7 @@
         <%- include ('../modals/junket/new_house_expense') %>
         <%- include ('../modals/junket/house_expense_edit_history') %>
         <div class="modal fade" id="modal-expense-breakdown-details" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-xl">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
@@ -466,24 +444,51 @@
                 }
             }
 
-            /* Filter Mode Radio Buttons Container */
-            .filter-mode-container {
-                position: static;
-                z-index: 1;
+            /* Junket expenses date filter: flow layout + same control width as Game Book (320px) */
+            .house-expense-filter-shell {
+                margin-bottom: 1rem;
+                padding-bottom: 0.25rem;
             }
-            
-            .filter-mode-container label {
+
+            #expense-tbl_wrapper .house-expense-filter-shell {
+                margin-bottom: 0;
+                padding-bottom: 0;
+            }
+
+            #expense-tbl_wrapper .house-expense-dt-toolbar {
+                row-gap: 0.5rem;
+            }
+
+            #expense-tbl_wrapper .dataTables_info {
+                display: none !important;
+            }
+
+            #expense-tbl_wrapper .house-expense-dt-search .dataTables_filter {
+                float: none;
+                margin: 0;
+                text-align: right;
+            }
+
+            #expense-tbl_wrapper .house-expense-dt-search .dataTables_filter label {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+                margin: 0;
+                font-size: 12px;
+            }
+
+            .house-expense-filter-shell .filter-mode-container label {
+                font-size: 14px;
+                color: #667085;
+            }
+
+            .house-expense-filter-shell .filter-mode-container label span {
                 font-size: 14px;
             }
-            
-            .filter-mode-container label span {
-                font-size: 14px;
-            }
-            
-            /* Day selector - usog lang ito, hindi gagalaw ibang element (position, hindi margin) */
-            .day-selector-wrapper {
-                position: static;
+
+            .house-expense-filter-shell .day-selector-wrapper {
                 width: 100%;
+                max-width: 320px;
             }
 
             /* Settlement Date Navigation Buttons */
@@ -670,30 +675,6 @@
                 box-shadow: 0 1px 4px rgba(31, 45, 61, 0.06);
             }
 
-            .analytics-date-filter {
-                padding: 4px 0;
-                display: flex;
-                flex-direction: column;
-                justify-content: flex-start;
-                height: 100%;
-                min-height: 100%;
-            }
-
-            .analytics-summary-row {
-                margin-bottom: 1rem !important;
-                align-items: stretch;
-            }
-
-            .analytics-date-filter .filter-mode-container label {
-                font-size: 0.95rem;
-                color: #667085;
-            }
-
-            .analytics-date-filter .input-group {
-                border-radius: 10px;
-                box-shadow: 0 1px 6px rgba(17, 24, 39, 0.08);
-            }
-
             .analytics-stat-label {
                 color: #7a8599;
                 font-size: 10px;
@@ -804,7 +785,8 @@
                 .analytics-stat-value {
                     font-size: 1.2rem;
                 }
-                .analytics-date-filter .filter-mode-container label {
+                .house-expense-filter-shell .filter-mode-container label,
+                .house-expense-filter-shell .filter-mode-container label span {
                     font-size: 0.9rem;
                 }
             }
@@ -881,10 +863,14 @@
                 border: 1px solid #e8ecf3;
                 border-radius: 8px;
                 overflow: hidden;
+                display: flex;
+                flex-direction: column;
             }
 
             .breakdown-modal-table-wrap {
-                height: 52vh;
+                flex: 1 1 auto;
+                min-height: 0;
+                max-height: 52vh;
                 overflow-y: auto;
                 position: relative;
             }
@@ -963,6 +949,9 @@
 
             /* Force single scroll container: rows area only */
             #modal-expense-breakdown-details .modal-body {
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
                 overflow: hidden !important;
             }
                      </style>

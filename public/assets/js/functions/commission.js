@@ -1,4 +1,332 @@
 $(document).ready(function() {
+    function formatCommissionNumber(n) {
+        var v = Number(n) || 0;
+        return v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    function formatCommissionRate(value) {
+        var n = Number(value);
+        if (!isFinite(n)) return '0';
+        // Remove trailing zeros (e.g., 1.45000000 -> 1.45)
+        return n.toFixed(8).replace(/\.?0+$/, '');
+    }
+
+    function applyCommissionSignedColor($el, value) {
+        var n = Number(value) || 0;
+        $el.css('color', '');
+        if (n > 0) {
+            $el.css('color', '#16a34a');
+        } else if (n < 0) {
+            $el.css('color', '#dc2626');
+        }
+    }
+
+    function parseCommissionDateForSort(v) {
+        var m = moment(v, ['MMMM DD, YYYY HH:mm:ss', moment.ISO_8601], true);
+        return m.isValid() ? m.valueOf() : 0;
+    }
+
+    function escapeCommissionHtml(v) {
+        return String(v == null ? '' : v)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    var commissionDrillState = {
+        agencyMap: {},
+        guestPageSize: 20,
+        currentAgencyKey: null,
+        currentGuests: [],
+        currentGuestPage: 1,
+        currentGuestKey: null,
+        currentTxnSortKey: 'dateTime',
+        currentTxnSortDir: 'desc'
+    };
+
+    function getCommissionTxnSortValue(row, key) {
+        if (!row) return '';
+        if (key === 'gameNo') return Number(row.gameNo) || 0;
+        if (key === 'totalBuyIn') return Number(row.totalBuyIn) || 0;
+        if (key === 'chipsReturn') return Number(row.chipsReturn) || 0;
+        if (key === 'winLoss') return Number(row.winLoss) || 0;
+        if (key === 'totalRolling') return Number(row.totalRolling) || 0;
+        if (key === 'rollingRate') return Number(row.rollingRate) || 0;
+        if (key === 'settlement') return Number(row.settlement) || 0;
+        if (key === 'fnb') return Number(row.fnb) || 0;
+        if (key === 'payment') return Number(row.payment) || 0;
+        if (key === 'dateTime') return parseCommissionDateForSort(row.dateTime);
+        return '';
+    }
+
+    function renderCommissionTxnSortIndicators() {
+        var key = commissionDrillState.currentTxnSortKey || 'dateTime';
+        var dir = commissionDrillState.currentTxnSortDir === 'asc' ? 'asc' : 'desc';
+        $('#commission-guest-head-table thead th.commission-sortable-col').each(function () {
+            var $th = $(this);
+            var thKey = $th.attr('data-sort-key');
+            var indicator = '-';
+            if (thKey === key) indicator = dir === 'asc' ? '▲' : '▼';
+            $th.find('.commission-sort-indicator').text(indicator);
+        });
+    }
+
+    function renderCommissionAgencyList(agencyMap) {
+        var entries = Object.keys(agencyMap || {}).map(function (key) {
+            return agencyMap[key];
+        });
+        entries.sort(function (a, b) {
+            return (Number(b.settlement) || 0) - (Number(a.settlement) || 0);
+        });
+
+        $('#commission-drill-title').text('Top Agents by Settlement');
+
+        if (entries.length === 0) {
+            $('#commission-top-agents-list').html('<div class="commission-top-agent-empty">No data yet.</div>');
+            return;
+        }
+
+        var maxSettlement = Number(entries[0].settlement) || 0;
+        var html = entries.map(function (item) {
+            var settlement = Number(item.settlement) || 0;
+            var width = maxSettlement > 0 ? (settlement / maxSettlement) * 100 : 0;
+            var safeName = escapeCommissionHtml(item.name);
+            var encodedKey = encodeURIComponent(item.key);
+            return (
+                '<div class="commission-top-agent-row is-clickable js-commission-agency-row" data-agency-key="' + encodedKey + '">' +
+                    '<div class="commission-top-agent-name" title="' + safeName + '">' + safeName + '</div>' +
+                    '<div class="commission-top-agent-bar"><div class="commission-top-agent-fill" style="width:' + width.toFixed(2) + '%"></div></div>' +
+                    '<div class="commission-top-agent-value">' + formatCommissionNumber(settlement) + '</div>' +
+                '</div>'
+            );
+        }).join('');
+        $('#commission-top-agents-list').html(html);
+    }
+
+    function renderCommissionAgencyGuestsPage() {
+        var guests = commissionDrillState.currentGuests || [];
+        var pageSize = commissionDrillState.guestPageSize || 20;
+        var totalPages = Math.max(1, Math.ceil(guests.length / pageSize));
+        var page = commissionDrillState.currentGuestPage || 1;
+        if (page > totalPages) page = totalPages;
+        if (page < 1) page = 1;
+        commissionDrillState.currentGuestPage = page;
+
+        if (guests.length === 0) {
+            $('#commission-agency-guests-list').html('<div class="commission-top-agent-empty">No guest data yet.</div>');
+            $('#commission-agency-guests-pagination').html('');
+            return;
+        }
+
+        var startIndex = (page - 1) * pageSize;
+        var endIndex = Math.min(startIndex + pageSize, guests.length);
+        var pageGuests = guests.slice(startIndex, endIndex);
+        var maxSettlement = Number(guests[0].settlement) || 0;
+        var encodedAgencyKey = encodeURIComponent(commissionDrillState.currentAgencyKey || '');
+
+        var html = pageGuests.map(function (item) {
+            var settlement = Number(item.settlement) || 0;
+            var width = maxSettlement > 0 ? (settlement / maxSettlement) * 100 : 0;
+            var safeName = escapeCommissionHtml(item.name);
+            var encodedGuestKey = encodeURIComponent(item.key);
+            return (
+                '<div class="commission-top-agent-row is-clickable js-commission-guest-row" data-agency-key="' + encodedAgencyKey + '" data-guest-key="' + encodedGuestKey + '">' +
+                    '<div class="commission-top-agent-name" title="' + safeName + '">' + safeName + '</div>' +
+                    '<div class="commission-top-agent-bar"><div class="commission-top-agent-fill" style="width:' + width.toFixed(2) + '%"></div></div>' +
+                    '<div class="commission-top-agent-value">' + formatCommissionNumber(settlement) + '</div>' +
+                '</div>'
+            );
+        }).join('');
+        $('#commission-agency-guests-list').html(html);
+
+        var prevDisabled = page <= 1 ? 'disabled' : '';
+        var nextDisabled = page >= totalPages ? 'disabled' : '';
+        var pagerHtml =
+            '<button type="button" class="btn btn-sm btn-outline-secondary js-commission-guests-prev" ' + prevDisabled + '>Prev</button>' +
+            '<span class="commission-guests-page-info">Page ' + page + ' of ' + totalPages + ' (' + guests.length + ' guests)</span>' +
+            '<button type="button" class="btn btn-sm btn-primary js-commission-guests-next" ' + nextDisabled + '>Next</button>';
+        $('#commission-agency-guests-pagination').html(pagerHtml);
+    }
+
+    function showCommissionAgencyGuestsModal(agencyKey) {
+        var agency = commissionDrillState.agencyMap[agencyKey];
+        if (!agency) {
+            return;
+        }
+
+        var guests = Object.keys(agency.guests || {}).map(function (k) {
+            return agency.guests[k];
+        });
+        guests.sort(function (a, b) {
+            return (Number(b.settlement) || 0) - (Number(a.settlement) || 0);
+        });
+
+        $('#commission-agency-modal-subtitle').text(agency.name + '  •  ' + guests.length + ' guest(s)');
+
+        commissionDrillState.currentAgencyKey = agencyKey;
+        commissionDrillState.currentGuests = guests;
+        commissionDrillState.currentGuestPage = 1;
+        renderCommissionAgencyGuestsPage();
+        $('#modal-commission-agency-guests').modal('show');
+    }
+
+    function showCommissionGuestTransactionsModal(agencyKey, guestKey, keepCurrentModal) {
+        var agency = commissionDrillState.agencyMap[agencyKey];
+        var guest = agency && agency.guests ? agency.guests[guestKey] : null;
+        if (!guest) return;
+
+        commissionDrillState.currentAgencyKey = agencyKey;
+        commissionDrillState.currentGuestKey = guestKey;
+
+        var sortKey = commissionDrillState.currentTxnSortKey || 'dateTime';
+        var sortDir = commissionDrillState.currentTxnSortDir === 'asc' ? 'asc' : 'desc';
+        var rows = (guest.transactions || []).slice().sort(function (a, b) {
+            var av = getCommissionTxnSortValue(a, sortKey);
+            var bv = getCommissionTxnSortValue(b, sortKey);
+            if (av < bv) return sortDir === 'asc' ? -1 : 1;
+            if (av > bv) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+        var totals = {
+            buyin: 0,
+            chipsReturn: 0,
+            winloss: 0,
+            rolling: 0,
+            settlement: 0,
+            fnb: 0,
+            payment: 0
+        };
+        var bodyHtml = rows.length === 0
+            ? '<tr><td colspan="10" class="text-center text-muted">No transactions found.</td></tr>'
+            : rows.map(function (t) {
+                totals.buyin += Number(t.totalBuyIn) || 0;
+                totals.chipsReturn += Number(t.chipsReturn) || 0;
+                totals.winloss += Number(t.winLoss) || 0;
+                totals.rolling += Number(t.totalRolling) || 0;
+                totals.settlement += Number(t.settlement) || 0;
+                totals.fnb += Number(t.fnb) || 0;
+                totals.payment += Number(t.payment) || 0;
+                return (
+                    '<tr>' +
+                        '<td>' + escapeCommissionHtml(t.gameNo) + '</td>' +
+                        '<td class="text-end">' + formatCommissionNumber(t.totalBuyIn) + '</td>' +
+                        '<td class="text-end">' + formatCommissionNumber(t.chipsReturn) + '</td>' +
+                        '<td class="text-end">' + formatCommissionNumber(t.winLoss) + '</td>' +
+                        '<td class="text-end">' + formatCommissionNumber(t.totalRolling) + '</td>' +
+                        '<td class="text-end">' + escapeCommissionHtml(formatCommissionRate(t.rollingRate)) + '%</td>' +
+                        '<td class="text-end">' + formatCommissionNumber(t.settlement) + '</td>' +
+                        '<td class="text-end">' + formatCommissionNumber(t.fnb) + '</td>' +
+                        '<td class="text-end">' + formatCommissionNumber(t.payment) + '</td>' +
+                        '<td>' + escapeCommissionHtml(t.dateTime) + '</td>' +
+                    '</tr>'
+                );
+            }).join('');
+        $('#commission-guest-transactions-body').html(bodyHtml);
+        $('#commission-guest-total-buyin').text(formatCommissionNumber(totals.buyin));
+        $('#commission-guest-total-return').text(formatCommissionNumber(totals.chipsReturn));
+        $('#commission-guest-total-winloss').text(formatCommissionNumber(totals.winloss));
+        $('#commission-guest-total-rolling').text(formatCommissionNumber(totals.rolling));
+        $('#commission-guest-total-settlement').text(formatCommissionNumber(totals.settlement));
+        $('#commission-guest-total-fnb').text(formatCommissionNumber(totals.fnb));
+        $('#commission-guest-total-payment').text(formatCommissionNumber(totals.payment));
+        applyCommissionSignedColor($('#commission-guest-total-winloss'), totals.winloss);
+        renderCommissionTxnSortIndicators();
+        $('#commission-guest-modal-subtitle').text(agency.name + '  •  ' + guest.name);
+        $('#commission-guest-modal-count').text(rows.length + ' transaction(s)');
+        if (keepCurrentModal) {
+            return;
+        }
+        // Hide guests modal first to avoid two stacked Bootstrap modals/backdrops.
+        $('#modal-commission-agency-guests')
+            .one('hidden.bs.modal', function () {
+                $('#modal-commission-guest-transactions').modal('show');
+            })
+            .modal('hide');
+    }
+
+    function renderCommissionAnalytics(metrics) {
+        var rolling = Number(metrics.totalRolling) || 0;
+        var settlement = Number(metrics.totalSettlement) || 0;
+
+        $('#commission-kpi-games').text(formatCommissionNumber(metrics.settledCount || 0));
+        $('#commission-kpi-rolling').text(formatCommissionNumber(rolling));
+        $('#commission-kpi-winloss').text(formatCommissionNumber(metrics.totalWinLoss || 0));
+        $('#commission-kpi-settlement').text(formatCommissionNumber(settlement));
+        $('#commission-kpi-payment').text(formatCommissionNumber(metrics.totalPayment || 0));
+        applyCommissionSignedColor($('#commission-kpi-winloss'), metrics.totalWinLoss || 0);
+    }
+
+    function updateCommissionFooterTotals(metrics) {
+        $('#GRAND_TOTAL_AMOUNT').text(formatCommissionNumber(metrics.totalAmount || 0));
+        $('#GRAND_CHIPS_RETURN').text(formatCommissionNumber(metrics.totalChipsReturn || 0));
+        $('#GRAND_WIN_LOSS').text(formatCommissionNumber(metrics.totalWinLoss || 0));
+        $('#GRAND_TOTAL_ROLLING').text(formatCommissionNumber(metrics.totalRolling || 0));
+        $('#GRAND_ROLLING_SETTLEMENT').text(formatCommissionNumber(metrics.totalSettlement || 0));
+        $('#GRAND_FNB').text(formatCommissionNumber(metrics.totalFnb || 0));
+        $('#GRAND_PAYMENT').text(formatCommissionNumber(metrics.totalPayment || 0));
+        applyCommissionSignedColor($('#GRAND_WIN_LOSS'), metrics.totalWinLoss || 0);
+    }
+
+    $(document).on('click', '.js-commission-agency-row', function () {
+        var agencyKey = decodeURIComponent($(this).attr('data-agency-key') || '');
+        if (!agencyKey) return;
+        showCommissionAgencyGuestsModal(agencyKey);
+    });
+
+    $(document).on('click', '.js-commission-guest-row', function () {
+        var agencyKey = decodeURIComponent($(this).attr('data-agency-key') || '');
+        var guestKey = decodeURIComponent($(this).attr('data-guest-key') || '');
+        if (!agencyKey || !guestKey) return;
+        commissionDrillState.currentTxnSortKey = 'dateTime';
+        commissionDrillState.currentTxnSortDir = 'desc';
+        showCommissionGuestTransactionsModal(agencyKey, guestKey);
+    });
+
+    $(document).on('click', '#commission-guest-head-table thead th.commission-sortable-col', function () {
+        var key = $(this).attr('data-sort-key') || 'dateTime';
+        if (commissionDrillState.currentTxnSortKey === key) {
+            commissionDrillState.currentTxnSortDir = commissionDrillState.currentTxnSortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            commissionDrillState.currentTxnSortKey = key;
+            commissionDrillState.currentTxnSortDir = key === 'dateTime' ? 'desc' : 'asc';
+        }
+        if (!commissionDrillState.currentAgencyKey || !commissionDrillState.currentGuestKey) {
+            renderCommissionTxnSortIndicators();
+            return;
+        }
+        showCommissionGuestTransactionsModal(
+            commissionDrillState.currentAgencyKey,
+            commissionDrillState.currentGuestKey,
+            true
+        );
+    });
+
+    $(document).on('click', '.js-commission-guests-prev', function () {
+        if (commissionDrillState.currentGuestPage <= 1) return;
+        commissionDrillState.currentGuestPage -= 1;
+        renderCommissionAgencyGuestsPage();
+    });
+
+    $(document).on('click', '.js-commission-guests-next', function () {
+        commissionDrillState.currentGuestPage += 1;
+        renderCommissionAgencyGuestsPage();
+    });
+
+
+    var commissionSkipMonthRange = false;
+
+    function applyCommissionFullMonthRangeForVisibleLeft(instance) {
+        if (!instance || instance.config.mode !== 'range') return;
+        var y = instance.currentYear;
+        var m = instance.currentMonth;
+        var dim = instance.utils.getDaysInMonth(m, y);
+        var start = new Date(y, m, 1);
+        var end = new Date(y, m, dim);
+        instance.setDate([start, end], false);
+        reloadData();
+    }
 
     // Initialize Flatpickr for date range
     var flatpickrInstance = flatpickr("#daterange", {
@@ -12,8 +340,13 @@ $(document).ready(function() {
         ],
         showMonths: 2,
         onReady: function (selectedDates, dateStr, instance) {
-            const today = new Date();
+            commissionSkipMonthRange = true;
             instance.changeMonth(-1, true);
+            commissionSkipMonthRange = false;
+        },
+        onMonthChange: function (selectedDates, dateStr, instance) {
+            if (commissionSkipMonthRange) return;
+            applyCommissionFullMonthRangeForVisibleLeft(instance);
         }
     });
 
@@ -106,11 +439,14 @@ $(document).ready(function() {
                 var totalRollingSettlement = 0;
                 var totalFNB = 0;
                 var totalPayment = 0;
+                var settledCount = 0;
+                var agencyStatsMap = {};
                // let CommissionType = data[0].COMMISSION_TYPE; 
 
                 data.forEach(function(row) {
                     // Only process records that are settled
                     if (row.SETTLED === 1) {
+                        settledCount += 1;
                         var RollingRate = row.COMMISSION_PERCENTAGE; // Ensure the RollingRate is correct
                         var fb = row.fnb || 0; // Use the FNB value from the row
                         var payment = row.payment || 0; // Use the PAYMENT value from the row
@@ -226,9 +562,47 @@ $(document).ready(function() {
                                     totalRollingSettlement += net;
                                     totalFNB += fb;
                                     totalPayment += paymentValue;
+
+                                    var agencyName = String(row.agency_name || 'Unassigned Agency');
+                                    var agencyId = String(row.agency_id || agencyName);
+                                    var agencyKey = agencyId + '|' + agencyName;
+                                    var guestName = (row.agent_code || '-') + ' - ' + (row.agent_name || '-');
+                                    var guestId = String(row.account_no || row.ACCOUNT_ID || row.account_id || row.agent_id || guestName);
+                                    var guestKey = guestId + '|' + guestName;
+
+                                    if (!agencyStatsMap[agencyKey]) {
+                                        agencyStatsMap[agencyKey] = {
+                                            key: agencyKey,
+                                            name: agencyName,
+                                            settlement: 0,
+                                            guests: {}
+                                        };
+                                    }
+                                    agencyStatsMap[agencyKey].settlement += net;
+                                    if (!agencyStatsMap[agencyKey].guests[guestKey]) {
+                                        agencyStatsMap[agencyKey].guests[guestKey] = {
+                                            key: guestKey,
+                                            name: guestName,
+                                            settlement: 0,
+                                            transactions: []
+                                        };
+                                    }
+                                    agencyStatsMap[agencyKey].guests[guestKey].settlement += net;
+                                    var formattedDate = moment.utc(row.GAME_ENDED).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
+                                    agencyStatsMap[agencyKey].guests[guestKey].transactions.push({
+                                        gameNo: row.game_list_id,
+                                        totalBuyIn: total_amount,
+                                        chipsReturn: total_cash_out_chips,
+                                        winLoss: winlossValue,
+                                        totalRolling: total_rolling_chips,
+                                        rollingRate: RollingRate,
+                                        settlement: net,
+                                        fnb: fb,
+                                        payment: paymentValue,
+                                        dateTime: formattedDate
+                                    });
                                     
                                     
-                         var formattedDate = moment.utc(row.GAME_ENDED).utcOffset(8).format('MMMM DD, YYYY HH:mm:ss');
                                     // Add row to table with total_amount in a separate column (without drawing yet)
                                     dataTable.row.add([
                                         row.game_list_id,
@@ -237,7 +611,7 @@ $(document).ready(function() {
                                         total_cash_out_chips.toLocaleString(),
                                         winloss.toLocaleString(),
                                         parseFloat(total_rolling_chips).toLocaleString(),
-                                        `${row.COMMISSION_PERCENTAGE}%`,
+                                        `${formatCommissionRate(row.COMMISSION_PERCENTAGE)}%`,
                                         net.toLocaleString(),
                                         fb.toLocaleString(),
                                         paymentValue.toLocaleString(),
@@ -255,7 +629,38 @@ $(document).ready(function() {
                 // Wait for all AJAX calls to complete before drawing the table once
                 $.when.apply($, ajaxCalls).done(function() {
                     dataTable.draw();
+                    var metrics = {
+                        settledCount: settledCount,
+                        totalAmount: totalAmount,
+                        totalChipsReturn: totalChipsReturn,
+                        totalWinLoss: totalWinLoss,
+                        totalRolling: totalRolling,
+                        totalSettlement: totalRollingSettlement,
+                        totalFnb: totalFNB,
+                        totalPayment: totalPayment
+                    };
+                    renderCommissionAnalytics(metrics);
+                    updateCommissionFooterTotals(metrics);
+                    commissionDrillState.agencyMap = agencyStatsMap;
+                    renderCommissionAgencyList(commissionDrillState.agencyMap);
                 });
+
+                if (ajaxCalls.length === 0) {
+                    var emptyMetrics = {
+                        settledCount: 0,
+                        totalAmount: 0,
+                        totalChipsReturn: 0,
+                        totalWinLoss: 0,
+                        totalRolling: 0,
+                        totalSettlement: 0,
+                        totalFnb: 0,
+                        totalPayment: 0
+                    };
+                    renderCommissionAnalytics(emptyMetrics);
+                    updateCommissionFooterTotals(emptyMetrics);
+                    commissionDrillState.agencyMap = {};
+                    renderCommissionAgencyList(commissionDrillState.agencyMap);
+                }
 
                
             },

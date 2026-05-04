@@ -9,6 +9,12 @@ router.get("/commission", checkSession, function (req, res) {
 	res.render("junket/commission", data);
 });
 
+router.get("/commission_panel", checkSession, function (req, res) {
+	const data = sessions(req, 'commission');
+	data.permissions = req.session.permissions;
+	res.render("junket/commission_panel", data);
+});
+
 // GET COMMISSION DATA
 router.get('/commission_data', async (req, res) => {
     // Change `const` to `let` for start and end so they can be reassigned
@@ -44,7 +50,8 @@ router.get('/commission_data', async (req, res) => {
             agent.IDNo AS agent_id,
             agent.AGENT_CODE AS agent_code,
             agent.NAME AS agent_name,
-            agent.AGENCY AS agency_id
+            agent.AGENCY AS agency_id,
+            agency.AGENCY AS agency_name
         FROM game_list 
         JOIN account ON game_list.ACCOUNT_ID = account.IDNo
         JOIN agent ON agent.IDNo = account.AGENT_ID
