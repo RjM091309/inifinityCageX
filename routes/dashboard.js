@@ -1320,6 +1320,7 @@ router.get('/cash_in_details', async (req, res) => {
 			`
 			SELECT
 				al.IDNo,
+				al.GAME_ID,
 				al.AMOUNT,
 				al.REMARKS,
 				al.ENCODED_BY,
@@ -1363,6 +1364,7 @@ router.get('/cash_in_details', async (req, res) => {
 			`
 			SELECT
 				al.IDNo,
+				al.GAME_ID,
 				al.AMOUNT,
 				al.REMARKS,
 				al.ENCODED_BY,
@@ -1389,7 +1391,9 @@ router.get('/cash_in_details', async (req, res) => {
 			AMOUNT: row.AMOUNT,
 			CATEGORY: 'Commission Deposit',
 			TYPE: 1,
-			REMARKS: row.REMARKS || '',
+			REMARKS: row.GAME_ID
+				? `Game - ${row.GAME_ID}${row.REMARKS ? ` | ${row.REMARKS}` : ''}`
+				: (row.REMARKS || ''),
 			ENCODED_BY: row.ENCODED_BY,
 			ENCODED_DT: row.ENCODED_DT,
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
@@ -1516,6 +1520,7 @@ router.get('/cash_in_details', async (req, res) => {
 			`
 			SELECT
 				al.IDNo,
+				al.GAME_ID,
 				al.AMOUNT,
 				al.REMARKS,
 				al.ENCODED_BY,
@@ -1812,6 +1817,7 @@ router.get('/cash_out_details', async (req, res) => {
 			`
 			SELECT
 				al.IDNo,
+				al.GAME_ID,
 				al.AMOUNT,
 				al.REMARKS,
 				al.ENCODED_BY,
@@ -1838,7 +1844,9 @@ router.get('/cash_out_details', async (req, res) => {
 			AMOUNT: row.AMOUNT,
 			CATEGORY: 'Commission Cash-out',
 			TYPE: 2,
-			REMARKS: row.REMARKS || '',
+			REMARKS: row.GAME_ID
+				? `Game - ${row.GAME_ID}${row.REMARKS ? ` | ${row.REMARKS}` : ''}`
+				: (row.REMARKS || ''),
 			ENCODED_BY: row.ENCODED_BY,
 			ENCODED_DT: row.ENCODED_DT,
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,
