@@ -93,7 +93,8 @@ $(document).ready(function() {
   });
 
   function getSelectedType() {
-    return $('#cash-balance-filter .filter-link.active').data('type') || 'all';
+    const selectedType = $('#cash-balance-filter .filter-link.active').data('type');
+    return selectedType == null ? 'all' : String(selectedType);
   }
 
   function formatAmount(value) {
