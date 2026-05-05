@@ -1691,10 +1691,47 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 		}
 
 		// ✅ Update game_list status
-		await pool.execute(
-			`UPDATE game_list SET ACTIVE = ?, GAME_ENDED = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
-			[txtStatus, date_now, editedBy, date_now, id]
-		);
+		if (txtStatus === '2') {
+			// ON GAME: revert settlement — soft-delete commission ledger/cash rows, clear settled flags
+			const [gameRow] = await pool.execute(
+				`SELECT ACCOUNT_ID, PAYMENT FROM game_list WHERE IDNo = ?`,
+				[id]
+			);
+			const accId = gameRow.length > 0 ? gameRow[0].ACCOUNT_ID : null;
+			const paymentForLegacy = gameRow.length > 0 ? gameRow[0].PAYMENT : null;
+
+			await pool.execute(
+				`UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+				 WHERE GAME_ID = ? AND ACTIVE = 1 AND TRANSACTION_TYPE = 5 AND TRANSACTION_DESC = 'COMMISSION'`,
+				[editedBy, date_now, id]
+			);
+
+			if (accId != null && paymentForLegacy != null && !Number.isNaN(parseFloat(paymentForLegacy)) && parseFloat(paymentForLegacy) !== 0) {
+				await pool.execute(
+					`UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+					 WHERE ACCOUNT_ID = ? AND GAME_ID IS NULL AND ACTIVE = 1 AND TRANSACTION_TYPE = 5
+					 AND TRANSACTION_DESC = 'COMMISSION' AND ROUND(AMOUNT, 2) = ROUND(?, 2)`,
+					[editedBy, date_now, accId, paymentForLegacy]
+				);
+			}
+
+			await pool.execute(
+				`UPDATE cash_transaction SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+				 WHERE TRANSACTION_ID = ? AND ACTIVE = 1
+				 AND CATEGORY IN ('Commission Cash-out', 'Commission Deposit', 'Commission')`,
+				[editedBy, date_now, id]
+			);
+
+			await pool.execute(
+				`UPDATE game_list SET ACTIVE = ?, GAME_ENDED = NULL, SETTLED = 0, FNB = 0, PAYMENT = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				[txtStatus, editedBy, date_now, id]
+			);
+		} else {
+			await pool.execute(
+				`UPDATE game_list SET ACTIVE = ?, GAME_ENDED = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				[txtStatus, date_now, editedBy, date_now, id]
+			);
+		}
 
 		// ✅ If game is being closed to END GAME (status = 1), add to daily settlement
 		if (txtStatus === "1") {
