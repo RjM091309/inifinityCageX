@@ -1,3 +1,25 @@
+<style>
+    #modal-new-game-list .split-buyin-checkbox {
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid #1f3a8a;
+        border-radius: 0.25rem;
+        background-color: #fff;
+        accent-color: #1f3a8a;
+    }
+
+    #modal-new-game-list .split-buyin-checkbox:checked {
+        background-color: #1f3a8a;
+        border-color: #1f3a8a;
+    }
+
+    #modal-new-game-list .split-buyin-checkbox:focus,
+    #modal-new-game-list .split-buyin-checkbox:focus-visible {
+        box-shadow: 0 0 0 0.2rem rgba(31, 58, 138, 0.25);
+        outline: none;
+    }
+</style>
+
 <div class="modal fade" id="modal-new-game-list" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -100,7 +122,7 @@
               <div class="row mb-2">
                   <div class="col-sm-12 d-flex align-items-center justify-content-between">
                       <div class="form-check mb-0">
-                          <input class="form-check-input" type="checkbox" id="enableSplitNewGame">
+                          <input class="form-check-input split-buyin-checkbox" type="checkbox" id="enableSplitNewGame">
                           <label class="form-check-label" for="enableSplitNewGame">
                               Split Buy-in
                           </label>

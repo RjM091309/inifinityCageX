@@ -114,23 +114,22 @@
     border: 1px solid #a5d6a7;
 }
 
-/* Column background colors */
-td.col-buyin,
-th.col-buyin {
-    background-color: #e4f0fb !important;
-    color: #1565c0 !important;
+/* BUY-IN: default = normal table cell; marker buy-in only (CAGE_TYPE=1 & TRANSACTION=3) */
+#modal-game-history td.col-buyin.col-buyin-marker {
+    background-color: #FDEAEA !important;
+    color: #C44545 !important;
     font-weight: 600;
 }
 
-td.col-total-rolling,
-th.col-total-rolling {
+#modal-game-history td.col-total-rolling,
+#modal-game-history th.col-total-rolling {
     background-color: #e8f5e9 !important;
     color: #2e7d32 !important;
     font-weight: 600;
 }
 
-td.col-winloss,
-th.col-winloss {
+#modal-game-history td.col-winloss,
+#modal-game-history th.col-winloss {
     background-color: #fff0e1 !important;
     color: #ef6c00 !important;
     font-weight: 600;
@@ -284,6 +283,13 @@ th.col-winloss {
                     {
                         data: 'BUY_IN',
                         className: 'text-center col-buyin',
+                        createdCell: function (td, _cellData, rowData) {
+                            if (rowData && rowData.HAS_MARKER_BUYIN) {
+                                td.classList.add('col-buyin-marker');
+                            } else {
+                                td.classList.remove('col-buyin-marker');
+                            }
+                        },
                         render: function (data) { return formatAmount(data); }
                     },
                     {

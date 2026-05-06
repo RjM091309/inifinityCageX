@@ -241,7 +241,7 @@ $(document).ready(function () {
 	
 		columnDefs: [
 			{ targets: 2, type: 'game-list-col2', className: 'text-center' },       // GAME # / game count: custom numeric sort
-			{ targets: 4, className: 'text-center col-buyin' },          // BUY-IN (Blue)
+			{ targets: 4, className: 'text-center col-buyin' },          // BUY-IN (credit/IOU rows styled inline in JS)
 			{ targets: 7, className: 'text-center col-total-rolling' }, // TOTAL ROLLING (Green)
 			{ targets: 11, className: 'text-center col-winloss' },      // WIN/LOSS (Orange) - Column 11, not 10
 			{ targets: '_all', className: 'text-center' }               // center all columns
@@ -590,8 +590,12 @@ $(document).ready(function () {
 					var total_roller_cc = 0;
 					var total_roller_return_cc = 0;
                             var total_roller_return_cc = 0;
+                            var hasMarkerBuyIn = false;
 
                             response.forEach(function (res) {
+                                if (res.CAGE_TYPE == 1 && parseInt(res.TRANSACTION, 10) === 3) {
+                                    hasMarkerBuyIn = true;
+                                }
                                 if (res.CAGE_TYPE == 1 && (total_nn_init != 0 || total_cc_init != 0)) {
                                     total_buy_in = total_buy_in + res.AMOUNT;
                                     total_nn = total_nn + res.NN_CHIPS;
@@ -713,11 +717,7 @@ $(document).ready(function () {
 							var rolling_td = '';
 							var cashout_td = '';
 							var roller_chips_td = '';
-							var initialMop = row.INITIAL_MOP;
-							var initialMopUpper = (typeof initialMop === 'string') ? initialMop.toUpperCase() : '';
-							var isInitialBuyinMarker = (
-								initialMopUpper === 'IOU'
-							);
+							var isInitialBuyinMarker = hasMarkerBuyIn;
 							var buyinAmountDisplay = parseFloat(total_amount).toLocaleString();
 							var buyinInlineStyle = '';
 							var buyinStaticDisplay = buyinAmountDisplay;
@@ -752,7 +752,7 @@ $(document).ready(function () {
 
 								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;' + buyinInlineStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + buyinAmountDisplay + '</button>';
 								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
-								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.INITIAL_MOP || '') + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
 								roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ')">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
 								
 									// Format net value as an integer
@@ -870,7 +870,7 @@ $(document).ready(function () {
 								} else if (userPermissions === 0) {
 									buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;' + buyinInlineStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + buyinAmountDisplay + '</button>';
 									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
-									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.INITIAL_MOP || '') + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
 									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true)">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
 								} else {
 									buyin_td = buyinStaticDisplay;
@@ -990,7 +990,7 @@ $(document).ready(function () {
 								} else if (userPermissions === 0) {
 									buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;' + buyinInlineStyle + '" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + buyinAmountDisplay + '</button>';
 									rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
-									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.INITIAL_MOP || '') + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+									cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
 									roller_chips_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRollerChips(' + row.game_list_id + ', true)">' + parseFloat(total_roller_chips).toLocaleString() + '</button>';
 								} else {
 									buyin_td = buyinStaticDisplay;
@@ -3745,8 +3745,7 @@ $('#modal-add-roller-chips').on('hidden.bs.modal', function () {
 	$('#rollerReturn').prop('checked', false);
 });
 
-function addCashout(id, account, total_rolling_chips, initialMop) {
-	$('#modal-add-cashout').modal('show');
+function addCashout(id, account, total_rolling_chips) {
 
 	$('.txtAmount').val('');
 	$('.txtNN').val('');
@@ -3778,87 +3777,108 @@ function addCashout(id, account, total_rolling_chips, initialMop) {
 	$('.game_list_id').val(id);
 	$('.txtAccountCode').val(account);
 	$('#TotalRollingCashout').val(total_rolling_chips);
-	var mopUpper = (initialMop || '').toString().toUpperCase();
-	var isMarkerGame = (mopUpper === 'IOU');
-	var $cashoutModal = $('#modal-add-cashout');
 
-	var askMarkerCashoutWarning = function () {
-		if (!isMarkerGame) return Promise.resolve(true);
-		return Swal.fire({
-			icon: 'warning',
-			title: 'Warning',
-			text: 'This is a marker game. Have you confirmed the Cash Out?',
-			confirmButtonText: 'Yes',
-			cancelButtonText: 'No',
-			showCancelButton: true,
-			allowOutsideClick: false,
-			allowEscapeKey: true
-		}).then(function (result) {
-			return !!result.isConfirmed;
-		});
-	};
+	function wireCashoutMarkerWarnings(isMarkerGame) {
+		var $cashoutModal = $('#modal-add-cashout');
 
-	var $cashoutTransTypes = $cashoutModal.find('input[name="txtTransType"]');
-	var previousTransType = ($cashoutTransTypes.filter(':checked').val() || '').toString();
-	var suppressTransTypeWarning = false;
-	$cashoutTransTypes
-		.off('change.marker-warning')
-		.on('change.marker-warning', function () {
-			if (suppressTransTypeWarning) return;
-			var selectedType = ($(this).val() || '').toString();
-			if (selectedType !== '1' && selectedType !== '2') {
-				previousTransType = selectedType;
-				return;
-			}
-			askMarkerCashoutWarning().then(function (confirmed) {
-				if (confirmed) {
+		var askMarkerCashoutWarning = function () {
+			if (!isMarkerGame) return Promise.resolve(true);
+			return Swal.fire({
+				icon: 'warning',
+				title: 'Warning',
+				text: 'This is a marker game. Have you confirmed the Cash Out?',
+				confirmButtonText: 'Yes',
+				cancelButtonText: 'No',
+				showCancelButton: true,
+				allowOutsideClick: false,
+				allowEscapeKey: true
+			}).then(function (result) {
+				return !!result.isConfirmed;
+			});
+		};
+
+		var $cashoutTransTypes = $cashoutModal.find('input[name="txtTransType"]');
+		var previousTransType = ($cashoutTransTypes.filter(':checked').val() || '').toString();
+		var suppressTransTypeWarning = false;
+		$cashoutTransTypes
+			.off('change.marker-warning')
+			.on('change.marker-warning', function () {
+				if (suppressTransTypeWarning) return;
+				var selectedType = ($(this).val() || '').toString();
+				if (selectedType !== '1' && selectedType !== '2') {
 					previousTransType = selectedType;
 					return;
 				}
-				suppressTransTypeWarning = true;
-				$cashoutTransTypes.prop('checked', false);
-				if (previousTransType) {
-					$cashoutModal.find('input[name="txtTransType"][value="' + previousTransType + '"]').prop('checked', true);
-				}
-				suppressTransTypeWarning = false;
+				askMarkerCashoutWarning().then(function (confirmed) {
+					if (confirmed) {
+						previousTransType = selectedType;
+						return;
+					}
+					suppressTransTypeWarning = true;
+					$cashoutTransTypes.prop('checked', false);
+					if (previousTransType) {
+						$cashoutModal.find('input[name="txtTransType"][value="' + previousTransType + '"]').prop('checked', true);
+					}
+					suppressTransTypeWarning = false;
+				});
 			});
-		});
 
-	var $splitToggle = $cashoutModal.find('#enableSplitCashout');
-	var syncSplitUiState = function (isOn) {
-		var splitRowEl = document.getElementById('split-cashout-row');
-		var transTypeRowEl = document.getElementById('trans-type-row');
-		var nnCcRowEl = document.getElementById('nn-cc-row');
-		if (splitRowEl) splitRowEl.style.display = isOn ? '' : 'none';
-		if (transTypeRowEl) transTypeRowEl.style.display = isOn ? 'none' : '';
-		if (nnCcRowEl) nnCcRowEl.style.display = isOn ? 'none' : '';
-	};
-	var suppressSplitWarning = false;
-	$splitToggle
-		.off('change.marker-warning')
-		.on('change.marker-warning', function () {
-			if (suppressSplitWarning || !isMarkerGame) return;
-			var $this = $(this);
-			if (!$this.is(':checked')) return; // no warning when turning OFF
+		var $splitToggle = $cashoutModal.find('#enableSplitCashout');
+		var syncSplitUiState = function (isOn) {
+			var splitRowEl = document.getElementById('split-cashout-row');
+			var transTypeRowEl = document.getElementById('trans-type-row');
+			var nnCcRowEl = document.getElementById('nn-cc-row');
+			if (splitRowEl) splitRowEl.style.display = isOn ? '' : 'none';
+			if (transTypeRowEl) transTypeRowEl.style.display = isOn ? 'none' : '';
+			if (nnCcRowEl) nnCcRowEl.style.display = isOn ? 'none' : '';
+		};
+		var suppressSplitWarning = false;
+		$splitToggle
+			.off('change.marker-warning')
+			.on('change.marker-warning', function () {
+				if (suppressSplitWarning || !isMarkerGame) return;
+				var $this = $(this);
+				if (!$this.is(':checked')) return;
 
-			// Immediately revert to unchecked so Split UI does not stay open while waiting for confirmation.
-			suppressSplitWarning = true;
-			$this.prop('checked', false).trigger('change');
-			syncSplitUiState(false);
-			suppressSplitWarning = false;
-
-			askMarkerCashoutWarning().then(function (confirmed) {
-				if (!confirmed) {
-					syncSplitUiState(false);
-					return;
-				}
 				suppressSplitWarning = true;
-				$this.prop('checked', true).trigger('change');
-				syncSplitUiState(true);
+				$this.prop('checked', false).trigger('change');
+				syncSplitUiState(false);
 				suppressSplitWarning = false;
+
+				askMarkerCashoutWarning().then(function (confirmed) {
+					if (!confirmed) {
+						syncSplitUiState(false);
+						return;
+					}
+					suppressSplitWarning = true;
+					$this.prop('checked', true).trigger('change');
+					syncSplitUiState(true);
+					suppressSplitWarning = false;
+				});
 			});
-		});
-	
+	}
+
+	$.ajax({
+		url: '/game_list/' + id + '/record',
+		method: 'GET',
+		success: function (response) {
+			if (parseInt($('.game_list_id').val(), 10) !== parseInt(id, 10)) return;
+			var isMarkerGame = false;
+			(response || []).forEach(function (res) {
+				if (res.CAGE_TYPE == 1 && parseInt(res.TRANSACTION, 10) === 3) {
+					isMarkerGame = true;
+				}
+			});
+			wireCashoutMarkerWarnings(isMarkerGame);
+			$('#modal-add-cashout').modal('show');
+		},
+		error: function () {
+			if (parseInt($('.game_list_id').val(), 10) !== parseInt(id, 10)) return;
+			wireCashoutMarkerWarnings(false);
+			$('#modal-add-cashout').modal('show');
+		}
+	});
+
 	$.ajax({
 		url: '/account_details_data_deposit/' + account,
 		method: 'GET',
@@ -5483,7 +5503,7 @@ $(document).ready(function () {
 
 								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ')">' + parseFloat(total_amount).toLocaleString() + '</button>';
 								rolling_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addRolling(' + row.game_list_id + ')">' + parseFloat(total_rolling_real_chips).toLocaleString() + '</button>';
-								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ', \'' + (row.INITIAL_MOP || '') + '\')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
+								cashout_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addCashout(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', ' + total_rolling_chips + ')">' + parseFloat(total_cash_out_chips).toLocaleString() + '</button>';
                                 var actionButtons = btn_services + btn_his;
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
                                 dataTable.row.add([`GAME-${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), formatCommissionRateDisplay(row.COMMISSION_PERCENTAGE), net, winloss, status, actionButtons]).draw();

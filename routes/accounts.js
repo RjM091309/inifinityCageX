@@ -1264,13 +1264,14 @@ router.get('/account_game_history/:id', async (req, res) => {
 		const gamesWithTotals = await Promise.all(games.map(async (game) => {
 			// Get game records
 			const recordQuery = `
-				SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE 
+				SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION 
 				FROM game_record
 				WHERE ACTIVE != 0 AND GAME_ID = ?
 				ORDER BY IDNo ASC
 			`;
 			const [records] = await pool.execute(recordQuery, [game.game_list_id]);
-			
+			let hasMarkerBuyIn = false;
+
 			// Initialize totals (same as game_list.js)
 			let total_nn_init = 0;
 			let total_cc_init = 0;
@@ -1290,6 +1291,9 @@ router.get('/account_game_history/:id', async (req, res) => {
 			
 			// Process records (same logic as game_list.js)
 			records.forEach((res) => {
+				if (res.CAGE_TYPE == 1 && parseInt(res.TRANSACTION, 10) === 3) {
+					hasMarkerBuyIn = true;
+				}
 				if (res.CAGE_TYPE == 1 && (total_nn_init != 0 || total_cc_init != 0)) {
 					total_nn = total_nn + (Number(res.NN_CHIPS) || 0);
 					total_cc = total_cc + (Number(res.CC_CHIPS) || 0);
@@ -1356,7 +1360,8 @@ router.get('/account_game_history/:id', async (req, res) => {
 				ROLLING: total_rolling_real_chips,
 				TOTAL_ROLLING: total_rolling_chips,
 				COMMISSION: net,
-				WIN_LOSS: winloss
+				WIN_LOSS: winloss,
+				HAS_MARKER_BUYIN: hasMarkerBuyIn
 			};
 		}));
 		
