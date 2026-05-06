@@ -5970,15 +5970,29 @@ function settlement_history(record_id, acc_id) {
                     $('input[name="game_id_settle"]').val(gameNo);
                     $('input[name="txtAccountIDSettle"]').val(account_id);
 
+                    var $settlementModal = $('#modal-settlement');
+                    // Coerce flags to handle both 1 and "1" coming from API
+                    var settledFlag = Number(data[0].SETTLED) === 1;
+                    $settlementModal.data('is-settled', settledFlag ? 1 : 0);
+                    var fakeSettleFlag = Number(data[0].FAKE_SETTLE) === 1;
+                    $settlementModal.data('fake-settle-active', fakeSettleFlag ? 1 : 0);
+                    $settlementModal.find('#settleSendAgent, #settleSendCage').prop('checked', false);
+
                     // Check if settled and disable button if necessary
-                    if (data[0].SETTLED === 1) {
+                    if (settledFlag) {
                         $('#submit-settlement-btn').prop('disabled', true).hide();
                         $('#settledImage-modal').show(); // Ensure the settled image is shown
                         isSettled = true; // Set the flag to true
+                        $settlementModal.find('.deposit-cashout-row').hide();
+                        $settlementModal.find('#settlement-telegram-opts').hide();
+                        $settlementModal.find('input[name="txtTransType"]').prop('checked', false);
                     } else {
                         $('#submit-settlement-btn').prop('disabled', false).show();
                         $('#settledImage-modal').hide(); // Hide the settled image if not settled
                         isSettled = false; // Set the flag to false
+                        $settlementModal.find('.deposit-cashout-row').show();
+                        // Show telegram opts when fake-settle is active (Edit→Done already pressed)
+                        $settlementModal.find('#settlement-telegram-opts').toggle(fakeSettleFlag);
                     }
 
                     // Debug: Check FNB value
@@ -6094,7 +6108,8 @@ function settlement_history(record_id, acc_id) {
                 $('#chipsReturn').val(cashout_td.toLocaleString());
                 $('#winLoss').val(winloss.toLocaleString());
                 $('#rolling').val(total_rolling_chips.toLocaleString());
-                $('#rollingRate').val(RollingRate);
+                var rollingRateValue = parseFloat(RollingRate) || 0;
+                $('#rollingRate').val(rollingRateValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
                 $('#rollingSettlement').val(formattedNet);
 
                 // Set initial payment value
@@ -6120,9 +6135,10 @@ function settlement_history(record_id, acc_id) {
                 }
 
                 function updateRollingSettlement() {
-                    let updatedRollingRate = parseFloat($('#rollingRate').val()) || 0;
-                    let updatedRollingSettlement = total_rolling_chips * (updatedRollingRate / 100);
-                    $('#rollingSettlement').val(updatedRollingSettlement.toLocaleString());
+                    let updatedRollingRate = parseFloat($('#rollingRate').val().replace(/,/g, '')) || 0;
+                    let updatedRolling = parseFloat($('#rolling').val().replace(/,/g, '')) || 0;
+                    let updatedRollingSettlement = Math.round((updatedRolling * updatedRollingRate) / 100);
+                    $('#rollingSettlement').val(updatedRollingSettlement.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
                 }
 
                 // After handlers are ready, load services total into FB
@@ -6190,6 +6206,20 @@ function settlement_history(record_id, acc_id) {
         var services = $('#fb').val().replace(/,/g, '') || '0';
         var payment = $('#payment').val().replace(/,/g, '') || '0';
         var transType = $('input[name="txtTransType"]:checked').val();
+        if (!transType) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Required',
+                text: 'Please select Deposit or Cash Out first.',
+                confirmButtonText: 'OK',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                customClass: {
+                    confirmButton: 'custom-ok-btn'
+                }
+            });
+            return;
+        }
         var transTypeText = '';
         if (transType == '2') transTypeText = 'Deposit';
         else if (transType == '1') transTypeText = 'Cash Out';
@@ -6313,18 +6343,18 @@ function settlement_history(record_id, acc_id) {
                                 confirmButton: 'custom-ok-btn'
                             }
                         });
-                        $btn.prop('disabled', false).text('Save'); // Re-enable button and reset text
+                        $btn.prop('disabled', false).text('Settle'); // Re-enable button and reset text
                     },
                     complete: function () {
                         // Only reset if not already disabled (in case of success)
                         if (!$btn.is(':disabled')) {
-                            $btn.prop('disabled', false).text('Save'); // Re-enable button and reset text
+                            $btn.prop('disabled', false).text('Settle'); // Re-enable button and reset text
                         }
                     }
                 });
             } else {
                 // User cancelled, re-enable button
-                $btn.prop('disabled', false).text('Save');
+                $btn.prop('disabled', false).text('Settle');
             }
         });
     });

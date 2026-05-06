@@ -1733,7 +1733,7 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			);
 
 			await pool.execute(
-				`UPDATE game_list SET ACTIVE = ?, GAME_ENDED = NULL, SETTLED = 0, FNB = 0, PAYMENT = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				`UPDATE game_list SET ACTIVE = ?, GAME_ENDED = NULL, SETTLED = 0, FNB = 0, PAYMENT = 0, FAKE_SETTLE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
 				[txtStatus, editedBy, date_now, id]
 			);
 		} else {
@@ -1855,8 +1855,12 @@ router.post('/add_settlement', async (req, res) => {
 		txtTransType,
 		txtPayment,
 		txtFNB,
-		txtSettlementBalance
+		txtSettlementBalance,
+		send_telegram_agent,
+		send_telegram_cage
 	} = req.body;
+	const sendTelegramAgent = send_telegram_agent === '1' || send_telegram_agent === 1 || send_telegram_agent === true;
+	const sendTelegramCage = send_telegram_cage === '1' || send_telegram_cage === 1 || send_telegram_cage === true;
 
 	// Validate required fields
 	if (!game_id_settle || !txtAccountIDSettle || !txtTransType || !txtPayment || !txtFNB) {
@@ -1872,12 +1876,25 @@ router.post('/add_settlement', async (req, res) => {
 	let FNBDESC = 'COMMISSION';
 
 	try {
+		let fakeSettleBefore = 0;
+		try {
+			const [glRows] = await pool.execute(
+				'SELECT COALESCE(FAKE_SETTLE, 0) AS FAKE_SETTLE FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1',
+				[game_id_settle]
+			);
+			if (glRows.length > 0) {
+				fakeSettleBefore = Number(glRows[0].FAKE_SETTLE) === 1 ? 1 : 0;
+			}
+		} catch (fakeErr) {
+			fakeSettleBefore = 0;
+		}
+
 		// Insert settlement details into account_ledger (GAME_ID for direct link)
 		const insertQuery = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 		await pool.execute(insertQuery, [txtAccountIDSettle, game_id_settle, txtTransType, 5, FNBDESC, paymentValue, req.session.user_id, date_now]);
 
-		// Update the settled status, FNB, PAYMENT in game_list
-		const updateQuery = `UPDATE game_list SET SETTLED = 1, FNB = ?, PAYMENT = ? WHERE IDNo = ?`;
+		// Update the settled status, FNB, PAYMENT in game_list (clear fake-settle slip flag)
+		const updateQuery = `UPDATE game_list SET SETTLED = 1, FNB = ?, PAYMENT = ?, FAKE_SETTLE = 0 WHERE IDNo = ?`;
 		await pool.execute(updateQuery, [fnbValue, paymentValue, game_id_settle]);
 
 		// Fetch AGENT_CODE, NAME, and TELEGRAM_ID
@@ -2024,31 +2041,37 @@ router.post('/add_settlement', async (req, res) => {
 				managementText = `Infinity Cage\n\n* 게임종료 / 정산 End Game *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameLineMgmtSettle}${commissionMgmtLine}\n커미션 Commission : ${parseFloat(paymentValue).toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
 
-			if (telegramId) {
-				try {
-					await sendTelegramMessage(text, telegramId);
-				} catch (telegramError) {
-					console.error('Failed to send Telegram message to agent:', telegramError.message);
+			const sendAgentPaths = fakeSettleBefore !== 1 || sendTelegramAgent;
+			const sendCagePaths = fakeSettleBefore !== 1 || sendTelegramCage;
+
+			if (sendAgentPaths) {
+				if (telegramId) {
+					try {
+						await sendTelegramMessage(text, telegramId);
+					} catch (telegramError) {
+						console.error('Failed to send Telegram message to agent:', telegramError.message);
+					}
+				} else {
+					console.error("No TELEGRAM_ID found for Account ID:", txtAccountIDSettle);
 				}
-			} else {
-				console.error("No TELEGRAM_ID found for Account ID:", txtAccountIDSettle);
-			}
-			try {
-				await sendToAgentNotifications(agentCode, managementText);
-			} catch (telegramError) {
-				console.error('Failed to send to agent notifications:', telegramError.message);
+				try {
+					await sendToAgentNotifications(agentCode, managementText);
+				} catch (telegramError) {
+					console.error('Failed to send to agent notifications:', telegramError.message);
+				}
+				try {
+					await sendTelegramToAdditionalChats(text);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to additional chats:', telegramError.message);
+				}
 			}
 
-			// Send to additional chats and management - always
-			try {
-				await sendTelegramToAdditionalChats(text);
-			} catch (telegramError) {
-				console.error('Failed to send Telegram message to additional chats:', telegramError.message);
-			}
-			try {
-				await sendTelegramToManagement(managementText);
-			} catch (telegramError) {
-				console.error('Failed to send Telegram message to management:', telegramError.message);
+			if (sendCagePaths) {
+				try {
+					await sendTelegramToManagement(managementText);
+				} catch (telegramError) {
+					console.error('Failed to send Telegram message to management:', telegramError.message);
+				}
 			}
 
 			const insertCashEntry = async (category, type, remark) => {
@@ -2088,6 +2111,165 @@ router.post('/add_settlement', async (req, res) => {
 	} catch (err) {
 		console.error('Error processing settlement:', err);
 		res.status(500).json({ success: false, message: 'Error processing settlement' });
+	}
+});
+
+// Telegram from slip values only (not official settlement): fake / preview figures from Edit → Done
+router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
+	const {
+		game_id_settle,
+		txtAccountIDSettle,
+		txtPayment,
+		txtBuyIn,
+		txtChipsReturn,
+		txtWinLoss,
+		txtRolling,
+		txtTransType,
+		txtSettlementBalance,
+		send_telegram_agent,
+		send_telegram_cage
+	} = req.body;
+
+	const sendTelegramAgent = send_telegram_agent === '1' || send_telegram_agent === 1 || send_telegram_agent === true;
+	const sendTelegramCage = send_telegram_cage === '1' || send_telegram_cage === 1 || send_telegram_cage === true;
+
+	const stripMoney = (v) => {
+		const n = parseFloat(String(v == null ? '0' : v).replace(/,/g, '').trim());
+		return Number.isFinite(n) ? n : 0;
+	};
+
+	if (!game_id_settle || !txtAccountIDSettle) {
+		return res.status(400).json({ success: false, message: 'Missing game or account' });
+	}
+	if (!sendTelegramAgent && !sendTelegramCage) {
+		return res.status(400).json({ success: false, message: 'Select Send to Agent and/or Send to Cage' });
+	}
+
+	try {
+		const [gameRows] = await pool.execute(
+			'SELECT COMMISSION_TYPE, GAME_TYPE FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1',
+			[game_id_settle]
+		);
+		if (gameRows.length === 0) {
+			return res.status(404).json({ success: false, message: 'Game not found' });
+		}
+
+		const agentQuery = `
+            SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+            FROM agent
+            JOIN account ON account.AGENT_ID = agent.IDNo
+            WHERE account.ACTIVE = 1 AND account.IDNo = ?
+        `;
+		const [agentResults] = await pool.query(agentQuery, [txtAccountIDSettle]);
+		if (agentResults.length === 0) {
+			return res.status(404).json({ success: false, message: 'Agent not found for account' });
+		}
+		const { AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentResults[0];
+
+		const paymentValue = stripMoney(txtPayment);
+		const total_buy_in = stripMoney(txtBuyIn);
+		const total_cash_out = stripMoney(txtChipsReturn);
+		const winloss = stripMoney(txtWinLoss);
+		const total_rolling = stripMoney(txtRolling);
+
+		let commissionTextLine = '';
+		let commissionMgmtLine = '';
+		const commissionType = parseInt(gameRows[0].COMMISSION_TYPE, 10) || null;
+		if (commissionType === 2) {
+			commissionTextLine = '\n게임타입 : 셰어';
+			commissionMgmtLine = '\n게임타입 GameType : 셰어 Share';
+		} else if (commissionType === 3) {
+			commissionTextLine = '\n게임타입 : 루징';
+			commissionMgmtLine = '\n게임타입 GameType : 루징 Losing';
+		}
+
+		let gameTypeLine = '';
+		let gameTypeMgmtLine = '';
+		if (gameRows[0].GAME_TYPE != null && String(gameRows[0].GAME_TYPE).trim() !== '') {
+			try {
+				const translateGameTypeSettle = (gameTypeValue) => {
+					if (!gameTypeValue) return gameTypeValue;
+					const upperValue = gameTypeValue.toUpperCase();
+					if (upperValue === 'LIVE') return '라이브';
+					if (upperValue === 'TELEBET') return '화신';
+					return gameTypeValue;
+				};
+				const gameTypeForMgmtSettle = (val) => (val === '라이브' ? '라이브 Live' : val === '화신' ? '화신 AVATAR' : val);
+				const translatedGameTypeSettle = translateGameTypeSettle(gameRows[0].GAME_TYPE || '');
+				const displayGameTypeMgmtSettle = gameTypeForMgmtSettle(translatedGameTypeSettle);
+				gameTypeLine = translatedGameTypeSettle ? ` - ${translatedGameTypeSettle}` : '';
+				gameTypeMgmtLine = displayGameTypeMgmtSettle ? ` - ${displayGameTypeMgmtSettle}` : '';
+			} catch (e) {
+				gameTypeLine = '';
+				gameTypeMgmtLine = '';
+			}
+		}
+
+		const time_now = new Date();
+		const updated_time = time_now.toLocaleTimeString();
+		const date_nowTG = new Date().toLocaleDateString();
+
+		const tt = txtTransType == null || txtTransType === '' ? '' : String(txtTransType);
+		let text;
+		let managementText;
+
+		if (tt === '1') {
+			const balRaw = txtSettlementBalance != null && txtSettlementBalance !== '' ? String(txtSettlementBalance) : '0';
+			const currentBalance = stripMoney(balRaw) + paymentValue;
+			text = `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id_settle}${gameTypeLine}${commissionTextLine}\n커미션: ${paymentValue.toLocaleString()} - 계좌입금\n잔고: ${currentBalance.toLocaleString()}\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			managementText = `Infinity Cage\n\n* 게임종료 / 정산 End Game *\n(편집됨 / Edited)\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id_settle}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${paymentValue.toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+		} else {
+			text = `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${game_id_settle}${gameTypeLine}${commissionTextLine}\n커미션: ${paymentValue.toLocaleString()} - 현금\n\n바이인 합계: ${total_buy_in.toLocaleString()}\n캐시아웃 합계: ${total_cash_out.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${total_rolling.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			managementText = `Infinity Cage\n\n* 게임종료 / 정산 End Game *\n(편집됨 / Edited)\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${game_id_settle}${gameTypeMgmtLine}${commissionMgmtLine}\n커미션 Commission : ${paymentValue.toLocaleString()}\n\n바이인 합계 Total Buy-in : ${total_buy_in.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${total_cash_out.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${total_rolling.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+		}
+
+		if (sendTelegramAgent) {
+			if (telegramId) {
+				try { await sendTelegramMessage(text, telegramId); } catch (e) { console.error('settlement_slip_telegram agent:', e.message); }
+			}
+			try { await sendToAgentNotifications(agentCode, managementText); } catch (e) { console.error('settlement_slip_telegram agent notify:', e.message); }
+			try { await sendTelegramToAdditionalChats(text); } catch (e) { console.error('settlement_slip_telegram additional:', e.message); }
+		}
+
+		if (sendTelegramCage) {
+			try { await sendTelegramToManagement(managementText); } catch (e) { console.error('settlement_slip_telegram management:', e.message); }
+		}
+
+		return res.json({ success: true, message: 'Telegram sent' });
+	} catch (err) {
+		console.error('settlement_slip_telegram:', err);
+		return res.status(500).json({ success: false, message: 'Error sending Telegram' });
+	}
+});
+
+// Settlement slip: Done → fake_settle 1 (FAKE_SETTLE = 1). Official /add_settlement resets to 0.
+router.put('/game_list/:gameId/settlement_fake_settle', checkSession, async (req, res) => {
+	const gameId = parseInt(req.params.gameId, 10);
+	const raw = req.body && (req.body.fake_settle != null ? req.body.fake_settle : req.body.FAKE_SETTLE);
+	const fakeSettle = raw === 1 || raw === '1' || raw === true ? 1 : 0;
+
+	if (!gameId || isNaN(gameId)) {
+		return res.status(400).json({ success: false, message: 'Invalid game ID' });
+	}
+
+	try {
+		const [rows] = await pool.execute(
+			'SELECT IDNo FROM game_list WHERE IDNo = ? AND ACTIVE != 0 LIMIT 1',
+			[gameId]
+		);
+		if (rows.length === 0) {
+			return res.status(404).json({ success: false, message: 'Game not found' });
+		}
+
+		await pool.execute(
+			'UPDATE game_list SET FAKE_SETTLE = ? WHERE IDNo = ? AND ACTIVE != 0',
+			[fakeSettle, gameId]
+		);
+
+		return res.json({ success: true, fake_settle: fakeSettle });
+	} catch (err) {
+		console.error('Error updating FAKE_SETTLE:', err);
+		return res.status(500).json({ success: false, message: 'Error updating settlement flag' });
 	}
 });
 
@@ -3129,7 +3311,7 @@ router.get("/game_record/:id", checkSession, async (req, res) => {
 // GET GAME RECORD
 router.get('/game_record_data/:id', checkSession, async (req, res) => {
 	const id = parseInt(req.params.id);
-	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION
+	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE
 					FROM game_list 
 					JOIN account ON game_list.ACCOUNT_ID = account.IDNo 
 					JOIN agent ON agent.IDNo = account.AGENT_ID 

@@ -76,89 +76,71 @@
         color: white !important;
     }
 
-    @media print {
-    @page {
-        size: A4;
+    #modal-settlement .receipt-print-only { display: none; }
+
+    #modal-settlement .receipt-print-content {
+        width: 100%;
+        max-width: 200mm;
+        margin: 0 auto;
+        color: #000;
+        font-family: Arial, sans-serif;
+        font-size: 6mm;
+        line-height: 1.3;
+    }
+
+    #modal-settlement .receipt-brand {
+        text-align: center;
+        font-weight: 700;
+        font-size: 7.5mm;
         margin: 0;
+        letter-spacing: 0.3px;
     }
 
-    /* Limit document to one page only - prevents blank 2nd page */
-    html, body {
-        height: 297mm !important;
-        max-height: 297mm !important;
-        min-height: 0 !important;
-        overflow: hidden !important;
-        margin: 0 !important;
-        padding: 0 !important;
+    #modal-settlement .receipt-subtitle {
+        text-align: center;
+        font-weight: 700;
+        font-size: 6.4mm;
+        margin: 4mm 0 0;
     }
 
-    /* General print settings for the modal */
-    body * {
-        visibility: hidden;
+    #modal-settlement .receipt-datetime {
+        text-align: center;
+        font-weight: 700;
+        font-size: 5.6mm;
+        margin: 2mm 0 4mm;
     }
 
-    #modal-settlement, #modal-settlement * {
-        visibility: visible;
+    #modal-settlement .receipt-line {
+        border-top: 1px solid #000;
+        width: 90%;
+        margin: 4mm auto;
     }
 
-    #modal-settlement {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 210mm !important;
-        max-width: 210mm !important;
-        height: 277mm !important;
-        max-height: 277mm !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
-        page-break-after: avoid !important;
-        page-break-inside: avoid !important;
+    #modal-settlement .receipt-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 3mm;
+        width: 72%;
+        min-width: 120mm;
+        margin: 2mm auto;
     }
 
-    #modal-settlement .modal-dialog {
-        width: 100% !important;
-        max-width: none !important;
-        margin: 0 !important;
-        height: 100% !important;
+    #modal-settlement .receipt-row span:first-child {
+        width: 35%;
+        text-align: right;
+        font-weight: 700;
+        white-space: nowrap;
     }
 
-    #modal-settlement .modal-content {
-        width: 100% !important;
-        height: 100% !important;
-        max-height: 277mm !important;
-        padding: 1rem 2rem !important;
-        page-break-inside: avoid !important;
-        box-shadow: none !important;
-        border: none !important;
-        overflow: hidden !important;
+    #modal-settlement .receipt-row span:last-child {
+        width: 35%;
+        text-align: left;
+        font-weight: 700;
+        white-space: nowrap;
     }
 
-    /* Print-specific settings for the settled image */
-    #modal-settlement .settled-image {
-        display: block;
-        width: 280px;
-        position: absolute;
-        left: 7%;
-        top: 40%;
-        opacity: 0.9;
-        transform: translateY(-50%);
-    }
-
-    #modal-settlement .btn, #modal-settlement .block-options, #modal-settlement .modal-header, #modal-settlement .modal-footer, #modal-settlement .text-end {
-        display: none !important;
-    }
-
-    #modal-settlement .block-content {
-        padding: 1rem !important;
-    }
-
-    /* Push Deposit/Cash Out down in print so they don't overlap SETTLED stamp */
-    #modal-settlement .deposit-cashout-row {
-        margin-top: 6rem !important;
-    }
-
-}
+    #modal-settlement .receipt-total span { font-size: 7mm; }
 
 
 
@@ -182,7 +164,7 @@
             <div class="block block-rounded block-themed block-transparent mb-0">
                 <div class="modal-header bg-primary">
                     <h3 class="block-title text-white"><%= __('modal_settlement.settlement') %></h3>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <!-- <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button> -->
                 </div>
 
                 <div class="block-content text-center d-flex align-items-center header-with-logo">
@@ -311,15 +293,59 @@
                 </div>
             </div>                            
         </div>
+
+        <!-- Telegram opts for fake slip (Edit → Done) -->
+        <div class="row mb-2 settlement-telegram-opts g-2 align-items-center" id="settlement-telegram-opts" style="display: none;">
+            <div class="col-6 col-sm-6">
+                <div class="form-check mb-0">
+                    <input class="form-check-input" style="border-color: #20252e !important;" type="checkbox" value="1" id="settleSendAgent" name="send_telegram_agent">
+                    <label class="form-check-label" for="settleSendAgent">Send to Agent</label>
+                </div>
+            </div>
+            <div class="col-6 col-sm-6">
+                <div class="form-check mb-0">
+                    <input class="form-check-input" style="border-color: #20252e !important;" type="checkbox" value="1" id="settleSendCage" name="send_telegram_cage">
+                    <label class="form-check-label" for="settleSendCage">Send to Cage</label>
+                </div>
+            </div>
+        </div>
     </div>
     <div class="modal-footer">
-        <button type="button" id="submit-settlement-btn" class="btn btn-sm btn-primary"><%= __('modal_settlement.save') %></button>
+        <button type="button" id="submit-settlement-btn" class="btn btn-sm btn-primary">Settle</button>
+        <button type="button" id="edit-settlement-btn" class="btn btn-sm btn-alt-secondary">Edit</button>
         <button type="button" id="print-settlement-btn" class="btn btn-sm btn-alt-secondary"><%= __('modal_settlement.print') %></button>
-        <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
+        <button type="button" id="close-settlement-btn" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">
             <%= __('modal_settlement.close') %>
         </button>
     </div>
 </form>
+
+<div class="receipt-print-only">
+    <div class="receipt-print-content">
+        <p class="receipt-brand">INFINITY CAGE</p>
+        <p class="receipt-subtitle">Finished Game</p>
+        <div class="receipt-line"></div>
+        <p class="receipt-datetime" id="printReceiptDateTime"></p>
+
+        <div class="receipt-row"><span>Account :</span><span id="printReceiptAccount">0</span></div>
+        <div class="receipt-row"><span>Name :</span><span id="printReceiptName">0</span></div>
+        <div class="receipt-row"><span>Buy In :</span><span id="printReceiptBuyIn">0</span></div>
+        <div class="receipt-row"><span>Cash Out :</span><span id="printReceiptCashOut">0</span></div>
+        <div class="receipt-line"></div>
+
+        <div class="receipt-row"><span>W/L :</span><span id="printReceiptWinLoss">0</span></div>
+        <div class="receipt-row"><span>Rolling :</span><span id="printReceiptRolling">0</span></div>
+        <div class="receipt-line"></div>
+
+        <div class="receipt-row"><span>Settlement :</span><span id="printReceiptSettlement">0</span></div>
+        <div class="receipt-row"><span>Services :</span><span id="printReceiptFnb">0</span></div>
+        <div class="receipt-row"><span>Incidential :</span><span id="printReceiptIncidential">0</span></div>
+        <div class="receipt-line"></div>
+
+        <div class="receipt-row receipt-total"><span>Total :</span><span id="printReceiptTotal">0</span></div>
+        <div class="receipt-line"></div>
+    </div>
+</div>
 
 
             </div>
@@ -330,13 +356,270 @@
 
     <script>
         $(document).ready(function() {
-    // Handle print button click - hide browser header/footer (date, title, URL, page number)
-    $('#print-settlement-btn').on('click', function() {
-        var originalTitle = document.title;
-        document.title = '';
-        window.print();
-        document.title = originalTitle;
-    });
-});
+            function cleanValue(value) {
+                if (value === undefined || value === null) return '0';
+                var text = String(value).trim();
+                return text.length ? text : '0';
+            }
 
+            function parseAmount(value) {
+                var num = parseFloat(String(value || '').replace(/,/g, '').trim());
+                return isNaN(num) ? 0 : num;
+            }
+
+            function formatAmount(value) {
+                return Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+            }
+
+            function formatInputWithCommas($input) {
+                var raw = String($input.val() || '').replace(/,/g, '').trim();
+                if (!raw) {
+                    $input.val('');
+                    return;
+                }
+                var normalized = raw.replace(/[^\d.]/g, '');
+                var firstDot = normalized.indexOf('.');
+                if (firstDot !== -1) {
+                    normalized = normalized.slice(0, firstDot + 1) + normalized.slice(firstDot + 1).replace(/\./g, '');
+                }
+                var num = parseFloat(normalized);
+                if (isNaN(num)) return;
+                $input.val(num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
+            }
+
+            function syncPayment($modal) {
+                var fb = parseAmount($modal.find('#fb').val());
+                var settlement = parseAmount($modal.find('#rollingSettlement').val());
+                var payment = settlement - fb;
+                $modal.find('#payment').val(formatAmount(payment));
+            }
+
+            function formatReceiptDateTime(dateText, timeText) {
+                var dateValue = String(dateText || '').trim();
+                var timeValue = String(timeText || '').trim();
+                var formattedDate = dateValue;
+                var formattedTime = timeValue;
+
+                if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+                    var dateParts = dateValue.split('-');
+                    formattedDate = dateParts[1] + '/' + dateParts[2] + '/' + dateParts[0];
+                }
+                if (/^\d{2}:\d{2}:\d{2}$/.test(timeValue)) {
+                    formattedTime = timeValue.slice(0, 5);
+                }
+                return cleanValue(formattedDate + ' ' + formattedTime);
+            }
+
+            function updateReceiptPrintData($modal) {
+                var dateText = cleanValue($modal.find('#date').text());
+                var timeText = cleanValue($modal.find('#time').text());
+                var accountRaw = cleanValue($modal.find('#accNo').text());
+                var accountParts = accountRaw.split('-');
+                var accountCode = cleanValue(accountParts[0]);
+                var accountName = cleanValue(accountParts.slice(1).join('-'));
+
+                $modal.find('#printReceiptDateTime').text(formatReceiptDateTime(dateText, timeText));
+                $modal.find('#printReceiptAccount').text(accountCode);
+                $modal.find('#printReceiptName').text(accountName);
+                $modal.find('#printReceiptBuyIn').text(cleanValue($modal.find('#buyIn').val()));
+                $modal.find('#printReceiptCashOut').text(cleanValue($modal.find('#chipsReturn').val()));
+                $modal.find('#printReceiptWinLoss').text(cleanValue($modal.find('#winLoss').val()));
+                $modal.find('#printReceiptRolling').text(cleanValue($modal.find('#rolling').val()));
+                $modal.find('#printReceiptSettlement').text(cleanValue($modal.find('#rollingSettlement').val()));
+                $modal.find('#printReceiptFnb').text(cleanValue($modal.find('#fb').val()));
+                $modal.find('#printReceiptIncidential').text('0');
+                $modal.find('#printReceiptTotal').text(cleanValue($modal.find('#payment').val()));
+            }
+
+            function getReceiptPrintStyles() {
+                return '@page{size:auto;margin:6mm;}html,body{margin:0;padding:0;}body{font-family:Arial,sans-serif;color:#000;} .receipt-print-content{width:100%;max-width:200mm;margin:0 auto;font-size:5mm;line-height:1.3;} .receipt-brand{text-align:center;font-weight:700;font-size:7.5mm;margin:0;letter-spacing:.3px;} .receipt-subtitle{text-align:center;font-weight:700;font-size:6.4mm;margin:4mm 0 0;} .receipt-datetime{text-align:center;font-weight:700;font-size:5.6mm;margin:2mm 0 4mm;} .receipt-line{border-top:1px solid #000;width:90%;margin:4mm auto;} .receipt-row{display:flex;justify-content:space-between;align-items:baseline;gap:3mm;width:72%;min-width:120mm;margin:2mm auto;} .receipt-row span:first-child{width:35%;text-align:right;font-weight:700;white-space:nowrap;} .receipt-row span:last-child{width:35%;text-align:left;font-weight:700;white-space:nowrap;} .receipt-total span{font-size:7mm;}';
+            }
+
+            function openReceiptPrintWindow($modal) {
+                var receiptHtml = $modal.find('.receipt-print-only').html();
+                var iframe = document.createElement('iframe');
+                iframe.style.position = 'fixed';
+                iframe.style.right = '0';
+                iframe.style.bottom = '0';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = '0';
+                iframe.setAttribute('aria-hidden', 'true');
+                document.body.appendChild(iframe);
+
+                var iframeDoc = iframe.contentWindow.document;
+                iframeDoc.open();
+                iframeDoc.write('<!doctype html><html><head><title>Settlement Receipt</title><style>' + getReceiptPrintStyles() + '</style></head><body>' + receiptHtml + '</body></html>');
+                iframeDoc.close();
+
+                setTimeout(function() {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                    setTimeout(function() {
+                        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+                    }, 500);
+                }, 100);
+            }
+
+            function updateSettlementFromRollingAndRate($modal) {
+                if (!Number($modal.data('edit-mode'))) return;
+                var rolling = parseAmount($modal.find('#rolling').val());
+                var rate = parseAmount($modal.find('#rollingRate').val());
+                var settlement = Math.round((rolling * rate) / 100);
+                $modal.find('#rollingSettlement').val(settlement.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+                syncPayment($modal);
+            }
+
+            function captureSnapshot($modal) {
+                $modal.data('settlement-snapshot', {
+                    buyIn: $modal.find('#buyIn').val(),
+                    chipsReturn: $modal.find('#chipsReturn').val(),
+                    winLoss: $modal.find('#winLoss').val(),
+                    rolling: $modal.find('#rolling').val(),
+                    rollingRate: $modal.find('#rollingRate').val(),
+                    rollingSettlement: $modal.find('#rollingSettlement').val(),
+                    fb: $modal.find('#fb').val(),
+                    payment: $modal.find('#payment').val(),
+                    transType: $modal.find('input[name="txtTransType"]:checked').val() || ''
+                });
+            }
+
+            function restoreSnapshot($modal) {
+                var s = $modal.data('settlement-snapshot');
+                if (!s) return;
+                $modal.find('#buyIn').val(s.buyIn);
+                $modal.find('#chipsReturn').val(s.chipsReturn);
+                $modal.find('#winLoss').val(s.winLoss);
+                $modal.find('#rolling').val(s.rolling);
+                $modal.find('#rollingRate').val(s.rollingRate);
+                $modal.find('#rollingSettlement').val(s.rollingSettlement);
+                $modal.find('#fb').val(s.fb);
+                $modal.find('#payment').val(s.payment);
+                $modal.find('input[name="txtTransType"]').prop('checked', false);
+                if (s.transType) {
+                    $modal.find('input[name="txtTransType"][value="' + s.transType + '"]').prop('checked', true);
+                }
+            }
+
+            function setEditMode($modal, enabled) {
+                var isSettled = Number($modal.data('is-settled')) === 1;
+                var fakeActive = Number($modal.data('fake-settle-active')) === 1;
+                $modal.data('edit-mode', enabled ? 1 : 0);
+
+                $modal.find('#submit-settlement-btn').toggle(!enabled && !isSettled);
+                $modal.find('.deposit-cashout-row').toggle(!enabled && !isSettled);
+                $modal.find('#settlement-telegram-opts').toggle(enabled || (!isSettled && fakeActive && !enabled));
+                $modal.find('#close-settlement-btn').toggle(!enabled);
+
+                $modal.find('#edit-settlement-btn').text(enabled ? 'Done' : 'Edit');
+                $modal.find('#buyIn, #chipsReturn, #winLoss, #rollingSettlement, #fb, #payment').prop('readonly', true);
+                $modal.find('#rolling, #rollingRate').prop('readonly', !enabled);
+            }
+
+            $('#modal-settlement').on('shown.bs.modal', function() {
+                var $modal = $(this);
+                $modal.removeData('settlement-snapshot');
+                $modal.find('#settleSendAgent, #settleSendCage').prop('checked', false);
+                setEditMode($modal, false);
+                syncPayment($modal);
+            });
+
+            $('#modal-settlement').on('hidden.bs.modal', function() {
+                var $modal = $(this);
+                $modal.removeData('settlement-snapshot');
+                setEditMode($modal, false);
+            });
+
+            $('#edit-settlement-btn').on('click', function() {
+                var $modal = $(this).closest('.modal');
+                var isEditMode = !!$modal.data('edit-mode');
+                var isSettled = Number($modal.data('is-settled')) === 1;
+                var gameId = $modal.find('input[name="game_id_settle"]').val();
+
+                if (!isEditMode) {
+                    captureSnapshot($modal);
+                    setEditMode($modal, true);
+                    updateSettlementFromRollingAndRate($modal);
+                    return;
+                }
+
+                function finishDone(agentSent, cageSent) {
+                    if (!isSettled) {
+                        restoreSnapshot($modal);
+                    }
+                    setEditMode($modal, false);
+                    $modal.removeData('settlement-snapshot');
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Done',
+                            text: (agentSent || cageSent) ? 'Done. Telegram sent.' : 'Done.',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                }
+
+                function putFakeSettleThenFinish(agentSent, cageSent) {
+                    if (!gameId) return finishDone(false, false);
+                    $.ajax({
+                        url: '/game_list/' + encodeURIComponent(gameId) + '/settlement_fake_settle',
+                        type: 'PUT',
+                        data: { fake_settle: 1 },
+                        success: function() {
+                            if (!isSettled) {
+                                $modal.data('fake-settle-active', 1);
+                            }
+                            finishDone(agentSent, cageSent);
+                        },
+                        error: function() {
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({ icon: 'error', title: 'Error', text: 'Could not save settlement status. Try again.', confirmButtonText: 'OK' });
+                            }
+                        }
+                    });
+                }
+
+                syncPayment($modal);
+
+                var sendAgent = $modal.find('#settleSendAgent').is(':checked');
+                var sendCage = $modal.find('#settleSendCage').is(':checked');
+
+                if (sendAgent || sendCage) {
+                    $.ajax({
+                        type: 'POST',
+                        url: '/settlement_slip_telegram',
+                        data: $('#add_settlement').serialize(),
+                        success: function() {
+                            putFakeSettleThenFinish(sendAgent, sendCage);
+                        },
+                        error: function(xhr) {
+                            var msg = 'Could not send Telegram.';
+                            if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({ icon: 'error', title: 'Error', text: msg, confirmButtonText: 'OK' });
+                            }
+                        }
+                    });
+                    return;
+                }
+
+                putFakeSettleThenFinish(false, false);
+            });
+
+            $('#rolling, #rollingRate').on('input', function() {
+                var $modal = $(this).closest('.modal');
+                if (!$modal.data('edit-mode')) return;
+                if (this.id === 'rolling') {
+                    formatInputWithCommas($(this));
+                }
+                updateSettlementFromRollingAndRate($modal);
+            });
+
+            $('#print-settlement-btn').on('click', function() {
+                var $modal = $(this).closest('.modal');
+                syncPayment($modal);
+                updateReceiptPrintData($modal);
+                openReceiptPrintWindow($modal);
+            });
+        });
     </script>
