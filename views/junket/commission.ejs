@@ -20,7 +20,11 @@
 							<a href="/commission_panel">Analytics</a>
 							</div>
 						</h3>
-						
+						<div class="d-flex align-items-center gap-2">
+							<button type="button" id="btn-export-commission" class="btn btn-success btn-sm">
+								<i class="fa fa-download me-1"></i><%= __('commission.export') %>
+							</button>
+						</div>
 					</div>
 					<div class="commission-date-filter-wrap">
 						<input type="text" id="daterange" class="input-daterange input-group" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off"/>
@@ -360,9 +364,11 @@
 				previous: "<%= __('commission.previous') %>",
 				next: "<%= __('commission.next') %>",
 				please_select_date_range: "<%= __('commission.please_select_date_range') %>",
-				no_data_found: "<%= __('commission.no_data_found') %>"
+				no_data_found: "<%= __('commission.no_data_found') %>",
+				export: "<%= __('commission.export') %>"
 			};
 		</script>
+		<script src="/assets/js/vendor/exceljs.min.js"></script>
 		<script src="/assets/js/functions/commission.js"></script>
 		
 		

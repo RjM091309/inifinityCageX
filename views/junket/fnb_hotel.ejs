@@ -42,9 +42,14 @@
 							<a href="#" class="filter-link" data-filter="delivery"><%= __('fnb_hotel.delivery') %></a>
 						</div>
 					</h3>
-					<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-services-new-record">
-						<i class="fa fa-plus" aria-hidden="true"></i> <%= __('fnb_hotel.new_record') %>
-					</button>
+					<div class="d-flex align-items-center gap-2">
+						<button type="button" id="btn-export-fnb-hotel" class="btn btn-success btn-sm">
+							<i class="fa fa-download me-1"></i><%= __('fnb_hotel.export') %>
+						</button>
+						<button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modal-services-new-record">
+							<i class="fa fa-plus" aria-hidden="true"></i> <%= __('fnb_hotel.new_record') %>
+						</button>
+					</div>
 				</div>
 				<div class="card-body">
 					<div class="row mt-4">
@@ -252,9 +257,11 @@
 		service_deleted: "<%= __('fnb_hotel.service_deleted') %>",
 		delete_failed: "<%= __('fnb_hotel.delete_failed') %>",
 		failed_to_delete: "<%= __('fnb_hotel.failed_to_delete') %>",
-		error: "<%= __('fnb_hotel.error') %>"
+		error: "<%= __('fnb_hotel.error') %>",
+		export: "<%= __('fnb_hotel.export') %>"
 	};
 </script>
+<script src="/assets/js/vendor/exceljs.min.js"></script>
 <script src="/assets/js/functions/fnb_hotel.js"></script>
 <%- include('../modals/junket/new_service_record') %>
 <%- include('../modals/junket/edit_service_record') %>

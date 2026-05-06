@@ -16,6 +16,11 @@
 							<a href="/commission_panel" class="active">Analytics</a>
 						</div>
 					</h3>
+						<div class="d-flex align-items-center gap-2">
+							<button type="button" id="btn-export-commission-panel" class="btn btn-success btn-sm">
+								<i class="fa fa-download me-1"></i><%= __('commission.export') %>
+							</button>
+						</div>
 				</div>
 				<div class="commission-date-filter-wrap">
 					<input type="text" id="commission-panel-daterange" class="input-daterange input-group" placeholder="<%= __('commission.select_date_range') %>" autocomplete="off" />
@@ -139,6 +144,7 @@
 </div>
 
 <%- include('../partials/footer') %>
+<script src="/assets/js/vendor/exceljs.min.js"></script>
 <script src="/assets/js/functions/commission_panel.js"></script>
 
 <style>

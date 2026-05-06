@@ -23,15 +23,17 @@
 										<% } %>
 									  </div>								 
 									</div>
-																  
-								
-								
+									<div class="mb-2 mb-md-0 ms-auto flex-shrink-0">
+										<button type="button" id="btn-export-game-list" class="btn btn-success btn-sm">
+											<i class="fa fa-download me-1"></i><%= __('gamelist.export') %>
+										</button>
+									</div>
 										<!-- DATE FILTER -->																
 								</div>
 
 								<div class="dataTables_wrapper">
 									<div class="row mb-2">
-										<div class="col-sm-6">
+										<div class="col-12 col-lg-6">
 											<!-- Filter Mode Radio Buttons - Single set for both wrappers -->
 											<div class="filter-mode-container">
 												<div class="d-flex align-items-center gap-3">
@@ -1125,6 +1127,7 @@ table.dataTable tbody tr.highlight-row {
 														<%- include ('../partials/permission_view_only_script') %>
 
 
+												<script src="/assets/js/vendor/exceljs.min.js"></script>
 												<script src="/assets/js/functions/game_list.js"></script>
 												<script src="/assets/js/functions/account.js"></script>
 												<script src="assets/js/plugins/select2/js/select2.full.min.js"></script>

@@ -299,6 +299,171 @@ $(document).ready(function () {
 		}
 	});
 
+	function gameListExportXlsxFileName() {
+		var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+		if (filterMode === 'settlement') {
+			var d = window.selectedSettlementDate || ($('#settlement-date-wrapper .input-group').attr('data-default-settlement-date') || '');
+			return 'Gamebook_' + (d || 'export').replace(/[^\d\-]/g, '') + '.xlsx';
+		}
+		var dr = document.getElementById('daterange-picker');
+		if (dr && dr._flatpickr && dr._flatpickr.selectedDates && dr._flatpickr.selectedDates.length === 2) {
+			var pad = function (n) { return String(n).padStart(2, '0'); };
+			var a = dr._flatpickr.selectedDates[0];
+			var b = dr._flatpickr.selectedDates[1];
+			var f = a.getFullYear() + '-' + pad(a.getMonth() + 1) + '-' + pad(a.getDate());
+			var t = b.getFullYear() + '-' + pad(b.getMonth() + 1) + '-' + pad(b.getDate());
+			return 'Gamebook_' + f + '_to_' + t + '.xlsx';
+		}
+		return 'Gamebook_export.xlsx';
+	}
+
+	var GAME_LIST_EXPORT_COL_WIDTHS = [16, 11, 10, 28, 14, 14, 14, 16, 14, 12, 14, 14, 12, 18];
+	/* 1-based Excel columns: money / numeric amounts (not GAME # col 3) */
+	var GAME_LIST_EXPORT_RIGHT_AMOUNT_COLS = [5, 6, 7, 8, 9, 11, 12];
+
+	function gameListCellBorder() {
+		var edge = { style: 'thin', color: { argb: 'FF000000' } };
+		return { top: edge, left: edge, bottom: edge, right: edge };
+	}
+
+	/** Parse display text to a number; Excel shows green triangles if numbers are written as strings. */
+	function gameListParseNumericCell(text) {
+		var s = String(text == null ? '' : text).trim();
+		if (s === '' || s === '-') return null;
+		var cleaned = s.replace(/,/g, '').replace(/\s/g, '');
+		if (cleaned === '' || cleaned === '-') return null;
+		var n = parseFloat(cleaned);
+		if (isNaN(n)) return null;
+		return n;
+	}
+
+	/** 0-based column index → cell value as number when appropriate, else string. */
+	function coerceGameListExportCell(colIdx0, plainText) {
+		var t = String(plainText == null ? '' : plainText).trim();
+		if (colIdx0 === 2) {
+			if (/game/i.test(t)) return plainText;
+			var gn = gameListParseNumericCell(t);
+			return gn !== null ? gn : plainText;
+		}
+		var numericCols0 = [4, 5, 6, 7, 8, 10, 11];
+		if (numericCols0.indexOf(colIdx0) >= 0) {
+			var n = gameListParseNumericCell(t);
+			return n !== null ? n : plainText;
+		}
+		return plainText;
+	}
+
+	function exportGameListTableToXlsx() {
+		if (typeof ExcelJS === 'undefined') {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Export', text: 'Excel library failed to load. Refresh the page and try again.' });
+			} else {
+				alert('Excel library failed to load.');
+			}
+			return Promise.resolve();
+		}
+		if (!$.fn.DataTable.isDataTable('#game_list-tbl')) return Promise.resolve();
+		var dt = $('#game_list-tbl').DataTable();
+		var numDataCols = 14;
+		var headers = [];
+		$('#game_list-tbl thead th').each(function (idx) {
+			if (idx >= numDataCols) return false;
+			headers.push($(this).text().replace(/\s+/g, ' ').trim());
+		});
+		var rows = [];
+		dt.rows({ search: 'applied' }).every(function () {
+			var data = this.data();
+			var cells = [];
+			for (var c = 0; c < numDataCols; c++) {
+				var raw = data[c];
+				if (raw === undefined || raw === null) raw = '';
+				else if (typeof raw !== 'string') raw = String(raw);
+				var plain = $('<div>').html(raw).text().replace(/\s+/g, ' ').trim();
+				cells.push(coerceGameListExportCell(c, plain));
+			}
+			rows.push(cells);
+		});
+
+		var workbook = new ExcelJS.Workbook();
+		var sheet = workbook.addWorksheet('Game List', {
+			views: [{ state: 'frozen', ySplit: 1 }]
+		});
+		sheet.addRow(headers);
+		rows.forEach(function (r) {
+			sheet.addRow(r);
+		});
+
+		for (var col = 1; col <= numDataCols; col++) {
+			sheet.getColumn(col).width = GAME_LIST_EXPORT_COL_WIDTHS[col - 1] || 12;
+		}
+
+		var hdr = sheet.getRow(1);
+		hdr.height = 22;
+		hdr.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+			if (colNumber > numDataCols) return;
+			cell.fill = {
+				type: 'pattern',
+				pattern: 'solid',
+				fgColor: { argb: 'FF4472C4' }
+			};
+			cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+			var hdrAlign = GAME_LIST_EXPORT_RIGHT_AMOUNT_COLS.indexOf(colNumber) >= 0 ? 'right' : 'center';
+			cell.alignment = { vertical: 'middle', horizontal: hdrAlign, wrapText: true };
+			cell.border = gameListCellBorder();
+		});
+
+		sheet.eachRow(function (row, rowNumber) {
+			if (rowNumber === 1) return;
+			// Fixed height + no wrap: avoids one random row (e.g. long ACCT name) growing taller in Excel
+			row.height = 18;
+			row.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+				if (colNumber > numDataCols) return;
+				if (typeof cell.value === 'number') {
+					if (colNumber === 3) {
+						cell.numFmt = '0';
+					} else {
+						// #,##0 only — avoid #,##0.## which can show a lone "." after integers in Excel
+						cell.numFmt = '#,##0';
+					}
+				}
+				// Right-align amount columns (including "-" placeholders); GAME # (3) stays centered
+				var bodyAlign = GAME_LIST_EXPORT_RIGHT_AMOUNT_COLS.indexOf(colNumber) >= 0 ? 'right' : 'center';
+				cell.alignment = { vertical: 'middle', horizontal: bodyAlign, wrapText: false };
+				cell.border = gameListCellBorder();
+			});
+		});
+
+		return workbook.xlsx.writeBuffer().then(function (buffer) {
+			var blob = new Blob([buffer], {
+				type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+			});
+			var url = URL.createObjectURL(blob);
+			var a = document.createElement('a');
+			a.href = url;
+			a.download = gameListExportXlsxFileName();
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+		});
+	}
+
+	$(document).on('click', '#btn-export-game-list', function (e) {
+		e.preventDefault();
+		var $btn = $('#btn-export-game-list');
+		$btn.prop('disabled', true);
+		exportGameListTableToXlsx()
+			.catch(function (err) {
+				console.error(err);
+				if (typeof Swal !== 'undefined') {
+					Swal.fire({ icon: 'error', title: 'Export failed', text: err && err.message ? err.message : 'Could not create file.' });
+				}
+			})
+			.finally(function () {
+				$btn.prop('disabled', false);
+			});
+	});
+
 	// Account Search - when has value show one row per account with totals; when cleared reload game list
 	$(document).on('keyup input', '#input-account-search', function () {
 		var val = ($('#input-account-search').val() || '').trim();

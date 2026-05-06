@@ -289,7 +289,8 @@
 		"settle_success_title": "Settled",
 		"settle_success_text": "Settlement for {{date}} completed.",
 		"settled": "Game already settled",
-		"settle_undo": "gamelist.settle_undo"
+		"settle_undo": "gamelist.settle_undo",
+		"export": "Export"
 	},
 	"house_expense": {
 		"junket": "Junket",
@@ -343,6 +344,7 @@
 		"name": "NAME",
 		"type_goods": "Goods / Consumables",
 		"type_non_goods": "Non-goods / Services",
+		"export": "Export",
 		"settle": "house_expense.settle"
 	},
 	"hotel_booking": {
@@ -425,11 +427,13 @@
 		"previous": "Previous",
 		"next": "Next",
 		"please_select_date_range": "Please select a date range.",
-		"no_data_found": "No data found"
+		"no_data_found": "No data found",
+		"export": "Export"
 	},
 	"junket_loss": {
 		"junket": "Junket",
-		"title": "Junket Loss"
+		"title": "Junket Loss",
+		"export": "Export"
 	},
 	"agent_statistic": {
 		"statistics": "Statistics",
@@ -1119,6 +1123,7 @@
 		"deleted": "Deleted!",
 		"service_deleted": "Service record has been deleted.",
 		"delete_failed": "Delete Failed",
-		"failed_to_delete": "Failed to delete service record."
+		"failed_to_delete": "Failed to delete service record.",
+		"export": "Export"
 	}
 }

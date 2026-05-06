@@ -1,6 +1,10 @@
 $(document).ready(function() {
 	let dataTable;
 	let currentFilter = 'all';
+	// Export: exclude ENCODED BY + ACTION
+	const FNB_EXPORT_COL_INDEXES = [0, 1, 2, 3, 4, 5, 6, 8];
+	const FNB_EXPORT_DATA_COLS = FNB_EXPORT_COL_INDEXES.length;
+	const FNB_EXPORT_COL_WIDTHS = [12, 24, 10, 14, 12, 12, 28, 22];
 
 	// Helpers (mirror the EJS helpers)
 	function formatDateForDisplay(value) {
@@ -23,6 +27,120 @@ $(document).ready(function() {
 			default:
 				return '-';
 		}
+	}
+
+	function fnbExportCellBorder() {
+		const edge = { style: 'thin', color: { argb: 'FF000000' } };
+		return { top: edge, left: edge, bottom: edge, right: edge };
+	}
+
+	function fnbExportFileName() {
+		const now = new Date();
+		const pad = (n) => String(n).padStart(2, '0');
+		const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+		return `FnbHotel_${ts}.xlsx`;
+	}
+
+	function parseFnbAmountCell(rawCellText) {
+		const txt = String(rawCellText == null ? '' : rawCellText)
+			.replace(/\u20B1/g, '')
+			.replace(/,/g, '')
+			.trim();
+		if (!txt || txt === '-') return null;
+		const n = parseFloat(txt);
+		return Number.isNaN(n) ? null : n;
+	}
+
+	function parseFnbGameIdCell(rawCellText) {
+		const txt = String(rawCellText == null ? '' : rawCellText).replace(/,/g, '').trim();
+		if (!txt || txt === '-') return null;
+		const n = parseInt(txt, 10);
+		return Number.isNaN(n) ? null : n;
+	}
+
+	function exportFnbHotelToXlsx() {
+		if (typeof ExcelJS === 'undefined') {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Export', text: 'Excel library failed to load. Refresh and try again.' });
+			}
+			return Promise.resolve();
+		}
+		if (!$.fn.DataTable.isDataTable('#fnb-hotel-table')) return Promise.resolve();
+		const dt = $('#fnb-hotel-table').DataTable();
+		const headers = [];
+		FNB_EXPORT_COL_INDEXES.forEach(function (tableIdx, exportIdx) {
+			let h = $('#fnb-hotel-table thead th').eq(tableIdx).text().replace(/\s+/g, ' ').trim();
+			// Requested rename: Game ID -> GAME #
+			if (exportIdx === 2) h = 'GAME #';
+			// Keep header text for others
+			headers.push(h);
+		});
+		const rows = [];
+		dt.rows({ search: 'applied' }).every(function () {
+			const data = this.data();
+			if (!data || data.length < 9) return;
+			const row = [];
+			for (let c = 0; c < FNB_EXPORT_DATA_COLS; c++) {
+				const raw = data[FNB_EXPORT_COL_INDEXES[c]];
+				let text = '';
+				if (raw && typeof raw === 'object' && raw.display !== undefined) {
+					text = String(raw.display);
+				} else {
+					text = $('<div>').html(raw == null ? '' : String(raw)).text().replace(/\s+/g, ' ').trim();
+				}
+				// Export col 2 = GAME #, col 4 = AMOUNT
+				if (c === 2) {
+					const gameNo = parseFnbGameIdCell(text);
+					row.push(gameNo !== null ? gameNo : text);
+				} else if (c === 4) {
+					const amount = parseFnbAmountCell(text);
+					row.push(amount !== null ? amount : text);
+				} else {
+					row.push(text);
+				}
+			}
+			rows.push(row);
+		});
+		const workbook = new ExcelJS.Workbook();
+		// Excel forbids these in sheet names: * ? : \ / [ ]
+		const sheet = workbook.addWorksheet('Services', { views: [{ state: 'frozen', ySplit: 1 }] });
+		sheet.addRow(headers);
+		rows.forEach((r) => sheet.addRow(r));
+		for (let i = 1; i <= FNB_EXPORT_DATA_COLS; i++) {
+			sheet.getColumn(i).width = FNB_EXPORT_COL_WIDTHS[i - 1] || 14;
+		}
+		const headerRow = sheet.getRow(1);
+		headerRow.height = 22;
+		headerRow.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+			if (colNumber > FNB_EXPORT_DATA_COLS) return;
+			cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+			cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+			// AMOUNT column is export col 5 (1-based)
+			cell.alignment = { vertical: 'middle', horizontal: colNumber === 5 ? 'right' : 'center', wrapText: true };
+			cell.border = fnbExportCellBorder();
+		});
+		sheet.eachRow(function (row, rowNumber) {
+			if (rowNumber === 1) return;
+			row.height = 18;
+			row.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+				if (colNumber > FNB_EXPORT_DATA_COLS) return;
+				if (colNumber === 3 && typeof cell.value === 'number') cell.numFmt = '0'; // GAME #
+				if (colNumber === 5 && typeof cell.value === 'number') cell.numFmt = '#,##0'; // AMOUNT
+				cell.alignment = { vertical: 'middle', horizontal: colNumber === 5 ? 'right' : 'center', wrapText: false };
+				cell.border = fnbExportCellBorder();
+			});
+		});
+		return workbook.xlsx.writeBuffer().then(function (buffer) {
+			const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = fnbExportFileName();
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+		});
 	}
 
 	// Initialize DataTable
@@ -224,6 +342,22 @@ $(document).ready(function() {
 
 	// Initialize DataTable (this will also call reloadData)
 	initializeDataTable();
+
+	$(document).on('click', '#btn-export-fnb-hotel', function (e) {
+		e.preventDefault();
+		const $btn = $('#btn-export-fnb-hotel');
+		$btn.prop('disabled', true);
+		exportFnbHotelToXlsx()
+			.catch(function (err) {
+				console.error(err);
+				if (typeof Swal !== 'undefined') {
+					Swal.fire({ icon: 'error', title: 'Export failed', text: err && err.message ? err.message : 'Could not create file.' });
+				}
+			})
+			.finally(function () {
+				$btn.prop('disabled', false);
+			});
+	});
 
 	// Edit service button handlers
 	$(document).on('click', '.edit-service-btn', function() {

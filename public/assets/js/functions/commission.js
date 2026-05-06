@@ -1,4 +1,180 @@
 $(document).ready(function() {
+    var COMMISSION_EXPORT_COLS = 11;
+    var COMMISSION_EXPORT_AMOUNT_COLS_1BASED = [1, 3, 4, 5, 6, 8, 9, 10]; // game no + numeric amounts
+    var COMMISSION_EXPORT_RIGHT_AMOUNT_COLS_1BASED = [3, 4, 5, 6, 8, 9, 10]; // exclude game no, keep numbers right-aligned
+    var COMMISSION_EXPORT_COL_MIN_WIDTHS = [8, 24, 12, 12, 12, 14, 12, 12, 10, 12, 22];
+    var COMMISSION_EXPORT_COL_MAX_WIDTHS = [10, 40, 18, 18, 18, 20, 16, 18, 16, 18, 26];
+
+    function commissionExportCellBorder() {
+        var edge = { style: 'thin', color: { argb: 'FF000000' } };
+        return { top: edge, left: edge, bottom: edge, right: edge };
+    }
+
+    function commissionSanitizeFilePart(s) {
+        return String(s || '')
+            .replace(/\s+/g, '_')
+            .replace(/[^\w\-]/g, '')
+            .trim();
+    }
+
+    function commissionExportFileName() {
+        var raw = ($('#daterange').val() || '').trim();
+        if (raw) {
+            return 'Commission_' + commissionSanitizeFilePart(raw) + '.xlsx';
+        }
+        var now = new Date();
+        var pad = function(n) { return String(n).padStart(2, '0'); };
+        var d = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+        return 'Commission_' + d + '.xlsx';
+    }
+
+    function commissionParseNumber(text) {
+        var s = String(text == null ? '' : text).trim();
+        if (s === '' || s === '-') return null;
+        var cleaned = s.replace(/,/g, '').replace(/\s/g, '');
+        var n = parseFloat(cleaned);
+        return isNaN(n) ? null : n;
+    }
+
+    function commissionParsePercent(text) {
+        var s = String(text == null ? '' : text).trim();
+        if (!s || s === '-') return null;
+        // Accept "1.45%", "1.45", "0.0145"
+        var hasPct = s.indexOf('%') >= 0;
+        s = s.replace('%', '').replace(/,/g, '').replace(/\s/g, '');
+        var n = parseFloat(s);
+        if (isNaN(n)) return null;
+        // If it had % sign, convert to fraction. If not, assume already percent-like (1.45 => 1.45%)
+        if (hasPct) return n / 100;
+        // If value looks like a fraction already (<= 1), keep as-is; else treat as percent
+        return n <= 1 ? n : (n / 100);
+    }
+
+    function commissionAutoFitColumns(sheet, headers, rows) {
+        var maxLens = [];
+        for (var i = 0; i < COMMISSION_EXPORT_COLS; i++) {
+            maxLens[i] = String(headers[i] == null ? '' : headers[i]).length;
+        }
+        (rows || []).forEach(function (r) {
+            for (var c = 0; c < COMMISSION_EXPORT_COLS; c++) {
+                var v = r[c];
+                var txt = (typeof v === 'number')
+                    ? v.toLocaleString('en-US', { maximumFractionDigits: 2 })
+                    : String(v == null ? '' : v);
+                if (txt.length > maxLens[c]) maxLens[c] = txt.length;
+            }
+        });
+        for (var col = 1; col <= COMMISSION_EXPORT_COLS; col++) {
+            var idx = col - 1;
+            var minW = COMMISSION_EXPORT_COL_MIN_WIDTHS[idx] || 10;
+            var maxW = COMMISSION_EXPORT_COL_MAX_WIDTHS[idx] || 30;
+            var autoW = Math.min(maxW, Math.max(minW, maxLens[idx] + 2));
+            sheet.getColumn(col).width = autoW;
+        }
+    }
+
+    function exportCommissionTableToXlsx() {
+        if (typeof ExcelJS === 'undefined') {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Export', text: 'Excel library failed to load. Refresh the page and try again.' });
+            }
+            return Promise.resolve();
+        }
+        if (!$.fn.DataTable || !$.fn.DataTable.isDataTable('#commission-tbl')) return Promise.resolve();
+
+        var dt = $('#commission-tbl').DataTable();
+        var headers = [];
+        $('#commission-tbl thead th').each(function (idx) {
+            if (idx >= COMMISSION_EXPORT_COLS) return false;
+            headers.push($(this).text().replace(/\s+/g, ' ').trim());
+        });
+
+        var rows = [];
+        dt.rows({ search: 'applied' }).every(function () {
+            var data = this.data();
+            if (!data || data.length < COMMISSION_EXPORT_COLS) return;
+            var row = [];
+            for (var c = 0; c < COMMISSION_EXPORT_COLS; c++) {
+                var raw = data[c];
+                if (raw === undefined || raw === null) raw = '';
+                else if (typeof raw !== 'string') raw = String(raw);
+                var text = $('<div>').html(raw).text().replace(/\s+/g, ' ').trim();
+                // Coerce numeric columns to numbers to avoid green triangles in Excel
+                if (c === 6) {
+                    var p = commissionParsePercent(text);
+                    row.push(p !== null ? p : text);
+                } else if (c === 0 || c === 2 || c === 3 || c === 4 || c === 5 || c === 7 || c === 8 || c === 9) {
+                    var n = commissionParseNumber(text);
+                    row.push(n !== null ? n : text);
+                } else {
+                    row.push(text);
+                }
+            }
+            rows.push(row);
+        });
+
+        var workbook = new ExcelJS.Workbook();
+        var sheet = workbook.addWorksheet('Commission', { views: [{ state: 'frozen', ySplit: 1 }] });
+        sheet.addRow(headers);
+        rows.forEach(function (r) { sheet.addRow(r); });
+        commissionAutoFitColumns(sheet, headers, rows);
+
+        var hdr = sheet.getRow(1);
+        hdr.height = 22;
+        hdr.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+            if (colNumber > COMMISSION_EXPORT_COLS) return;
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+            var hdrAlign = COMMISSION_EXPORT_RIGHT_AMOUNT_COLS_1BASED.indexOf(colNumber) >= 0 ? 'right' : 'center';
+            cell.alignment = { vertical: 'middle', horizontal: hdrAlign, wrapText: true };
+            cell.border = commissionExportCellBorder();
+        });
+
+        sheet.eachRow(function (row, rowNumber) {
+            if (rowNumber === 1) return;
+            row.height = 18;
+            row.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+                if (colNumber > COMMISSION_EXPORT_COLS) return;
+                if (typeof cell.value === 'number') {
+                    if (colNumber === 1) cell.numFmt = '0'; // GAME NO
+                    else if (colNumber === 7) cell.numFmt = '0.##%'; // ROLLING RATE
+                    else cell.numFmt = '#,##0';
+                }
+                var bodyAlign = COMMISSION_EXPORT_RIGHT_AMOUNT_COLS_1BASED.indexOf(colNumber) >= 0 ? 'right' : 'center';
+                cell.alignment = { vertical: 'middle', horizontal: bodyAlign, wrapText: false };
+                cell.border = commissionExportCellBorder();
+            });
+        });
+
+        return workbook.xlsx.writeBuffer().then(function (buffer) {
+            var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = commissionExportFileName();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    $(document).on('click', '#btn-export-commission', function (e) {
+        e.preventDefault();
+        var $btn = $('#btn-export-commission');
+        $btn.prop('disabled', true);
+        exportCommissionTableToXlsx()
+            .catch(function (err) {
+                console.error(err);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Export failed', text: err && err.message ? err.message : 'Could not create file.' });
+                }
+            })
+            .finally(function () {
+                $btn.prop('disabled', false);
+            });
+    });
+
     function formatCommissionNumber(n) {
         var v = Number(n) || 0;
         return v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });

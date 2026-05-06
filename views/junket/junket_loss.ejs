@@ -16,9 +16,14 @@
               <a href="/junket_loss" class="active"><%= __('junket_loss.title') %></a>
             </div>
           </h3>
-          <button type="button" class="btn btn-primary" id="btn-add-junket-loss">
-            <i class="fa fa-plus me-1"></i> Add Junket Loss
-          </button>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" id="btn-export-junket-loss" class="btn btn-success btn-sm">
+              <i class="fa fa-download me-1"></i><%= __('junket_loss.export') %>
+            </button>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-add-junket-loss">
+              <i class="fa fa-plus me-1"></i> Add Junket Loss
+            </button>
+          </div>
         </div>
         <div class="dataTables_wrapper">
           <div class="row mb-2">
@@ -84,6 +89,7 @@
 <%- include ('../partials/permission_view_only_script') %>
 <%- include('../partials/footer') %>
 
+<script src="/assets/js/vendor/exceljs.min.js"></script>
 <script src="/assets/js/functions/junket_loss.js"></script>
 
 <style>

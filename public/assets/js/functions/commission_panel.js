@@ -1,4 +1,138 @@
 $(document).ready(function () {
+    var COMM_PANEL_EXPORT_COLS = 8;
+    var COMM_PANEL_EXPORT_RIGHT_COLS_1BASED = [3, 4, 5, 6, 7, 8];
+    var COMM_PANEL_EXPORT_MIN_WIDTHS = [10, 24, 14, 18, 14, 18, 14, 14];
+    var COMM_PANEL_EXPORT_MAX_WIDTHS = [12, 40, 18, 22, 18, 22, 18, 18];
+
+    function commPanelExportCellBorder() {
+        var edge = { style: 'thin', color: { argb: 'FF000000' } };
+        return { top: edge, left: edge, bottom: edge, right: edge };
+    }
+
+    function commPanelSanitizeFilePart(s) {
+        return String(s || '')
+            .replace(/\s+/g, '_')
+            .replace(/[^\w\-]/g, '')
+            .trim();
+    }
+
+    function commPanelExportFileName() {
+        var raw = ($('#commission-panel-daterange').val() || '').trim();
+        if (raw) return 'Analytics_' + commPanelSanitizeFilePart(raw) + '.xlsx';
+        var now = new Date();
+        var pad = function (n) { return String(n).padStart(2, '0'); };
+        var d = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+        return 'Analytics_' + d + '.xlsx';
+    }
+
+    function commPanelParseNumber(text) {
+        var s = String(text == null ? '' : text).trim();
+        if (!s || s === '-') return null;
+        s = s.replace(/,/g, '').replace(/\s/g, '');
+        var n = parseFloat(s);
+        return isNaN(n) ? null : n;
+    }
+
+    function commPanelAutoFit(sheet, headers, rows) {
+        var maxLens = [];
+        for (var i = 0; i < COMM_PANEL_EXPORT_COLS; i++) {
+            maxLens[i] = String(headers[i] == null ? '' : headers[i]).length;
+        }
+        (rows || []).forEach(function (r) {
+            for (var c = 0; c < COMM_PANEL_EXPORT_COLS; c++) {
+                var v = r[c];
+                var txt = (typeof v === 'number') ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : String(v == null ? '' : v);
+                if (txt.length > maxLens[c]) maxLens[c] = txt.length;
+            }
+        });
+        for (var col = 1; col <= COMM_PANEL_EXPORT_COLS; col++) {
+            var idx = col - 1;
+            var minW = COMM_PANEL_EXPORT_MIN_WIDTHS[idx] || 10;
+            var maxW = COMM_PANEL_EXPORT_MAX_WIDTHS[idx] || 30;
+            sheet.getColumn(col).width = Math.min(maxW, Math.max(minW, maxLens[idx] + 2));
+        }
+    }
+
+    function exportCommissionPanelToXlsx() {
+        if (typeof ExcelJS === 'undefined') {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Export', text: 'Excel library failed to load. Refresh the page and try again.' });
+            }
+            return Promise.resolve();
+        }
+        if (!$.fn.DataTable || !$.fn.DataTable.isDataTable('#commission-panel-tbl')) return Promise.resolve();
+
+        var dt = $('#commission-panel-tbl').DataTable();
+        var headers = [];
+        $('#commission-panel-tbl thead th').each(function (idx) {
+            if (idx >= COMM_PANEL_EXPORT_COLS) return false;
+            headers.push($(this).text().replace(/\s+/g, ' ').trim());
+        });
+
+        var rows = [];
+        dt.rows({ search: 'applied' }).every(function () {
+            var data = this.data();
+            if (!data || data.length < COMM_PANEL_EXPORT_COLS) return;
+            var row = [];
+            for (var c = 0; c < COMM_PANEL_EXPORT_COLS; c++) {
+                var raw = data[c];
+                if (raw === undefined || raw === null) raw = '';
+                else if (typeof raw !== 'string') raw = String(raw);
+                var text = $('<div>').html(raw).text().replace(/\s+/g, ' ').trim();
+                if (c === 0 || c >= 2) {
+                    var n = commPanelParseNumber(text);
+                    row.push(n !== null ? n : text);
+                } else {
+                    row.push(text);
+                }
+            }
+            rows.push(row);
+        });
+
+        var workbook = new ExcelJS.Workbook();
+        var sheet = workbook.addWorksheet('Analytics', { views: [{ state: 'frozen', ySplit: 1 }] });
+        sheet.addRow(headers);
+        rows.forEach(function (r) { sheet.addRow(r); });
+        commPanelAutoFit(sheet, headers, rows);
+
+        var hdr = sheet.getRow(1);
+        hdr.height = 22;
+        hdr.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+            if (colNumber > COMM_PANEL_EXPORT_COLS) return;
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+            var hdrAlign = COMM_PANEL_EXPORT_RIGHT_COLS_1BASED.indexOf(colNumber) >= 0 ? 'right' : 'center';
+            cell.alignment = { vertical: 'middle', horizontal: hdrAlign, wrapText: true };
+            cell.border = commPanelExportCellBorder();
+        });
+
+        sheet.eachRow(function (row, rowNumber) {
+            if (rowNumber === 1) return;
+            row.height = 18;
+            row.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+                if (colNumber > COMM_PANEL_EXPORT_COLS) return;
+                if (typeof cell.value === 'number') {
+                    if (colNumber === 1) cell.numFmt = '0'; // Ranking #
+                    else cell.numFmt = '#,##0';
+                }
+                var bodyAlign = COMM_PANEL_EXPORT_RIGHT_COLS_1BASED.indexOf(colNumber) >= 0 ? 'right' : 'center';
+                cell.alignment = { vertical: 'middle', horizontal: bodyAlign, wrapText: false };
+                cell.border = commPanelExportCellBorder();
+            });
+        });
+
+        return workbook.xlsx.writeBuffer().then(function (buffer) {
+            var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = commPanelExportFileName();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
     function formatNumber(v) {
         return (Number(v) || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
     }
@@ -110,6 +244,22 @@ $(document).ready(function () {
             paginate: { previous: 'Previous', next: 'Next' },
             emptyTable: 'No data available in table'
         }
+    });
+
+    $(document).on('click', '#btn-export-commission-panel', function (e) {
+        e.preventDefault();
+        var $btn = $('#btn-export-commission-panel');
+        $btn.prop('disabled', true);
+        exportCommissionPanelToXlsx()
+            .catch(function (err) {
+                console.error(err);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Export failed', text: err && err.message ? err.message : 'Could not create file.' });
+                }
+            })
+            .finally(function () {
+                $btn.prop('disabled', false);
+            });
     });
 
     var drilldownState = {

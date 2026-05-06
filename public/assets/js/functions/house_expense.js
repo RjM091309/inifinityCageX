@@ -2142,7 +2142,188 @@ $(document).ready(function () {
         });
         return false;
     });
-})
+
+    var HOUSE_EXPENSE_EXPORT_COL_INDEXES = [0, 1, 2, 3, 5]; // Exclude ENCODED BY (index 4)
+    var HOUSE_EXPENSE_EXPORT_NUM_COLS = HOUSE_EXPENSE_EXPORT_COL_INDEXES.length;
+    var HOUSE_EXPENSE_EXPORT_COL_MIN_WIDTHS = [14, 18, 14, 12, 20];
+    var HOUSE_EXPENSE_EXPORT_COL_MAX_WIDTHS = [30, 56, 24, 18, 26];
+    var HOUSE_EXPENSE_EXPORT_AMOUNT_COL = 4;
+
+    function houseExpenseExportCellBorder() {
+        var edge = { style: 'thin', color: { argb: 'FF000000' } };
+        return { top: edge, left: edge, bottom: edge, right: edge };
+    }
+
+    function houseExpenseParseAmountForExport(htmlOrText) {
+        var s = String(htmlOrText == null ? '' : htmlOrText);
+        s = $('<div>').html(s).text().trim();
+        s = s.replace(/\u20B1/g, '').replace(/,/g, '').replace(/\s/g, '');
+        if (s === '' || s === '-') return null;
+        var n = parseFloat(s);
+        return isNaN(n) ? null : n;
+    }
+
+    function houseExpenseExportXlsxFileName() {
+        var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+        if (filterMode === 'settlement') {
+            var d =
+                window.selectedSettlementDate ||
+                ($('#settlement-date-wrapper .input-group').attr('data-default-settlement-date') || '') ||
+                ($('#settlement-date-picker').val() || '');
+            return 'Expenses_' + (d || 'export').replace(/[^\d\-]/g, '') + '.xlsx';
+        }
+        var dr = document.getElementById('daterange-picker');
+        if (dr && dr._flatpickr && dr._flatpickr.selectedDates && dr._flatpickr.selectedDates.length === 2) {
+            var pad = function (n) {
+                return String(n).padStart(2, '0');
+            };
+            var a = dr._flatpickr.selectedDates[0];
+            var b = dr._flatpickr.selectedDates[1];
+            var f = a.getFullYear() + '-' + pad(a.getMonth() + 1) + '-' + pad(a.getDate());
+            var t = b.getFullYear() + '-' + pad(b.getMonth() + 1) + '-' + pad(b.getDate());
+            return 'Expenses_' + f + '_to_' + t + '.xlsx';
+        }
+        return 'Expenses_export.xlsx';
+    }
+
+    function houseExpenseExportAutoFitColumns(sheet, headers, rows) {
+        var maxLens = [];
+        for (var i = 0; i < HOUSE_EXPENSE_EXPORT_NUM_COLS; i++) {
+            maxLens[i] = String(headers[i] == null ? '' : headers[i]).length;
+        }
+        rows.forEach(function (r) {
+            for (var c = 0; c < HOUSE_EXPENSE_EXPORT_NUM_COLS; c++) {
+                var v = r[c];
+                var txt = (typeof v === 'number')
+                    ? v.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                    : String(v == null ? '' : v);
+                if (txt.length > maxLens[c]) maxLens[c] = txt.length;
+            }
+        });
+        for (var col = 1; col <= HOUSE_EXPENSE_EXPORT_NUM_COLS; col++) {
+            var idx = col - 1;
+            var minW = HOUSE_EXPENSE_EXPORT_COL_MIN_WIDTHS[idx] || 10;
+            var maxW = HOUSE_EXPENSE_EXPORT_COL_MAX_WIDTHS[idx] || 40;
+            var autoW = Math.min(maxW, Math.max(minW, maxLens[idx] + 2));
+            sheet.getColumn(col).width = autoW;
+        }
+    }
+
+    function exportHouseExpenseTableToXlsx() {
+        if (typeof ExcelJS === 'undefined') {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Export',
+                    text: 'Excel library failed to load. Refresh the page and try again.'
+                });
+            } else {
+                alert('Excel library failed to load.');
+            }
+            return Promise.resolve();
+        }
+        if (!$.fn.DataTable.isDataTable('#expense-tbl')) return Promise.resolve();
+        var dt = $('#expense-tbl').DataTable();
+        var numDataCols = HOUSE_EXPENSE_EXPORT_NUM_COLS;
+        var headers = [];
+        HOUSE_EXPENSE_EXPORT_COL_INDEXES.forEach(function (tableIdx, exportIdx) {
+            var txt = $('#expense-tbl thead tr:first th').eq(tableIdx).text().replace(/\s+/g, ' ').trim();
+            // Requested label change for export
+            if (exportIdx === 0) txt = 'CATEGORY';
+            headers.push(txt);
+        });
+        var rows = [];
+        var noDataMsg = (window.houseExpenseTranslations && window.houseExpenseTranslations.no_data_found) || 'No data found';
+        dt.rows({ search: 'applied' }).every(function () {
+            var data = this.data();
+            if (!data || data.length < 6) return;
+            var firstText = $('<div>').html(data[0]).text().trim();
+            if (firstText === noDataMsg) return;
+            var cells = [];
+            for (var c = 0; c < numDataCols; c++) {
+                var raw = data[HOUSE_EXPENSE_EXPORT_COL_INDEXES[c]];
+                if (raw === undefined || raw === null) raw = '';
+                else if (typeof raw !== 'string') raw = String(raw);
+                if (c === 3) {
+                    var amt = houseExpenseParseAmountForExport(raw);
+                    cells.push(amt !== null ? amt : $('<div>').html(raw).text().replace(/\s+/g, ' ').trim());
+                } else {
+                    cells.push($('<div>').html(raw).text().replace(/\s+/g, ' ').trim());
+                }
+            }
+            rows.push(cells);
+        });
+        var workbook = new ExcelJS.Workbook();
+        var sheet = workbook.addWorksheet('Junket Expenses', {
+            views: [{ state: 'frozen', ySplit: 1 }]
+        });
+        sheet.addRow(headers);
+        rows.forEach(function (r) {
+            sheet.addRow(r);
+        });
+        houseExpenseExportAutoFitColumns(sheet, headers, rows);
+        var hdr = sheet.getRow(1);
+        hdr.height = 22;
+        hdr.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+            if (colNumber > numDataCols) return;
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF4472C4' }
+            };
+            cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+            var hdrAlign = colNumber === HOUSE_EXPENSE_EXPORT_AMOUNT_COL ? 'right' : 'center';
+            cell.alignment = { vertical: 'middle', horizontal: hdrAlign, wrapText: true };
+            cell.border = houseExpenseExportCellBorder();
+        });
+        sheet.eachRow(function (row, rowNumber) {
+            if (rowNumber === 1) return;
+            row.height = 18;
+            row.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+                if (colNumber > numDataCols) return;
+                if (typeof cell.value === 'number') {
+                    cell.numFmt = '#,##0';
+                }
+                var bodyAlign = colNumber === HOUSE_EXPENSE_EXPORT_AMOUNT_COL ? 'right' : 'center';
+                cell.alignment = { vertical: 'middle', horizontal: bodyAlign, wrapText: false };
+                cell.border = houseExpenseExportCellBorder();
+            });
+        });
+        return workbook.xlsx.writeBuffer().then(function (buffer) {
+            var blob = new Blob([buffer], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = houseExpenseExportXlsxFileName();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    $(document).on('click', '#btn-export-house-expense', function (e) {
+        e.preventDefault();
+        var $btn = $('#btn-export-house-expense');
+        $btn.prop('disabled', true);
+        exportHouseExpenseTableToXlsx()
+            .catch(function (err) {
+                console.error(err);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Export failed',
+                        text: err && err.message ? err.message : 'Could not create file.'
+                    });
+                }
+            })
+            .finally(function () {
+                $btn.prop('disabled', false);
+            });
+    });
+});
 
 function onlyNumberKey(evt) {
 

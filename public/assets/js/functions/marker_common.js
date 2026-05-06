@@ -379,31 +379,96 @@
         if (!$btn.length) return;
 
         $btn.off('click.markerExport').on('click.markerExport', function () {
-            if (typeof XLSX === 'undefined') {
-                console.error('XLSX library not loaded');
-                return;
-            }
-            var data = table.rows().data().toArray();
-            var wsData = [];
-            wsData.push(['ACCOUNT NAME', 'AMOUNT', 'TRANSACTION TYPE', 'DATE', 'REMARKS']);
+            var fileName = options.fileName || 'CreditData.xlsx';
+            var data = table.rows({ search: 'applied' }).data().toArray();
+            var headers = ['ACCOUNT NAME', 'AMOUNT', 'TRANSACTION TYPE', 'DATE', 'REMARKS'];
+            var rows = [];
             data.forEach(function (row) {
                 var dateCell = row.ENCODED_DT || '';
                 if (dateCell && window.moment) {
                     var md = parseMarkerHistoryDateString(dateCell);
                     if (md) dateCell = md.format('DD MMM, YYYY HH:mm');
                 }
-                wsData.push([
+                rows.push([
                     (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')',
-                    formatMarkerHistoryAmount(row.AMOUNT),
+                    Number(row.AMOUNT) || 0,
                     getTransactionLabel(row.TRANSACTION_ID),
                     dateCell,
                     row.REMARKS || ''
                 ]);
             });
-            var wb = XLSX.utils.book_new();
-            var ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, 'Marker Data');
-            XLSX.writeFile(wb, options.fileName || 'Marker_Data.xlsx');
+
+            // Prefer ExcelJS (styled export). Fallback to SheetJS (unstyled) if ExcelJS not present.
+            if (typeof ExcelJS !== 'undefined') {
+                function cellBorder() {
+                    var edge = { style: 'thin', color: { argb: 'FF000000' } };
+                    return { top: edge, left: edge, bottom: edge, right: edge };
+                }
+                var wb = new ExcelJS.Workbook();
+                var ws = wb.addWorksheet('Credit Data', { views: [{ state: 'frozen', ySplit: 1 }] });
+                ws.addRow(headers);
+                rows.forEach(function (r) { ws.addRow(r); });
+
+                // Auto-fit with caps
+                var minW = [24, 12, 18, 20, 28];
+                var maxW = [42, 18, 22, 26, 56];
+                var maxLens = headers.map(function (h) { return String(h || '').length; });
+                rows.forEach(function (r) {
+                    r.forEach(function (v, i) {
+                        var t = (typeof v === 'number') ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : String(v || '');
+                        if (t.length > maxLens[i]) maxLens[i] = t.length;
+                    });
+                });
+                for (var c = 1; c <= headers.length; c++) {
+                    var idx = c - 1;
+                    ws.getColumn(c).width = Math.min(maxW[idx], Math.max(minW[idx], maxLens[idx] + 2));
+                }
+
+                var hdr = ws.getRow(1);
+                hdr.height = 22;
+                hdr.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+                    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+                    cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'right' : 'center', wrapText: true };
+                    cell.border = cellBorder();
+                });
+
+                ws.eachRow(function (row, rowNumber) {
+                    if (rowNumber === 1) return;
+                    row.height = 18;
+                    row.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+                        if (colNumber === 2 && typeof cell.value === 'number') cell.numFmt = '#,##0';
+                        cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'right' : 'center', wrapText: false };
+                        cell.border = cellBorder();
+                    });
+                });
+
+                wb.xlsx.writeBuffer().then(function (buffer) {
+                    var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                });
+                return;
+            }
+
+            if (typeof XLSX === 'undefined') {
+                console.error('Excel export library not loaded');
+                return;
+            }
+            // Fallback: SheetJS without styling
+            var wsData = [headers].concat(rows.map(function (r) {
+                return [r[0], String(r[1]), r[2], r[3], r[4]];
+            }));
+            var wb2 = XLSX.utils.book_new();
+            var ws2 = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(wb2, ws2, 'Credit Data');
+            XLSX.writeFile(wb2, fileName);
         });
     }
 

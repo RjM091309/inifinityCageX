@@ -2,6 +2,128 @@ let junketLossTable;
 let junketLossFromDate = null;
 let junketLossToDate = null;
 
+function junketLossExportCellBorder() {
+    const edge = { style: 'thin', color: { argb: 'FF000000' } };
+    return { top: edge, left: edge, bottom: edge, right: edge };
+}
+
+function junketLossExportFileName() {
+    const from = (junketLossFromDate || '').replace(/[^\d\-]/g, '');
+    const to = (junketLossToDate || '').replace(/[^\d\-]/g, '');
+    if (from && to) return `JunketLoss_${from}_to_${to}.xlsx`;
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const d = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    return `JunketLoss_${d}.xlsx`;
+}
+
+function junketLossParseNumber(text) {
+    const s = String(text == null ? '' : text).trim();
+    if (!s || s === '-') return null;
+    const cleaned = s.replace(/,/g, '').replace(/\s/g, '');
+    const n = parseFloat(cleaned);
+    return Number.isNaN(n) ? null : n;
+}
+
+function exportJunketLossToXlsx() {
+    if (typeof ExcelJS === 'undefined') {
+        if (typeof Swal !== 'undefined') Swal.fire('Export', 'Excel library failed to load. Refresh and try again.', 'error');
+        return Promise.resolve();
+    }
+    if (!$.fn.DataTable || !$.fn.DataTable.isDataTable('#junket-loss-tbl')) return Promise.resolve();
+
+    const dt = $('#junket-loss-tbl').DataTable();
+    const exportCols = 5; // exclude Action
+    const headers = [];
+    $('#junket-loss-tbl thead th').each(function (idx) {
+        if (idx >= exportCols) return false;
+        headers.push($(this).text().replace(/\s+/g, ' ').trim());
+    });
+
+    const rows = [];
+    dt.rows({ search: 'applied' }).every(function () {
+        const data = this.data();
+        if (!data) return;
+        // DataTables here is object rows; use columns config to read rendered values from the table for consistency.
+        // Pull from DOM row to preserve formatted date/amount exactly as displayed.
+        const node = this.node();
+        if (!node) return;
+        const $tds = $(node).find('td');
+        if ($tds.length < exportCols) return;
+        const row = [];
+        for (let c = 0; c < exportCols; c++) {
+            const text = $tds.eq(c).text().replace(/\s+/g, ' ').trim();
+            if (c === 1) {
+                const n = junketLossParseNumber(text);
+                row.push(n !== null ? n : text);
+            } else if (c === 2) {
+                // In-charge is usually text, but if it's purely numeric (e.g. "2"),
+                // export as number to avoid Excel "number stored as text" warning.
+                const n = junketLossParseNumber(text);
+                row.push(n !== null ? n : text);
+            } else {
+                row.push(text);
+            }
+        }
+        rows.push(row);
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Junket Loss', { views: [{ state: 'frozen', ySplit: 1 }] });
+    sheet.addRow(headers);
+    rows.forEach((r) => sheet.addRow(r));
+
+    // Simple auto widths with caps
+    const minW = [24, 12, 18, 16, 22];
+    const maxW = [56, 18, 28, 22, 28];
+    const maxLens = headers.map((h) => String(h || '').length);
+    rows.forEach((r) => {
+        r.forEach((v, i) => {
+            const t = (typeof v === 'number') ? v.toLocaleString('en-US', { maximumFractionDigits: 0 }) : String(v || '');
+            if (t.length > maxLens[i]) maxLens[i] = t.length;
+        });
+    });
+    for (let i = 1; i <= exportCols; i++) {
+        const idx = i - 1;
+        const w = Math.min(maxW[idx] || 30, Math.max(minW[idx] || 10, (maxLens[idx] || 10) + 2));
+        sheet.getColumn(i).width = w;
+    }
+
+    const hdr = sheet.getRow(1);
+    hdr.height = 22;
+    hdr.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+        if (colNumber > exportCols) return;
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'right' : 'center', wrapText: true };
+        cell.border = junketLossExportCellBorder();
+    });
+
+    sheet.eachRow(function (row, rowNumber) {
+        if (rowNumber === 1) return;
+        row.height = 18;
+        row.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+            if (colNumber > exportCols) return;
+            if (colNumber === 2 && typeof cell.value === 'number') cell.numFmt = '#,##0';
+            if (colNumber === 3 && typeof cell.value === 'number') cell.numFmt = '0';
+            cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'right' : 'center', wrapText: false };
+            cell.border = junketLossExportCellBorder();
+        });
+    });
+
+    return workbook.xlsx.writeBuffer().then(function (buffer) {
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = junketLossExportFileName();
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+}
+
 function sanitizeAmountInput(value) {
     return String(value || '').replace(/[^\d.]/g, '');
 }
@@ -145,6 +267,22 @@ $(document).ready(function () {
 
     $('#btn-add-junket-loss').on('click', function () {
         openJunketLossModal(null);
+    });
+
+    $(document).on('click', '#btn-export-junket-loss', function (e) {
+        e.preventDefault();
+        const $btn = $('#btn-export-junket-loss');
+        $btn.prop('disabled', true);
+        exportJunketLossToXlsx()
+            .catch(function (err) {
+                console.error(err);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Export failed', text: err && err.message ? err.message : 'Could not create file.' });
+                }
+            })
+            .finally(function () {
+                $btn.prop('disabled', false);
+            });
     });
 
     $('#junket-loss-tbl').on('click', '.btn-junket-loss-edit', function () {
