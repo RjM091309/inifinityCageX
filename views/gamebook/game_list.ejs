@@ -23,7 +23,10 @@
 										<% } %>
 									  </div>								 
 									</div>
-									<div class="mb-2 mb-md-0 ms-auto flex-shrink-0">
+									<div class="mb-2 mb-md-0 ms-auto flex-shrink-0 d-flex align-items-center gap-2">
+										<button type="button" id="btn-merge-settle-game-list" class="btn btn-primary btn-sm">
+											<i class="fa fa-compress me-1"></i>Merge Settle
+										</button>
 										<button type="button" id="btn-export-game-list" class="btn btn-success btn-sm">
 											<i class="fa fa-download me-1"></i><%= __('gamelist.export') %>
 										</button>
@@ -478,6 +481,28 @@ th.col-winloss {
 #game_list-tbl td {
     padding: 12px 15px;
     color: #495057;
+}
+
+#btn-merge-settle-game-list.merge-settle-active {
+	box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.35);
+}
+
+.merge-settle-checkbox-wrap {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	margin-right: 6px;
+	margin-bottom: 0;
+}
+
+body.merge-settle-mode .merge-settle-checkbox-wrap {
+	display: inline-flex;
+}
+
+.merge-settle-checkbox {
+	width: 15px;
+	height: 15px;
+	cursor: pointer;
 }
 
 /* Footer total row */
@@ -945,15 +970,24 @@ table.dataTable tbody tr.highlight-row {
 
 							// Custom filtering function which will filter data based on the "From" and "To" dates
 							$.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+								function parseGameStartCellDate(rawCell) {
+									var text = $('<div>').html(rawCell || '').text().trim();
+									if (!text) return new Date('Invalid Date');
+									// Expected display: "May 07, 15:28" (year inferred from current year)
+									var withYear = text + ', ' + new Date().getFullYear();
+									var d = new Date(withYear);
+									return d;
+								}
+
 								// Get the values from the "From" and "To" date inputs
 								var minDate = $('#from-date').val() ? new Date($('#from-date').val()) : null;
 								var maxDate = $('#to-date').val() ? new Date($('#to-date').val()) : null;
 
 								// Get the game start date from the table data (Column index for "GAME START")
-								var gameStartDate = new Date(data[0]); // Assuming GAME START is the first column (index 0)
+								var gameStartDate = parseGameStartCellDate(data[0]); // GAME START column (index 0)
 
 								// Get the game end date from the table data (Column index for "GAME END DATE & TIME")
-								var gameEndDate = new Date(data[0]); // Assuming GAME END DATE & TIME is column 13
+								var gameEndDate = parseGameStartCellDate(data[0]); // Preserved existing filter behavior
 
 								// Strip the time portion of the date by setting time to midnight (for date-only comparison)
 								if (minDate !== null) {
@@ -1121,6 +1155,7 @@ table.dataTable tbody tr.highlight-row {
 										<%- include ('../modals/game_book/add_roller_chips') %>
 											<%- include ('../modals/game_book/show_rollings') %>
 												<%- include ('../modals/game_book/settlement') %>
+													<%- include ('../modals/game_book/merge_settlement') %>
 													<%- include ('../modals/game_book/game_services') %>
 														<%- include ('../modals/accounts/account_details') %>
 														<%- include ('../modals/accounts/transfer_account') %>

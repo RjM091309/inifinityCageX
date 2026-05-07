@@ -163,6 +163,8 @@
         // Page-level buttons/links to disable when view-only (e.g. Settle, fnb_hotel delete/edit, game_services delete/edit, telegram Save, Change Game No)
         var pageActionSelectors = [
             '#btn-daily-settle',
+            '#btn-merge-settle-game-list',
+            '#send-merge-settlement-telegram-btn',
             '.delete-service-btn',
             '.edit-service-btn',
             '.service-delete-btn',

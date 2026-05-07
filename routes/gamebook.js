@@ -2242,6 +2242,113 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 	}
 });
 
+// Telegram for merge settlement preview values (no official settlement write)
+router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
+	try {
+		const {
+			account_ids,
+			account_display,
+			game_numbers,
+			date,
+			time,
+			buy_in,
+			chips_return,
+			win_loss,
+			rolling,
+			rate,
+			settlement,
+			services,
+			payment
+		} = req.body || {};
+
+		let accountIds = [];
+		if (Array.isArray(account_ids)) {
+			accountIds = account_ids;
+		} else if (typeof account_ids === 'string') {
+			accountIds = account_ids.split(',').map(v => v.trim()).filter(Boolean);
+		}
+
+		accountIds = accountIds
+			.map(v => parseInt(v, 10))
+			.filter(v => Number.isInteger(v) && v > 0);
+
+		const uniqueAccountIds = [...new Set(accountIds)];
+		if (uniqueAccountIds.length === 0) {
+			return res.status(400).json({ success: false, error: 'No account IDs provided.' });
+		}
+
+		const safe = (v) => String(v == null ? '0' : v).trim() || '0';
+		const parseMoney = (v) => {
+			const n = parseFloat(String(v == null ? '0' : v).replace(/,/g, '').trim());
+			return Number.isFinite(n) ? n : 0;
+		};
+		const gameNos = safe(game_numbers);
+		const accountDisplayText = safe(account_display);
+		const dateText = safe(date);
+		const timeText = safe(time);
+		const buyInText = safe(buy_in);
+		const chipsReturnText = safe(chips_return);
+		const rawWinLoss = parseMoney(win_loss);
+		// Guest perspective: if junket shows negative, guest should see positive (and vice-versa).
+		const guestWinLoss = rawWinLoss < 0 ? Math.abs(rawWinLoss) : -rawWinLoss;
+		const winLossText = guestWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+		const rollingText = safe(rolling);
+		const rateText = safe(rate);
+		const settlementText = safe(settlement);
+		const servicesText = safe(services);
+		const paymentText = safe(payment);
+
+		let successCount = 0;
+		const failedAccounts = [];
+		for (const accountId of uniqueAccountIds) {
+			try {
+				const [rows] = await pool.execute(
+					`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+					 FROM account
+					 JOIN agent ON account.AGENT_ID = agent.IDNo
+					 WHERE account.IDNo = ? AND account.ACTIVE = 1
+					 LIMIT 1`,
+					[accountId]
+				);
+
+				if (!rows.length || !rows[0].TELEGRAM_ID) {
+					failedAccounts.push(accountId);
+					continue;
+				}
+
+				const { TELEGRAM_ID: telegramId } = rows[0];
+				const text =
+					`Infinity Cage\n\n` +
+					`계정 : ${accountDisplayText}\n` +
+					`게임 # : ${gameNos}\n\n` +
+					`바이인 합계 : ${buyInText}\n` +
+					`캐시아웃 합계 : ${chipsReturnText}\n` +
+					`윈/로스 Win/Loss : ${winLossText}\n` +
+					`토탈롤링 : ${rollingText}\n` +
+					`커미션 : ${paymentText}\n\n` +
+					`날짜 Date : ${dateText}\n` +
+					`시간 Time : ${timeText}`;
+
+				await sendTelegramMessage(text, telegramId);
+				successCount++;
+			} catch (sendErr) {
+				console.error('merge_settlement_telegram send error:', sendErr.message || sendErr);
+				failedAccounts.push(accountId);
+			}
+		}
+
+		if (successCount === 0) {
+			return res.status(500).json({ success: false, error: 'Failed to send Telegram to selected accounts.' });
+		}
+
+		const failNote = failedAccounts.length ? ` (${failedAccounts.length} failed)` : '';
+		return res.json({ success: true, message: `Telegram sent to ${successCount} account(s)${failNote}.` });
+	} catch (err) {
+		console.error('merge_settlement_telegram:', err);
+		return res.status(500).json({ success: false, error: 'Error sending merge Telegram.' });
+	}
+});
+
 // Settlement slip: Done → fake_settle 1 (FAKE_SETTLE = 1). Official /add_settlement resets to 0.
 router.put('/game_list/:gameId/settlement_fake_settle', checkSession, async (req, res) => {
 	const gameId = parseInt(req.params.gameId, 10);
