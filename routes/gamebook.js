@@ -342,7 +342,7 @@ router.post('/add_game_list', async (req, res) => {
 		if (!gameTypeValue) return gameTypeValue;
 		const upperValue = gameTypeValue.toUpperCase();
 		if (upperValue === 'LIVE') return '라이브';
-		if (upperValue === 'TELEBET') return '화신';
+		if (upperValue === 'TELEBET') return '아바타';
 		return gameTypeValue;
 	};
 
@@ -378,7 +378,7 @@ router.post('/add_game_list', async (req, res) => {
 		date: '날짜 Date',
 		time: '시간 Time'
 	};
-	const gameTypeForMgmt = (val) => (val === '라이브' ? '라이브 Live' : val === '화신' ? '화신 AVATAR' : val);
+	const gameTypeForMgmt = (val) => (val === '라이브' ? '라이브 Live' : val === '아바타' ? '아바타 AVATAR' : val);
 
 	// Commission type labels for Telegram (1 = none, 2 = Share, 3 = Losing)
 	const commissionType = parseInt(txtCommisionType, 10) || null;
@@ -613,10 +613,10 @@ router.post('/add_game_list_split', async (req, res) => {
 					if (!gameTypeValue) return gameTypeValue;
 					const upperValue = gameTypeValue.toUpperCase();
 					if (upperValue === 'LIVE') return '라이브';
-					if (upperValue === 'TELEBET') return '화신';
+					if (upperValue === 'TELEBET') return '아바타';
 					return gameTypeValue;
 				};
-				const gameTypeForMgmtSplit = (val) => (val === '라이브' ? '라이브 Live' : val === '화신' ? '화신 AVATAR' : val);
+				const gameTypeForMgmtSplit = (val) => (val === '라이브' ? '라이브 Live' : val === '아바타' ? '아바타 AVATAR' : val);
 				const translatedGameTypeSplit = translateGameTypeSplit(gameType);
 				const displayGameTypeMgmtSplit = gameTypeForMgmtSplit(translatedGameTypeSplit);
 				const balanceAfterDeposit = totalBalanceGuest - depositTotal;
@@ -2014,10 +2014,10 @@ router.post('/add_settlement', async (req, res) => {
 						if (!gameTypeValue) return gameTypeValue;
 						const upperValue = gameTypeValue.toUpperCase();
 						if (upperValue === 'LIVE') return '라이브';
-						if (upperValue === 'TELEBET') return '화신';
+						if (upperValue === 'TELEBET') return '아바타';
 						return gameTypeValue;
 					};
-					const gameTypeForMgmtSettle = (val) => (val === '라이브' ? '라이브 Live' : val === '화신' ? '화신 AVATAR' : val);
+					const gameTypeForMgmtSettle = (val) => (val === '라이브' ? '라이브 Live' : val === '아바타' ? '아바타 AVATAR' : val);
 					const translatedGameTypeSettle = translateGameTypeSettle(gameInfoRow.GAME_TYPE || '');
 					const displayGameTypeMgmtSettle = gameTypeForMgmtSettle(translatedGameTypeSettle);
 					gameLineKoSettle = translatedGameTypeSettle ? `${game_id_settle} - ${translatedGameTypeSettle}` : String(game_id_settle);
@@ -2191,10 +2191,10 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 					if (!gameTypeValue) return gameTypeValue;
 					const upperValue = gameTypeValue.toUpperCase();
 					if (upperValue === 'LIVE') return '라이브';
-					if (upperValue === 'TELEBET') return '화신';
+					if (upperValue === 'TELEBET') return '아바타';
 					return gameTypeValue;
 				};
-				const gameTypeForMgmtSettle = (val) => (val === '라이브' ? '라이브 Live' : val === '화신' ? '화신 AVATAR' : val);
+				const gameTypeForMgmtSettle = (val) => (val === '라이브' ? '라이브 Live' : val === '아바타' ? '아바타 AVATAR' : val);
 				const translatedGameTypeSettle = translateGameTypeSettle(gameRows[0].GAME_TYPE || '');
 				const displayGameTypeMgmtSettle = gameTypeForMgmtSettle(translatedGameTypeSettle);
 				gameTypeLine = translatedGameTypeSettle ? ` - ${translatedGameTypeSettle}` : '';
@@ -2468,10 +2468,10 @@ router.post('/game_list/add/buyin', async (req, res) => {
 				if (!gameTypeValue) return gameTypeValue;
 				const upperValue = gameTypeValue.toUpperCase();
 				if (upperValue === 'LIVE') return '라이브';
-				if (upperValue === 'TELEBET') return '화신';
+				if (upperValue === 'TELEBET') return '아바타';
 				return gameTypeValue;
 			};
-			const gameTypeForMgmtBuyin = (val) => (val === '라이브' ? '라이브 Live' : val === '화신' ? '화신 AVATAR' : val);
+			const gameTypeForMgmtBuyin = (val) => (val === '라이브' ? '라이브 Live' : val === '아바타' ? '아바타 AVATAR' : val);
 			const translatedGameTypeBuyin = translateGameTypeBuyin(rawGameTypeBuyin);
 			const displayGameTypeMgmtBuyin = gameTypeForMgmtBuyin(translatedGameTypeBuyin);
 			const gameLineKo = translatedGameTypeBuyin ? `${game_id} - ${translatedGameTypeBuyin}` : String(game_id);
@@ -2672,10 +2672,10 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 					if (!gameTypeValue) return gameTypeValue;
 					const upperValue = gameTypeValue.toUpperCase();
 					if (upperValue === 'LIVE') return '라이브';
-					if (upperValue === 'TELEBET') return '화신';
+					if (upperValue === 'TELEBET') return '아바타';
 					return gameTypeValue;
 				};
-				const gameTypeForMgmtSplitBuyin = (val) => (val === '라이브' ? '라이브 Live' : val === '화신' ? '화신 AVATAR' : val);
+				const gameTypeForMgmtSplitBuyin = (val) => (val === '라이브' ? '라이브 Live' : val === '아바타' ? '아바타 AVATAR' : val);
 				const translatedGameTypeSplitBuyin = translateGameTypeSplitBuyin(rawGameTypeSplitBuyin);
 				const displayGameTypeMgmtSplitBuyin = gameTypeForMgmtSplitBuyin(translatedGameTypeSplitBuyin);
 				const gameLineKoSplitBuyin = translatedGameTypeSplitBuyin ? `${game_id} - ${translatedGameTypeSplitBuyin}` : String(game_id);
@@ -2810,10 +2810,10 @@ router.post('/game_list/add/cashout', async (req, res) => {
 				if (!gameTypeValue) return gameTypeValue;
 				const upperValue = gameTypeValue.toUpperCase();
 				if (upperValue === 'LIVE') return '라이브';
-				if (upperValue === 'TELEBET') return '화신';
+				if (upperValue === 'TELEBET') return '아바타';
 				return gameTypeValue;
 			};
-			const gameTypeForMgmtCashout = (val) => (val === '라이브' ? '라이브 Live' : val === '화신' ? '화신 AVATAR' : val);
+			const gameTypeForMgmtCashout = (val) => (val === '라이브' ? '라이브 Live' : val === '아바타' ? '아바타 AVATAR' : val);
 			const translatedGameTypeCashout = translateGameTypeCashout(rawGameTypeCashout);
 			const displayGameTypeMgmtCashout = gameTypeForMgmtCashout(translatedGameTypeCashout);
 			const gameLineKoCashout = translatedGameTypeCashout ? `${game_id} - ${translatedGameTypeCashout}` : String(game_id);
@@ -3064,10 +3064,10 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				if (!gameTypeValue) return gameTypeValue;
 				const upperValue = gameTypeValue.toUpperCase();
 				if (upperValue === 'LIVE') return '라이브';
-				if (upperValue === 'TELEBET') return '화신';
+				if (upperValue === 'TELEBET') return '아바타';
 				return gameTypeValue;
 			};
-			const gameTypeForMgmtCashoutSplit = (val) => (val === '라이브' ? '라이브 Live' : val === '화신' ? '화신 AVATAR' : val);
+			const gameTypeForMgmtCashoutSplit = (val) => (val === '라이브' ? '라이브 Live' : val === '아바타' ? '아바타 AVATAR' : val);
 			const translatedGameTypeCashoutSplit = translateGameTypeCashoutSplit(rawGameTypeCashoutSplit);
 			const displayGameTypeMgmtCashoutSplit = gameTypeForMgmtCashoutSplit(translatedGameTypeCashoutSplit);
 			const gameLineKoCashoutSplit = translatedGameTypeCashoutSplit ? `${game_id} - ${translatedGameTypeCashoutSplit}` : String(game_id);
