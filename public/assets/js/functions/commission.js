@@ -514,10 +514,10 @@ $(document).ready(function() {
             moment().startOf('month').format('YYYY-MM-DD'),
             moment().endOf('month').format('YYYY-MM-DD')
         ],
-        showMonths: 2,
+        showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
             commissionSkipMonthRange = true;
-            instance.changeMonth(-1, true);
+            instance.changeMonth(-2, true);
             commissionSkipMonthRange = false;
         },
         onMonthChange: function (selectedDates, dateStr, instance) {

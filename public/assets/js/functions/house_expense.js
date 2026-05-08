@@ -969,87 +969,24 @@ $(document).ready(function () {
             (wrapper && wrapper.getAttribute('data-today')) ||
             now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
 
+        var dateRangeVisibleStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+
         dateRangePicker = flatpickr("#daterange-picker", {
             mode: 'range',
             dateFormat: 'Y-m-d',
             altInput: true,
             altFormat: 'M d, Y',
+            showMonths: 3,
+            defaultMonth: dateRangeVisibleStart,
             defaultDate: [],
-            maxDate: rangeMaxDate,
-            onDayCreate: function (dayElem) {
-                if (!dayElem || !dayElem.dateObj) return;
-                var d = dayElem.dateObj;
-                var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                var settledDates = window.settledDatesForMonth || [];
-                if (dStr && settledDates.indexOf(dStr) !== -1) {
-                    dayElem.classList.add('settled-day');
-                }
-            },
+            // maxDate: rangeMaxDate,
             onReady: function (selectedDates, dateStr, instance) {
-                // Highlight settled dates when calendar is ready (initial render)
-                setTimeout(function () {
-                    if (!instance.calendarContainer) return;
-                    var settledDates = window.settledDatesForMonth || [];
-                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
-                    days.forEach(function (el) {
-                        el.classList.remove('settled-day');
-                        if (!el.dateObj) return;
-                        var d = el.dateObj;
-                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                        if (dStr && settledDates.indexOf(dStr) !== -1) {
-                            el.classList.add('settled-day');
-                        }
-                    });
-                }, 100);
             },
             onOpen: function (selectedDates, dateStr, instance) {
-                setTimeout(function () {
-                    if (!instance.calendarContainer) return;
-                    var settledDates = window.settledDatesForMonth || [];
-                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
-                    days.forEach(function (el) {
-                        el.classList.remove('settled-day');
-                        if (!el.dateObj) return;
-                        var d = el.dateObj;
-                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                        if (dStr && settledDates.indexOf(dStr) !== -1) {
-                            el.classList.add('settled-day');
-                        }
-                    });
-                }, 0);
-            },
-            onMonthChange: function (selectedDates, dateStr, instance) {
-                setTimeout(function () {
-                    if (!instance.calendarContainer) return;
-                    var settledDates = window.settledDatesForMonth || [];
-                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
-                    days.forEach(function (el) {
-                        el.classList.remove('settled-day');
-                        if (!el.dateObj) return;
-                        var d = el.dateObj;
-                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                        if (dStr && settledDates.indexOf(dStr) !== -1) {
-                            el.classList.add('settled-day');
-                        }
-                    });
-                }, 0);
+                var anchor = new Date();
+                instance.jumpToDate(new Date(anchor.getFullYear(), anchor.getMonth() - 2, 1), false);
             },
             onChange: function(selectedDates, dateStr, instance) {
-                // Also highlight settled dates when date selection changes
-                setTimeout(function () {
-                    if (!instance.calendarContainer) return;
-                    var settledDates = window.settledDatesForMonth || [];
-                    var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
-                    days.forEach(function (el) {
-                        el.classList.remove('settled-day');
-                        if (!el.dateObj) return;
-                        var d = el.dateObj;
-                        var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                        if (dStr && settledDates.indexOf(dStr) !== -1) {
-                            el.classList.add('settled-day');
-                        }
-                    });
-                }, 0);
                 if (getHouseExpenseFilterMode() === 'daterange') {
                     toggleHouseExpenseBreakdownPanel('daterange');
                     if (selectedDates.length === 2) {
@@ -1516,20 +1453,15 @@ $(document).ready(function () {
                     var pickerEl = document.getElementById('settlement-date-picker');
                     if (pickerEl && pickerEl._flatpickr) pickerEl._flatpickr.setDate(settledDate || '', false);
                     
-                    // Refresh date range picker highlighting if it exists
+                    // Keep date-range picker plain (no settled-day highlight)
                     var dateRangePickerEl = document.getElementById('daterange-picker');
                     if (dateRangePickerEl && dateRangePickerEl._flatpickr && dateRangePickerEl._flatpickr.isOpen) {
                         var instance = dateRangePickerEl._flatpickr;
                         setTimeout(function () {
                             if (!instance.calendarContainer) return;
-                            var currentSettledDates = window.settledDatesForMonth || [];
-                            var days = instance.calendarContainer.querySelectorAll('.flatpickr-day');
+                            var days = instance.calendarContainer.querySelectorAll('.flatpickr-day.settled-day');
                             days.forEach(function (el) {
                                 el.classList.remove('settled-day');
-                                if (!el.dateObj) return;
-                                var d = el.dateObj;
-                                var dStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                                if (dStr && currentSettledDates.indexOf(dStr) !== -1) el.classList.add('settled-day');
                             });
                         }, 0);
                     }

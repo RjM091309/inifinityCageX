@@ -205,6 +205,7 @@ function removeJunketLoss(id) {
 
 $(document).ready(function () {
     const monthRange = getFirstAndLastOfMonth();
+    const calendarVisibleStart = new Date(monthRange.first.getFullYear(), monthRange.first.getMonth() - 2, 1);
     junketLossFromDate = formatYmd(monthRange.first);
     junketLossToDate = formatYmd(monthRange.last);
 
@@ -214,7 +215,13 @@ $(document).ready(function () {
             dateFormat: 'Y-m-d',
             altInput: true,
             altFormat: 'M d, Y',
+            showMonths: 3,
+            defaultMonth: calendarVisibleStart,
             defaultDate: [monthRange.first, monthRange.last],
+            onOpen: function (selectedDates, dateStr, instance) {
+                const anchor = new Date();
+                instance.jumpToDate(new Date(anchor.getFullYear(), anchor.getMonth() - 2, 1), false);
+            },
             onClose: function (selectedDates) {
                 if (!selectedDates || selectedDates.length !== 2) return;
                 junketLossFromDate = formatYmd(selectedDates[0]);
