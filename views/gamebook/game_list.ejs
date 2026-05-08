@@ -17,10 +17,6 @@
 										<a href="/game_list" class="active"><%= __('gamelist.game_book') %></a>
 										<a href="#"  onclick="addGameList()"><span class="fa fa-plus me-2"></span><%= __('gamelist.new_game') %></a>
 										<a href="#" id="btn-daily-settle"><%= __('gamelist.settle') || 'Settle' %></a>
-										<% if (permissions == 0) { %>
-											<% const undoLabel = __('gamelist.settle_undo'); %>
-											<a href="#" id="btn-daily-settle-undo" class="breadcrumb-undo-settle" style="display:none;"><%= undoLabel !== 'gamelist.settle_undo' ? undoLabel : 'Undo Settle' %></a>
-										<% } %>
 									  </div>								 
 									</div>
 									<div class="mb-2 mb-md-0 ms-auto flex-shrink-0 d-flex align-items-center gap-2">
@@ -57,17 +53,23 @@
 												const now = new Date();
 												const pad = value => value.toString().padStart(2, '0');
 												const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-												const initialDate = typeof initialSettlementDate !== 'undefined' ? initialSettlementDate : (typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr);
-												const maxPickerDate = typeof maxSettlementDate !== 'undefined' ? maxSettlementDate : initialDate;
+												const initialDate = typeof initialSettlementDate !== 'undefined' ? initialSettlementDate : todayStr;
+												const queueDueDate = typeof defaultSettlementDate !== 'undefined' ? defaultSettlementDate : todayStr;
+												const maxPickerDate = (typeof maxSettlementDate !== 'undefined' && maxSettlementDate != null && String(maxSettlementDate).trim() !== '')
+													? maxSettlementDate
+													: '';
 											%>
-												<div class="input-group" data-today="<%= todayStr %>" data-default-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>'>
-													<button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
-														<i class="fa fa-chevron-left"></i>
-													</button>
-													<input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
-													<button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
-														<i class="fa fa-chevron-right"></i>
-													</button>
+												<div class="settlement-picker-row">
+													<div class="input-group" data-today="<%= todayStr %>" data-default-settlement-date="<%= queueDueDate %>" data-initial-settlement-date="<%= initialDate %>" data-max-settlement-date="<%= maxPickerDate %>" data-settled-dates='<%= typeof settledDatesForMonth !== "undefined" ? JSON.stringify(settledDatesForMonth) : "[]" %>' data-draft-dates='<%= typeof draftDatesForMonth !== "undefined" ? JSON.stringify(draftDatesForMonth) : "[]" %>'>
+														<button type="button" id="btn-settlement-prev" class="btn btn-outline-secondary" title="Previous Date">
+															<i class="fa fa-chevron-left"></i>
+														</button>
+														<input type="text" id="settlement-date-picker" class="form-control text-center" placeholder="YYYY-MM-DD" value="<%= initialDate %>" readonly />
+														<button type="button" id="btn-settlement-next" class="btn btn-outline-secondary" title="Next Date">
+															<i class="fa fa-chevron-right"></i>
+														</button>
+													</div>
+													<span id="settlement-subview-indicator" class="settlement-subview-badge"></span>
 												</div>
 											</div>
 											
@@ -170,9 +172,11 @@
 					document.addEventListener('DOMContentLoaded', () => {
 						const wrapper = document.querySelector('#settlement-date-wrapper .input-group');
 						const todayStr = wrapper ? wrapper.getAttribute('data-today') : '';
-						const defaultDate = wrapper ? wrapper.getAttribute('data-default-settlement-date') : '';
-						const maxPickerDate = wrapper ? wrapper.getAttribute('data-max-settlement-date') : (defaultDate || todayStr);
-						window.selectedSettlementDate = defaultDate || todayStr || '';
+						const initialPickerDate = wrapper
+							? (wrapper.getAttribute('data-initial-settlement-date') || wrapper.getAttribute('data-today') || '')
+							: '';
+						const maxPickerDate = wrapper ? (wrapper.getAttribute('data-max-settlement-date') || '') : '';
+						window.selectedSettlementDate = initialPickerDate || todayStr || '';
 						var settledDates = [];
 						try {
 							var raw = wrapper ? wrapper.getAttribute('data-settled-dates') : '';
@@ -199,13 +203,12 @@
 								earliestSettlementDate = earliestAllowed.getFullYear() + '-' + pad(earliestAllowed.getMonth() + 1) + '-' + pad(earliestAllowed.getDate());
 							}
 							
-							flatpickr(pickerEl, {
+							var fpSettlementOpts = {
 								dateFormat: 'Y-m-d',
 								altInput: true,
 								altFormat: 'F d, Y',
-								defaultDate: defaultDate || todayStr,
+								defaultDate: initialPickerDate || todayStr,
 								minDate: earliestSettlementDate,
-								maxDate: maxPickerDate || defaultDate || todayStr,
 								allowInput: false,
 								onDayCreate: function (dayElem) {
 									var dStr = dayDateStr(dayElem);
@@ -239,7 +242,9 @@
 										});
 									}, 0);
 								}
-							});
+							};
+							if (maxPickerDate) fpSettlementOpts.maxDate = maxPickerDate;
+							flatpickr(pickerEl, fpSettlementOpts);
 						}
 					});
 				</script>
@@ -273,7 +278,17 @@
 	right: 0;    /* positive = kaliwa, negative = kanan */
 	bottom: 0;
 	left: 120px;
-	width: 320px;     /* Increased width to accommodate buttons */
+	width: 320px;
+}
+
+.settlement-picker-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+#settlement-date-wrapper {
+	width: 430px;
 }
 
 /* Settlement Date Navigation Buttons */
@@ -381,6 +396,34 @@
 	cursor: pointer;
 }
 
+.settlement-subview-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 86px;
+	padding: 6px 10px;
+	border-radius: 999px;
+	border: 1px solid #d0d7e2;
+	background: #f8f9fb;
+	color: #4a5568;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1;
+	letter-spacing: 0.2px;
+}
+
+.settlement-subview-badge.is-open {
+	background: #fff7ed;
+	border-color: #fed7aa;
+	color: #c2410c;
+}
+
+.settlement-subview-badge.is-settled {
+	background: #ecfdf3;
+	border-color: #bbf7d0;
+	color: #166534;
+}
+
 .card-body {
   overflow-x: auto;
   background-color: #ffffff;
@@ -462,20 +505,7 @@ th.col-winloss {
     background-color: #f8f9fa !important;
 }
 
-/* Pending games styling - Yellow/Orange background for games created before settlement but still ON GAME */
-#game_list-tbl tbody tr.pending-game {
-    background-color: #fff3cd !important; /* Light yellow/orange */
-    border-left: 4px solid #ffc107; /* Yellow border on left */
-}
-
-#game_list-tbl tbody tr.pending-game:hover {
-    background-color: #ffe69c !important; /* Darker yellow on hover */
-}
-
-#game_list-tbl tbody tr.pending-game td {
-    background-color: transparent !important;
-    font-weight: 500;
-}
+/* Pending games highlight removed */
 
 /* Cell styles */
 #game_list-tbl td {
@@ -487,6 +517,7 @@ th.col-winloss {
 	box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.35);
 }
 
+.daily-settle-checkbox-wrap,
 .merge-settle-checkbox-wrap {
 	display: none;
 	align-items: center;
@@ -495,10 +526,15 @@ th.col-winloss {
 	margin-bottom: 0;
 }
 
+body.daily-settle-select-mode .daily-settle-checkbox-wrap {
+	display: inline-flex;
+}
+
 body.merge-settle-mode .merge-settle-checkbox-wrap {
 	display: inline-flex;
 }
 
+.daily-settle-checkbox,
 .merge-settle-checkbox {
 	width: 15px;
 	height: 15px;

@@ -124,7 +124,7 @@ router.get("/game_list", checkSession, async function (req, res) {
 		dashboardQueries.getCCReturn()
 	  ]);
   
-	  // Default selected day: first day AFTER last settlement. If 31 today but 30 not settled → show 30; disable 31 until 30 is settled.
+	  // Next due settlement day (queue): day after latest active settlement date.
 	  const now = new Date();
 	  const pad = (n) => String(n).padStart(2, '0');
 	  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -135,7 +135,7 @@ router.get("/game_list", checkSession, async function (req, res) {
 	    // Do not restrict to "this month only": on the 1st of a new month, March
 	    // settlements would be excluded and MAX would be NULL, incorrectly defaulting to today.
 	    const [rows] = await pool.execute(
-	      'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM daily_settlement WHERE ACTIVE = 1'
+	      "SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM daily_settlement WHERE ACTIVE = 1"
 	    );
 	    const lastSettlement = rows[0] && rows[0].last_settlement;
 	    if (lastSettlement) {
@@ -148,27 +148,29 @@ router.get("/game_list", checkSession, async function (req, res) {
 	    // keep defaultSettlementDate = todayStr
 	  }
 
-	  // When opening via View Games link (e.g. /game_list?date=2026-02-03), use that date as initial
-	  let initialSettlementDate = defaultSettlementDate;
+	  // Picker default: today's calendar date so Open/Settled reflects "now"; queue/next due stays in defaultSettlementDate for Settle UX.
+	  let initialSettlementDate = todayStr;
 	  const urlDate = req.query.date;
 	  if (urlDate) {
 	    if (urlDate === 'current') {
-	      initialSettlementDate = defaultSettlementDate;
+	      initialSettlementDate = todayStr;
 	    } else if (/^\d{4}-\d{2}-\d{2}$/.test(urlDate)) {
 	      initialSettlementDate = urlDate;
 	    }
 	  }
-	  const maxSettlementDate = defaultSettlementDate; // For picker max (allow navigating up to today/next)
+	  // No max cap on settlement date picker / next navigation (user can jump forward freely).
+	  const maxSettlementDate = null;
 
 	  // Settled dates in the last year (for disabling Settle button when date already settled)
 	  let settledDatesForMonth = [];
+	  let draftDatesForMonth = [];
 	  try {
 	    const earliestAllowed = new Date(now.getFullYear() - 1, 0, 1); // January 1 of previous year
 	    const earliestStr = `${earliestAllowed.getFullYear()}-${pad(earliestAllowed.getMonth() + 1)}-${pad(earliestAllowed.getDate())}`;
 	    // Include all settled dates up to the latest settlement date (which can be in the future relative to today)
 	    const upperBoundStr = lastSettlementDateStr && lastSettlementDateStr > todayStr ? lastSettlementDateStr : todayStr;
 	    const [settledRows] = await pool.execute(
-	      'SELECT DISTINCT SETTLEMENT_DATE FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE',
+	      "SELECT DISTINCT SETTLEMENT_DATE FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE",
 	      [earliestStr, upperBoundStr]
 	    );
 	    settledDatesForMonth = (settledRows || []).map(r => {
@@ -180,6 +182,8 @@ router.get("/game_list", checkSession, async function (req, res) {
 	  } catch (e) {
 	    // keep settledDatesForMonth = []
 	  }
+	  // Status-independent behavior: draft/finalized distinction is intentionally ignored.
+	  draftDatesForMonth = [];
 
 	  // Attach values to `data`
 	  Object.assign(data, {
@@ -206,7 +210,8 @@ router.get("/game_list", checkSession, async function (req, res) {
 		defaultSettlementDate,
 		initialSettlementDate,
 		maxSettlementDate,
-		settledDatesForMonth
+		settledDatesForMonth,
+		draftDatesForMonth
 	  });
   
 	  res.render("gamebook/game_list", data);
@@ -1024,6 +1029,7 @@ router.delete('/game_services/:id', checkSession, async (req, res) => {
 // GET GAME LIST
 router.get('/game_list_data', async (req, res) => {
     let { start, end, id, date, fromDate, toDate } = req.query;
+    const settlementView = String(req.query.settlement_view || 'open').toLowerCase();
 
     const gameId = id ? parseInt(id, 10) : null;
 
@@ -1160,86 +1166,69 @@ router.get('/game_list_data', async (req, res) => {
                 const nowForToday = new Date();
                 const padLocal = (n) => String(n).padStart(2, '0');
                 const todayServer = `${nowForToday.getFullYear()}-${padLocal(nowForToday.getMonth() + 1)}-${padLocal(nowForToday.getDate())}`;
-                const [hasSettlement] = await pool.execute(
-                    'SELECT IDNo FROM daily_settlement WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1 LIMIT 1',
-                    [date]
-                );
-
-                // If this date already has a settlement, always show those games.
-                if (hasSettlement.length > 0) {
-                    const query = baseSelect + `
-                        JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
-                        JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
-                        WHERE game_list.ACTIVE != 0 
-                          AND ds.SETTLEMENT_DATE = ?
-                        ORDER BY game_list.IDNo ASC
-                    `;
-                    const [rows] = await pool.execute(query, [date]);
-                    
-                    // Settled games don't need pending flag (they're already settled)
-                    rows.forEach(row => { row.is_pending = 0; });
-                    
-                    return res.json(rows);
-                }
-
-                // Next settlement date = first day AFTER the latest active settlement (any month).
-                // Same rule as the Game Book page render; local calendar date for "today".
-                let defaultSettlementDate = todayServer;
-                try {
-                    const pad = (n) => String(n).padStart(2, '0');
-                    const [lastRows] = await pool.execute(
-                        'SELECT MAX(SETTLEMENT_DATE) AS last_settlement FROM daily_settlement WHERE ACTIVE = 1'
-                    );
-                    const lastSettlement = lastRows[0] && lastRows[0].last_settlement;
-                    if (lastSettlement) {
-                        const last =
-                            lastSettlement instanceof Date
-                                ? lastSettlement
-                                : new Date(String(lastSettlement).slice(0, 10) + 'T12:00:00Z');
-                        const nextDate = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
-                        defaultSettlementDate = `${nextDate.getFullYear()}-${pad(nextDate.getMonth() + 1)}-${pad(
-                            nextDate.getDate()
-                        )}`;
-                    }
-                } catch (e) {
-                    // Keep defaultSettlementDate = todayServer if anything goes wrong
-                }
-
-                // For dates at or after the next settlement date, show the current unsettled games.
-                // This allows running a missed settlement (e.g., settling the previous day on the
-                // following day) as long as the date is the next logical settlement date.
-                if (date >= defaultSettlementDate) {
-                    const query = baseSelect + `
-                        WHERE game_list.ACTIVE != 0 
-                          AND (game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL)
-                        ORDER BY game_list.IDNo ASC
-                    `;
-                    const [rows] = await pool.execute(query);
-                    
-                    // Add pending flag
+                const attachOpenPoolPendingFlags = async (rows) => {
                     const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
                     const [latestSettlement] = await pool.execute(
                         `SELECT RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
                         [firstOfMonth, todayServer]
                     );
-                    
                     if (latestSettlement.length > 0) {
-                        const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date 
-                            ? latestSettlement[0].RUN_AT 
+                        const settlementRunTime = latestSettlement[0].RUN_AT instanceof Date
+                            ? latestSettlement[0].RUN_AT
                             : new Date(latestSettlement[0].RUN_AT);
-                        rows.forEach(row => {
+                        rows.forEach((row) => {
                             const gameCreatedAt = row.ENCODED_DT instanceof Date ? row.ENCODED_DT : new Date(row.ENCODED_DT);
-                            row.is_pending = (gameCreatedAt < settlementRunTime && row.ACTIVE != 1) ? 1 : 0;
+                            row.is_pending = gameCreatedAt < settlementRunTime && row.ACTIVE != 1 ? 1 : 0;
                         });
                     } else {
-                        rows.forEach(row => { row.is_pending = 0; });
+                        rows.forEach((row) => {
+                            row.is_pending = 0;
+                        });
                     }
-                    
+                };
+                const openPoolSql =
+                    baseSelect +
+                    `
+                            WHERE game_list.ACTIVE != 0 
+                              AND (game_list.DAILY_SETTLEMENT = 1 OR game_list.DAILY_SETTLEMENT IS NULL)
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM daily_settlement_games dsg
+                                  JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
+                                  WHERE dsg.GAME_ID = game_list.IDNo
+                                    AND ds.ACTIVE = 1
+                              )
+                            ORDER BY game_list.IDNo ASC
+                        `;
+                if (settlementView === 'settled') {
+                    const [hasAnySettlement] = await pool.execute(
+                        'SELECT IDNo FROM daily_settlement WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1 LIMIT 1',
+                        [date]
+                    );
+                    if (hasAnySettlement.length > 0) {
+                        const query = baseSelect + `
+                            JOIN daily_settlement_games dsg ON game_list.IDNo = dsg.GAME_ID
+                            JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
+                            WHERE game_list.ACTIVE != 0
+                              AND ds.SETTLEMENT_DATE = ?
+                            ORDER BY game_list.IDNo ASC
+                        `;
+                        const [rows] = await pool.execute(query, [date]);
+                        rows.forEach(row => { row.is_pending = 0; });
+                        return res.json(rows);
+                    }
+                    return res.json([]);
+                }
+
+                // Open sub-view rule:
+                // - current date: show current open pool (unsettled / not assigned)
+                // - other dates with no settlement batch: show empty
+                // Settled rows for dates that have a settlement batch are handled by settlement_view='settled'.
+                if (date === todayServer) {
+                    const [rows] = await pool.execute(openPoolSql);
+                    await attachOpenPoolPendingFlags(rows);
                     return res.json(rows);
                 }
-                
-                // Past date *before* the next settlement date with no settlement record:
-                // there is no defined data set for that date, so return an empty list.
                 return res.json([]);
             }
         } catch (err) {
@@ -1308,19 +1297,26 @@ router.get('/game_list_data', async (req, res) => {
 });
 
 
-// POST run daily settlement (move all unsettled games into today's settlement)
-router.post('/game_list/daily_settlement/run', async (req, res) => {
+// POST assign games to any settlement date (past/today/future) or back to open pool — no queue auto-finalize side effects
+router.post('/game_list/daily_settlement/transfer', async (req, res) => {
     const encodedBy = req.session?.user_id;
     if (!encodedBy) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
-    const settlementDate = (req.body && req.body.settlement_date) 
-        ? req.body.settlement_date 
-        : new Date().toISOString().slice(0, 10);
 
     const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
-    if (!isValidDate(settlementDate)) {
-        return res.status(400).json({ error: 'Invalid settlement_date. Use YYYY-MM-DD.' });
+    const requestedGameIds = Array.isArray(req.body?.game_ids)
+        ? req.body.game_ids.map((id) => parseInt(id, 10)).filter((id) => Number.isInteger(id) && id > 0)
+        : [];
+    const uniqueGameIds = Array.from(new Set(requestedGameIds));
+    if (uniqueGameIds.length === 0) {
+        return res.status(400).json({ error: 'At least one game is required.' });
+    }
+
+    const settlementDate = req.body && req.body.settlement_date ? String(req.body.settlement_date).slice(0, 10) : null;
+
+    if (!settlementDate || !isValidDate(settlementDate)) {
+        return res.status(400).json({ error: 'settlement_date (YYYY-MM-DD) is required.' });
     }
 
     let connection;
@@ -1328,136 +1324,135 @@ router.post('/game_list/daily_settlement/run', async (req, res) => {
         connection = await pool.getConnection();
         await connection.beginTransaction();
 
-        const [existing] = await connection.execute(
-            'SELECT IDNo FROM daily_settlement WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1',
-            [settlementDate]
+        const placeholders = uniqueGameIds.map(() => '?').join(',');
+        const [gameRows] = await connection.execute(
+            `SELECT IDNo, ACTIVE FROM game_list WHERE IDNo IN (${placeholders}) AND ACTIVE IN (1, 2, 3)`,
+            uniqueGameIds
         );
-        if (existing.length > 0) {
+        const games = gameRows || [];
+        if (games.length === 0) {
             await connection.rollback();
             connection.release();
-            return res.status(400).json({ error: 'Settlement for this date already exists.' });
+            return res.status(400).json({ error: 'No eligible games found (need active END GAME, ON GAME, or PENDING).' });
+        }
+        // ON GAME (ACTIVE=2) is NOT eligible for daily settlement transfer.
+        const okIds = games
+            .filter((r) => Number(r.ACTIVE) !== 2)
+            .map((r) => r.IDNo);
+        if (okIds.length === 0) {
+            await connection.rollback();
+            connection.release();
+            return res.status(400).json({ error: 'Selected games are not eligible (ON GAME cannot be transferred).' });
         }
 
-        const [insertSettlement] = await connection.execute(
-            `INSERT INTO daily_settlement (SETTLEMENT_DATE, RUN_AT, ENCODED_BY, STATUS, ACTIVE)
-             VALUES (?, NOW(), ?, 'finalized', 1)`,
-            [settlementDate, encodedBy]
+        const okPlaceholders = okIds.map(() => '?').join(',');
+        const [oldSettlementRows] = await connection.execute(
+            `SELECT DISTINCT ds.IDNo
+             FROM daily_settlement_games dsg
+             JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
+             WHERE ds.ACTIVE = 1
+               AND dsg.GAME_ID IN (${okPlaceholders})`,
+            okIds
         );
-        const settlementId = insertSettlement.insertId;
+        const affectedSettlementIds = (oldSettlementRows || []).map((r) => r.IDNo);
 
-        const [openGames] = await connection.execute(
-            `SELECT IDNo FROM game_list WHERE (ACTIVE = 1 OR ACTIVE = 3) AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
-        );
-
-        for (const row of openGames) {
+        for (const gid of okIds) {
             await connection.execute(
-                'INSERT INTO daily_settlement_games (DAILY_SETTLEMENT_ID, GAME_ID, ADDED_AT) VALUES (?, ?, NOW())',
-                [settlementId, row.IDNo]
+                `DELETE dsg
+                 FROM daily_settlement_games dsg
+                 JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
+                 WHERE dsg.GAME_ID = ?
+                   AND ds.ACTIVE = 1`,
+                [gid]
             );
         }
 
-        await connection.execute(
-            `UPDATE game_list SET DAILY_SETTLEMENT = 2 WHERE (ACTIVE = 1 OR ACTIVE = 3) AND (DAILY_SETTLEMENT = 1 OR DAILY_SETTLEMENT IS NULL)`
-        );
-
-        await connection.commit();
-        connection.release();
-        res.json({
-            success: true,
-            settlement_date: settlementDate,
-            settlement_id: settlementId,
-            game_count: openGames.length
-        });
-    } catch (err) {
-        if (connection) {
-            try { await connection.rollback(); } catch (_) {}
-            connection.release();
-        }
-        console.error('Error running daily settlement:', err);
-        res.status(500).json({ error: 'Error running daily settlement' });
-    }
-});
-
-// POST undo daily settlement (per settlement date: revert games and delete settlement)
-router.post('/game_list/daily_settlement/undo', async (req, res) => {
-    const encodedBy = req.session?.user_id;
-    if (!encodedBy) {
-        return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    const settlementDate = (req.body && req.body.settlement_date)
-        ? req.body.settlement_date
-        : null;
-
-    const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
-    if (!settlementDate || !isValidDate(settlementDate)) {
-        return res.status(400).json({ error: 'Valid settlement_date (YYYY-MM-DD) is required' });
-    }
-
-    let connection;
-    try {
-        connection = await pool.getConnection();
-        await connection.beginTransaction();
-
-        // Find and lock the active settlement for this date
-        const [settlements] = await connection.execute(
-            `SELECT IDNo, ACTIVE
+        const [existing] = await connection.execute(
+            `SELECT IDNo
              FROM daily_settlement
-             WHERE SETTLEMENT_DATE = ?
-               AND ACTIVE = 1
+             WHERE SETTLEMENT_DATE = ? AND ACTIVE = 1
+             ORDER BY RUN_AT DESC, IDNo DESC
+             LIMIT 1
              FOR UPDATE`,
             [settlementDate]
         );
 
-        if (settlements.length === 0) {
-            await connection.rollback();
-            connection.release();
-            return res.status(404).json({ error: 'No active settlement found for this date' });
+        let settlementId;
+        if (existing.length > 0) {
+            settlementId = existing[0].IDNo;
+        } else {
+            const [insertSettlement] = await connection.execute(
+                `INSERT INTO daily_settlement (SETTLEMENT_DATE, RUN_AT, ENCODED_BY, ACTIVE)
+                 VALUES (?, NOW(), ?, 1)`,
+                [settlementDate, encodedBy]
+            );
+            settlementId = insertSettlement.insertId;
         }
 
-        const settlementId = settlements[0].IDNo;
-
-        const [gameRows] = await connection.execute(
-            `SELECT GAME_ID
-             FROM daily_settlement_games
-             WHERE DAILY_SETTLEMENT_ID = ?`,
-            [settlementId]
-        );
-
-        const gameIds = gameRows.map(row => row.GAME_ID);
-
-        if (gameIds.length > 0) {
-            const placeholders = gameIds.map(() => '?').join(',');
+        for (const gid of okIds) {
             await connection.execute(
-                `UPDATE game_list
-                 SET DAILY_SETTLEMENT = 1
-                 WHERE IDNo IN (${placeholders})
-                   AND DAILY_SETTLEMENT = 2`,
-                gameIds
+                `INSERT INTO daily_settlement_games (DAILY_SETTLEMENT_ID, GAME_ID, ADDED_AT)
+                 SELECT ?, ?, NOW()
+                 FROM DUAL
+                 WHERE NOT EXISTS (
+                   SELECT 1
+                   FROM daily_settlement_games
+                   WHERE DAILY_SETTLEMENT_ID = ? AND GAME_ID = ?
+                 )`,
+                [settlementId, gid, settlementId, gid]
+            );
+        }
+
+        // Do not mark ON GAME (ACTIVE=2) as DAILY_SETTLEMENT=2.
+        // Only END GAME/PENDING become settled-assigned at game_list level.
+        const idsToSettleAtGameList = games
+            .filter((r) => Number(r.ACTIVE) !== 2)
+            .map((r) => r.IDNo);
+        if (idsToSettleAtGameList.length > 0) {
+            const ph2 = idsToSettleAtGameList.map(() => '?').join(',');
+            await connection.execute(
+                `UPDATE game_list SET DAILY_SETTLEMENT = 2 WHERE IDNo IN (${ph2})`,
+                idsToSettleAtGameList
             );
         }
 
         await connection.execute(
-            'DELETE FROM daily_settlement WHERE IDNo = ?',
-            [settlementId]
+            `UPDATE daily_settlement SET ENCODED_BY = ? WHERE IDNo = ?`,
+            [encodedBy, settlementId]
         );
+
+        // Hard-delete settlement headers that no longer have any child game rows.
+        // This prevents orphaned daily_settlement records after moving games out.
+        const uniqueAffectedSettlementIds = Array.from(new Set(affectedSettlementIds))
+            .filter((sid) => Number.isInteger(Number(sid)) && Number(sid) > 0);
+        for (const sid of uniqueAffectedSettlementIds) {
+            const [countRows] = await connection.execute(
+                `SELECT COUNT(*) AS cnt FROM daily_settlement_games WHERE DAILY_SETTLEMENT_ID = ?`,
+                [sid]
+            );
+            const childCount = countRows && countRows[0] ? Number(countRows[0].cnt) : 0;
+            if (childCount === 0) {
+                await connection.execute(`DELETE FROM daily_settlement WHERE IDNo = ?`, [sid]);
+            }
+        }
 
         await connection.commit();
         connection.release();
-
-        res.json({
+        return res.json({
             success: true,
             settlement_date: settlementDate,
             settlement_id: settlementId,
-            reverted_game_count: gameIds.length
+            game_count: okIds.length
         });
     } catch (err) {
         if (connection) {
-            try { await connection.rollback(); } catch (_) {}
+            try {
+                await connection.rollback();
+            } catch (_) {}
             connection.release();
         }
-        console.error('Error undoing daily settlement:', err);
-        res.status(500).json({ error: 'Error undoing daily settlement' });
+        console.error('Error transferring settlement assignment:', err);
+        res.status(500).json({ error: 'Error transferring games to settlement date' });
     }
 });
 
@@ -1732,8 +1727,21 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 				[editedBy, date_now, id]
 			);
 
+			// If this game was already attached to a daily settlement, detach it when moving back to ON GAME.
 			await pool.execute(
-				`UPDATE game_list SET ACTIVE = ?, GAME_ENDED = NULL, SETTLED = 0, FNB = 0, PAYMENT = 0, FAKE_SETTLE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`,
+				`DELETE dsg
+				 FROM daily_settlement_games dsg
+				 JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
+				 WHERE dsg.GAME_ID = ?
+				   AND ds.ACTIVE = 1`,
+				[id]
+			);
+
+			await pool.execute(
+				`UPDATE game_list
+				 SET ACTIVE = ?, GAME_ENDED = NULL, SETTLED = 0, FNB = 0, PAYMENT = 0, FAKE_SETTLE = 0,
+				     DAILY_SETTLEMENT = 1, EDITED_BY = ?, EDITED_DT = ?
+				 WHERE IDNo = ?`,
 				[txtStatus, editedBy, date_now, id]
 			);
 		} else {
@@ -1743,72 +1751,14 @@ router.put('/game_list/change_status/:id', async (req, res) => {
 			);
 		}
 
-		// ✅ If game is being closed to END GAME (status = 1), add to daily settlement
+		// ✅ If game is being closed to END GAME (status = 1), keep as unsettled by default.
+		// DAILY_SETTLEMENT = 2 via /game_list/daily_settlement/transfer.
 		if (txtStatus === "1") {
-			// Get the game's creation date and time
-			const [gameInfo] = await pool.execute(
-				`SELECT ENCODED_DT FROM game_list WHERE IDNo = ?`,
+			// Keep END GAME rows out of daily_settlement_games unless user explicitly transfers.
+			await pool.execute(
+				`UPDATE game_list SET DAILY_SETTLEMENT = 1 WHERE IDNo = ?`,
 				[id]
 			);
-			const gameEncodedDt = gameInfo.length > 0 ? gameInfo[0].ENCODED_DT : null;
-			
-			if (gameEncodedDt) {
-				// Get latest settlement to compare DATE AND TIME
-				const todayStr = new Date().toISOString().slice(0, 10);
-				const firstOfMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`;
-				
-				const [latestSettlement] = await pool.execute(
-					`SELECT IDNo, SETTLEMENT_DATE, RUN_AT FROM daily_settlement WHERE ACTIVE = 1 AND SETTLEMENT_DATE BETWEEN ? AND ? ORDER BY SETTLEMENT_DATE DESC, RUN_AT DESC LIMIT 1`,
-					[firstOfMonth, todayStr]
-				);
-				
-				if (latestSettlement.length > 0) {
-					const settlementRunAt = latestSettlement[0].RUN_AT;
-					
-					// Convert to Date objects for comparison
-					const gameCreatedAt = gameEncodedDt instanceof Date ? gameEncodedDt : new Date(gameEncodedDt);
-					const settlementRunTime = settlementRunAt instanceof Date ? settlementRunAt : new Date(settlementRunAt);
-					
-					// Compare DATE AND TIME directly
-					// PENDING GAME: ENCODED_DT < RUN_AT (mas mababa sa RUN_AT) → add to previous settlement
-					if (gameCreatedAt < settlementRunTime) {
-						const settlementId = latestSettlement[0].IDNo;
-						
-						// Check if game is already in this settlement
-						const [alreadyInSettlement] = await pool.execute(
-							`SELECT COUNT(*) AS count FROM daily_settlement_games WHERE DAILY_SETTLEMENT_ID = ? AND GAME_ID = ?`,
-							[settlementId, id]
-						);
-						
-						const isAlreadyInSettlement = alreadyInSettlement.length > 0 && alreadyInSettlement[0].count > 0;
-						
-						if (!isAlreadyInSettlement) {
-							// Add to previous settlement (pending game)
-							await pool.execute(
-								`INSERT INTO daily_settlement_games (DAILY_SETTLEMENT_ID, GAME_ID, ADDED_AT) VALUES (?, ?, NOW())`,
-								[settlementId, id]
-							);
-							// Mark game as settled
-							await pool.execute(
-								`UPDATE game_list SET DAILY_SETTLEMENT = 2 WHERE IDNo = ?`,
-								[id]
-							);
-						}
-					} else {
-						// BAGONG GAME: ENCODED_DT >= RUN_AT (mas mataas sa RUN_AT) → mark as unsettled (next settlement)
-						await pool.execute(
-							`UPDATE game_list SET DAILY_SETTLEMENT = 1 WHERE IDNo = ?`,
-							[id]
-						);
-					}
-				} else {
-					// No settlement at all, mark as unsettled (will be included in next settlement run)
-					await pool.execute(
-						`UPDATE game_list SET DAILY_SETTLEMENT = 1 WHERE IDNo = ?`,
-						[id]
-					);
-				}
-			}
 		}
 
 		// ✅ If game is being closed (status = 1 or 3), insert roller chips return
