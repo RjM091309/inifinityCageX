@@ -1456,6 +1456,120 @@ router.post('/game_list/daily_settlement/transfer', async (req, res) => {
     }
 });
 
+// POST remove games from daily settlement assignment (back to "today open" / unsettled pool)
+router.post('/game_list/daily_settlement/release', async (req, res) => {
+    const encodedBy = req.session?.user_id;
+    if (!encodedBy) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const requestedGameIds = Array.isArray(req.body?.game_ids)
+        ? req.body.game_ids.map((id) => parseInt(id, 10)).filter((id) => Number.isInteger(id) && id > 0)
+        : [];
+    const uniqueGameIds = Array.from(new Set(requestedGameIds));
+    if (uniqueGameIds.length === 0) {
+        return res.status(400).json({ error: 'At least one game is required.' });
+    }
+
+    const nowForToday = new Date();
+    const padLocal = (n) => String(n).padStart(2, '0');
+    const todayServer = `${nowForToday.getFullYear()}-${padLocal(nowForToday.getMonth() + 1)}-${padLocal(nowForToday.getDate())}`;
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        const placeholders = uniqueGameIds.map(() => '?').join(',');
+        const [gameRows] = await connection.execute(
+            `SELECT IDNo FROM game_list WHERE IDNo IN (${placeholders}) AND ACTIVE != 0`,
+            uniqueGameIds
+        );
+        const okIds = (gameRows || []).map((r) => r.IDNo);
+        if (okIds.length === 0) {
+            await connection.rollback();
+            connection.release();
+            return res.status(400).json({ error: 'No matching active games found.' });
+        }
+
+        const okPlaceholders = okIds.map(() => '?').join(',');
+        const [todayLinkedRows] = await connection.execute(
+            `SELECT dsg.GAME_ID
+             FROM daily_settlement_games dsg
+             JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
+             WHERE ds.ACTIVE = 1
+               AND ds.SETTLEMENT_DATE = ?
+               AND dsg.GAME_ID IN (${okPlaceholders})`,
+            [todayServer, ...okIds]
+        );
+        const linkedToday = new Set((todayLinkedRows || []).map((r) => Number(r.GAME_ID)));
+        if (!okIds.every((id) => linkedToday.has(Number(id)))) {
+            await connection.rollback();
+            connection.release();
+            return res.status(400).json({
+                error: "Games can only be returned to open from today's settled list."
+            });
+        }
+
+        const [oldSettlementRows] = await connection.execute(
+            `SELECT DISTINCT ds.IDNo
+             FROM daily_settlement_games dsg
+             JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
+             WHERE ds.ACTIVE = 1
+               AND dsg.GAME_ID IN (${okPlaceholders})`,
+            okIds
+        );
+        const affectedSettlementIds = (oldSettlementRows || []).map((r) => r.IDNo);
+
+        for (const gid of okIds) {
+            await connection.execute(
+                `DELETE dsg
+                 FROM daily_settlement_games dsg
+                 JOIN daily_settlement ds ON ds.IDNo = dsg.DAILY_SETTLEMENT_ID
+                 WHERE dsg.GAME_ID = ?
+                   AND ds.ACTIVE = 1`,
+                [gid]
+            );
+        }
+
+        const ph2 = okIds.map(() => '?').join(',');
+        await connection.execute(
+            `UPDATE game_list SET DAILY_SETTLEMENT = 1, EDITED_BY = ?, EDITED_DT = NOW() WHERE IDNo IN (${ph2})`,
+            [encodedBy, ...okIds]
+        );
+
+        const uniqueAffectedSettlementIds = Array.from(new Set(affectedSettlementIds)).filter(
+            (sid) => Number.isInteger(Number(sid)) && Number(sid) > 0
+        );
+        for (const sid of uniqueAffectedSettlementIds) {
+            const [countRows] = await connection.execute(
+                `SELECT COUNT(*) AS cnt FROM daily_settlement_games WHERE DAILY_SETTLEMENT_ID = ?`,
+                [sid]
+            );
+            const childCount = countRows && countRows[0] ? Number(countRows[0].cnt) : 0;
+            if (childCount === 0) {
+                await connection.execute(`DELETE FROM daily_settlement WHERE IDNo = ?`, [sid]);
+            }
+        }
+
+        await connection.commit();
+        connection.release();
+        return res.json({
+            success: true,
+            game_count: okIds.length
+        });
+    } catch (err) {
+        if (connection) {
+            try {
+                await connection.rollback();
+            } catch (_) {}
+            connection.release();
+        }
+        console.error('Error releasing games from daily settlement:', err);
+        res.status(500).json({ error: 'Error releasing games from daily settlement' });
+    }
+});
+
 // GET GAME RECORD FOR A SPECIFIC GAME
 router.get('/game_list/:id/record', async (req, res) => {
     const id = parseInt(req.params.id);
