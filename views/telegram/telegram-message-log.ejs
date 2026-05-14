@@ -1592,7 +1592,7 @@
 									var txnCellTooltipRaw = hasStructuredGuest
 										? (mpNoDemo || previewRaw)
 										: ((!isGame && shortTxnLabel) ? shortTxnLabel : previewRaw);
-									var amountCell = amountToken ? esc('₱' + amountToken) : esc('—');
+									var amountCell = amountToken ? esc('₱' + amountToken) : esc('₱0');
 									var hint = TG.fullTextHint || '';
 									var ut = normalizeLogUserType(row.bot_user);
 									var cidStr = isLogChatIdFetchable(row.chat_id) ? String(row.chat_id) : '';
