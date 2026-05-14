@@ -16,7 +16,8 @@ const app = express();
 const compression = require('compression');
 
 const TelegramBot = require('node-telegram-bot-api');
-const { sendTelegramToAdditionalChats } = require('../utils/telegram');
+const { sendTelegramToAdditionalChats, sendTelegramMessage } = require('../utils/telegram');
+const { markerReturnTelegramLogPreview } = require('../utils/telegramSendLog');
 
 
 app.use(bodyParser.urlencoded({
@@ -1082,16 +1083,7 @@ pageRouter.get("/account_ledger", checkSession, function (req, res) {
 
 });
 //=============== TELEGRAM API =============
-pageRouter.get("/telegramAPI", function (req, res) {
-
-	const permissions = req.session.permissions;
-
-	res.render("telegram/telegram", {
-		...sessions(req, 'telegramAPI'),
-		permissions: permissions
-	});
-
-});
+// Page + JSON routes are served from routes/telegramData.js (checkSession on GET /telegramAPI).
 //=============== JUNKET =============
 pageRouter.get("/capital", function (req, res) {
 	res.render("junket/capital", sessions(req, 'capital'));
@@ -3765,59 +3757,7 @@ pageRouter.post('/add_account_details', async (req, res) => {
 
 //TELEGRAM START HERE
 
-// Convert getTelegramToken to use Promises
-async function getTelegramToken() {
-	const query = 'SELECT TELEGRAM_API FROM telegram_api WHERE ACTIVE = 1';
-
-	return new Promise((resolve, reject) => {
-		connection.query(query, (error, results) => {
-			if (error) {
-				console.error('Error fetching Telegram token:', error);
-				reject(error);
-			} else if (results.length > 0) {
-				resolve(results[0].TELEGRAM_API); // Assuming only one active token
-			} else {
-				console.error('No active Telegram API token found');
-				resolve(null);
-			}
-		});
-	});
-}
-
-async function sendTelegramMessage(text, telegramId) {
-	try {
-		// Dynamically import node-fetch
-		const { default: fetch } = await import('node-fetch');
-
-		const botToken = await getTelegramToken();
-		if (!botToken) {
-			console.error('Bot token is not available');
-			return;
-		}
-
-		const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-
-		const response = await fetch(url, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				chat_id: telegramId,
-				text: text,
-			}),
-		});
-
-		const data = await response.json();
-
-		if (!data.ok) {
-			console.error(`Error sending message to ${telegramId}:`, data.description);
-		}
-	} catch (error) {
-		console.error('Error in sendTelegramMessage:', error);
-	}
-}
-
+// Telegram outbound messages use utils/telegram (GUEST bot, DB logging, retries).
 
 //TELEGRAM API
 //Get TELEGRAM API - REMOVED: This route has been moved to routes/telegramData.js
@@ -5688,9 +5628,19 @@ pageRouter.post('/add_marker_settlement', async (req, res) => {
 				text = `Infinity Cage\n\nAccount: ${agentCode} - ${agentName}\nDate: ${date_nowTG}\nTime: ${updated_time}\n\nTransaction: IOU RETURN\nAmount: ${parseFloat(markerReturn).toLocaleString()}`;
 			}
 
+			const markerLogPreview = markerReturnTelegramLogPreview(optTransType, optReturnSource);
+			const markerTelegramOpts = {
+				logPreview: markerLogPreview,
+				logMeta: {
+					accountCode: agentCode,
+					guestName: agentName,
+					amount: Math.abs(Number(markerReturn) || 0)
+				}
+			};
+
 			if (telegramId) {
-				await sendTelegramMessage(text, telegramId);
-				await sendTelegramToAdditionalChats(text);
+				await sendTelegramMessage(text, telegramId, markerTelegramOpts);
+				await sendTelegramToAdditionalChats(text, markerTelegramOpts);
 			} else {
 				console.error("No TELEGRAM_ID found for Account ID:", txtAccountMarker);
 			}

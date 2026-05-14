@@ -13,7 +13,17 @@ const i18n = require('i18n');
 
 
 const { startTelegramBot } = require('./utils/telegram');
+const { ensureTelegramSendLogTable } = require('./utils/telegramSendLog');
 startTelegramBot(); // run once when server starts
+
+(async () => {
+  try {
+    await ensureTelegramSendLogTable();
+    console.log('✅ telegram_send_log table ready');
+  } catch (err) {
+    console.error('❌ Failed to ensure telegram_send_log table:', err.message);
+  }
+})();
 
 const compression = require('compression');
 const app = express();
