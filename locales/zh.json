@@ -889,7 +889,8 @@
 		"total": "合计",
 		"edit_remarks": "dashboard_marker.edit_remarks",
 		"remarks_updated": "dashboard_marker.remarks_updated",
-		"error_update_remarks": "dashboard_marker.error_update_remarks"
+		"error_update_remarks": "dashboard_marker.error_update_remarks",
+		"tab_total_credit": "总信用"
 	},
 	"modal_new_agent": {
 		"new_guest": "新客人",
