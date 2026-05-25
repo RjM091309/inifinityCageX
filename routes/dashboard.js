@@ -516,85 +516,160 @@ let sqlServiceSettle = `
 
 	try {
 
-
-		const [WinlossManualResult] = await pool.execute(sqlWinlossManual);
-		const [TotalRollingManualResult] = await pool.execute(sqlTotalRollingManual);
-		const [AccountTransferResult] = await pool.execute(sqlAccountTransfer);
-		const [CChipsBuyinGameResult] = await pool.execute(sqlCCChipsBuyinGame);
-		const [CChipsBuyinGameResetResult] = await pool.execute(sqlCCChipsBuyinGameReset);
-		const [JunketCreditResult] = await pool.execute(sqlJunketCredit);
-		const [JunketExpenseResult] = await pool.execute(sqlJunketExpense);
-		const [JunketLossResult] = await pool.execute(sqlJunketLoss);
-		const [JunketExpenseGoodsResult] = await pool.execute(sqlJunketExpenseGoods);
-		const [JunketExpenseNonGoodsResult] = await pool.execute(sqlJunketExpenseNonGoods);
-		const [ReturnMoneyResult] = await pool.execute(sqlReturnMoney);
-		const [ResetExpenseResult] = await pool.execute(sqlJunketExpenseReset);
-		const [HouseRollingResetResult] = await pool.execute(sqlHouseRollingReset);
-		const [TotalRollingResetResult] = await pool.execute(sqlTotalRollingReset);
-		const [TotalCashOutResetResult] = await pool.execute(sqlTotalCashOutReset);
-		const [TotalCashOutRollingResetResult] = await pool.execute(sqlTotalCashOutRollingReset);
-		const [WinLossResetResult] = await pool.execute(sqlWinLossReset);
-		const [AccountMarkerReturnResult] = await pool.execute(sqlAccountMarkerReturn);
-		const [MxDepositExchangeAmountResult] = await pool.execute(sqlMxDepositExchangeAmount);
-		const [MxReturnAmountResult] = await pool.execute(sqlMxReturnAmount);
-		const [MxMarginReturnResult] = await pool.execute(sqlMxMarginReturn);
-		const [MxPhpDepositInResult] = await pool.execute(sqlMxPhpDepositIn);
-		const [MxPhpDepositOutResult] = await pool.execute(sqlMxPhpDepositOut);
-		const [MxCashNetResult] = await pool.execute(sqlMxCashNet);
-		const [ChipsReturnMarkerResult] = await pool.execute(sqlChipsReturnMarker);
-		const [MArkerReturnDepositResult] = await pool.execute(sqlMArkerReturnDeposit);
-		const [MArkerReturnCashResult] = await pool.execute(sqlMArkerReturnCash);
-		const [SettlementDepositAmountResult] = await pool.execute(sqlSettlementDepositAmount);
-		const [SettlementCashOutAmountResult] = await pool.execute(sqlSettlementCashOutAmount);
-		const [AccountSettlementResult] = await pool.execute(sqlAccountSettlement);
-		const [NNChipsReturnDepositResult] = await pool.execute(sqlNNChipsReturnDeposit);
-		const [CageRollingResult] = await pool.execute(sqlCageRolling);
-		const [AccountCCChipsReturnResult] = await pool.execute(sqlAccountCCChipsReturn);
-		const [NNChipsAccountMarkerResult] = await pool.execute(sqlNNChipsAccountMarker);
-		const [accountDeductResult] = await pool.execute(sqlAccountDeduct);
-		const [accountWithdrawResult] = await pool.execute(sqlAccountWithdraw);
-		const [accountServicesDeductResult] = await pool.execute(sqlAccountServicesDeduct);
-		const [NNChipsAccountCashResult] = await pool.execute(sqlNNChipsAccountCash);
-		const [CCChipsAccountCashResult] = await pool.execute(sqlCCChipsAccountCash);
-		const [NNChipsAccountDepositResult] = await pool.execute(sqlNNChipsAccountDeposit);
-		const [CCChipsBuyinCashoutResult] = await pool.execute(sqlCCChipsCashout);
-		const [CCBuyinReturnResult] = await pool.execute(sqlCCReturn);
-		const [NNChipsBuyinCashoutResult] = await pool.execute(sqlNNChipsCashout);
-		const [NNBuyinReturnResult] = await pool.execute(sqlNNReturn);
-		const [TotalChipsBuyinCashoutResult] = await pool.execute(sqlTotalChipsCashout);
-		const [CCChipsRollingResult] = await pool.execute(sqlCCChipsRolling);
-		const [NNChipsRollingResult] = await pool.execute(sqlNNChipsRolling);
-		const [TotalChipsRollingResult] = await pool.execute(sqlTotalChipsRolling);
-		const [CCChipsBuyinResult] = await pool.execute(sqlCCChipsBuyin);
-		const [CCBuyinResult] = await pool.execute(sqlCCBuyin);
-		const [NNChipsBuyinResult] = await pool.execute(sqlNNChipsBuyin);
-		const [NNBuyinResult] = await pool.execute(sqlNNBuyin);
-		const [TotalChipsBuyinResult] = await pool.execute(sqlTotalChipsBuyin);
-		const [CCChipsMonthlySettleResult] = await pool.execute(sqlCCChipsMonthlySettle);
-		const [NNChipsMonthlySettleResult] = await pool.execute(sqlNNChipsMonthlySettle);
-		const [cashDepositResult] = await pool.execute(sqlCashDeposit);
-		const [cashWithdrawResult] = await pool.execute(sqlCashWithdraw);
-		const [accountDepositResult] = await pool.execute(sqlAccountDeposit);
-		const [accountCCChips] = await pool.execute(sqlAccountCCChips);
-		const [accountNNChips] = await pool.execute(sqlAccountNNChips);
-		const [markerIssueGame] = await pool.execute(sqlMarkerIssueGame);
-		const [markerIssueAccount] = await pool.execute(sqlMarkerIssueAccount);
-		const [totalRealRolling] = await pool.execute(sqlTotalRealRolling);
-		const [totalRolling] = await pool.execute(sqlTotalRolling);
-
-		const [totalCashOutRolling] = await pool.execute(sqlTotalCashOutRolling);
-		const [totalCashOut] = await pool.execute(sqlTotalCashOut);
-		const [totalWinLoss] = await pool.execute(sqlWinLoss);
-		const [serviceCashGuestResults] = await pool.execute(sqlServiceCashGuest);
-		const [serviceDepositGuestResults] = await pool.execute(sqlServiceDepositGuest);
-		const [serviceCashJunketResults] = await pool.execute(sqlServiceCashJunket);
-		const [serviceDepositJunketResults] = await pool.execute(sqlServiceDepositJunket);
-		const [serviceSettleResults] = await pool.execute(sqlServiceSettle);
-		const [totalCommisionRolling] = await pool.execute(sqlCommisionRolling);
-		
-		const [manualBalancingResult] = await pool.execute(sqlManualBalancing);
-
-		const [totalCommisionCashout] = await pool.execute(sqlCommisionCashout);
+		// Run independent aggregate queries in parallel (was ~80 sequential round-trips)
+		const [
+			[WinlossManualResult],
+			[TotalRollingManualResult],
+			[AccountTransferResult],
+			[CChipsBuyinGameResult],
+			[CChipsBuyinGameResetResult],
+			[JunketCreditResult],
+			[JunketExpenseResult],
+			[JunketLossResult],
+			[JunketExpenseGoodsResult],
+			[JunketExpenseNonGoodsResult],
+			[ReturnMoneyResult],
+			[ResetExpenseResult],
+			[HouseRollingResetResult],
+			[TotalRollingResetResult],
+			[TotalCashOutResetResult],
+			[TotalCashOutRollingResetResult],
+			[WinLossResetResult],
+			[AccountMarkerReturnResult],
+			[MxDepositExchangeAmountResult],
+			[MxReturnAmountResult],
+			[MxMarginReturnResult],
+			[MxPhpDepositInResult],
+			[MxPhpDepositOutResult],
+			[MxCashNetResult],
+			[ChipsReturnMarkerResult],
+			[MArkerReturnDepositResult],
+			[MArkerReturnCashResult],
+			[SettlementDepositAmountResult],
+			[SettlementCashOutAmountResult],
+			[AccountSettlementResult],
+			[NNChipsReturnDepositResult],
+			[CageRollingResult],
+			[AccountCCChipsReturnResult],
+			[NNChipsAccountMarkerResult],
+			[accountDeductResult],
+			[accountWithdrawResult],
+			[accountServicesDeductResult],
+			[NNChipsAccountCashResult],
+			[CCChipsAccountCashResult],
+			[NNChipsAccountDepositResult],
+			[CCChipsBuyinCashoutResult],
+			[CCBuyinReturnResult],
+			[NNChipsBuyinCashoutResult],
+			[NNBuyinReturnResult],
+			[TotalChipsBuyinCashoutResult],
+			[CCChipsRollingResult],
+			[NNChipsRollingResult],
+			[TotalChipsRollingResult],
+			[CCChipsBuyinResult],
+			[CCBuyinResult],
+			[NNChipsBuyinResult],
+			[NNBuyinResult],
+			[TotalChipsBuyinResult],
+			[CCChipsMonthlySettleResult],
+			[NNChipsMonthlySettleResult],
+			[cashDepositResult],
+			[cashWithdrawResult],
+			[accountDepositResult],
+			[accountCCChips],
+			[accountNNChips],
+			[markerIssueGame],
+			[markerIssueAccount],
+			[totalRealRolling],
+			[totalRolling],
+			[totalCashOutRolling],
+			[totalCashOut],
+			[totalWinLoss],
+			[serviceCashGuestResults],
+			[serviceDepositGuestResults],
+			[serviceCashJunketResults],
+			[serviceDepositJunketResults],
+			[serviceSettleResults],
+			[totalCommisionRolling],
+			[manualBalancingResult],
+			[totalCommisionCashout],
+		] = await Promise.all([
+			pool.execute(sqlWinlossManual),
+			pool.execute(sqlTotalRollingManual),
+			pool.execute(sqlAccountTransfer),
+			pool.execute(sqlCCChipsBuyinGame),
+			pool.execute(sqlCCChipsBuyinGameReset),
+			pool.execute(sqlJunketCredit),
+			pool.execute(sqlJunketExpense),
+			pool.execute(sqlJunketLoss),
+			pool.execute(sqlJunketExpenseGoods),
+			pool.execute(sqlJunketExpenseNonGoods),
+			pool.execute(sqlReturnMoney),
+			pool.execute(sqlJunketExpenseReset),
+			pool.execute(sqlHouseRollingReset),
+			pool.execute(sqlTotalRollingReset),
+			pool.execute(sqlTotalCashOutReset),
+			pool.execute(sqlTotalCashOutRollingReset),
+			pool.execute(sqlWinLossReset),
+			pool.execute(sqlAccountMarkerReturn),
+			pool.execute(sqlMxDepositExchangeAmount),
+			pool.execute(sqlMxReturnAmount),
+			pool.execute(sqlMxMarginReturn),
+			pool.execute(sqlMxPhpDepositIn),
+			pool.execute(sqlMxPhpDepositOut),
+			pool.execute(sqlMxCashNet),
+			pool.execute(sqlChipsReturnMarker),
+			pool.execute(sqlMArkerReturnDeposit),
+			pool.execute(sqlMArkerReturnCash),
+			pool.execute(sqlSettlementDepositAmount),
+			pool.execute(sqlSettlementCashOutAmount),
+			pool.execute(sqlAccountSettlement),
+			pool.execute(sqlNNChipsReturnDeposit),
+			pool.execute(sqlCageRolling),
+			pool.execute(sqlAccountCCChipsReturn),
+			pool.execute(sqlNNChipsAccountMarker),
+			pool.execute(sqlAccountDeduct),
+			pool.execute(sqlAccountWithdraw),
+			pool.execute(sqlAccountServicesDeduct),
+			pool.execute(sqlNNChipsAccountCash),
+			pool.execute(sqlCCChipsAccountCash),
+			pool.execute(sqlNNChipsAccountDeposit),
+			pool.execute(sqlCCChipsCashout),
+			pool.execute(sqlCCReturn),
+			pool.execute(sqlNNChipsCashout),
+			pool.execute(sqlNNReturn),
+			pool.execute(sqlTotalChipsCashout),
+			pool.execute(sqlCCChipsRolling),
+			pool.execute(sqlNNChipsRolling),
+			pool.execute(sqlTotalChipsRolling),
+			pool.execute(sqlCCChipsBuyin),
+			pool.execute(sqlCCBuyin),
+			pool.execute(sqlNNChipsBuyin),
+			pool.execute(sqlNNBuyin),
+			pool.execute(sqlTotalChipsBuyin),
+			pool.execute(sqlCCChipsMonthlySettle),
+			pool.execute(sqlNNChipsMonthlySettle),
+			pool.execute(sqlCashDeposit),
+			pool.execute(sqlCashWithdraw),
+			pool.execute(sqlAccountDeposit),
+			pool.execute(sqlAccountCCChips),
+			pool.execute(sqlAccountNNChips),
+			pool.execute(sqlMarkerIssueGame),
+			pool.execute(sqlMarkerIssueAccount),
+			pool.execute(sqlTotalRealRolling),
+			pool.execute(sqlTotalRolling),
+			pool.execute(sqlTotalCashOutRolling),
+			pool.execute(sqlTotalCashOut),
+			pool.execute(sqlWinLoss),
+			pool.execute(sqlServiceCashGuest),
+			pool.execute(sqlServiceDepositGuest),
+			pool.execute(sqlServiceCashJunket),
+			pool.execute(sqlServiceDepositJunket),
+			pool.execute(sqlServiceSettle),
+			pool.execute(sqlCommisionRolling),
+			pool.execute(sqlManualBalancing),
+			pool.execute(sqlCommisionCashout),
+		]);
 		// totalCommisionRolling ay inasume nang nakuha na (mula sa query ng sqlCommisionRolling)
 		let totalCommission = 0;
 		for (let i = 0; i < totalCommisionRolling.length; i++) {
@@ -605,18 +680,29 @@ let sqlServiceSettle = `
 			totalCommission += (totalCommisionRolling[i].TOTAL_ROLLING - cashout) * (totalCommisionRolling[i].percentage / 100);
 		}
 
-		// Kunin ang CommissionResetResult:
-		const [CommissionResetResult] = await pool.execute(sqlCommissionReset);
+		const [
+			[CommissionResetResult],
+			[totalSharedRolling],
+			[totalSharedCashoutCC],
+			[totalSharedCashout],
+			[totalSharedRollingReset],
+			[totalSharedCashoutCCReset],
+			[totalSharedCashoutReset],
+		] = await Promise.all([
+			pool.execute(sqlCommissionReset),
+			pool.execute(sqlSharedRolling),
+			pool.execute(sqlSharedCashoutCC),
+			pool.execute(sqlSharedCashout),
+			pool.execute(sqlSharedRollingReset),
+			pool.execute(sqlSharedCashoutCCReset),
+			pool.execute(sqlSharedCashoutReset),
+		]);
+
 		let totalCommissionReset = 0;
 		for (let i = 0; i < CommissionResetResult.length; i++) {
 			const { TOTAL_ROLLING, percentage, TOTAL_CASHOUT } = CommissionResetResult[i];
 			totalCommissionReset += (TOTAL_ROLLING - TOTAL_CASHOUT) * (percentage / 100);
 		}
-
-		// Kunin ang mga resulta para sa shared rolling at cashout:
-		const [totalSharedRolling] = await pool.execute(sqlSharedRolling);
-		const [totalSharedCashoutCC] = await pool.execute(sqlSharedCashoutCC);
-		const [totalSharedCashout] = await pool.execute(sqlSharedCashout);
 
 		let totalShared = 0;
 		for (let j = 0; j < totalSharedRolling.length; j++) {
@@ -631,11 +717,6 @@ let sqlServiceSettle = `
 			totalShared += (totalSharedRolling[j].TOTAL_ROLLING - cashout_shared - cashout_cc_shared) *
 				(totalSharedRolling[j].percentage / 100);
 		}
-
-		// Para sa shared reset:
-		const [totalSharedRollingReset] = await pool.execute(sqlSharedRollingReset);
-		const [totalSharedCashoutCCReset] = await pool.execute(sqlSharedCashoutCCReset);
-		const [totalSharedCashoutReset] = await pool.execute(sqlSharedCashoutReset);
 
 		let totalSharedReset = 0;
 		for (let j = 0; j < totalSharedRollingReset.length; j++) {
@@ -673,6 +754,24 @@ let sqlServiceSettle = `
 
 			const [games] = await pool.execute(commissionQuery);
 
+			const recordsByGameId = new Map();
+			if (games && games.length > 0) {
+				const gameIds = games
+					.filter((g) => g.game_list_id && Number(g.COMMISSION_PERCENTAGE))
+					.map((g) => g.game_list_id);
+				if (gameIds.length > 0) {
+					const placeholders = gameIds.map(() => '?').join(',');
+					const bulkRecordQuery = `SELECT GAME_ID, AMOUNT, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ROLLER_TRANSACTION, ROLLER_CC_CHIPS
+						FROM game_record WHERE ACTIVE != 0 AND RESET = 1 AND GAME_ID IN (${placeholders}) ORDER BY GAME_ID, IDNo ASC`;
+					const [allRecords] = await pool.execute(bulkRecordQuery, gameIds);
+					for (const rec of allRecords) {
+						const gid = rec.GAME_ID;
+						if (!recordsByGameId.has(gid)) recordsByGameId.set(gid, []);
+						recordsByGameId.get(gid).push(rec);
+					}
+				}
+			}
+
 			if (games && games.length > 0) {
 				for (const row of games) {
 					const gameId = row.game_list_id;
@@ -682,8 +781,7 @@ let sqlServiceSettle = `
 
 					if (!gameId || !RollingRate) continue;
 
-					const recordQuery = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, CAGE_TYPE, ROLLER_TRANSACTION, ROLLER_CC_CHIPS FROM game_record WHERE ACTIVE != 0 AND RESET = 1 AND GAME_ID = ? ORDER BY IDNo ASC`;
-					const [records] = await pool.execute(recordQuery, [gameId]);
+					const records = recordsByGameId.get(gameId) || [];
 
 					if (!records || records.length === 0) continue;
 
@@ -770,8 +868,38 @@ let sqlServiceSettle = `
 			totalCommissionSettlement = 0;
 		}
 
-		// Kunin ang resulta ng win-loss queries:
-		const [winLossLiveResults] = await pool.execute(sqlWinLossLive);
+		const [
+			[winLossLiveResults],
+			[winLossTelebetResults],
+			[NNChipsBuyinCashDepositResult],
+			[CCChipsBuyinCashDepositResult],
+			[NNChipsBuyinCashOnlyResult],
+			[CCChipsBuyinCashOnlyResult],
+			[NNChipsBuyinGuestAccountResult],
+			[CCChipsBuyinGuestAccountResult],
+			[RollerNNSubtractResult],
+			[RollerNNAddResult],
+			[RollerCCSubtractResult],
+			[RollerCCAddResult],
+			[ReturnRollerCCChipsResult],
+			[AgentCountResult],
+		] = await Promise.all([
+			pool.execute(sqlWinLossLive),
+			pool.execute(sqlWinLossTelebet),
+			pool.execute(sqlNNChipsBuyinCashDeposit),
+			pool.execute(sqlCCChipsBuyinCashDeposit),
+			pool.execute(sqlNNChipsBuyinCashOnly),
+			pool.execute(sqlCCChipsBuyinCashOnly),
+			pool.execute(sqlNNChipsBuyinGuestAccount),
+			pool.execute(sqlCCChipsBuyinGuestAccount),
+			pool.execute(sqlRollerNNSubtract),
+			pool.execute(sqlRollerNNAdd),
+			pool.execute(sqlRollerCCSubtract),
+			pool.execute(sqlRollerCCAdd),
+			pool.execute(sqlReturnRollerCCChips),
+			pool.execute(sqlAgentCount),
+		]);
+
 		let totalWinLossLiveCalc = 0;
 		winLossLiveResults.forEach(row => {
 			const cashinLive = row.CASHIN_LIVE || 0;
@@ -780,7 +908,6 @@ let sqlServiceSettle = `
 			totalWinLossLiveCalc += (cashinLive - cashoutLive) * (houseShare / 100);
 		});
 
-		const [winLossTelebetResults] = await pool.execute(sqlWinLossTelebet);
 		let totalWinLossTelebetCalc = 0;
 		winLossTelebetResults.forEach(row => {
 			const cashinLive = row.CASHIN_TELEBET || 0;
@@ -788,20 +915,6 @@ let sqlServiceSettle = `
 			const houseShare = row.houseshare || 0;
 			totalWinLossTelebetCalc += (cashinLive - cashoutLive) * (houseShare / 100);
 		});
-
-		// Kunin ang iba pang mga query results:
-		const [NNChipsBuyinCashDepositResult] = await pool.execute(sqlNNChipsBuyinCashDeposit);
-		const [CCChipsBuyinCashDepositResult] = await pool.execute(sqlCCChipsBuyinCashDeposit);
-		const [NNChipsBuyinCashOnlyResult] = await pool.execute(sqlNNChipsBuyinCashOnly);
-		const [CCChipsBuyinCashOnlyResult] = await pool.execute(sqlCCChipsBuyinCashOnly);
-		const [NNChipsBuyinGuestAccountResult] = await pool.execute(sqlNNChipsBuyinGuestAccount);
-		const [CCChipsBuyinGuestAccountResult] = await pool.execute(sqlCCChipsBuyinGuestAccount);
-		const [RollerNNSubtractResult] = await pool.execute(sqlRollerNNSubtract);
-		const [RollerNNAddResult] = await pool.execute(sqlRollerNNAdd);
-		const [RollerCCSubtractResult] = await pool.execute(sqlRollerCCSubtract);
-		const [RollerCCAddResult] = await pool.execute(sqlRollerCCAdd);
-		const [ReturnRollerCCChipsResult] = await pool.execute(sqlReturnRollerCCChips);
-		const [AgentCountResult] = await pool.execute(sqlAgentCount);
 
 		res.render('dashboard', {
 
