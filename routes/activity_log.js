@@ -1,29 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const {
+	ACTIVITY_LOG_MAX_ROWS,
+	wrapActivityLogQuery,
+	fetchActivityLogRows,
+} = require('./activity_log_helpers');
 
 // GET Activity Logs for Agents, Guests, Transactions, Junket Expenses, Users, User Roles, and Bookings
 router.get('/activity_logs', async (req, res) => {
 	try {
-		// Get date range parameters
 		const fromDate = req.query.fromDate || null;
 		const toDate = req.query.toDate || null;
-		
-		// Build date filter condition with parameterized query
-		let dateFilter = '';
-		let queryParams = [];
-		const hasDateFilter = fromDate && toDate;
-		if (hasDateFilter) {
-			dateFilter = `WHERE logs.action_time >= ? AND logs.action_time <= ?`;
-			queryParams = [fromDate, toDate];
-		}
-		
-		// When date filter is applied, remove LIMIT to show all records (DataTables will handle pagination)
-		// Otherwise, use the original limit logic
-		const limitClause = hasDateFilter ? '' : (req.query.all === '1' ? 'LIMIT 10000' : 'LIMIT 5');
-		
-		const query = `
-	  SELECT * FROM (
+		const hasDateFilter = Boolean(fromDate && toDate);
+		const queryParams = hasDateFilter ? [fromDate, toDate] : [];
+		const limitClause = hasDateFilter
+			? `LIMIT ${ACTIVITY_LOG_MAX_ROWS}`
+			: req.query.all === '1'
+				? 'LIMIT 10000'
+				: 'LIMIT 5';
+
+		const innerUnionSql = `
 		-- AGENCY (added)
 		(SELECT a.IDNo AS related_id, CONCAT('Agent ', COALESCE(a.AGENCY, '')) AS name, 'added' AS action_type, a.ENCODED_DT AS action_time,
 		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
@@ -496,24 +493,28 @@ router.get('/activity_logs', async (req, res) => {
 		  FROM daily_settlement ds
 		  LEFT JOIN user_info u ON ds.ENCODED_BY = u.IDNo
 		  WHERE ds.ACTIVE = 1 AND ds.RUN_AT IS NOT NULL)
-	  ) AS logs
-	  ${dateFilter}
-	  ORDER BY logs.action_time DESC
-	  ${limitClause};
-	`;
-  
-	  let results;
-	  try {
-	    const [rows] = await pool.query(query, queryParams);
-	    results = rows;
+		`;
+
+		let results;
+		try {
+			results = await fetchActivityLogRows(
+				pool,
+				innerUnionSql,
+				hasDateFilter,
+				limitClause,
+				queryParams
+			);
 	  } catch (queryError) {
 	    const errMsg = queryError.sqlMessage || queryError.message || String(queryError);
 	    console.warn("🔥 Activity logs main query failed:", errMsg, "- retrying without junket_return_money/junket_capital");
 	    try {
-	      const fallbackLimitClause = hasDateFilter ? '' : (req.query.all === '1' ? 'LIMIT 10000' : 'LIMIT 5');
+	      const fallbackLimitClause = hasDateFilter
+					? `LIMIT ${ACTIVITY_LOG_MAX_ROWS}`
+					: req.query.all === '1'
+						? 'LIMIT 10000'
+						: 'LIMIT 5';
 	      const fallbackQueryParams = hasDateFilter ? [fromDate, toDate] : [];
-	      const fallbackQuery = `
-	        SELECT * FROM (
+	      const fallbackInner = `
 		  (SELECT a.IDNo AS related_id, CONCAT('Agent ', COALESCE(a.AGENCY, '')) AS name, 'added' AS action_type, a.ENCODED_DT AS action_time, NULL AS guest_name, NULL AS account_name, NULL AS amount, COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'agency' AS source_table FROM agency a LEFT JOIN user_info u ON a.ENCODED_BY = u.IDNo WHERE a.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT a.IDNo, CONCAT('Agent ', COALESCE(a.AGENCY, '')), 'edited', a.EDITED_DT, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'agency' FROM agency a LEFT JOIN user_info u ON a.EDITED_BY = u.IDNo WHERE a.EDITED_DT IS NOT NULL AND a.ACTIVE = 1)
 		  UNION ALL (SELECT a.IDNo, CONCAT('Agent ', COALESCE(a.AGENCY, '')), 'deleted', a.EDITED_DT, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'agency' FROM agency a LEFT JOIN user_info u ON a.EDITED_BY = u.IDNo WHERE a.ACTIVE = 0 AND a.EDITED_DT IS NOT NULL)
@@ -542,10 +543,15 @@ router.get('/activity_logs', async (req, res) => {
 		  UNION ALL (SELECT gr.GAME_ID, CONCAT('Roller Chips - Game #', gl.IDNo, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), '')), 'roller_return', gr.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), (COALESCE(gr.ROLLER_NN_CHIPS,0) + COALESCE(gr.ROLLER_CC_CHIPS,0)), COALESCE(u.FIRSTNAME, 'N/A'), 'Game' FROM game_record gr JOIN game_list gl ON gr.GAME_ID = gl.IDNo JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 5 AND gr.ROLLER_TRANSACTION = 2 AND gr.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT gs.IDNo, CONCAT(CASE LOWER(gs.SERVICE_TYPE) WHEN 'fnb' THEN 'F&B' WHEN 'hotel' THEN 'Hotel' WHEN 'delivery' THEN 'Delivery' ELSE UPPER(COALESCE(gs.SERVICE_TYPE,'')) END, ': ', COALESCE(ag.NAME,'N/A'), IF(gs.GAME_ID IS NOT NULL AND gs.GAME_ID > 0, CONCAT(' - Game #', gs.GAME_ID), CONCAT(' (', COALESCE(gs.SOURCE_TYPE,'GUEST'), ')')), IF(NULLIF(TRIM(gs.REMARKS),'') IS NOT NULL, CONCAT(' - ', gs.REMARKS), ''), ' - ', CASE gs.TRANSACTION_ID WHEN 1 THEN 'Cash' WHEN 2 THEN 'Deposit' WHEN 3 THEN 'Settle' ELSE 'Payment' END, ' (₱', FORMAT(COALESCE(gs.AMOUNT,0), 0), ')'), 'service_added', gs.ENCODED_DT, COALESCE(ag.NAME,''), COALESCE(ag.AGENT_CODE,''), gs.AMOUNT, NULL, NULL, COALESCE(u.FIRSTNAME,'N/A'), CASE LOWER(gs.SERVICE_TYPE) WHEN 'fnb' THEN 'F&B' WHEN 'hotel' THEN 'Hotel' WHEN 'delivery' THEN 'Delivery' ELSE 'Services' END FROM game_services gs LEFT JOIN agent ag ON gs.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gs.ENCODED_BY = u.IDNo WHERE gs.ACTIVE = 1 AND gs.ENCODED_DT IS NOT NULL AND LOWER(gs.SERVICE_TYPE) IN ('fnb','hotel','delivery'))
 		  UNION ALL (SELECT j.IDNo, CONCAT(CASE j.TRANSACTION_ID WHEN 1 THEN 'Buy-in' WHEN 2 THEN 'Cash-out' WHEN 3 THEN 'Rolling' ELSE 'Other' END, ': ₱', FORMAT(COALESCE(j.TOTAL_CHIPS,0), 0)), 'junket_chips_added', j.ENCODED_DT, NULL, NULL, j.TOTAL_CHIPS, COALESCE(u.FIRSTNAME, 'N/A'), 'Junket Total Chips' FROM junket_total_chips j LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo WHERE j.ACTIVE = 1 AND j.ENCODED_DT IS NOT NULL)
-		  UNION ALL (SELECT ds.IDNo, CONCAT('Daily Settlement: ', DATE_FORMAT(COALESCE(ds.SETTLEMENT_DATE, CURDATE()), '%M %e, %Y')), 'settlement_added', ds.RUN_AT, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Daily Settlement' FROM daily_settlement ds LEFT JOIN user_info u ON ds.ENCODED_BY = u.IDNo WHERE ds.ACTIVE = 1 AND ds.RUN_AT IS NOT NULL)
-		) AS logs ${dateFilter} ORDER BY logs.action_time DESC ${fallbackLimitClause}`;
-	      const [rows] = await pool.query(fallbackQuery, fallbackQueryParams);
-	      results = rows;
+		  UNION ALL (SELECT ds.IDNo, CONCAT('Daily Settlement: ', DATE_FORMAT(COALESCE(ds.SETTLEMENT_DATE, CURDATE()), '%M %e, %Y')), 'settlement_added', ds.RUN_AT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Daily Settlement' FROM daily_settlement ds LEFT JOIN user_info u ON ds.ENCODED_BY = u.IDNo WHERE ds.ACTIVE = 1 AND ds.RUN_AT IS NOT NULL)
+		`;
+	      results = await fetchActivityLogRows(
+					pool,
+					fallbackInner,
+					hasDateFilter,
+					fallbackLimitClause,
+					fallbackQueryParams
+				);
 	    } catch (fallbackErr) {
 	      throw queryError;
 	    }
