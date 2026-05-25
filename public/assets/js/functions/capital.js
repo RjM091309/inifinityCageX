@@ -169,6 +169,13 @@ function reloadData() {
             });
 
             $('.total_balance').text('P' + (total_in - total_out).toLocaleString());
+
+            if (dataTable.columns) {
+                dataTable.columns.adjust();
+            }
+            if (dataTable.responsive) {
+                dataTable.responsive.recalc();
+            }
         },
         error: function (xhr, status, error) {
             console.error('Error fetching data:', error);
@@ -210,26 +217,52 @@ $(document).ready(function () {
     }
 
     $('#capital-tbl').DataTable({
-        "order": [[4, 'desc']], // Sort by the date column (index 4)
-        "columnDefs": [
+        order: [[4, 'desc']],
+        autoWidth: false,
+        responsive: true,
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+        columnDefs: [
+            { responsivePriority: 1, targets: 0 },
+            { responsivePriority: 2, targets: 4 },
+            { responsivePriority: 3, targets: 1 },
+            { responsivePriority: 4, targets: 2 },
+            { responsivePriority: 5, targets: 3 },
+            { responsivePriority: 10001, targets: 5 },
             {
-                "targets": 4, // Column index for the ENCODED_DT
-                "render": function (data, type, row) {
+                targets: 4,
+                render: function (data, type, row) {
                     if (type === 'sort') {
-                        return moment.utc(data, 'MMMM DD, YYYY HH:mm:ss').format('YYYY-MM-DD HH:mm:ss'); // Raw date for sorting
+                        return moment.utc(data, 'MMMM DD, YYYY HH:mm:ss').format('YYYY-MM-DD HH:mm:ss');
                     }
                     const dateMoment = moment(data, 'MMMM DD, YYYY HH:mm:ss');
                     if (dateMoment.isValid()) {
-                        return dateMoment.local().format('DD MMM, YYYY HH:mm:ss'); // Display formatted date
-                    } else {
-                        return 'Invalid Date';
+                        return dateMoment.local().format('DD MMM, YYYY HH:mm:ss');
                     }
+                    return 'Invalid Date';
                 },
-                "createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
+                createdCell: function (cell) {
                     $(cell).addClass('text-center');
                 }
+            },
+            { className: 'text-center', targets: [0, 2, 5] },
+            { className: 'text-start', targets: [1, 3] }
+        ],
+        language: {
+            emptyTable: 'No records found',
+            processing: 'Loading house balance...',
+            lengthMenu: 'Show _MENU_ entries',
+            search: 'Search:',
+            info: 'Showing _START_ to _END_ of _TOTAL_ entries',
+            infoEmpty: 'Showing 0 to 0 of 0 entries',
+            infoFiltered: '(filtered from _MAX_ total entries)',
+            paginate: {
+                first: 'First',
+                last: 'Last',
+                next: 'Next',
+                previous: 'Previous'
             }
-        ]
+        }
     });
 
     // Add event listener to trigger reloadData on date range change

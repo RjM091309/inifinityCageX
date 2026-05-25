@@ -1,5 +1,5 @@
 <div class="modal fade" id="modal-cash-balance-history" tabindex="-1" aria-labelledby="modal-cash-balance-label" aria-hidden="true" data-bs-backdrop="static">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
         <div class="modal-header bg-primary ">
             <h5 class="block-title text-white" id="modal-cash-balance-label">Cash Balance History</h5>
@@ -21,18 +21,20 @@
             <input type="text" id="cash-balance-daterange" class="form-control" placeholder="Select date range" readonly>
           </div>
         </div>
-        <table id="cash-balance-history-tbl" class="table table-bordered table-responsive" style="font-size: 13px;">
+        <div class="table-responsive">
+        <table id="cash-balance-history-tbl" class="table table-bordered table-responsive" style="font-size: 13px; width: 100%;">
           <thead>
             <tr>
-              <th>Type</th>
-              <th>Amount</th>
-              <th>Remarks</th>
-              <th>Encoded By</th>
-              <th>Date</th>
+              <th class="text-center">Type</th>
+              <th class="text-center">Amount</th>
+              <th class="text-center">Remarks</th>
+              <th class="text-center">Encoded By</th>
+              <th class="text-center">Date</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal">Close</button>
@@ -71,6 +73,9 @@
 #cash-balance-history-tbl {
   width: 100%;
   border-collapse: collapse;
+}
+#modal-cash-balance-history .dataTables_wrapper {
+  width: 100%;
 }
 </style>
 
@@ -125,7 +130,20 @@ $(document).ready(function() {
     $('#cash-balance-history-tbl').DataTable({
       processing: false,
       serverSide: false,
+      autoWidth: false,
+      pageLength: 10,
+      lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
       order: [[4, 'desc']],
+      columnDefs: [
+        { responsivePriority: 1, targets: 0 },
+        { responsivePriority: 2, targets: 4 },
+        { responsivePriority: 3, targets: 1 },
+        { responsivePriority: 4, targets: 2 },
+        { responsivePriority: 5, targets: 3 },
+        { className: 'text-center', targets: [0, 3, 4] },
+        { className: 'text-end', targets: 1 },
+        { className: 'text-start', targets: 2 }
+      ],
       ajax: function(data, callback) {
         const urls = [];
         const ts = new Date().getTime();
@@ -189,6 +207,11 @@ $(document).ready(function() {
         { data: 'encodedBy', className: 'text-center' },
         { data: 'date', className: 'text-center' }
       ],
+      drawCallback: function () {
+        const api = this.api();
+        if (api.columns) api.columns.adjust();
+        if (api.responsive) api.responsive.recalc();
+      },
       createdRow(row, data) {
         const category = (data.rawCategory || data.typeText || '').toLowerCase().trim();
         const hasServiceTxnId = Number.isFinite(data.serviceTransactionId);
@@ -210,7 +233,18 @@ $(document).ready(function() {
       responsive: true,
       language: {
         emptyTable: 'No cash transactions found',
-        processing: 'Loading cash transactions...'
+        processing: 'Loading cash transactions...',
+        lengthMenu: 'Show _MENU_ entries',
+        search: 'Search:',
+        info: 'Showing _START_ to _END_ of _TOTAL_ entries',
+        infoEmpty: 'Showing 0 to 0 of 0 entries',
+        infoFiltered: '(filtered from _MAX_ total entries)',
+        paginate: {
+          first: 'First',
+          last: 'Last',
+          next: 'Next',
+          previous: 'Previous'
+        }
       }
     });
   }
