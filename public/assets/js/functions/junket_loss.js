@@ -218,11 +218,20 @@ $(document).ready(function () {
             showMonths: 3,
             defaultMonth: calendarVisibleStart,
             defaultDate: [monthRange.first, monthRange.last],
+            onReady: function (selectedDates, dateStr, instance) {
+                instance.changeMonth(-2, true);
+                if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                    bindFlatpickrMonthNameRangeSelect(instance);
+                }
+            },
             onOpen: function (selectedDates, dateStr, instance) {
                 const anchor = new Date();
                 instance.jumpToDate(new Date(anchor.getFullYear(), anchor.getMonth() - 2, 1), false);
+                if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                    bindFlatpickrMonthNameRangeSelect(instance);
+                }
             },
-            onClose: function (selectedDates) {
+            onChange: function (selectedDates) {
                 if (!selectedDates || selectedDates.length !== 2) return;
                 junketLossFromDate = formatYmd(selectedDates[0]);
                 junketLossToDate = formatYmd(selectedDates[1]);

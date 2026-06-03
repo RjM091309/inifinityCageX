@@ -321,6 +321,7 @@
         </script>
         
         <script src="/assets/js/vendor/exceljs.min.js"></script>
+        <script src="/assets/js/functions/flatpickr_month_range.js"></script>
         <script src="/assets/js/functions/house_expense.js"></script> <!-- ito ang tama -->
 
 
@@ -658,6 +659,16 @@
             
             .day-selector-wrapper #daterange-picker.flatpickr-input {
                 cursor: pointer;
+            }
+
+            /* Click month name to select full month in date range picker */
+            .flatpickr-calendar .flatpickr-month .cur-month {
+                cursor: pointer;
+                border-radius: 4px;
+                padding: 0 0.25rem;
+            }
+            .flatpickr-calendar .flatpickr-month .cur-month:hover {
+                background: rgba(13, 110, 253, 0.12);
             }
 
             /* Settled day styling in calendar */

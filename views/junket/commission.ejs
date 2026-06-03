@@ -369,6 +369,7 @@
 			};
 		</script>
 		<script src="/assets/js/vendor/exceljs.min.js"></script>
+		<script src="/assets/js/functions/flatpickr_month_range.js"></script>
 		<script src="/assets/js/functions/commission.js"></script>
 		
 		
@@ -474,6 +475,15 @@
 
 .commission-date-slot .flatpickr-input[readonly] {
     cursor: pointer;
+}
+
+.flatpickr-calendar .flatpickr-month .cur-month {
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 0 0.25rem;
+}
+.flatpickr-calendar .flatpickr-month .cur-month:hover {
+    background: rgba(13, 110, 253, 0.12);
 }
 
 .commission-date-slot {

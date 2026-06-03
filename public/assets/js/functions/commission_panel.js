@@ -648,19 +648,6 @@ $(document).ready(function () {
         renderModal(agent);
     });
 
-    var commissionPanelSkipMonthRange = false;
-
-    function applyFullMonthRangeForVisibleLeft(instance) {
-        if (!instance || instance.config.mode !== 'range') return;
-        var y = instance.currentYear;
-        var m = instance.currentMonth;
-        var dim = instance.utils.getDaysInMonth(m, y);
-        var start = new Date(y, m, 1);
-        var end = new Date(y, m, dim);
-        instance.setDate([start, end], false);
-        loadRankingData();
-    }
-
     flatpickr('#commission-panel-daterange', {
         mode: 'range',
         altInput: true,
@@ -670,18 +657,24 @@ $(document).ready(function () {
             moment().startOf('month').format('YYYY-MM-DD'),
             moment().endOf('month').format('YYYY-MM-DD')
         ],
-        showMonths: 2,
+        showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
-            commissionPanelSkipMonthRange = true;
-            instance.changeMonth(-1, true);
-            commissionPanelSkipMonthRange = false;
+            instance.changeMonth(-2, true);
+            if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                bindFlatpickrMonthNameRangeSelect(instance);
+            }
         },
-        onMonthChange: function (selectedDates, dateStr, instance) {
-            if (commissionPanelSkipMonthRange) return;
-            applyFullMonthRangeForVisibleLeft(instance);
+        onOpen: function (selectedDates, dateStr, instance) {
+            var n = new Date();
+            instance.jumpToDate(new Date(n.getFullYear(), n.getMonth() - 2, 1), false);
+            if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                bindFlatpickrMonthNameRangeSelect(instance);
+            }
         },
-        onClose: function (selectedDates) {
-            if (selectedDates.length === 2) loadRankingData();
+        onChange: function (selectedDates) {
+            if (selectedDates.length === 2) {
+                loadRankingData();
+            }
         }
     });
 

@@ -981,10 +981,16 @@ $(document).ready(function () {
             defaultDate: [],
             // maxDate: rangeMaxDate,
             onReady: function (selectedDates, dateStr, instance) {
+                if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                    bindFlatpickrMonthNameRangeSelect(instance);
+                }
             },
             onOpen: function (selectedDates, dateStr, instance) {
                 var anchor = new Date();
                 instance.jumpToDate(new Date(anchor.getFullYear(), anchor.getMonth() - 2, 1), false);
+                if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                    bindFlatpickrMonthNameRangeSelect(instance);
+                }
             },
             onChange: function(selectedDates, dateStr, instance) {
                 if (getHouseExpenseFilterMode() === 'daterange') {

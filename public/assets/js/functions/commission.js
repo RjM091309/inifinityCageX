@@ -491,20 +491,7 @@ $(document).ready(function() {
     });
 
 
-    var commissionSkipMonthRange = false;
-
-    function applyCommissionFullMonthRangeForVisibleLeft(instance) {
-        if (!instance || instance.config.mode !== 'range') return;
-        var y = instance.currentYear;
-        var m = instance.currentMonth;
-        var dim = instance.utils.getDaysInMonth(m, y);
-        var start = new Date(y, m, 1);
-        var end = new Date(y, m, dim);
-        instance.setDate([start, end], false);
-        reloadData();
-    }
-
-    // Initialize Flatpickr for date range
+    // Initialize Flatpickr for date range (3-month view; click month name = full month)
     var flatpickrInstance = flatpickr("#daterange", {
         mode: "range",
         altInput: true,
@@ -516,13 +503,22 @@ $(document).ready(function() {
         ],
         showMonths: 3,
         onReady: function (selectedDates, dateStr, instance) {
-            commissionSkipMonthRange = true;
             instance.changeMonth(-2, true);
-            commissionSkipMonthRange = false;
+            if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                bindFlatpickrMonthNameRangeSelect(instance);
+            }
         },
-        onMonthChange: function (selectedDates, dateStr, instance) {
-            if (commissionSkipMonthRange) return;
-            applyCommissionFullMonthRangeForVisibleLeft(instance);
+        onOpen: function (selectedDates, dateStr, instance) {
+            var n = new Date();
+            instance.jumpToDate(new Date(n.getFullYear(), n.getMonth() - 2, 1), false);
+            if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                bindFlatpickrMonthNameRangeSelect(instance);
+            }
+        },
+        onChange: function (selectedDates) {
+            if (selectedDates.length === 2) {
+                reloadData();
+            }
         }
     });
 
@@ -848,11 +844,4 @@ $(document).ready(function() {
 
     // Load data initially
     reloadData();
-
-    // Reload data when date range changes (use 'close' event instead of 'change' to avoid multiple triggers)
-    flatpickrInstance.config.onClose.push(function(selectedDates, dateStr, instance) {
-        if (selectedDates.length === 2) {
-            reloadData();
-        }
-    });
 });

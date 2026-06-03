@@ -2124,9 +2124,17 @@ $(document).ready(function () {
             defaultDate: [anchor, anchor],
             minDate: earliestSettlementDate,
             allowInput: false,
+            onReady: function (selectedDates, dateStr, instance) {
+                if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                    bindFlatpickrMonthNameRangeSelect(instance);
+                }
+            },
             onOpen: function (selectedDates, dateStr, instance) {
                 var n = new Date();
                 instance.jumpToDate(new Date(n.getFullYear(), n.getMonth() - 2, 1), false);
+                if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                    bindFlatpickrMonthNameRangeSelect(instance);
+                }
             },
             onChange: function (selectedDates) {
                 if (!selectedDates || selectedDates.length !== 2) {
@@ -2259,6 +2267,9 @@ $(document).ready(function () {
 
             // maxDate: defaultSettlementDate || 'today',
             onReady: function (selectedDates, dateStr, instance) {
+                if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                    bindFlatpickrMonthNameRangeSelect(instance);
+                }
                 // Trigger reloadData if date range mode is selected and we have default dates
                 var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
                 if (filterMode === 'daterange' && selectedDates && selectedDates.length === 2 && typeof window.reloadData === 'function') {
@@ -2270,6 +2281,9 @@ $(document).ready(function () {
             onOpen: function (selectedDates, dateStr, instance) {
                 var anchor = new Date();
                 instance.jumpToDate(new Date(anchor.getFullYear(), anchor.getMonth() - 2, 1), false);
+                if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+                    bindFlatpickrMonthNameRangeSelect(instance);
+                }
             },
             onChange: function(selectedDates, dateStr, instance) {
                 if (selectedDates && selectedDates.length === 2 && typeof window.reloadData === 'function') {
