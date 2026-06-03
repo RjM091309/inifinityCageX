@@ -2,6 +2,37 @@ var account_id;
 var totalAmountBalance = 0;
 var totalAmountAll = 0;
 
+/** Parse displayed balance (₱1,234,567) for numeric DataTables sort */
+function parseBalanceSortValue(value) {
+    if (value == null || value === '') return 0;
+    var n = parseFloat(String(value).replace(/[₱,\s\u00a0]/g, ''));
+    return isNaN(n) ? 0 : n;
+}
+
+function formatBalanceDisplay(amount) {
+    return '₱' + Number(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+/** DataTables render: display formatted ₱; sort uses raw number in row data */
+function renderBalanceColumn(data, type) {
+    var num = typeof data === 'number' ? data : parseBalanceSortValue(data);
+    if (type === 'display') {
+        return formatBalanceDisplay(num);
+    }
+    if (type === 'sort' || type === 'type' || type === 'filter') {
+        return num;
+    }
+    return data;
+}
+
+var guestAccountBalanceColumnDefs = [
+    {
+        targets: 5,
+        className: 'text-end',
+        render: renderBalanceColumn
+    }
+];
+
 $(document).ready(function () {
     // Initialize both DataTables
     if ($.fn.DataTable.isDataTable('#guestAccount-tbl-with-balance')) {
@@ -19,15 +50,16 @@ $(document).ready(function () {
         deferRender: true,
         processing: true,
         pageLength: 100,
+        columnDefs: guestAccountBalanceColumnDefs,
+        order: [[5, 'desc']],
         drawCallback: function () {
             const table = this.api();
             const pageRows = table.rows({ page: 'current' }).data();
             let pageTotal = 0;
         
             pageRows.each(function (row) {
-                const balanceText = row[5];
-                const numeric = parseFloat(balanceText.replace(/[₱,]/g, '')) || 0;
-                pageTotal += numeric;
+                var v = row[5];
+                pageTotal += typeof v === 'number' ? v : parseBalanceSortValue(v);
             });
         
             if (table.page.info().pages > 1) {
@@ -47,15 +79,16 @@ $(document).ready(function () {
         deferRender: true,
         processing: true,
         pageLength: 100,
+        columnDefs: guestAccountBalanceColumnDefs,
+        order: [[5, 'desc']],
         drawCallback: function () {
             const table = this.api();
             const pageRows = table.rows({ page: 'current' }).data();
             let pageTotal = 0;
         
             pageRows.each(function (row) {
-                const balanceText = row[5];
-                const numeric = parseFloat(balanceText.replace(/[₱,]/g, '')) || 0;
-                pageTotal += numeric;
+                var v = row[5];
+                pageTotal += typeof v === 'number' ? v : parseBalanceSortValue(v);
             });
         
             if (table.page.info().pages > 1) {
@@ -92,9 +125,6 @@ $(document).ready(function () {
                         ? `<a href="#" onclick="account_details(${row.account_id}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code}</a>`
                         : `<span>${row.agent_code}</span>`;
 
-                    const btn = `<button class="btn btn-sm btn-primary" onclick="viewDetails(${row.account_id})">View</button>`;
-                    const formattedTotal = `₱${Number(totalAmount).toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
-
                     if (totalAmount > 0) {
                         balanceRows.push([
                             row.agent_name,
@@ -102,8 +132,7 @@ $(document).ready(function () {
                             row.agency_name,
                             row.agent_telegram,
                             row.agent_contact,
-                            formattedTotal,
-                            btn
+                            totalAmount
                         ]);
                         totalAmountBalance += totalAmount;
                     }
@@ -114,15 +143,14 @@ $(document).ready(function () {
                         row.agency_name || '—',
                         row.agent_telegram || '—',
                         row.agent_contact || '—',
-                        formattedTotal
+                        totalAmount
                     ]);
                 });
 
-                // Add all rows at once and draw
-                guestTableBalance.rows.add(balanceRows).draw();
-                guestTableAll.rows.add(allRows).draw();
+                guestTableBalance.rows.add(balanceRows).invalidate().order([[5, 'desc']]).draw(false);
+                guestTableAll.rows.add(allRows).invalidate().order([[5, 'desc']]).draw(false);
 
-                const formattedGrand = `₱${Number(totalAmountAll).toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
+                const formattedGrand = formatBalanceDisplay(totalAmountAll);
                 $('#TOTAL_SUM_VALUE_BALANCE').text(formattedGrand);
                 $('#TOTAL_SUM_VALUE_ALL').text(formattedGrand);
             },
