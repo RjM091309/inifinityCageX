@@ -1,0 +1,297 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/topbar') %>
+
+<style>
+  .card-body {
+    overflow-x: auto;
+  }
+
+  #bnpp-table {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+  }
+
+  #bnpp-table thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    vertical-align: middle;
+    border: none;
+  }
+
+  #bnpp-table thead th:first-child,
+  #bnpp-table tbody td:first-child,
+  #bnpp-table tfoot td:first-child {
+    text-align: left;
+  }
+
+  #bnpp-table thead th:not(:first-child),
+  #bnpp-table tbody td:not(:first-child),
+  #bnpp-table tfoot td:not(:first-child) {
+    text-align: right;
+  }
+
+  #bnpp-table tbody tr {
+    border-bottom: 1px solid #eee;
+  }
+
+  #bnpp-table td {
+    padding: 12px 15px;
+    color: #666;
+    vertical-align: middle;
+  }
+
+  #bnpp-table tbody tr:hover {
+    background-color: #f5f5f5 !important;
+  }
+
+  #bnpp-table tfoot td {
+    font-weight: 700;
+    background-color: #fff3cd;
+    color: #333;
+  }
+
+  #bnpp-table .bnpp-share-input {
+    width: 5.5rem;
+    min-width: 5.5rem;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  .bnpp-filter-wrap {
+    width: 11.5rem;
+    max-width: 100%;
+  }
+
+  .bnpp-filter-wrap .form-control,
+  .bnpp-filter-wrap .flatpickr-alt-input {
+    text-align: center;
+    width: 100%;
+  }
+
+  .bnpp-year-filter,
+  .bnpp-range-filter {
+    display: none;
+  }
+
+  .bnpp-filter-wrap.is-monthly .bnpp-year-filter {
+    display: block;
+  }
+
+  .bnpp-filter-wrap.is-daily .bnpp-range-filter {
+    display: block;
+  }
+
+  .bnpp-filter-wrap.is-daily {
+    width: 20rem;
+  }
+
+  .bnpp-year-select-wrap {
+    width: 100%;
+  }
+
+  .select2-container.bnpp-year-select2 {
+    width: 100% !important;
+  }
+
+  .select2-container.bnpp-year-select2 .select2-selection--single {
+    height: 38px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .select2-container.bnpp-year-select2 .select2-selection--single:hover {
+    border-color: #c5ccd8;
+  }
+
+  .select2-container.bnpp-year-select2.select2-container--open .select2-selection--single,
+  .select2-container.bnpp-year-select2.select2-container--focus .select2-selection--single {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.12);
+  }
+
+  .select2-container.bnpp-year-select2 .select2-selection__rendered {
+    line-height: 36px;
+    padding-left: 0.75rem;
+    padding-right: 1.75rem;
+    text-align: center;
+    font-weight: 600;
+    color: #5c6b8a;
+    font-size: 0.875rem;
+  }
+
+  .select2-container.bnpp-year-select2 .select2-selection__arrow {
+    height: 36px;
+    right: 0.6rem;
+  }
+
+  .select2-container.bnpp-year-select2 .select2-selection__arrow b {
+    border-color: #8a92a6 transparent transparent transparent;
+    border-width: 5px 4px 0 4px;
+  }
+
+  .select2-dropdown.bnpp-year-dropdown {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1.25rem rgba(15, 23, 42, 0.1);
+    overflow: hidden;
+    margin-top: 4px;
+    z-index: 1060;
+  }
+
+  .select2-dropdown.bnpp-year-dropdown .select2-results__options {
+    max-height: 220px !important;
+  }
+
+  .select2-dropdown.bnpp-year-dropdown .select2-results__option {
+    padding: 0.5rem 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #666;
+  }
+
+  .select2-dropdown.bnpp-year-dropdown .select2-results__option--highlighted {
+    background: var(--bs-primary-bg-subtle) !important;
+    color: var(--bs-primary) !important;
+  }
+
+  .select2-dropdown.bnpp-year-dropdown .select2-results__option--selected {
+    background: var(--bs-primary) !important;
+    color: #fff !important;
+    font-weight: 600;
+  }
+
+  .bnpp-view-tabs {
+    border-bottom: 1px solid #dee2e6;
+    flex-wrap: nowrap;
+  }
+
+  .bnpp-view-tabs .nav-item {
+    margin-bottom: -1px;
+  }
+
+  .bnpp-view-tabs .nav-link {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #8a92a6;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    box-shadow: none;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    line-height: 1.5;
+  }
+
+  .bnpp-view-tabs .nav-link:hover {
+    color: var(--bs-primary);
+    background: transparent;
+  }
+
+  .bnpp-view-tabs .nav-link:focus,
+  .bnpp-view-tabs .nav-link:focus-visible {
+    box-shadow: none;
+    outline: none;
+  }
+
+  .bnpp-view-tabs .nav-link.active {
+    color: var(--bs-primary);
+    font-weight: 600;
+    background: transparent;
+    border-bottom-color: var(--bs-primary);
+  }
+
+  @media (max-width: 768px) {
+    #bnpp-table {
+      font-size: 10px;
+    }
+
+    #bnpp-table th,
+    #bnpp-table td {
+      padding: 5px;
+    }
+  }
+</style>
+
+<div class="container-fluid content-inner py-0" id="net-profit-page" data-today="<%= typeof todayStr !== 'undefined' ? todayStr : '' %>" data-range-start="<%= typeof defaultRangeStart !== 'undefined' ? defaultRangeStart : '' %>" data-range-end="<%= typeof defaultRangeEnd !== 'undefined' ? defaultRangeEnd : '' %>" data-house-share-pct="<%= typeof netProfitHouseSharePct !== 'undefined' ? netProfitHouseSharePct : '' %>">
+  <div class="row">
+    <div class="col-sm-12">
+      <div class="card">
+        <div class="card-header">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <h3 class="card-title mb-0">
+              <div class="breadcrumb1 flat">
+                <a href="/dashboard"><span class="fa fa-home"></span></a>
+                <a href="#"><%= __('sidebar.junket') %></a>
+                <a href="/net_profit" class="active">Net profit</a>
+              </div>
+            </h3>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <button type="button" class="btn btn-sm btn-alt-success d-inline-flex align-items-center gap-1" id="bnpp-print">
+                <i class="fa fa-print opacity-90"></i><span>Print</span>
+              </button>
+              <button type="button" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1" id="bnpp-export-excel">
+                <i class="fa fa-file-excel opacity-90"></i><span>Export</span>
+              </button>
+            </div>
+          </div>
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+            <ul class="nav nav-tabs bnpp-view-tabs mb-0" id="bnpp-view-tabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" type="button" id="bnpp-tab-monthly" data-view="monthly" role="tab" aria-selected="true">Monthly</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" type="button" id="bnpp-tab-daily" data-view="daily" role="tab" aria-selected="false">Daily</button>
+              </li>
+            </ul>
+            <div class="bnpp-filter-wrap is-monthly" id="bnpp-filter-wrap">
+              <div class="bnpp-year-filter">
+                <div class="bnpp-year-select-wrap">
+                  <select id="bnpp-year" class="bnpp-year-select" aria-label="Year"></select>
+                </div>
+              </div>
+              <div id="bnpp-range-wrap" class="bnpp-range-filter">
+                <input type="text" id="bnpp-range" class="form-control" placeholder="From — To" readonly autocomplete="off" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table id="bnpp-table" class="table nowrap small-text" style="width:100%">
+              <thead>
+                <tr>
+                  <th id="bnpp-col-period">Month</th>
+                  <th>Games</th>
+                  <th>Win / loss</th>
+                  <th>Share Percentage</th>
+                  <th>Share</th>
+                  <th>Commission</th>
+                  <th>Expenses</th>
+                  <th>Net profit</th>
+                </tr>
+              </thead>
+              <tbody id="bnpp-tbody">
+                <tr><td colspan="8" class="text-center text-muted py-4">Loading…</td></tr>
+              </tbody>
+              <tfoot id="bnpp-tfoot"></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+<script src="/assets/js/functions/net_profit.js"></script>

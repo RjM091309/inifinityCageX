@@ -5,6 +5,8 @@ const pool = require('../config/db');
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats, sendTelegramToManagement } = require('../utils/telegram');
 const dashboardQueries = require('../utils/dashboardQueries');
+const { getAgentTelegramChatId } = require('../utils/agentTelegram');
+const { getEnabledChatIds } = require('../utils/telegramChatIds');
 
 // Helper function to get agent notification chat IDs from telegram_api table
 // Returns all chat IDs stored in AGENT_CHATID column (for INF501-INF599 notifications)
@@ -17,22 +19,7 @@ async function getAgentNotificationChatIds() {
 		);
 		
 		if (rows.length === 0 || !rows[0].AGENT_CHATID) return [];
-		
-		const raw = String(rows[0].AGENT_CHATID).trim();
-		if (!raw) return [];
-		
-		// Parse JSON format: ["123456", "789012", ...]
-		try {
-			const parsed = JSON.parse(raw);
-			if (Array.isArray(parsed)) {
-				return parsed.filter(Boolean);
-			}
-		} catch (e) {
-			// Not JSON, try comma-separated format
-			return raw.split(',').map(s => s.trim()).filter(Boolean);
-		}
-		
-		return [];
+		return getEnabledChatIds(rows[0].AGENT_CHATID);
 	} catch (error) {
 		// If AGENT_CHATID column doesn't exist yet, return empty array
 		console.warn('Error fetching agent notification chat IDs (AGENT_CHATID column may not exist):', error.message);
@@ -351,7 +338,7 @@ router.post('/add_game_list', async (req, res) => {
 
 		// 5. Get telegram ID
 		const [telegramIdResults] = await pool.execute(`
-			SELECT agent.TELEGRAM_ID 
+			SELECT agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
 			FROM agent
 			JOIN account ON account.AGENT_ID = agent.IDNo
 			WHERE account.ACTIVE = 1 AND account.IDNo = ?`,
@@ -436,7 +423,7 @@ router.post('/add_game_list', async (req, res) => {
 	}
 
 		if (text && agentId) {
-			const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
+			const telegramId = telegramIdResults.length > 0 ? getAgentTelegramChatId(telegramIdResults[0]) : null;
 			const gameStartGameId = transType === 2 ? result.insertId : gameId;
 			const gameStartOpts = gamebookTelegramOpts('Game Start', agentCode, agentName, totalAmount, gameStartGameId);
 			if (telegramId) {
@@ -625,7 +612,7 @@ router.post('/add_game_list_split', async (req, res) => {
 		// Telegram after successful commit (DB already consistent)
 		try {
 			const [agentRows] = await pool.execute(`
-				SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+				SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
 				FROM account
 				JOIN agent ON agent.IDNo = account.AGENT_ID
 				WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -633,7 +620,8 @@ router.post('/add_game_list_split', async (req, res) => {
 				[accountId]
 			);
 			if (Array.isArray(agentRows) && agentRows.length > 0) {
-				const { AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentRows[0];
+				const { AGENT_CODE: agentCode, NAME: agentName } = agentRows[0];
+				const telegramId = getAgentTelegramChatId(agentRows[0]);
 				const date_nowTG = new Date().toLocaleDateString();
 				const updated_time = new Date().toLocaleTimeString();
 				const translateGameTypeSplit = (gameTypeValue) => {
@@ -785,7 +773,7 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 
 			try {
 				const [accountRows] = await pool.execute(
-					`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+					`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
 					 FROM account
 					 JOIN agent ON agent.IDNo = account.AGENT_ID
 					 WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -794,9 +782,10 @@ router.post('/add_game_services', checkSession, async (req, res) => {
 				);
 
 				if (Array.isArray(accountRows) && accountRows.length > 0) {
-					const { AGENT_CODE, NAME, TELEGRAM_ID } = accountRows[0];
+					const { AGENT_CODE, NAME } = accountRows[0];
+					const TELEGRAM_ID = getAgentTelegramChatId(accountRows[0]);
 
-					if (TELEGRAM_ID && TELEGRAM_ID !== '') {
+					if (TELEGRAM_ID) {
 						const formattedAmount = amt.toLocaleString('en-US');
 						const serviceLabel = svc.toUpperCase();
 						const date_nowTG = now.toLocaleDateString();
@@ -2021,7 +2010,7 @@ router.post('/add_settlement', async (req, res) => {
 
 		// Fetch AGENT_CODE, NAME, and TELEGRAM_ID
 		const agentQuery = `
-            SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+            SELECT agent.IDNo AS agent_id, agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
             FROM agent
             JOIN account ON account.AGENT_ID = agent.IDNo
             WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -2035,7 +2024,8 @@ router.post('/add_settlement', async (req, res) => {
 		const [agentResults] = await pool.query(agentQuery, [txtAccountIDSettle]);
 
 		if (agentResults.length > 0) {
-			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentResults[0];
+			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
+			const telegramId = getAgentTelegramChatId(agentResults[0]);
 
 			// Fetch game records to calculate totals
 			const gameRecordQuery = `SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE FROM game_record WHERE ACTIVE != 0 AND GAME_ID = ? ORDER BY IDNo ASC`;
@@ -2284,7 +2274,7 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 		}
 
 		const agentQuery = `
-            SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+            SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
             FROM agent
             JOIN account ON account.AGENT_ID = agent.IDNo
             WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -2293,7 +2283,8 @@ router.post('/settlement_slip_telegram', checkSession, async (req, res) => {
 		if (agentResults.length === 0) {
 			return res.status(404).json({ success: false, message: 'Agent not found for account' });
 		}
-		const { AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentResults[0];
+		const { AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
+		const telegramId = getAgentTelegramChatId(agentResults[0]);
 
 		const paymentValue = stripMoney(txtPayment);
 		const total_buy_in = stripMoney(txtBuyIn);
@@ -2440,7 +2431,7 @@ router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
 		for (const accountId of uniqueAccountIds) {
 			try {
 				const [rows] = await pool.execute(
-					`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+					`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
 					 FROM account
 					 JOIN agent ON account.AGENT_ID = agent.IDNo
 					 WHERE account.IDNo = ? AND account.ACTIVE = 1
@@ -2448,12 +2439,13 @@ router.post('/merge_settlement_telegram', checkSession, async (req, res) => {
 					[accountId]
 				);
 
-				if (!rows.length || !rows[0].TELEGRAM_ID) {
+				if (!rows.length || !getAgentTelegramChatId(rows[0])) {
 					failedAccounts.push(accountId);
 					continue;
 				}
 
-				const { AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = rows[0];
+				const { AGENT_CODE: agentCode, NAME: agentName } = rows[0];
+				const telegramId = getAgentTelegramChatId(rows[0]);
 				const text =
 					`Infinity Cage\n\n` +
 					`계정 : ${accountDisplayText}\n` +
@@ -2706,7 +2698,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 
 			// Fetch TELEGRAM_ID
 			const telegramIdQuery = `
-				SELECT agent.TELEGRAM_ID 
+				SELECT agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
 				FROM agent
 				JOIN account ON account.AGENT_ID = agent.IDNo
 				WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -2757,7 +2749,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 
 			// Send Telegram messages (when we have agent data)
 		if (text !== '' && agentResults.length > 0) {
-				const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
+				const telegramId = telegramIdResults.length > 0 ? getAgentTelegramChatId(telegramIdResults[0]) : null;
 				if (telegramId) {
 					try {
 						await sendTelegramMessage(text, telegramId, addBuyinOpts);
@@ -2908,7 +2900,7 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 		// Telegram after successful commit (DB already consistent)
 		try {
 			const [agentRows] = await pool.execute(`
-				SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
+				SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
 				FROM account
 				JOIN agent ON agent.IDNo = account.AGENT_ID
 				WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -2916,7 +2908,8 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 				[txtAccountCode]
 			);
 			if (Array.isArray(agentRows) && agentRows.length > 0) {
-				const { AGENT_CODE: agentCode, NAME: agentName, TELEGRAM_ID: telegramId } = agentRows[0];
+				const { AGENT_CODE: agentCode, NAME: agentName } = agentRows[0];
+				const telegramId = getAgentTelegramChatId(agentRows[0]);
 				const date_nowTG = new Date().toLocaleDateString();
 				const updated_time = new Date().toLocaleTimeString();
 				const [gameTypeRowsSplitBuyin] = await pool.execute('SELECT GAME_TYPE FROM game_list WHERE IDNo = ? LIMIT 1', [game_id]);
@@ -3052,7 +3045,7 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
 
 			const telegramIdQuery = `
-				SELECT agent.TELEGRAM_ID 
+				SELECT agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
 				FROM agent
 				JOIN account ON account.AGENT_ID = agent.IDNo
 				WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -3094,7 +3087,7 @@ router.post('/game_list/add/cashout', async (req, res) => {
 			const cashoutOpts = gamebookTelegramOpts('Cash-out', agentCode, agentName, chipsReturn, game_id);
 
 			if (text !== '' && agentResults.length > 0) {
-				const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
+				const telegramId = telegramIdResults.length > 0 ? getAgentTelegramChatId(telegramIdResults[0]) : null;
 				if (telegramId) {
 					try {
 						await sendTelegramMessage(text, telegramId, cashoutOpts);
@@ -3308,7 +3301,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 		if (agentResults.length > 0) {
 			const { AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
 			const telegramIdQuery = `
-				SELECT agent.TELEGRAM_ID 
+				SELECT agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
 				FROM agent
 				JOIN account ON account.AGENT_ID = agent.IDNo
 				WHERE account.ACTIVE = 1 AND account.IDNo = ?
@@ -3347,7 +3340,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				game_id
 			);
 
-			const telegramId = telegramIdResults.length > 0 ? telegramIdResults[0].TELEGRAM_ID : null;
+			const telegramId = telegramIdResults.length > 0 ? getAgentTelegramChatId(telegramIdResults[0]) : null;
 			if (telegramId) {
 				try {
 					await sendTelegramMessage(text, telegramId, cashoutSplitOpts);

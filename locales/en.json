@@ -234,7 +234,11 @@
 		"search": "Search:",
 		"showing_entries": "Showing _START_ to _END_ of _TOTAL_ entries",
 		"previous": "Previous",
-		"next": "Next"
+		"next": "Next",
+		"success": "Success!",
+		"ok": "OK",
+		"error_title": "Error!",
+		"failed_to_update": "Failed to update. Please try again."
 	},
 	"agency": {
 		"agents": "Agents",
@@ -584,6 +588,12 @@
 		"chat_ids_hint_before": "Notifications are sent to these chats. Use ",
 		"chat_ids_hint_after": " in Telegram (in the group or with the bot) to get the Chat ID.",
 		"chat_id": "Chat ID",
+		"status": "Status",
+		"enabled": "Enabled",
+		"disabled": "Disabled",
+		"toggle_notifications": "Enable or disable notifications for this account",
+		"chat_id_enabled": "Notifications enabled for this account.",
+		"chat_id_disabled": "Notifications disabled for this account.",
 		"actions": "Actions",
 		"chat_ids_empty": "No chat IDs. Click \"Add Chat ID\" to add a group or channel.",
 		"edit": "Edit",
