@@ -621,6 +621,89 @@ $(document).ready(function () {
 
 	const highlightId = getQueryParam('id');
 
+	/** Date Range filter, or Settlement with multi-day range — grand total = all loaded entries. */
+	function shouldUseFullRangeGrandTotals() {
+		var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
+		if (filterMode === 'daterange') return true;
+		if (filterMode === 'settlement' && window.selectedSettlementRangeMultiDay) return true;
+		return false;
+	}
+	window.shouldUseFullRangeGrandTotals = shouldUseFullRangeGrandTotals;
+
+	function applyGameListGrandNegativeStyle(selector, value) {
+		var element = $('#game_list-tbl tfoot ' + selector);
+		if (value < 0) {
+			element.css('color', 'red');
+		} else {
+			element.css('color', '');
+		}
+	}
+
+	function applyGameListGrandTotalsFooter(totals) {
+		if (!totals) return;
+		var fmt = function (n) {
+			return (n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+		};
+		$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(fmt(totals.totalAmount));
+		$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(fmt(totals.totalChipsReturn));
+		$('#game_list-tbl tfoot #GRAND_REAL_ROLLING').text(fmt(totals.totalRealRolling));
+		$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(fmt(totals.totalRolling));
+		$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(fmt(totals.totalRollerChips));
+		$('#game_list-tbl tfoot #GRAND_COMMISSION').text(fmt(totals.totalCommission));
+		$('#game_list-tbl tfoot #GRAND_WIN_LOSS').text(fmt(totals.totalWinLoss));
+		applyGameListGrandNegativeStyle('#GRAND_TOTAL_AMOUNT', totals.totalAmount);
+		applyGameListGrandNegativeStyle('#GRAND_TOTAL_ROLLING', totals.totalRolling);
+		applyGameListGrandNegativeStyle('#GRAND_ROLLER_CHIPS', totals.totalRollerChips);
+		applyGameListGrandNegativeStyle('#GRAND_CHIPS_RETURN', totals.totalChipsReturn);
+		applyGameListGrandNegativeStyle('#GRAND_REAL_ROLLING', totals.totalRealRolling);
+		applyGameListGrandNegativeStyle('#GRAND_COMMISSION', totals.totalCommission);
+		applyGameListGrandNegativeStyle('#GRAND_WIN_LOSS', totals.totalWinLoss);
+	}
+	window.applyGameListGrandTotalsFooter = applyGameListGrandTotalsFooter;
+
+	function calculateGameListGrandTotalsFromTable() {
+		if (($('#input-account-search').val() || '').trim().length > 0) {
+			return;
+		}
+		if (shouldUseFullRangeGrandTotals() && window._gameListGrandTotals) {
+			applyGameListGrandTotalsFooter(window._gameListGrandTotals);
+			return;
+		}
+		if (!$.fn.DataTable.isDataTable('#game_list-tbl')) return;
+		var table = $('#game_list-tbl').DataTable();
+		var totals = {
+			totalAmount: 0,
+			totalRolling: 0,
+			totalChipsReturn: 0,
+			totalWinLoss: 0,
+			totalRollerChips: 0,
+			totalRealRolling: 0,
+			totalCommission: 0
+		};
+		table.rows({ page: 'current' }).every(function () {
+			var data = this.data();
+			var tempDiv = $('<div>');
+			var amountText = tempDiv.html(data[4] || '0').text().trim();
+			tempDiv = $('<div>');
+			var chipsReturnText = tempDiv.html(data[5] || '0').text().trim();
+			tempDiv = $('<div>');
+			var realRollingText = tempDiv.html(data[6] || '0').text().trim();
+			tempDiv = $('<div>');
+			var rollerChipsText = tempDiv.html(data[8] || '0').text().trim();
+			tempDiv = $('<div>');
+			var winLossText = tempDiv.html(data[11] || '0').text().trim();
+			totals.totalAmount += parseFloat(amountText.replace(/[^0-9.-]/g, '')) || 0;
+			totals.totalRolling += parseFloat(String(data[7] || '0').replace(/[^0-9.-]/g, '')) || 0;
+			totals.totalChipsReturn += parseFloat(chipsReturnText.replace(/[^0-9.-]/g, '')) || 0;
+			totals.totalRealRolling += parseFloat(realRollingText.replace(/[^0-9.-]/g, '')) || 0;
+			totals.totalRollerChips += parseFloat(rollerChipsText.replace(/[^0-9.-]/g, '')) || 0;
+			totals.totalCommission += parseFloat(String(data[10] || '0').replace(/[^0-9.-]/g, '')) || 0;
+			totals.totalWinLoss += parseFloat(winLossText.replace(/[^0-9.-]/g, '')) || 0;
+		});
+		applyGameListGrandTotalsFooter(totals);
+	}
+	window.calculateGameListGrandTotalsFromTable = calculateGameListGrandTotalsFromTable;
+
     if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
         $('#game_list-tbl').DataTable().destroy();
     }
@@ -705,6 +788,7 @@ $(document).ready(function () {
 			var hasAccountSearch = ($('#input-account-search').val() || '').trim().length > 0;
 			$('#game_list-tbl').toggleClass('account-search-only', !!hasAccountSearch);
 			syncGameListSelectAllCheckboxState();
+			calculateGameListGrandTotalsFromTable();
 		}
 	});
 
@@ -955,6 +1039,7 @@ $(document).ready(function () {
 	};
 
     function clearGameListDisplay() {
+        window._gameListGrandTotals = null;
         dataTable.clear();
         dataTable.draw();
         $('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT, #GRAND_CHIPS_RETURN, #GRAND_TOTAL_ROLLING, #GRAND_ROLLER_CHIPS, #GRAND_REAL_ROLLING, #GRAND_COMMISSION, #GRAND_WIN_LOSS').text('0.00');
@@ -1111,6 +1196,39 @@ $(document).ready(function () {
                 let totalRollerChips = 0;
                 let totalRealRolling = 0;
                 let totalCommission = 0;
+
+                var useFullRangeGrandTotals = shouldUseFullRangeGrandTotals() && !hasAccountSearch;
+                var pendingFullRangeGrandRows = useFullRangeGrandTotals ? data.length : 0;
+                window._gameListGrandTotals = {
+                    ready: false,
+                    totalAmount: 0,
+                    totalChipsReturn: 0,
+                    totalRealRolling: 0,
+                    totalRolling: 0,
+                    totalRollerChips: 0,
+                    totalCommission: 0,
+                    totalWinLoss: 0
+                };
+
+                function pushFullRangeGrandTotalsFromAccumulators() {
+                    if (!useFullRangeGrandTotals) return;
+                    var g = window._gameListGrandTotals;
+                    g.totalAmount = totalAmount;
+                    g.totalChipsReturn = totalChipsReturn;
+                    g.totalRealRolling = totalRealRolling;
+                    g.totalRolling = totalRolling;
+                    g.totalRollerChips = totalRollerChips;
+                    g.totalCommission = totalCommission;
+                    g.totalWinLoss = totalWinLoss;
+                    g.ready = pendingFullRangeGrandRows <= 0;
+                    applyGameListGrandTotalsFooter(g);
+                }
+
+                function completeFullRangeGrandRow() {
+                    if (!useFullRangeGrandTotals) return;
+                    pendingFullRangeGrandRows--;
+                    pushFullRangeGrandTotalsFromAccumulators();
+                }
 
                 data.forEach(function (row) {
 
@@ -1307,6 +1425,8 @@ $(document).ready(function () {
 							totalChipsReturn += total_cash_out_chips;
 							totalWinLoss += parseFloat(winloss.replace(/,/g, ''));
 							totalRollerChips += total_roller_chips;
+							totalRealRolling += total_rolling_real_chips;
+							totalCommission += net;
 
 							// Account summary: accumulate per-account totals (used when Account Search is active)
 							var aid = row.ACCOUNT_ID;
@@ -1678,10 +1798,13 @@ $(document).ready(function () {
 						   
 						   // pending-game highlight removed
 							}
-	
+
+							completeFullRangeGrandRow();
+
 						},
 						error: function (xhr, status, error) {
                             console.error('Error fetching options:', error);
+                            completeFullRangeGrandRow();
                         }
                     });
                 });

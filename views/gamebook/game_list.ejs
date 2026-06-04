@@ -1125,6 +1125,21 @@ table.dataTable tbody tr.highlight-row {
 
 
 							function calculateTotal() {
+								if (($('#input-account-search').val() || '').trim().length > 0) {
+									return;
+								}
+								// Full-range grand totals (Date Range or settlement multi-day) — game_list.js, not per page.
+								if (typeof window.shouldUseFullRangeGrandTotals === 'function' && window.shouldUseFullRangeGrandTotals()) {
+									if (typeof window.applyGameListGrandTotalsFooter === 'function' && window._gameListGrandTotals) {
+										window.applyGameListGrandTotalsFooter(window._gameListGrandTotals);
+									}
+									return;
+								}
+								if (typeof window.calculateGameListGrandTotalsFromTable === 'function') {
+									window.calculateGameListGrandTotalsFromTable();
+									return;
+								}
+
 								var totalAmount = 0;
 								var totalRolling = 0;
 								var totalChipsReturn = 0;
@@ -1134,9 +1149,9 @@ table.dataTable tbody tr.highlight-row {
 								var totalCommission = 0;
 
 								var table = $('#game_list-tbl').DataTable();
+								var rowsScope = { page: 'current' };
 
-								// Process only the rows on the current page
-								table.rows({ page: 'current' }).every(function () {
+								table.rows(rowsScope).every(function () {
 									var data = this.data();
 									// console.log("Processing object:", data);
 
@@ -1178,7 +1193,9 @@ table.dataTable tbody tr.highlight-row {
 									var cleanedChipsReturnValue = parseFloat(chipsReturnText.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedRealRollingValue = parseFloat(realRollingText.replace(/[^0-9.-]/g, '')) || 0;
 									var cleanedCommissionValue = parseFloat(commissionValue.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedWinLossValue = parseFloat(winLossValue.replace(/[^0-9.-]/g, '')) || 0;
+									tempDiv = $('<div>').html(winLossValue);
+									var winLossText = tempDiv.text().trim() || winLossValue;
+									var cleanedWinLossValue = parseFloat(winLossText.replace(/[^0-9.-]/g, '')) || 0;
 
 									totalAmount += cleanedAmountValue;
 									totalRolling += cleanedRollingValue;
@@ -1198,7 +1215,7 @@ table.dataTable tbody tr.highlight-row {
 								var formattedCommission = totalCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 								var formattedWinLoss = totalWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-								// Update the footer content for the current page's totals (removed peso sign)
+								// Update footer (date range = full range; settlement = current page)
 								$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(formattedAmount);
 								$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(formattedRolling);
 								$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(formattedRollerChips);
@@ -1216,6 +1233,7 @@ table.dataTable tbody tr.highlight-row {
 								applyNegativeStyle('#GRAND_COMMISSION', totalCommission);
 								applyNegativeStyle('#GRAND_WIN_LOSS', totalWinLoss);
 							}
+							window.calculateGameListTotal = calculateTotal;
 
 							// Attach events to recalculate totals on search and draw
 							$('#game_list-tbl').on('search.dt draw.dt', function () {
