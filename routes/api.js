@@ -177,8 +177,8 @@ const toNum = (v) => (v != null && v !== '') ? Number(v) : 0;
 const rowVal = (rows, key) => toNum(rows[0]?.[key]);
 
 /**
- * Fetches realtime data using the SAME formulas as dashboard.ejs.
- * Returns { success, ongoing_games, total_chips, cash_balance, guest_balance, net_junket_money, net_junket_cash }.
+ * Fetches realtime data using the SAME queries and formulas as views/dashboard.ejs.
+ * Returns { success, ongoing_games, total_chips, cash_balance, house_balance, guest_balance, net_junket_money, net_junket_cash }.
  */
 async function getRealtimeData() {
   // --- Ongoing games: buyin (CAGE_TYPE=1) and cashout (CAGE_TYPE=2) same as gamebook/game_list ---
@@ -196,111 +196,154 @@ async function getRealtimeData() {
      ORDER BY gl.IDNo ASC`
   );
 
-  // --- Dashboard-style queries (same as routes/dashboard.js + views/dashboard.ejs) ---
+  // --- Dashboard queries (routes/dashboard.js) + formulas (views/dashboard.ejs lines 161-245) ---
   const [
-    [rTotalChipsBuyin], [rTotalChipsCashout], [rCCChipsBuyin], [rAccountNNChips], [rTotalCashOutRolling],
-    [rAccountCCChipsReturn], [rCCChipsBuyinGame], [rCCBuyin], [rCCReturn], [rNNBuyin], [rNNReturn],
-    [rRollerNNSubtract], [rRollerNNAdd], [rRollerCCSubtract], [rRollerCCAdd],
-    [rCashDeposit], [rCashWithdraw], [rJunketExpense], [rNNChipsBuyin], [rAccountDeposit], [rSettlementDeposit],
-    [rAccountWithdraw], [rNNChipsAccountCash], [rCCChipsBuyinCashOnly], [rTotalCashOut], [rAccountSettlement],
-    [rAccountServicesDeduct], [rAccountTransfer], [rMArkerReturnCash], [rReturnMoney],
-    [rAccountDeduct], [rMarkerIssueAccount], [rMArkerReturnDeposit]
+    [rNNChipsBuyin], [rNNChipsCashout], [rAccountNNChips], [rTotalCashOutRolling], [rTotalRealRolling],
+    [rNNChipsRolling], [rCCChipsRolling], [rNNBuyin], [rNNReturn], [rRollerNNSubtract], [rRollerNNAdd], [rNNChipsMonthlySettle],
+    [rCCChipsBuyin], [rCCChipsCashout], [rAccountCCChipsReturn], [rCCChipsBuyinGame], [rCCBuyin], [rCCReturn],
+    [rRollerCCSubtract], [rRollerCCAdd], [rCCChipsMonthlySettle],
+    [rTotalChipsCashout], [rCashDeposit], [rAccountDeposit], [rSettlementDeposit], [rNNChipsAccountCash], [rCCChipsBuyinCashOnly],
+    [rServiceCashGuest], [rServiceDepositGuest], [rMArkerReturnCash], [rReturnMoney],
+    [rCashWithdraw], [rJunketExpense], [rNNChipsBuyinAll], [rAccountWithdraw], [rTotalCashOut], [rAccountSettlement],
+    [rAccountServicesDeduct], [rMarkerIssueAccount], [rServiceCashJunket], [rServiceDepositJunket], [rAccountTransfer],
+    [rManualBalancing], [rJunketLoss], [rMxCashNet],
+    [rAccountDeduct], [rMArkerReturnDeposit]
   ] = await Promise.all([
-    pool.execute('SELECT SUM(TOTAL_CHIPS) AS TotalChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
-    pool.execute('SELECT SUM(TOTAL_CHIPS) AS TotalChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2'),
-    pool.execute('SELECT SUM(CC_CHIPS) AS CCChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
+    pool.execute('SELECT SUM(NN_CHIPS) AS NNChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
+    pool.execute('SELECT SUM(NN_CHIPS) AS NNChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2'),
     pool.execute('SELECT SUM(NN_CHIPS) AS TOTAL_NN FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=1'),
     pool.execute('SELECT SUM(NN_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=2'),
-    pool.execute('SELECT SUM(CC_CHIPS) AS CC_CHIPS_RETURN FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=2'),
-    pool.execute('SELECT SUM(CC_CHIPS) AS TOTAL_CC FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=1 AND TRANSACTION IN (1,2,3)'),
-    pool.execute('SELECT SUM(CC_CHIPS) AS CCBuyin FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
-    pool.execute('SELECT SUM(CC_CHIPS) AS CCReturn FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2'),
+    pool.execute('SELECT SUM(CC_CHIPS) AS TOTAL_REAL_ROLLING FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=4'),
+    pool.execute('SELECT SUM(NN_CHIPS) AS NNChipsRolling FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=3'),
+    pool.execute('SELECT SUM(CC_CHIPS) AS CCChipsRolling FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=3'),
     pool.execute('SELECT SUM(NN_CHIPS) AS NNBuyin FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
     pool.execute('SELECT SUM(NN_CHIPS) AS NNReturn FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2'),
     pool.execute('SELECT SUM(ROLLER_NN_CHIPS) AS ROLLER_NN_SUBTRACT FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=5 AND ROLLER_TRANSACTION=1'),
     pool.execute('SELECT SUM(ROLLER_NN_CHIPS) AS ROLLER_NN_ADD FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=5 AND ROLLER_TRANSACTION=2'),
+    pool.execute('SELECT SUM(NN_CHIPS) AS NNChipsMonthlySettle FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=4 AND RESET=0'),
+    pool.execute('SELECT SUM(CC_CHIPS) AS CCChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
+    pool.execute('SELECT SUM(CC_CHIPS) AS CCChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2'),
+    pool.execute('SELECT SUM(CC_CHIPS) AS CC_CHIPS_RETURN FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=2'),
+    pool.execute('SELECT SUM(CC_CHIPS) AS TOTAL_CC FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=1 AND TRANSACTION IN (1,2,3)'),
+    pool.execute('SELECT SUM(CC_CHIPS) AS CCBuyin FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
+    pool.execute('SELECT SUM(CC_CHIPS) AS CCReturn FROM junket_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2'),
     pool.execute('SELECT SUM(ROLLER_CC_CHIPS) AS ROLLER_CC_SUBTRACT FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=5 AND ROLLER_TRANSACTION=1'),
     pool.execute('SELECT SUM(ROLLER_CC_CHIPS) AS ROLLER_CC_ADD FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=5 AND ROLLER_TRANSACTION=2'),
+    pool.execute('SELECT SUM(CC_CHIPS) AS CCChipsMonthlySettle FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=4 AND RESET=0'),
+    pool.execute('SELECT SUM(TOTAL_CHIPS) AS TotalChipsCashout FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=2'),
     pool.execute('SELECT SUM(AMOUNT) AS CASH_DEPOSIT FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
+    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=2 AND account_ledger.TRANSACTION_ID=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
+    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS SETTLEMENT_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=5 AND account_ledger.TRANSACTION_ID=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
+    pool.execute('SELECT SUM(NN_CHIPS) AS TOTAL_NN_CASH FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=1 AND TRANSACTION=1'),
+    pool.execute('SELECT SUM(CC_CHIPS) AS CC_CHIPS_BUYIN_CASH_ONLY FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=1 AND TRANSACTION=1'),
+    pool.execute("SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services WHERE ACTIVE=1 AND TRANSACTION_ID=1 AND SOURCE_TYPE='GUEST'"),
+    pool.execute("SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services WHERE ACTIVE=1 AND TRANSACTION_ID=2 AND SOURCE_TYPE='GUEST'"),
+    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_CASH FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=3 AND account_ledger.TRANSACTION_ID=11 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
+    pool.execute('SELECT SUM(rm.AMOUNT) AS RETURN_MONEY FROM junket_return_money rm WHERE rm.ACTIVE=1'),
     pool.execute('SELECT SUM(AMOUNT) AS CASH_WITHDRAW FROM junket_capital WHERE ACTIVE=1 AND TRANSACTION_ID=2'),
     pool.execute('SELECT SUM(AMOUNT) AS JUNKET_EXPENSE FROM junket_house_expense WHERE ACTIVE=1'),
     pool.execute('SELECT SUM(NN_CHIPS) AS NNChipsBuyin FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=1'),
-    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=2 AND account_ledger.TRANSACTION_ID=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
-    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS SETTLEMENT_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=5 AND account_ledger.TRANSACTION_ID=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_WITHDRAW FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=2 AND account_ledger.TRANSACTION_DESC='ACCOUNT DETAILS' AND account.ACTIVE=1 AND agent.ACTIVE=1`),
-    pool.execute('SELECT SUM(NN_CHIPS) AS TOTAL_NN_CASH FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=1 AND TRANSACTION=1'),
-    pool.execute('SELECT SUM(CC_CHIPS) AS CC_CHIPS_BUYIN_CASH_ONLY FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=1 AND TRANSACTION=1'),
-    pool.execute('SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=2'),
+    pool.execute('SELECT SUM(NN_CHIPS + CC_CHIPS) AS TOTAL_CASHOUT FROM game_record WHERE ACTIVE=1 AND CAGE_TYPE=2 AND TRANSACTION != 4'),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_SETTLEMENT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=5 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEDUCT_SERVICES FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=2 AND account_ledger.TRANSACTION_DESC='SERVICES' AND account.ACTIVE=1 AND agent.ACTIVE=1`),
-    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_TRANSFER FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=1 AND account_ledger.TRANSFER=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
-    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_CASH FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=3 AND account_ledger.TRANSACTION_ID=11 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
-    pool.execute('SELECT SUM(rm.AMOUNT) AS RETURN_MONEY FROM junket_return_money rm WHERE rm.ACTIVE=1'),
-    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEDUCT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=2 AND account_ledger.TRANSACTION_DESC NOT IN ('ACCOUNT DETAILS','SERVICES') AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS TOTAL_ISSUE_RECORD FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=3 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
+    pool.execute("SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services WHERE ACTIVE=1 AND TRANSACTION_ID=1 AND SOURCE_TYPE='JUNKET'"),
+    pool.execute("SELECT SERVICE_TYPE, SUM(AMOUNT) AS TOTAL FROM game_services WHERE ACTIVE=1 AND TRANSACTION_ID=2 AND SOURCE_TYPE='JUNKET'"),
+    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_TRANSFER FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=1 AND account_ledger.TRANSFER=1 AND account.ACTIVE=1 AND agent.ACTIVE=1`),
+    pool.execute('SELECT SUM(AMOUNT) AS MANUAL_BALANCING FROM manual_balancing'),
+    pool.execute('SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE=1'),
+    pool.execute(`SELECT COALESCE(SUM(
+      CASE
+        WHEN r.ID IS NOT NULL THEN COALESCE(r.MARGIN_RETURN, 0)
+        WHEN in_ccy.CODE = 'PHP' AND ex_ccy.CODE <> 'PHP' THEN COALESCE(d.AMOUNT_IN, 0)
+        WHEN ex_ccy.CODE = 'PHP' AND in_ccy.CODE <> 'PHP' THEN -COALESCE(d.EXCHANGE_AMOUNT, 0)
+        ELSE 0
+      END
+    ), 0) AS MX_CASH_NET
+    FROM money_exchange_transaction d
+    LEFT JOIN currency_master in_ccy ON in_ccy.ID = d.IN_CURRENCY_ID
+    LEFT JOIN currency_master ex_ccy ON ex_ccy.ID = d.EXCHANGE_CURRENCY_ID
+    LEFT JOIN money_exchange_transaction r ON r.SOURCE_DEPOSIT_ID = d.ID AND r.TRANS_TYPE = 2 AND r.ACTIVE = 1
+    WHERE d.ACTIVE = 1 AND d.TRANS_TYPE = 1`),
+    pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEDUCT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=2 AND account_ledger.TRANSACTION_DESC NOT IN ('ACCOUNT DETAILS','SERVICES') AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=3 AND account_ledger.TRANSACTION_ID=12 AND account.ACTIVE=1 AND agent.ACTIVE=1`)
   ]);
 
-  // Game services: single SUM (dashboard uses first row only; we sum all for correctness)
-  const [[rServiceCashGuest], [rServiceDepositGuest], [rServiceCashJunket], [rServiceDepositJunket]] = await Promise.all([
-    pool.execute("SELECT SUM(AMOUNT) AS TOTAL FROM game_services WHERE ACTIVE=1 AND TRANSACTION_ID=1 AND SOURCE_TYPE='GUEST'"),
-    pool.execute("SELECT SUM(AMOUNT) AS TOTAL FROM game_services WHERE ACTIVE=1 AND TRANSACTION_ID=2 AND SOURCE_TYPE='GUEST'"),
-    pool.execute("SELECT SUM(AMOUNT) AS TOTAL FROM game_services WHERE ACTIVE=1 AND TRANSACTION_ID=1 AND SOURCE_TYPE='JUNKET'"),
-    pool.execute("SELECT SUM(AMOUNT) AS TOTAL FROM game_services WHERE ACTIVE=1 AND TRANSACTION_ID=2 AND SOURCE_TYPE='JUNKET'")
-  ]);
+  // Total Chips = nnChipsBalance + ccChipsBalance (dashboard.ejs lines 161-190)
+  const nnChipsBalance =
+    rowVal(rNNChipsBuyin, 'NNChipsBuyin') -
+    rowVal(rNNChipsCashout, 'NNChipsCashout') -
+    rowVal(rAccountNNChips, 'TOTAL_NN') +
+    rowVal(rTotalCashOutRolling, 'TOTAL_CASHOUT') -
+    rowVal(rTotalRealRolling, 'TOTAL_REAL_ROLLING') +
+    rowVal(rNNChipsRolling, 'NNChipsRolling') -
+    rowVal(rCCChipsRolling, 'CCChipsRolling') +
+    rowVal(rNNBuyin, 'NNBuyin') -
+    rowVal(rNNReturn, 'NNReturn') -
+    rowVal(rRollerNNSubtract, 'ROLLER_NN_SUBTRACT') +
+    rowVal(rRollerNNAdd, 'ROLLER_NN_ADD') -
+    rowVal(rNNChipsMonthlySettle, 'NNChipsMonthlySettle');
 
-  const TotalChipsBuyin = rowVal(rTotalChipsBuyin, 'TotalChipsBuyin');
-  const TotalChipsCashout = rowVal(rTotalChipsCashout, 'TotalChipsCashout');
-  const CCChipsBuyin = rowVal(rCCChipsBuyin, 'CCChipsBuyin');
-  const TOTAL_NN = rowVal(rAccountNNChips, 'TOTAL_NN');
-  const TotalCashOutRolling = rowVal(rTotalCashOutRolling, 'TOTAL_CASHOUT');
-  const CC_CHIPS_RETURN = rowVal(rAccountCCChipsReturn, 'CC_CHIPS_RETURN');
-  const TOTAL_CC = rowVal(rCCChipsBuyinGame, 'TOTAL_CC');
-  const CCBuyin = rowVal(rCCBuyin, 'CCBuyin');
-  const CCReturn = rowVal(rCCReturn, 'CCReturn');
-  const NNBuyin = rowVal(rNNBuyin, 'NNBuyin');
-  const NNReturn = rowVal(rNNReturn, 'NNReturn');
-  const ROLLER_NN_SUBTRACT = rowVal(rRollerNNSubtract, 'ROLLER_NN_SUBTRACT');
-  const ROLLER_NN_ADD = rowVal(rRollerNNAdd, 'ROLLER_NN_ADD');
-  const ROLLER_CC_SUBTRACT = rowVal(rRollerCCSubtract, 'ROLLER_CC_SUBTRACT');
-  const ROLLER_CC_ADD = rowVal(rRollerCCAdd, 'ROLLER_CC_ADD');
+  const ccChipsBalance =
+    rowVal(rCCChipsBuyin, 'CCChipsBuyin') -
+    rowVal(rCCChipsCashout, 'CCChipsCashout') +
+    rowVal(rTotalRealRolling, 'TOTAL_REAL_ROLLING') +
+    rowVal(rCCChipsRolling, 'CCChipsRolling') -
+    rowVal(rNNChipsRolling, 'NNChipsRolling') +
+    rowVal(rAccountCCChipsReturn, 'CC_CHIPS_RETURN') -
+    rowVal(rCCChipsBuyinGame, 'TOTAL_CC') +
+    rowVal(rCCBuyin, 'CCBuyin') -
+    rowVal(rCCReturn, 'CCReturn') -
+    rowVal(rRollerCCSubtract, 'ROLLER_CC_SUBTRACT') +
+    rowVal(rRollerCCAdd, 'ROLLER_CC_ADD') -
+    rowVal(rCCChipsMonthlySettle, 'CCChipsMonthlySettle');
 
-  // Total Chips Balance (same as dashboard.ejs lines 189-205)
-  const total_chips = TotalChipsBuyin - TotalChipsCashout + CCChipsBuyin - TOTAL_NN + TotalCashOutRolling + CC_CHIPS_RETURN - CCChipsBuyin - TOTAL_CC + CCBuyin - CCReturn + NNBuyin - NNReturn - ROLLER_NN_SUBTRACT + ROLLER_NN_ADD - ROLLER_CC_SUBTRACT + ROLLER_CC_ADD;
+  const total_chips = nnChipsBalance + ccChipsBalance;
 
-  const CASH_DEPOSIT = rowVal(rCashDeposit, 'CASH_DEPOSIT');
-  const CASH_WITHDRAW = rowVal(rCashWithdraw, 'CASH_WITHDRAW');
-  const JUNKET_EXPENSE = rowVal(rJunketExpense, 'JUNKET_EXPENSE');
-  const NNChipsBuyin = rowVal(rNNChipsBuyin, 'NNChipsBuyin');
-  const ACCOUNT_DEPOSIT = rowVal(rAccountDeposit, 'ACCOUNT_DEPOSIT');
-  const SETTLEMENT_DEPOSIT = rowVal(rSettlementDeposit, 'SETTLEMENT_DEPOSIT');
-  const ACCOUNT_WITHDRAW = rowVal(rAccountWithdraw, 'ACCOUNT_WITHDRAW');
-  const TOTAL_NN_CASH = rowVal(rNNChipsAccountCash, 'TOTAL_NN_CASH');
-  const CC_CHIPS_BUYIN_CASH_ONLY = rowVal(rCCChipsBuyinCashOnly, 'CC_CHIPS_BUYIN_CASH_ONLY');
-  const TotalCashOut = rowVal(rTotalCashOut, 'TOTAL_CASHOUT');
-  const ACCOUNT_SETTLEMENT = rowVal(rAccountSettlement, 'ACCOUNT_SETTLEMENT');
-  const ACCOUNT_DEDUCT_SERVICES = rowVal(rAccountServicesDeduct, 'ACCOUNT_DEDUCT_SERVICES');
-  const ServiceCashGuest = rowVal(rServiceCashGuest, 'TOTAL');
-  const ServiceDepositGuest = rowVal(rServiceDepositGuest, 'TOTAL');
-  const ServiceCashJunket = rowVal(rServiceCashJunket, 'TOTAL');
-  const ServiceDepositJunket = rowVal(rServiceDepositJunket, 'TOTAL');
-  const ACCOUNT_TRANSFER = rowVal(rAccountTransfer, 'ACCOUNT_TRANSFER');
-  const MARKER_RETURN_CASH = rowVal(rMArkerReturnCash, 'MARKER_RETURN_CASH');
-  const RETURN_MONEY = rowVal(rReturnMoney, 'RETURN_MONEY');
+  // Cash Balance = cashInTotal - cashOutTotal + mxCashNet (dashboard.ejs lines 195-230)
+  const cashInTotal =
+    rowVal(rCashDeposit, 'CASH_DEPOSIT') +
+    rowVal(rAccountDeposit, 'ACCOUNT_DEPOSIT') +
+    rowVal(rSettlementDeposit, 'SETTLEMENT_DEPOSIT') +
+    rowVal(rTotalChipsCashout, 'TotalChipsCashout') +
+    rowVal(rNNChipsAccountCash, 'TOTAL_NN_CASH') +
+    rowVal(rCCChipsBuyinCashOnly, 'CC_CHIPS_BUYIN_CASH_ONLY') +
+    rowVal(rServiceCashGuest, 'TOTAL') +
+    rowVal(rServiceDepositGuest, 'TOTAL') +
+    rowVal(rMArkerReturnCash, 'MARKER_RETURN_CASH') +
+    rowVal(rReturnMoney, 'RETURN_MONEY');
 
-  // Cash Balance (same as dashboard.ejs lines 249-260)
-  const cash_balance = CASH_DEPOSIT - CCChipsBuyin - CASH_WITHDRAW - JUNKET_EXPENSE - NNChipsBuyin + ACCOUNT_DEPOSIT + SETTLEMENT_DEPOSIT - ACCOUNT_WITHDRAW + TotalChipsCashout + TOTAL_NN_CASH + CC_CHIPS_BUYIN_CASH_ONLY - TotalCashOut - ACCOUNT_SETTLEMENT - ACCOUNT_DEDUCT_SERVICES + ServiceCashGuest + ServiceDepositGuest - ServiceCashJunket - ServiceDepositJunket - ACCOUNT_TRANSFER + MARKER_RETURN_CASH + RETURN_MONEY;
+  const cashOutTotal =
+    rowVal(rCCChipsBuyin, 'CCChipsBuyin') +
+    rowVal(rCashWithdraw, 'CASH_WITHDRAW') +
+    rowVal(rJunketExpense, 'JUNKET_EXPENSE') +
+    rowVal(rNNChipsBuyinAll, 'NNChipsBuyin') +
+    rowVal(rAccountWithdraw, 'ACCOUNT_WITHDRAW') +
+    rowVal(rTotalCashOut, 'TOTAL_CASHOUT') +
+    rowVal(rAccountSettlement, 'ACCOUNT_SETTLEMENT') +
+    rowVal(rAccountServicesDeduct, 'ACCOUNT_DEDUCT_SERVICES') +
+    rowVal(rMarkerIssueAccount, 'TOTAL_ISSUE_RECORD') +
+    rowVal(rServiceCashJunket, 'TOTAL') +
+    rowVal(rServiceDepositJunket, 'TOTAL') +
+    rowVal(rAccountTransfer, 'ACCOUNT_TRANSFER') +
+    rowVal(rManualBalancing, 'MANUAL_BALANCING') +
+    rowVal(rJunketLoss, 'JUNKET_LOSS');
 
-  const ACCOUNT_DEDUCT = rowVal(rAccountDeduct, 'ACCOUNT_DEDUCT');
-  const TOTAL_ISSUE_RECORD = rowVal(rMarkerIssueAccount, 'TOTAL_ISSUE_RECORD');
-  const MARKER_RETURN_DEPOSIT = rowVal(rMArkerReturnDeposit, 'MARKER_RETURN_DEPOSIT');
+  const cash_balance = cashInTotal - cashOutTotal + rowVal(rMxCashNet, 'MX_CASH_NET');
 
-  // Guest Balance (same as dashboard.ejs lines 262-269)
-  const guest_balance = Math.round(ACCOUNT_DEPOSIT + SETTLEMENT_DEPOSIT - ACCOUNT_WITHDRAW - ACCOUNT_DEDUCT - ACCOUNT_DEDUCT_SERVICES + TOTAL_ISSUE_RECORD - MARKER_RETURN_DEPOSIT);
+  // Guest Balance (dashboard.ejs lines 232-239) — marker issue is in cash balance, not guest
+  const guest_balance = Math.round(
+    rowVal(rAccountDeposit, 'ACCOUNT_DEPOSIT') +
+    rowVal(rSettlementDeposit, 'SETTLEMENT_DEPOSIT') -
+    rowVal(rAccountWithdraw, 'ACCOUNT_WITHDRAW') -
+    rowVal(rAccountDeduct, 'ACCOUNT_DEDUCT') -
+    rowVal(rAccountServicesDeduct, 'ACCOUNT_DEDUCT_SERVICES') -
+    rowVal(rMArkerReturnDeposit, 'MARKER_RETURN_DEPOSIT')
+  );
 
-  // houseBalance & net (same as dashboard.ejs 272-276)
-  const houseBalance = cash_balance + total_chips;
-  const net_junket_money = houseBalance - guest_balance;
+  const house_balance = cash_balance + total_chips;
+  const net_junket_money = house_balance - guest_balance;
   const net_junket_cash = cash_balance - guest_balance;
 
   // Ensure encoded_dt is sent as ISO UTC so the app shows correct local time (e.g. Philippines).
@@ -323,6 +366,7 @@ async function getRealtimeData() {
     })),
     total_chips,
     cash_balance,
+    house_balance,
     guest_balance,
     net_junket_money,
     net_junket_cash,
@@ -331,7 +375,7 @@ async function getRealtimeData() {
 
 /**
  * GET /api/realtime
- * Real-time: ongoing games, total chips, cash balance, guest balance, net junket money, net junket cash.
+ * Real-time: ongoing games, total chips, cash balance, house balance, guest balance, net junket money, net junket cash.
  * No query params required.
  */
 router.get('/realtime', async (req, res) => {
@@ -355,11 +399,11 @@ function generateMD5(input) {
 }
 
 /**
- * POST /api/auth/login
+ * POST /api/auth/login  (also POST /api/login — Flutter app uses this shorter path)
  * Body: { username, password } (JSON).
  * Returns: { success, token, user: { username, firstname, lastname, user_id, permissions, role } } or { success: false, error }.
  */
-router.post('/auth/login', async (req, res) => {
+async function handleMobileLogin(req, res) {
   try {
     const { username, password } = req.body || {};
     const userStr = (username != null && String(username).trim()) ? String(username).trim() : '';
@@ -417,7 +461,10 @@ router.post('/auth/login', async (req, res) => {
     console.error('Error in POST /api/auth/login:', err);
     res.status(500).json({ success: false, error: 'Login failed' });
   }
-});
+}
+
+router.post('/auth/login', handleMobileLogin);
+router.post('/login', handleMobileLogin);
 
 // ========== NOTIFICATIONS (executive app) ==========
 // Table: executive_notifications — created automatically on first API call (no manual DB step).
