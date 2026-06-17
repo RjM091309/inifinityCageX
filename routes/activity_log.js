@@ -353,6 +353,22 @@ router.get('/activity_logs', async (req, res) => {
 		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
 		  LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo
 		  WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 5 AND gr.ROLLER_TRANSACTION = 2 AND gr.ENCODED_DT IS NOT NULL)
+		-- GAME_LIST (deleted - Super Admin soft delete)
+		UNION ALL
+		(SELECT gl.IDNo AS related_id, CONCAT('Game Deleted: #', gl.IDNo, ' (', COALESCE(gl.GAME_TYPE,''), ') - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), ''), IF(COALESCE(gt.total_buyin, 0) > 0, CONCAT(' - Buy-in: ₱', FORMAT(gt.total_buyin, 0)), '')) AS name, 'game_deleted' AS action_type, gl.EDITED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name, COALESCE(gt.total_buyin, 0) AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Game' AS source_table
+		  FROM game_list gl
+		  JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u ON gl.EDITED_BY = u.IDNo
+		  LEFT JOIN (
+		    SELECT GAME_ID, SUM(COALESCE(NN_CHIPS, 0) + COALESCE(CC_CHIPS, 0)) AS total_buyin
+		    FROM game_record
+		    WHERE CAGE_TYPE = 1
+		    GROUP BY GAME_ID
+		  ) gt ON gt.GAME_ID = gl.IDNo
+		  WHERE gl.ACTIVE = 0 AND gl.EDITED_DT IS NOT NULL)
 		-- F&B / Hotel / Delivery services (added)
 		UNION ALL
 		(SELECT gs.IDNo AS related_id,
@@ -541,6 +557,7 @@ router.get('/activity_logs', async (req, res) => {
 		  UNION ALL (SELECT gr.GAME_ID, CONCAT('Rolling - Game #', gl.IDNo, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), ''), ' (₱', FORMAT(COALESCE(gr.NN_CHIPS,0) + COALESCE(gr.CC_CHIPS,0), 0), ')'), 'game_rolling', gr.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), (COALESCE(gr.NN_CHIPS,0) + COALESCE(gr.CC_CHIPS,0)), COALESCE(u.FIRSTNAME, 'N/A'), 'Game' FROM game_record gr JOIN game_list gl ON gr.GAME_ID = gl.IDNo JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 4 AND gr.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT gr.GAME_ID, CONCAT('Roller Chips - Game #', gl.IDNo, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), '')), 'roller_add', gr.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), (COALESCE(gr.ROLLER_NN_CHIPS,0) + COALESCE(gr.ROLLER_CC_CHIPS,0)), COALESCE(u.FIRSTNAME, 'N/A'), 'Game' FROM game_record gr JOIN game_list gl ON gr.GAME_ID = gl.IDNo JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 5 AND gr.ROLLER_TRANSACTION = 1 AND gr.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT gr.GAME_ID, CONCAT('Roller Chips - Game #', gl.IDNo, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), '')), 'roller_return', gr.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), (COALESCE(gr.ROLLER_NN_CHIPS,0) + COALESCE(gr.ROLLER_CC_CHIPS,0)), COALESCE(u.FIRSTNAME, 'N/A'), 'Game' FROM game_record gr JOIN game_list gl ON gr.GAME_ID = gl.IDNo JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 5 AND gr.ROLLER_TRANSACTION = 2 AND gr.ENCODED_DT IS NOT NULL)
+		  UNION ALL (SELECT gl.IDNo, CONCAT('Game Deleted: #', gl.IDNo, ' (', COALESCE(gl.GAME_TYPE,''), ') - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), '')), 'game_deleted', gl.EDITED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Game' FROM game_list gl JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gl.EDITED_BY = u.IDNo WHERE gl.ACTIVE = 0 AND gl.EDITED_DT IS NOT NULL)
 		  UNION ALL (SELECT gs.IDNo, CONCAT(CASE LOWER(gs.SERVICE_TYPE) WHEN 'fnb' THEN 'F&B' WHEN 'hotel' THEN 'Hotel' WHEN 'delivery' THEN 'Delivery' ELSE UPPER(COALESCE(gs.SERVICE_TYPE,'')) END, ': ', COALESCE(ag.NAME,'N/A'), IF(gs.GAME_ID IS NOT NULL AND gs.GAME_ID > 0, CONCAT(' - Game #', gs.GAME_ID), CONCAT(' (', COALESCE(gs.SOURCE_TYPE,'GUEST'), ')')), IF(NULLIF(TRIM(gs.REMARKS),'') IS NOT NULL, CONCAT(' - ', gs.REMARKS), ''), ' - ', CASE gs.TRANSACTION_ID WHEN 1 THEN 'Cash' WHEN 2 THEN 'Deposit' WHEN 3 THEN 'Settle' ELSE 'Payment' END, ' (₱', FORMAT(COALESCE(gs.AMOUNT,0), 0), ')'), 'service_added', gs.ENCODED_DT, COALESCE(ag.NAME,''), COALESCE(ag.AGENT_CODE,''), gs.AMOUNT, NULL, NULL, COALESCE(u.FIRSTNAME,'N/A'), CASE LOWER(gs.SERVICE_TYPE) WHEN 'fnb' THEN 'F&B' WHEN 'hotel' THEN 'Hotel' WHEN 'delivery' THEN 'Delivery' ELSE 'Services' END FROM game_services gs LEFT JOIN agent ag ON gs.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gs.ENCODED_BY = u.IDNo WHERE gs.ACTIVE = 1 AND gs.ENCODED_DT IS NOT NULL AND LOWER(gs.SERVICE_TYPE) IN ('fnb','hotel','delivery'))
 		  UNION ALL (SELECT j.IDNo, CONCAT(CASE j.TRANSACTION_ID WHEN 1 THEN 'Buy-in' WHEN 2 THEN 'Cash-out' WHEN 3 THEN 'Rolling' ELSE 'Other' END, ': ₱', FORMAT(COALESCE(j.TOTAL_CHIPS,0), 0)), 'junket_chips_added', j.ENCODED_DT, NULL, NULL, j.TOTAL_CHIPS, COALESCE(u.FIRSTNAME, 'N/A'), 'Junket Total Chips' FROM junket_total_chips j LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo WHERE j.ACTIVE = 1 AND j.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT ds.IDNo, CONCAT('Daily Settlement: ', DATE_FORMAT(COALESCE(ds.SETTLEMENT_DATE, CURDATE()), '%M %e, %Y')), 'settlement_added', ds.RUN_AT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Daily Settlement' FROM daily_settlement ds LEFT JOIN user_info u ON ds.ENCODED_BY = u.IDNo WHERE ds.ACTIVE = 1 AND ds.RUN_AT IS NOT NULL)
