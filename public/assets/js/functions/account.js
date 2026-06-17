@@ -795,6 +795,10 @@ function account_details(account_id_data, agent_code, account_name) {
 	reloadDataDetails();
 }
 
+function formatAccountDetailsBalance(val) {
+	return `₱${(parseFloat(val) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
 function reloadDataDetails() {
 	if (!accountDetailsDataTable || !currentAccountDetailsId) return;
 
@@ -834,26 +838,34 @@ function reloadDataDetails() {
 								const transferAgentName = response.transfer_agent_name?.trim() || 'Unknown';
 								const agentCode = response.agent_code?.trim() || 'N/A';
 								const trans = row.TRANSACTION === 'DEPOSIT'
-									? `DEPOSIT ( <strong>Received from ${agentCode} - ${transferAgentName} </strong> )`
-									: `WITHDRAW ( <strong>Transferred to ${agentCode} - ${transferAgentName} </strong> )`;
+									? `<strong>Received from ${agentCode} - ${transferAgentName}</strong>`
+									: `<strong>Transferred to ${agentCode} - ${transferAgentName}</strong>`;
+								const transactionCell = transactionDesc
+									? `${trans} - <strong>${transactionDesc}</strong>`
+									: trans;
 
 								rowsToAdd.push([
 									dateFormat,
-									`${trans} - <strong>${transactionDesc}</strong>`,
+									transactionCell,
 									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
+									formatAccountDetailsBalance(row.balance_after),
 									row.REMARKS
 								]);
 								resolve();
 							},
 							error: function () {
 								const trans = row.TRANSACTION === 'DEPOSIT'
-									? `DEPOSIT ( <strong>Received from Error fetching name</strong> )`
-									: `WITHDRAW ( <strong>Transferred to Error fetching name</strong> )`;
+									? `<strong>Received from Error fetching name</strong>`
+									: `<strong>Transferred to Error fetching name</strong>`;
+								const transactionCell = transactionDesc
+									? `${trans} - <strong>${transactionDesc}</strong>`
+									: trans;
 
 								rowsToAdd.push([
 									dateFormat,
-									`${trans} - <strong>${transactionDesc}</strong>`,
+									transactionCell,
 									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
+									formatAccountDetailsBalance(row.balance_after),
 									row.REMARKS
 								]);
 								resolve();
@@ -883,6 +895,7 @@ function reloadDataDetails() {
 							dateFormat,
 							transactionCell,
 							`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
+							formatAccountDetailsBalance(row.balance_after),
 							row.REMARKS
 						]);
 						resolve();
@@ -1000,6 +1013,7 @@ async function account_details_v2(ledgerId, guestName, acctName) {
 			  moment(r.encoded_date).format('MMMM DD, YYYY HH:mm:ss'),
 			  `${r.TRANSACTION} - <strong>${r.TRANSACTION_DESC||''}</strong>`,
 			  `₱${amt.toLocaleString()}`,
+			  formatAccountDetailsBalance(r.balance_after),
 			  r.REMARKS||''
 			]).draw(false);
   

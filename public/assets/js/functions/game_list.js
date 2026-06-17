@@ -92,6 +92,55 @@ function formatCommissionRateDisplay(rate) {
 	return numRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 }
 
+function getGameTypeLabelStyle(gameType) {
+	if (gameType === 'LIVE') return 'color:rgb(32,174,243);text-decoration:none;font-size:11px;font-weight:500;';
+	if (gameType === 'TELEBET') return 'color:rgb(255,87,51);text-decoration:none;font-size:11px;font-weight:500;';
+	return 'font-size:11px;';
+}
+
+function buildGameTypeCell(row) {
+	var gameType = row.GAME_TYPE || '';
+	var labelStyle = getGameTypeLabelStyle(gameType);
+	var isEditableActive = [1, 2, 3].includes(parseInt(row.game_status, 10));
+	if (isEditableActive && (gameType === 'LIVE' || gameType === 'TELEBET')) {
+		return '<button type="button" class="btn p-0 border-0 bg-transparent" style="line-height:1;" onclick="editGameType(' + row.game_list_id + ', \'' + gameType + '\', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')" title="Edit game type"><span style="' + labelStyle + 'cursor:pointer;">' + gameType + '</span></button>';
+	}
+	if (gameType === 'LIVE' || gameType === 'TELEBET') {
+		return '<span style="' + labelStyle + '">' + gameType + '</span>';
+	}
+	return gameType;
+}
+
+function editGameType(gameId, currentType, agentCode) {
+	var current = String(currentType || '').toUpperCase();
+	var newType = current === 'LIVE' ? 'TELEBET' : 'LIVE';
+	Swal.fire({
+		icon: 'question',
+		title: 'Change game type?',
+		html: 'Change type from <strong>' + current + '</strong> to <strong>' + newType + '</strong>?<br>Game #' + gameId,
+		showCancelButton: true,
+		confirmButtonText: 'Yes, update',
+		cancelButtonText: 'Cancel'
+	}).then(function (result) {
+		if (!result.isConfirmed) return;
+		$.ajax({
+			url: '/game_list/' + gameId + '/game_type',
+			method: 'PUT',
+			contentType: 'application/json',
+			data: JSON.stringify({ game_type: newType }),
+			success: function () {
+				Swal.fire({ icon: 'success', title: 'Saved', timer: 1200, showConfirmButton: false });
+				if (typeof window.reloadData === 'function') window.reloadData();
+			},
+			error: function (xhr) {
+				var msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to save';
+				Swal.fire({ icon: 'error', title: 'Error', text: msg });
+			}
+		});
+	});
+}
+window.editGameType = editGameType;
+
 function buildGameRateCell(row, userPermissions, isSettled) {
 	var pct = Number(row.COMMISSION_PERCENTAGE);
 	if (isNaN(pct)) pct = 0;
@@ -621,7 +670,7 @@ $(document).ready(function () {
 
 	const highlightId = getQueryParam('id');
 
-	/** Date Range filter, or Settlement with multi-day range — grand total = all loaded entries. */
+	/** Date Range filter, or Settlement with multi-day range — grand total = all loaded entries (unless main search is active). */
 	function shouldUseFullRangeGrandTotals() {
 		var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
 		if (filterMode === 'daterange') return true;
@@ -629,6 +678,32 @@ $(document).ready(function () {
 		return false;
 	}
 	window.shouldUseFullRangeGrandTotals = shouldUseFullRangeGrandTotals;
+
+	function hasGameListMainSearch() {
+		if (!$.fn.DataTable.isDataTable('#game_list-tbl')) return false;
+		return (($('#game_list-tbl').DataTable().search() || '').trim().length > 0);
+	}
+	window.hasGameListMainSearch = hasGameListMainSearch;
+
+	function accumulateGameListRowIntoTotals(totals, data) {
+		var tempDiv = $('<div>');
+		var amountText = tempDiv.html(data[4] || '0').text().trim();
+		tempDiv = $('<div>');
+		var chipsReturnText = tempDiv.html(data[5] || '0').text().trim();
+		tempDiv = $('<div>');
+		var realRollingText = tempDiv.html(data[6] || '0').text().trim();
+		tempDiv = $('<div>');
+		var rollerChipsText = tempDiv.html(data[8] || '0').text().trim();
+		tempDiv = $('<div>');
+		var winLossText = tempDiv.html(data[11] || '0').text().trim();
+		totals.totalAmount += parseFloat(amountText.replace(/[^0-9.-]/g, '')) || 0;
+		totals.totalRolling += parseFloat(String(data[7] || '0').replace(/[^0-9.-]/g, '')) || 0;
+		totals.totalChipsReturn += parseFloat(chipsReturnText.replace(/[^0-9.-]/g, '')) || 0;
+		totals.totalRealRolling += parseFloat(realRollingText.replace(/[^0-9.-]/g, '')) || 0;
+		totals.totalRollerChips += parseFloat(rollerChipsText.replace(/[^0-9.-]/g, '')) || 0;
+		totals.totalCommission += parseFloat(String(data[10] || '0').replace(/[^0-9.-]/g, '')) || 0;
+		totals.totalWinLoss += parseFloat(winLossText.replace(/[^0-9.-]/g, '')) || 0;
+	}
 
 	function applyGameListGrandNegativeStyle(selector, value) {
 		var element = $('#game_list-tbl tfoot ' + selector);
@@ -665,7 +740,7 @@ $(document).ready(function () {
 		if (($('#input-account-search').val() || '').trim().length > 0) {
 			return;
 		}
-		if (shouldUseFullRangeGrandTotals() && window._gameListGrandTotals) {
+		if (shouldUseFullRangeGrandTotals() && window._gameListGrandTotals && !hasGameListMainSearch()) {
 			applyGameListGrandTotalsFooter(window._gameListGrandTotals);
 			return;
 		}
@@ -680,25 +755,11 @@ $(document).ready(function () {
 			totalRealRolling: 0,
 			totalCommission: 0
 		};
-		table.rows({ page: 'current' }).every(function () {
-			var data = this.data();
-			var tempDiv = $('<div>');
-			var amountText = tempDiv.html(data[4] || '0').text().trim();
-			tempDiv = $('<div>');
-			var chipsReturnText = tempDiv.html(data[5] || '0').text().trim();
-			tempDiv = $('<div>');
-			var realRollingText = tempDiv.html(data[6] || '0').text().trim();
-			tempDiv = $('<div>');
-			var rollerChipsText = tempDiv.html(data[8] || '0').text().trim();
-			tempDiv = $('<div>');
-			var winLossText = tempDiv.html(data[11] || '0').text().trim();
-			totals.totalAmount += parseFloat(amountText.replace(/[^0-9.-]/g, '')) || 0;
-			totals.totalRolling += parseFloat(String(data[7] || '0').replace(/[^0-9.-]/g, '')) || 0;
-			totals.totalChipsReturn += parseFloat(chipsReturnText.replace(/[^0-9.-]/g, '')) || 0;
-			totals.totalRealRolling += parseFloat(realRollingText.replace(/[^0-9.-]/g, '')) || 0;
-			totals.totalRollerChips += parseFloat(rollerChipsText.replace(/[^0-9.-]/g, '')) || 0;
-			totals.totalCommission += parseFloat(String(data[10] || '0').replace(/[^0-9.-]/g, '')) || 0;
-			totals.totalWinLoss += parseFloat(winLossText.replace(/[^0-9.-]/g, '')) || 0;
+		var rowsScope = hasGameListMainSearch()
+			? { search: 'applied' }
+			: { page: 'current', search: 'applied' };
+		table.rows(rowsScope).every(function () {
+			accumulateGameListRowIntoTotals(totals, this.data());
 		});
 		applyGameListGrandTotalsFooter(totals);
 	}
@@ -1221,7 +1282,9 @@ $(document).ready(function () {
                     g.totalCommission = totalCommission;
                     g.totalWinLoss = totalWinLoss;
                     g.ready = pendingFullRangeGrandRows <= 0;
-                    applyGameListGrandTotalsFooter(g);
+                    if (!hasGameListMainSearch()) {
+                        applyGameListGrandTotalsFooter(g);
+                    }
                 }
 
                 function completeFullRangeGrandRow() {
@@ -1532,7 +1595,7 @@ $(document).ready(function () {
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
                                 let rowNode = dataTable.row.add([
                                     gameStartCellOg,
-                                    `${row.GAME_TYPE}`,
+                                    buildGameTypeCell(row),
                                     `${row.game_list_id}`,
                                     acct_no_link,
                                     buyin_td,
@@ -1665,7 +1728,7 @@ $(document).ready(function () {
 
 								let rowNode = dataTable.row.add([
 									gameStartCell,
-									`${row.GAME_TYPE}`,
+									buildGameTypeCell(row),
 									`${row.game_list_id}`,
 									acct_no_link,
 									buyin_td,
@@ -1783,7 +1846,7 @@ $(document).ready(function () {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
 						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-						   let rowNode = dataTable.row.add([gameStartCell,`${row.GAME_TYPE}`, `${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw().node();
+						   let rowNode = dataTable.row.add([gameStartCell, buildGameTypeCell(row), `${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw().node();
 						   if (isInitialBuyinMarker) {
 							   var $buyinCellEndGame = $(rowNode).find('td').eq(4);
 							   var buyinCellEndGameEl = $buyinCellEndGame.get(0);

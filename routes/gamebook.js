@@ -640,13 +640,8 @@ router.post('/add_game_list_split', async (req, res) => {
 				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString()}`);
 				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString()}`);
 				const splitTextBlockKo = splitLinesKo.join('\n');
-				const splitLinesMgmt = [];
-				if (cashTotal > 0) splitLinesMgmt.push(`현금 Cash: ${cashTotal.toLocaleString()}`);
-				if (depositTotal > 0) splitLinesMgmt.push(`계좌출금 Deposit: ${depositTotal.toLocaleString()}`);
-				if (creditTotal > 0) splitLinesMgmt.push(`크레딧 Credit: ${creditTotal.toLocaleString()}`);
-				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
 				const text = `Infinity Cage\n\n* 게임 시작 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameId} - ${translatedGameTypeSplit}\n${splitTextBlockKo}\n총 바이인: ${grandTotal.toLocaleString()}${depositTotal > 0 ? `\n잔고: ${balanceAfterDeposit.toLocaleString()}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				const managementText = `Infinity Cage\n\n* 게임 시작 Game Start *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameId} - ${displayGameTypeMgmtSplit}\n${splitTextBlockMgmt}\n총 바이인 Total Buy-in: ${grandTotal.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				const managementText = `Infinity Cage\n\n* 게임 시작 Game Start *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameId} - ${displayGameTypeMgmtSplit}\n총 바이인 Total Buy-in : ${grandTotal.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 
 				const splitOpts = gamebookTelegramOpts('Game Start', agentCode, agentName, grandTotal, gameId);
 
@@ -1672,7 +1667,7 @@ router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 
 		// 1. Get game info (ACCOUNT_ID, ENCODED_DT for account_ledger matching)
 		const [gameRows] = await connection.execute(
-			'SELECT ACCOUNT_ID, FNB, PAYMENT, SETTLED, ENCODED_DT FROM game_list WHERE IDNo = ? AND ACTIVE != 0',
+			'SELECT ACCOUNT_ID, FNB, PAYMENT, SETTLED, ENCODED_DT, GAME_TYPE FROM game_list WHERE IDNo = ? AND ACTIVE != 0',
 			[gameId]
 		);
 		if (gameRows.length === 0) {
@@ -1815,6 +1810,60 @@ router.delete('/game_list/delete/:id', checkSession, async (req, res) => {
 		);
 
 		await connection.commit();
+
+		// Telegram after successful delete (same paths as other gamebook events)
+		try {
+			const [agentResults] = await pool.execute(
+				`SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID, COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
+				 FROM agent
+				 JOIN account ON account.AGENT_ID = agent.IDNo
+				 WHERE account.IDNo = ?
+				 LIMIT 1`,
+				[accountId]
+			);
+
+			if (agentResults.length > 0) {
+				const { AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
+				const telegramId = getAgentTelegramChatId(agentResults[0]);
+				const date_nowTG = date_now.toLocaleDateString();
+				const updated_time = date_now.toLocaleTimeString();
+
+				const translateGameTypeDelete = (gameTypeValue) => {
+					if (!gameTypeValue) return gameTypeValue;
+					const upperValue = String(gameTypeValue).toUpperCase();
+					if (upperValue === 'LIVE') return '라이브';
+					if (upperValue === 'TELEBET') return '아바타';
+					return gameTypeValue;
+				};
+				const gameTypeForMgmtDelete = (val) => (val === '라이브' ? '라이브 Live' : val === '아바타' ? '아바타 AVATAR' : val);
+				const translatedGameType = translateGameTypeDelete(gameRows[0].GAME_TYPE || '');
+				const displayGameTypeMgmt = gameTypeForMgmtDelete(translatedGameType);
+				const gameLineKo = translatedGameType ? `${gameId} - ${translatedGameType}` : String(gameId);
+				const gameLineMgmt = displayGameTypeMgmt ? `${gameId} - ${displayGameTypeMgmt}` : String(gameId);
+
+				const text = `Infinity Cage\n\n* 게임삭제 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameLineKo}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				const managementText = `Infinity Cage\n\n* 게임삭제 Delete Game *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameLineMgmt}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				const deleteOpts = gamebookTelegramOpts('Delete Game', agentCode, agentName, parseFloat(gamePayment) || 0, gameId);
+
+				if (telegramId) {
+					try { await sendTelegramMessage(text, telegramId, deleteOpts); } catch (telegramError) {
+						console.error('Failed to send Telegram (delete game) to agent:', telegramError.message);
+					}
+				}
+				try { await sendToAgentNotifications(agentCode, managementText, deleteOpts); } catch (telegramError) {
+					console.error('Failed to send to agent notifications (delete game):', telegramError.message);
+				}
+				try { await sendTelegramToAdditionalChats(text, deleteOpts); } catch (telegramError) {
+					console.error('Failed to send Telegram (delete game) to additional chats:', telegramError.message);
+				}
+				try { await sendTelegramToManagement(managementText, deleteOpts); } catch (telegramError) {
+					console.error('Failed to send Telegram (delete game) to management:', telegramError.message);
+				}
+			}
+		} catch (tgErr) {
+			console.error('Telegram block after game delete:', tgErr);
+		}
+
 		res.json({ success: true, message: 'Game and related records deleted successfully.' });
 	} catch (err) {
 		await connection.rollback();
@@ -2556,6 +2605,40 @@ router.put('/game_list/:id/commission_percentage', async (req, res) => {
 	}
 });
 
+// Update game type (LIVE/TELEBET) for ACTIVE 1/2/3
+router.put('/game_list/:id/game_type', async (req, res) => {
+	const id = parseInt(req.params.id, 10);
+	const newType = String(req.body?.game_type || '').trim().toUpperCase();
+	if (!id || isNaN(id)) {
+		return res.status(400).json({ error: 'Invalid game ID' });
+	}
+	if (!['LIVE', 'TELEBET'].includes(newType)) {
+		return res.status(400).json({ error: 'Invalid game type.' });
+	}
+	try {
+		const [rows] = await pool.execute(
+			'SELECT GAME_TYPE, ACTIVE FROM game_list WHERE IDNo = ?',
+			[id]
+		);
+		const active = Number(rows?.[0]?.ACTIVE);
+		if (rows.length === 0 || ![1, 2, 3].includes(active)) {
+			return res.status(404).json({ error: 'Game not found' });
+		}
+		const currentType = String(rows[0].GAME_TYPE || '').trim().toUpperCase();
+		if (currentType === newType) {
+			return res.json({ success: true, game_type: newType });
+		}
+		await pool.execute(
+			'UPDATE game_list SET GAME_TYPE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[newType, req.session.user_id, new Date(), id]
+		);
+		res.json({ success: true, game_type: newType });
+	} catch (err) {
+		console.error('Error updating game type:', err);
+		res.status(500).json({ error: 'Failed to update game type' });
+	}
+});
+
 // Update commission type (Rolling/Shared) for ACTIVE 1/2/3
 router.put('/game_list/:id/commission_type', async (req, res) => {
 	const id = parseInt(req.params.id, 10);
@@ -2807,6 +2890,7 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 		game_id,
 		txtAccountCode,
 		totalBalanceGuest2,
+		txtTotalAmountBuyin,
 		split_cash_nn,
 		split_cash_cc,
 		split_dep_nn,
@@ -2931,15 +3015,11 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString()}`);
 				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString()}`);
 				const splitTextBlockKo = splitLinesKo.join('\n');
-				const splitLinesMgmt = [];
-				if (cashTotal > 0) splitLinesMgmt.push(`현금 Cash: ${cashTotal.toLocaleString()}`);
-				if (depositTotal > 0) splitLinesMgmt.push(`계좌출금 Deposit: ${depositTotal.toLocaleString()}`);
-				if (creditTotal > 0) splitLinesMgmt.push(`크레딧 Credit: ${creditTotal.toLocaleString()}`);
-				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
-				const totalBuyin = grandTotal;
+				const priorBuyin = parseFloat((txtTotalAmountBuyin || '0').toString().replace(/,/g, '')) || 0;
+				const totalBuyin = priorBuyin + grandTotal;
 				const newTotalBalance = totalBalance - depositTotal;
 				const text = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameLineKoSplitBuyin}\n${splitTextBlockKo}\n바이인 합계: ${totalBuyin.toLocaleString()}${depositTotal > 0 ? `\n잔고: ${newTotalBalance.toLocaleString()}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				const managementText = `Infinity Cage\n\n* 추가 바이인 Add Buy-in *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameLineMgmtSplitBuyin}\n${splitTextBlockMgmt}\n바이인 합계 Total Buy-in : ${totalBuyin.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				const managementText = `Infinity Cage\n\n* 추가 바이인 Add Buy-in *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameLineMgmtSplitBuyin}\n바이인 합계 Total Buy-in : ${totalBuyin.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 
 				const addBuyinSplitOpts = gamebookTelegramOpts('Add Buy-in', agentCode, agentName, grandTotal, game_id);
 
@@ -3329,8 +3409,8 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 
 			const cashTotal = cashNn + cashCc;
 			const depTotal = depNn + depCc;
-			const text = `* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameLineKoCashoutSplit}\n\n현금: ${cashTotal.toLocaleString()}\n계좌입금: ${depTotal.toLocaleString()}\n총 캐시아웃: ${splitGrandTotal.toLocaleString()}\n잔고: ${currentBalanceAfterSplit.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-			const managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account: ${agentCode} - ${agentName}\n게임 Game #: ${gameLineMgmtCashoutSplit}\n\n현금 Cash: ${cashTotal.toLocaleString()}\n계좌입금 Deposit: ${depTotal.toLocaleString()}\n총 캐시아웃 Total Cash-out: ${splitGrandTotal.toLocaleString()}\n\n날짜 Date: ${date_nowTG}\n시간 Time: ${updated_time}`;
+			const text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameLineKoCashoutSplit}\n\n현금: ${cashTotal.toLocaleString()}\n계좌입금: ${depTotal.toLocaleString()}\n총 캐시아웃: ${splitGrandTotal.toLocaleString()}\n잔고: ${currentBalanceAfterSplit.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			const managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameLineMgmtCashoutSplit}\n총 캐시아웃 Total Cash-out : ${splitGrandTotal.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 
 			const cashoutSplitOpts = gamebookTelegramOpts(
 				'Cash-out',

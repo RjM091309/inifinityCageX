@@ -162,10 +162,11 @@
                                 <table id="accountDetails" class="table table-bordered nowrap table-responsive" style="width: 100%;">
                                     <thead>
                                         <tr>
-                                            <th class="text-center" style="width: 150px;"><%= __('modal_account_details.date') %></th>
-                                            <th class="text-center" style="width: 200px;"><%= __('modal_account_details.transaction') %></th>
-                                            <th class="text-center" style="width: 100px;"><%= __('modal_account_details.amount') %></th>
-                                            <th class="text-center" style="width: 150px;"><%= __('modal_account_details.remarks') %></th>
+                                            <th class="text-center" style="width: 160px;"><%= __('modal_account_details.date') %></th>
+                                            <th class="text-center" style="width: 220px;"><%= __('modal_account_details.transaction') %></th>
+                                            <th class="text-center" style="width: 130px;"><%= __('modal_account_details.amount') %></th>
+                                            <th class="text-center" style="width: 140px;"><%= __('modal_account_details.balance_after') %></th>
+                                            <th class="text-center" style="width: 160px;"><%= __('modal_account_details.remarks') %></th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -354,12 +355,12 @@
 
 /* Upload icon: ensure clickable (keep hope-ui .upload-icone position: absolute) */
 #modal-account-details .modal-dialog {
-    width: min(96vw, 78rem);
-    max-width: 78rem;
+    width: min(98vw, 86rem);
+    max-width: 86rem;
 }
 @media (min-width: 1200px) {
     #modal-account-details .modal-dialog {
-        min-width: 70rem;
+        min-width: 76rem;
     }
 }
 #modal-account-details .account-photo-upload-label {
@@ -513,11 +514,12 @@
     background-color: #f0f6ff !important;
 }
 #modal-account-details #accountDetails tbody td:nth-child(3),
+#modal-account-details #accountDetails tbody td:nth-child(4),
 #modal-credit-details #credit-details-table tbody td:nth-child(2) {
     text-align: right !important;
     font-variant-numeric: tabular-nums;
 }
-#modal-account-details #accountDetails tbody td:nth-child(4) {
+#modal-account-details #accountDetails tbody td:nth-child(5) {
     text-align: left !important;
 }
 #modal-account-details #accountDetails_wrapper .dataTables_scrollHead thead th {

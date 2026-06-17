@@ -1125,113 +1125,9 @@ table.dataTable tbody tr.highlight-row {
 
 
 							function calculateTotal() {
-								if (($('#input-account-search').val() || '').trim().length > 0) {
-									return;
-								}
-								// Full-range grand totals (Date Range or settlement multi-day) — game_list.js, not per page.
-								if (typeof window.shouldUseFullRangeGrandTotals === 'function' && window.shouldUseFullRangeGrandTotals()) {
-									if (typeof window.applyGameListGrandTotalsFooter === 'function' && window._gameListGrandTotals) {
-										window.applyGameListGrandTotalsFooter(window._gameListGrandTotals);
-									}
-									return;
-								}
 								if (typeof window.calculateGameListGrandTotalsFromTable === 'function') {
 									window.calculateGameListGrandTotalsFromTable();
-									return;
 								}
-
-								var totalAmount = 0;
-								var totalRolling = 0;
-								var totalChipsReturn = 0;
-								var totalWinLoss = 0;
-								var totalRollerChips = 0;
-								var totalRealRolling = 0;
-								var totalCommission = 0;
-
-								var table = $('#game_list-tbl').DataTable();
-								var rowsScope = { page: 'current' };
-
-								table.rows(rowsScope).every(function () {
-									var data = this.data();
-									// console.log("Processing object:", data);
-
-									// Adjust these indices based on your columns configuration
-									var amountIndex = 4; // "BUY-IN" is at index 4
-									var rollingIndex = 7; // "TOTAL ROLLING" is at index 7
-									var rollerChipsIndex = 8; // "ROLLER CHIPS" is at index 8
-									var chipsReturnIndex = 5; // "CASH-OUT" is at index 5
-									var realRollingIndex = 6; // "REAL ROLLING" is at index 6
-									var commissionIndex = 10; // "COMMISSION" is at index 10
-									var winLossIndex = 11; // "WIN/LOSS" is at index 11
-
-									var amountValue = data[amountIndex] || '0';
-									var rollingValue = data[rollingIndex] || '0';
-									var rollerChipsValue = data[rollerChipsIndex] || '0';
-									var chipsReturnValue = data[chipsReturnIndex] || '0';
-									var realRollingValue = data[realRollingIndex] || '0';
-									var commissionValue = data[commissionIndex] || '0';
-									var winLossValue = data[winLossIndex] || '0';
-
-									// Extract text content from HTML (handles buttons and plain text)
-									// Create a temporary div to parse HTML and extract text
-									var tempDiv = $('<div>').html(amountValue);
-									var amountText = tempDiv.text().trim() || amountValue;
-									
-									tempDiv = $('<div>').html(rollerChipsValue);
-									var rollerChipsText = tempDiv.text().trim() || rollerChipsValue;
-									
-									tempDiv = $('<div>').html(chipsReturnValue);
-									var chipsReturnText = tempDiv.text().trim() || chipsReturnValue;
-									
-									tempDiv = $('<div>').html(realRollingValue);
-									var realRollingText = tempDiv.text().trim() || realRollingValue;
-
-									// Remove HTML tags and clean values
-									var cleanedAmountValue = parseFloat(amountText.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedRollingValue = parseFloat(rollingValue.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedRollerChipsValue = parseFloat(rollerChipsText.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedChipsReturnValue = parseFloat(chipsReturnText.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedRealRollingValue = parseFloat(realRollingText.replace(/[^0-9.-]/g, '')) || 0;
-									var cleanedCommissionValue = parseFloat(commissionValue.replace(/[^0-9.-]/g, '')) || 0;
-									tempDiv = $('<div>').html(winLossValue);
-									var winLossText = tempDiv.text().trim() || winLossValue;
-									var cleanedWinLossValue = parseFloat(winLossText.replace(/[^0-9.-]/g, '')) || 0;
-
-									totalAmount += cleanedAmountValue;
-									totalRolling += cleanedRollingValue;
-									totalRollerChips += cleanedRollerChipsValue;
-									totalChipsReturn += cleanedChipsReturnValue;
-									totalRealRolling += cleanedRealRollingValue;
-									totalCommission += cleanedCommissionValue;
-									totalWinLoss += cleanedWinLossValue;
-								});
-
-								// Format the totals
-								var formattedAmount = totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedRolling = totalRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedRollerChips = totalRollerChips.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedChipsReturn = totalChipsReturn.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-								var formattedRealRolling = totalRealRolling.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedCommission = totalCommission.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-								var formattedWinLoss = totalWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-								// Update footer (date range = full range; settlement = current page)
-								$('#game_list-tbl tfoot #GRAND_TOTAL_AMOUNT').text(formattedAmount);
-								$('#game_list-tbl tfoot #GRAND_TOTAL_ROLLING').text(formattedRolling);
-								$('#game_list-tbl tfoot #GRAND_ROLLER_CHIPS').text(formattedRollerChips);
-								$('#game_list-tbl tfoot #GRAND_CHIPS_RETURN').text(formattedChipsReturn);
-								$('#game_list-tbl tfoot #GRAND_REAL_ROLLING').text(formattedRealRolling);
-								$('#game_list-tbl tfoot #GRAND_COMMISSION').text(formattedCommission);
-								$('#game_list-tbl tfoot #GRAND_WIN_LOSS').text(formattedWinLoss);
-
-								// Apply red font color if the total is negative
-								applyNegativeStyle('#GRAND_TOTAL_AMOUNT', totalAmount);
-								applyNegativeStyle('#GRAND_TOTAL_ROLLING', totalRolling);
-								applyNegativeStyle('#GRAND_ROLLER_CHIPS', totalRollerChips);
-								applyNegativeStyle('#GRAND_CHIPS_RETURN', totalChipsReturn);
-								applyNegativeStyle('#GRAND_REAL_ROLLING', totalRealRolling);
-								applyNegativeStyle('#GRAND_COMMISSION', totalCommission);
-								applyNegativeStyle('#GRAND_WIN_LOSS', totalWinLoss);
 							}
 							window.calculateGameListTotal = calculateTotal;
 
@@ -1241,16 +1137,6 @@ table.dataTable tbody tr.highlight-row {
 								calculateTotal();
 							});
 						});
-						function applyNegativeStyle(selector, value) {
-							var element = $('#game_list-tbl tfoot ' + selector);
-							if (value < 0) {
-								element.css('color', 'red');
-							} else {
-								element.css('color', ''); // Reset to default color
-							}
-						}
-
-
 						const permissions = parseInt($('#user-role').data('permissions'));
 
 						if (permissions === 2) {

@@ -66,6 +66,43 @@ const getCurrentBalance = async (accountId) => {
 	return deposit_amount + marker_redeem_amount - withdraw_amount - marker_return_deposit;
 };
 
+const getLedgerCashBalanceDelta = (transactionName, amount) => {
+	const amt = parseFloat(amount) || 0;
+	switch (transactionName) {
+		case 'DEPOSIT':
+		case 'MARKER REDEEM':
+			return amt;
+		case 'WITHDRAW':
+		case 'IOU RETURN DEPOSIT':
+			return -amt;
+		default:
+			return 0;
+	}
+};
+
+const attachBalanceAfterToLedgerRows = (rows) => {
+	if (!rows || !rows.length) return rows;
+	const sorted = [...rows].sort((a, b) => {
+		const da = new Date(a.encoded_date).getTime();
+		const db = new Date(b.encoded_date).getTime();
+		if (da !== db) return da - db;
+		return (a.account_details_id || 0) - (b.account_details_id || 0);
+	});
+	let running = 0;
+	const balanceMap = new Map();
+	sorted.forEach((row) => {
+		const txType = parseInt(row.TRANSACTION_TYPE, 10);
+		if ([2, 5, 3].includes(txType)) {
+			running += getLedgerCashBalanceDelta(row.TRANSACTION, row.AMOUNT);
+		}
+		balanceMap.set(row.account_details_id, running);
+	});
+	rows.forEach((row) => {
+		row.balance_after = balanceMap.get(row.account_details_id) ?? 0;
+	});
+	return rows;
+};
+
 // Credit/IOU balance: TRANSACTION_ID (3,10) - (11,12,1), TRANSACTION_TYPE (3,4)
 const getCreditBalance = async (accountId) => {
 	const query = `
@@ -1241,6 +1278,7 @@ router.get('/account_details_data/:id', async (req, res) => {
 			ORDER BY account_ledger.IDNo DESC
 		`;
 		const [result] = await pool.execute(query, [id]);
+		attachBalanceAfterToLedgerRows(result);
 		res.json(result);
 	} catch (error) {
 		console.error('Error fetching data:', error);
@@ -1277,6 +1315,7 @@ router.get('/account_details_data_deposit/:id', async (req, res) => {
 	  query += ` ORDER BY account_ledger.IDNo DESC`;
   
 	  const [result] = await pool.execute(query, params);
+	  attachBalanceAfterToLedgerRows(result);
 	  res.json(result);
 	} catch (error) {
 	  console.error('❌ Error fetching data:', error);
