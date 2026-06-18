@@ -4,11 +4,16 @@ const ACTIVITY_LOG_MAX_ROWS = 3000;
 const BRANCH_FROM = [
 	'agency a',
 	'agent ag',
+	'account acc',
 	'account_ledger al',
 	'junket_house_expense j',
+	'expense_category cat',
 	'junket_loss jl',
 	'money_exchange_transaction t',
 	'user_info ui',
+	'user_role ur',
+	'telegram_api ta',
+	'game_number_logs gnl',
 	'booking b',
 	'game_list gl',
 	'game_record gr',
@@ -17,6 +22,8 @@ const BRANCH_FROM = [
 	'junket_return_money rm',
 	'junket_capital jc',
 	'daily_settlement ds',
+	'daily_settlement_games dsg',
+	'expense_daily_settlement eds',
 ];
 
 function injectCrossJoin(sql) {
@@ -72,6 +79,20 @@ function injectRunAt(sql) {
 	);
 }
 
+function injectAddedAt(sql) {
+	return sql.replace(
+		/\bdsg\.ADDED_AT IS NOT NULL/g,
+		'dsg.ADDED_AT IS NOT NULL AND dsg.ADDED_AT >= dr.dt_from AND dsg.ADDED_AT <= dr.dt_to'
+	);
+}
+
+function injectExpenseSettlementRunAt(sql) {
+	return sql.replace(
+		/\beds\.RUN_AT IS NOT NULL/g,
+		'eds.RUN_AT IS NOT NULL AND eds.RUN_AT >= dr.dt_from AND eds.RUN_AT <= dr.dt_to'
+	);
+}
+
 /**
  * @param {string} sql - inner UNION query (without outer wrapper)
  * @param {boolean} hasDateFilter
@@ -84,6 +105,8 @@ function optimizeActivityLogSql(sql, hasDateFilter) {
 	out = injectUpdatedDt(out);
 	out = injectBookingDate(out);
 	out = injectRunAt(out);
+	out = injectExpenseSettlementRunAt(out);
+	out = injectAddedAt(out);
 	out = injectLedgerEncoded(out);
 	return out;
 }
@@ -105,14 +128,38 @@ ORDER BY logs.action_time DESC
 ${limitClause}`;
 }
 
+function dedupeActivityLogRows(rows) {
+	const seen = new Set();
+	return rows.filter((row) => {
+		const actionTime = row.action_time instanceof Date
+			? row.action_time.toISOString()
+			: String(row.action_time ?? '');
+		const key = [
+			row.action_type,
+			row.related_id,
+			actionTime,
+			row.name,
+			row.source_table,
+			row.amount,
+			row.nn_amount,
+			row.cc_amount,
+			row.encoded_by_name,
+		].join('\0');
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+}
+
 async function fetchActivityLogRows(pool, innerSql, hasDateFilter, limitClause, queryParams) {
 	const sql = wrapActivityLogQuery(innerSql, hasDateFilter, limitClause);
 	const [rows] = await pool.query(sql, queryParams);
-	return rows;
+	return dedupeActivityLogRows(rows);
 }
 
 module.exports = {
 	ACTIVITY_LOG_MAX_ROWS,
+	dedupeActivityLogRows,
 	optimizeActivityLogSql,
 	wrapActivityLogQuery,
 	fetchActivityLogRows,

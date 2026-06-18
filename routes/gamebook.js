@@ -2554,8 +2554,8 @@ router.put('/game_list/:gameId/settlement_fake_settle', checkSession, async (req
 		}
 
 		await pool.execute(
-			'UPDATE game_list SET FAKE_SETTLE = ? WHERE IDNo = ? AND ACTIVE != 0',
-			[fakeSettle, gameId]
+			'UPDATE game_list SET FAKE_SETTLE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? AND ACTIVE != 0',
+			[fakeSettle, req.session.user_id, new Date(), gameId]
 		);
 
 		return res.json({ success: true, fake_settle: fakeSettle });
@@ -2595,8 +2595,8 @@ router.put('/game_list/:id/commission_percentage', async (req, res) => {
 			return res.status(400).json({ error: 'Shared game rate must be between 50% and 100%.' });
 		}
 		await pool.execute(
-			'UPDATE game_list SET COMMISSION_PERCENTAGE = ? WHERE IDNo = ?',
-			[rate, id]
+			'UPDATE game_list SET COMMISSION_PERCENTAGE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[rate, req.session.user_id, new Date(), id]
 		);
 		res.json({ success: true, commission_percentage: rate });
 	} catch (err) {
@@ -2675,8 +2675,8 @@ router.put('/game_list/:id/commission_type', async (req, res) => {
 			rate = 50;
 		}
 		await pool.execute(
-			'UPDATE game_list SET COMMISSION_TYPE = ?, COMMISSION_PERCENTAGE = ? WHERE IDNo = ?',
-			[newType, rate, id]
+			'UPDATE game_list SET COMMISSION_TYPE = ?, COMMISSION_PERCENTAGE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[newType, rate, req.session.user_id, new Date(), id]
 		);
 		res.json({ success: true, commission_type: newType, commission_percentage: rate });
 	} catch (err) {
@@ -3520,13 +3520,14 @@ router.post('/game_list/rolling/:id/update', async (req, res) => {
 	const ccAmount = parseFloat((txtCC || '0').toString().replace(/,/g, '')) || 0;
 
 	try {
+		const date_now = new Date();
 		const query = `
 			UPDATE game_record
-			SET NN_CHIPS = ?, CC_CHIPS = ?
+			SET NN_CHIPS = ?, CC_CHIPS = ?, EDITED_BY = ?, EDITED_DT = ?
 			WHERE IDNo = ? AND CAGE_TYPE = 4
 		`;
 
-		const [result] = await pool.execute(query, [nnAmount, ccAmount, recordId]);
+		const [result] = await pool.execute(query, [nnAmount, ccAmount, req.session.user_id, date_now, recordId]);
 
 		if (result.affectedRows === 0) {
 			return res.status(404).json({ error: 'Rolling record not found' });

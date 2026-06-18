@@ -41,7 +41,12 @@ router.get('/activity_logs', async (req, res) => {
 		(SELECT ag.IDNo AS related_id, COALESCE(ag.NAME, '') AS name, 'added' AS action_type, ag.ENCODED_DT AS action_time,
 		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
 		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Guest' AS source_table
-		  FROM agent ag LEFT JOIN user_info u ON ag.ENCODED_BY = u.IDNo WHERE ag.ENCODED_DT IS NOT NULL)
+		  FROM agent ag LEFT JOIN user_info u ON ag.ENCODED_BY = u.IDNo
+		  WHERE ag.ENCODED_DT IS NOT NULL
+		    AND NOT EXISTS (
+		      SELECT 1 FROM account acc2
+		      WHERE acc2.AGENT_ID = ag.IDNo AND acc2.ENCODED_DT = ag.ENCODED_DT
+		    ))
 		UNION ALL
 		(SELECT ag.IDNo AS related_id, COALESCE(ag.NAME, '') AS name, 'edited' AS action_type, ag.EDITED_DT AS action_time,
 		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
@@ -52,6 +57,46 @@ router.get('/activity_logs', async (req, res) => {
 		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
 		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Guest' AS source_table
 		  FROM agent ag LEFT JOIN user_info u ON ag.EDITED_BY = u.IDNo WHERE ag.ACTIVE = 0 AND ag.EDITED_DT IS NOT NULL)
+		-- ACCOUNT (guest account record — create / edit / archive)
+		UNION ALL
+		(SELECT acc.IDNo AS related_id,
+		  CONCAT('Account added: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')',
+		    IF(NULLIF(TRIM(acc.GUESTNo), '') IS NOT NULL, CONCAT(' - Guest# ', acc.GUESTNo), ''),
+		    IF(NULLIF(TRIM(acc.MEMBERSHIPNo), '') IS NOT NULL, CONCAT(' - Member# ', acc.MEMBERSHIPNo), '')) AS name,
+		  'account_added' AS action_type, acc.ENCODED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name,
+		  NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Account' AS source_table
+		  FROM account acc
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u ON acc.ENCODED_BY = u.IDNo
+		  WHERE acc.ENCODED_DT IS NOT NULL)
+		UNION ALL
+		(SELECT acc.IDNo AS related_id,
+		  CONCAT('Account edited: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')',
+		    IF(NULLIF(TRIM(acc.GUESTNo), '') IS NOT NULL, CONCAT(' - Guest# ', acc.GUESTNo), ''),
+		    IF(NULLIF(TRIM(acc.MEMBERSHIPNo), '') IS NOT NULL, CONCAT(' - Member# ', acc.MEMBERSHIPNo), '')) AS name,
+		  'account_edited' AS action_type, acc.EDITED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name,
+		  NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Account' AS source_table
+		  FROM account acc
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u ON acc.EDITED_BY = u.IDNo
+		  WHERE acc.ACTIVE = 1 AND acc.EDITED_DT IS NOT NULL
+		    AND (acc.ENCODED_DT IS NULL OR acc.EDITED_DT > acc.ENCODED_DT))
+		UNION ALL
+		(SELECT acc.IDNo AS related_id,
+		  CONCAT('Account deleted: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')',
+		    IF(NULLIF(TRIM(acc.GUESTNo), '') IS NOT NULL, CONCAT(' - Guest# ', acc.GUESTNo), '')) AS name,
+		  'account_deleted' AS action_type, acc.EDITED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name,
+		  NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u2.FIRSTNAME, 'N/A') AS encoded_by_name, 'Account' AS source_table
+		  FROM account acc
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u2 ON acc.EDITED_BY = u2.IDNo
+		  WHERE acc.ACTIVE = 0 AND acc.EDITED_DT IS NOT NULL)
 		-- TRANSACTION (Deposit, Withdraw, IOU, Transfer)
 		UNION ALL
 		(SELECT al.IDNo AS related_id,
@@ -60,7 +105,6 @@ router.get('/activity_logs', async (req, res) => {
 		    WHEN al.TRANSFER = 1 AND al.TRANSACTION_ID = 1 THEN CONCAT('Transfer From: ', COALESCE(ag.AGENT_CODE,''), ' (', COALESCE(ag.NAME,''), ') - Transfer To: ', COALESCE(transfer_ag.AGENT_CODE,''), ' (', COALESCE(transfer_ag.NAME,''), ')')
 		    WHEN al.TRANSACTION_ID = 1 THEN CONCAT('Deposit: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')')
 		    WHEN al.TRANSACTION_ID = 2 THEN CONCAT('Withdraw: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')')
-		    WHEN al.TRANSACTION_ID = 3 THEN CONCAT('IOU - ', COALESCE(ag.NAME, 'Unknown Guest'), ' was Successful!')
 		    ELSE CONCAT('Unknown - ', COALESCE(ag.NAME, 'Unknown Guest'), ' was Successful!')
 		  END AS name,
 		  CASE WHEN al.TRANSFER = 1 THEN 'transfer' WHEN al.TRANSACTION_ID = 1 THEN 'deposit' WHEN al.TRANSACTION_ID = 2 THEN 'withdraw' ELSE 'transaction' END AS action_type, al.ENCODED_DT AS action_time,
@@ -72,8 +116,8 @@ router.get('/activity_logs', async (req, res) => {
 		  LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo
 		  LEFT JOIN account transfer_acc ON transfer_acc.IDNo = al.TRANSFER_AGENT AND al.TRANSFER = 1
 		  LEFT JOIN agent transfer_ag ON transfer_acc.AGENT_ID = transfer_ag.IDNo
-		  WHERE al.ACTIVE = 1 AND al.TRANSACTION_ID IN (1, 2, 3) AND (al.TRANSFER != 1 OR al.TRANSFER IS NULL)
-		  AND ((al.TRANSACTION_ID IN (1, 2) AND al.TRANSACTION_DESC = 'ACCOUNT DETAILS') OR al.TRANSACTION_ID = 3))
+		  WHERE al.ACTIVE = 1 AND al.TRANSACTION_ID IN (1, 2) AND (al.TRANSFER != 1 OR al.TRANSFER IS NULL)
+		  AND al.TRANSACTION_DESC = 'ACCOUNT DETAILS')
 		-- TRANSFER - Source Account Entry (only process TRANSACTION_ID = 2 to avoid duplicates)
 		UNION ALL
 		(SELECT al.IDNo AS related_id,
@@ -124,6 +168,122 @@ router.get('/activity_logs', async (req, res) => {
 		    (al.TRANSACTION_ID = 11 AND al.TRANSACTION_TYPE = 3) OR
 		    (al.TRANSACTION_ID = 12 AND al.TRANSACTION_TYPE = 3)
 		  ))
+		-- CREDIT ISSUED (TRANSACTION_ID = 3 — account credit / IOU issue)
+		UNION ALL
+		(SELECT al.IDNo AS related_id,
+		  CONCAT('Credit issued: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') AS name,
+		  'credit_issued' AS action_type, al.ENCODED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name,
+		  al.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Credit Return' AS source_table
+		  FROM account_ledger al
+		  JOIN account acc ON al.ACCOUNT_ID = acc.IDNo
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo
+		  WHERE al.ACTIVE = 1 AND al.TRANSACTION_ID = 3 AND al.ENCODED_DT IS NOT NULL)
+		-- MARKER BUY-IN (TRANSACTION_ID = 10)
+		UNION ALL
+		(SELECT al.IDNo AS related_id,
+		  CONCAT('Marker Buy-in: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') AS name,
+		  'marker_buyin' AS action_type, al.ENCODED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name,
+		  al.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Credit Return' AS source_table
+		  FROM account_ledger al
+		  JOIN account acc ON al.ACCOUNT_ID = acc.IDNo
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo
+		  WHERE al.ACTIVE = 1 AND al.TRANSACTION_ID = 10 AND al.ENCODED_DT IS NOT NULL)
+		-- MARKER / CREDIT REMARKS EDITED
+		UNION ALL
+		(SELECT al.IDNo AS related_id,
+		  CONCAT('Marker remarks edited: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')',
+		    IF(NULLIF(TRIM(al.REMARKS), '') IS NOT NULL, CONCAT(' - ', al.REMARKS), '')) AS name,
+		  'marker_remarks_edited' AS action_type, al.EDITED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name,
+		  al.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u2.FIRSTNAME, 'N/A') AS encoded_by_name, 'Credit Return' AS source_table
+		  FROM account_ledger al
+		  JOIN account acc ON al.ACCOUNT_ID = acc.IDNo
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u2 ON al.EDITED_BY = u2.IDNo
+		  WHERE al.ACTIVE = 1 AND al.EDITED_DT IS NOT NULL AND al.EDITED_DT > al.ENCODED_DT
+		    AND (al.TRANSACTION_ID IN (3, 10, 11, 12) OR al.TRANSACTION_TYPE = 4)
+		    AND NOT (
+		      al.GAME_ID IS NOT NULL AND (
+		        (al.TRANSACTION_ID = 10 AND al.TRANSACTION_TYPE = 3 AND (al.TRANSACTION_DESC IS NULL OR al.TRANSACTION_DESC = ''))
+		        OR (al.TRANSACTION_ID = 2 AND al.TRANSACTION_TYPE = 2 AND al.TRANSACTION_DESC IN ('INITIAL BUY-IN', 'ADDITIONAL BUY-IN'))
+		      )
+		    ))
+		-- ACCOUNT_LEDGER (deleted — deposit, withdraw, IOU, transfer, credit return, marker, etc.)
+		UNION ALL
+		(SELECT al.IDNo AS related_id,
+		  CONCAT(
+		    CASE
+		      WHEN al.TRANSFER = 1 AND al.TRANSACTION_ID = 2 THEN CONCAT('Deleted Transfer From: ', COALESCE(ag.AGENT_CODE,''), ' (', COALESCE(ag.NAME,''), ') - Transfer To: ', COALESCE(transfer_ag.AGENT_CODE,''), ' (', COALESCE(transfer_ag.NAME,''), ')')
+		      WHEN al.TRANSFER = 1 AND al.TRANSACTION_ID = 1 THEN CONCAT('Deleted Transfer To: ', COALESCE(transfer_ag.AGENT_CODE,''), ' (', COALESCE(transfer_ag.NAME,''), ') - Transfer From: ', COALESCE(ag.AGENT_CODE,''), ' (', COALESCE(ag.NAME,''), ')')
+		      WHEN al.TRANSACTION_ID = 1 AND al.TRANSACTION_TYPE = 4 THEN CONCAT('Deleted Chips return thru credit: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')')
+		      WHEN al.TRANSACTION_ID = 11 AND al.TRANSACTION_TYPE = 3 THEN CONCAT('Deleted Credit return thru cash: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')')
+		      WHEN al.TRANSACTION_ID = 12 AND al.TRANSACTION_TYPE = 3 THEN CONCAT('Deleted Credit return thru deposit: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')')
+		      WHEN al.TRANSACTION_ID = 10 THEN CONCAT('Deleted Marker Buy-in: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')')
+		      WHEN al.TRANSACTION_ID = 1 THEN CONCAT('Deleted Deposit: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')')
+		      WHEN al.TRANSACTION_ID = 2 THEN CONCAT('Deleted Withdraw: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')')
+		      WHEN al.TRANSACTION_ID = 3 THEN CONCAT('Deleted Credit issued: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')')
+		      ELSE CONCAT('Deleted Transaction: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')')
+		    END) AS name,
+		  'transaction_deleted' AS action_type, al.EDITED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name,
+		  al.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u2.FIRSTNAME, 'N/A') AS encoded_by_name,
+		  CASE
+		    WHEN (al.TRANSACTION_ID = 1 AND al.TRANSACTION_TYPE = 4)
+		      OR (al.TRANSACTION_ID IN (11, 12) AND al.TRANSACTION_TYPE = 3)
+		      OR al.TRANSACTION_ID IN (3, 10)
+		      OR al.TRANSACTION_TYPE = 4 THEN 'Credit Return'
+		    ELSE 'Account Transaction'
+		  END AS source_table
+		  FROM account_ledger al
+		  JOIN account acc ON al.ACCOUNT_ID = acc.IDNo
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u2 ON al.EDITED_BY = u2.IDNo
+		  LEFT JOIN account transfer_acc ON transfer_acc.IDNo = al.TRANSFER_AGENT AND al.TRANSFER = 1
+		  LEFT JOIN agent transfer_ag ON transfer_acc.AGENT_ID = transfer_ag.IDNo
+		  WHERE al.ACTIVE = 0 AND al.EDITED_DT IS NOT NULL
+		    AND NOT (
+		      al.GAME_ID IS NOT NULL AND (
+		        (al.TRANSACTION_ID = 1 AND al.TRANSACTION_DESC = 'Chips Returned')
+		        OR (al.TRANSACTION_ID = 2 AND al.TRANSACTION_TYPE IN (2, 3) AND al.TRANSACTION_DESC IN ('INITIAL BUY-IN', 'ADDITIONAL BUY-IN'))
+		        OR (al.TRANSACTION_ID = 10 AND al.TRANSACTION_TYPE = 3 AND (al.TRANSACTION_DESC IS NULL OR al.TRANSACTION_DESC = ''))
+		      )
+		    ))
+		-- EXPENSE CATEGORY (master data)
+		UNION ALL
+		(SELECT cat.IDNo AS related_id,
+		  CONCAT('Expense Category added: ', COALESCE(cat.CATEGORY, ''),
+		    ' (', CASE WHEN cat.TYPE = 2 THEN 'Non-goods / Services' ELSE 'Goods / Consumables' END, ')') AS name,
+		  'expense_category_added' AS action_type, cat.ENCODED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Expense Category' AS source_table
+		  FROM expense_category cat LEFT JOIN user_info u ON cat.ENCODED_BY = u.IDNo
+		  WHERE cat.ENCODED_DT IS NOT NULL)
+		UNION ALL
+		(SELECT cat.IDNo AS related_id,
+		  CONCAT('Expense Category (edited): ', COALESCE(cat.CATEGORY, ''),
+		    ' (', CASE WHEN cat.TYPE = 2 THEN 'Non-goods / Services' ELSE 'Goods / Consumables' END, ')') AS name,
+		  'expense_category_edited' AS action_type, cat.EDITED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Expense Category' AS source_table
+		  FROM expense_category cat LEFT JOIN user_info u ON cat.EDITED_BY = u.IDNo
+		  WHERE cat.ACTIVE = 1 AND cat.EDITED_DT IS NOT NULL AND cat.EDITED_DT > cat.ENCODED_DT)
+		UNION ALL
+		(SELECT cat.IDNo AS related_id,
+		  CONCAT('Expense Category (deleted): ', COALESCE(cat.CATEGORY, ''),
+		    ' (', CASE WHEN cat.TYPE = 2 THEN 'Non-goods / Services' ELSE 'Goods / Consumables' END, ')') AS name,
+		  'expense_category_deleted' AS action_type, cat.EDITED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Expense Category' AS source_table
+		  FROM expense_category cat LEFT JOIN user_info u ON cat.EDITED_BY = u.IDNo
+		  WHERE cat.ACTIVE = 0 AND cat.EDITED_DT IS NOT NULL)
 		-- JUNKET EXPENSE
 		UNION ALL
 		(SELECT j.IDNo AS related_id, CONCAT(COALESCE(ec.CATEGORY, 'Expense'), IFNULL(CONCAT(': ', NULLIF(TRIM(j.RECEIPT_NO), '')), ''), ' - ', COALESCE(j.DESCRIPTION, '')) AS name, 'expense_added' AS action_type, j.ENCODED_DT AS action_time,
@@ -134,7 +294,12 @@ router.get('/activity_logs', async (req, res) => {
 		(SELECT j.IDNo AS related_id, CONCAT(COALESCE(ec.CATEGORY, 'Expense'), IFNULL(CONCAT(': ', NULLIF(TRIM(j.RECEIPT_NO), '')), ''), ' - ', COALESCE(j.DESCRIPTION, '')) AS name, 'expense_edited' AS action_type, j.EDITED_DT AS action_time,
 		  NULL AS guest_name, NULL AS account_name, j.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
 		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Junket Expense' AS source_table
-		  FROM junket_house_expense j LEFT JOIN expense_category ec ON j.CATEGORY_ID = ec.IDNo LEFT JOIN user_info u ON j.EDITED_BY = u.IDNo WHERE j.ACTIVE = 1 AND j.EDITED_DT IS NOT NULL)
+		  FROM junket_house_expense j LEFT JOIN expense_category ec ON j.CATEGORY_ID = ec.IDNo LEFT JOIN user_info u ON j.EDITED_BY = u.IDNo WHERE j.ACTIVE = 1 AND j.EDITED_DT IS NOT NULL AND j.EDITED_DT > j.ENCODED_DT)
+		UNION ALL
+		(SELECT j.IDNo AS related_id, CONCAT(COALESCE(ec.CATEGORY, 'Expense'), IFNULL(CONCAT(': ', NULLIF(TRIM(j.RECEIPT_NO), '')), ''), ' (deleted) - ', COALESCE(j.DESCRIPTION, '')) AS name, 'expense_deleted' AS action_type, j.EDITED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, j.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u2.FIRSTNAME, 'N/A') AS encoded_by_name, 'Junket Expense' AS source_table
+		  FROM junket_house_expense j LEFT JOIN expense_category ec ON j.CATEGORY_ID = ec.IDNo LEFT JOIN user_info u2 ON j.EDITED_BY = u2.IDNo WHERE j.ACTIVE = 0 AND j.EDITED_DT IS NOT NULL)
 		-- JUNKET LOSS
 		UNION ALL
 		(SELECT jl.IDNo AS related_id,
@@ -269,21 +434,93 @@ router.get('/activity_logs', async (req, res) => {
 		  WHERE t.ACTIVE = 0 AND t.EDITED_DT IS NOT NULL)
 		-- USER
 		UNION ALL
-		(SELECT ui.IDNo AS related_id, CONCAT('New User: ', COALESCE(ui.FIRSTNAME,''), ' ', COALESCE(ui.LASTNAME,''), ' (', COALESCE(ui.USERNAME,''), ')') AS name, 'user_added' AS action_type, ui.ENCODED_DT AS action_time,
+		(SELECT ui.IDNo AS related_id,
+		  CONCAT('New User: ', COALESCE(ui.FIRSTNAME,''), ' ', COALESCE(ui.LASTNAME,''), ' (', COALESCE(ui.USERNAME,''), ')',
+		    IF(ur.ROLE IS NOT NULL AND TRIM(ur.ROLE) <> '', CONCAT(' - Role: ', ur.ROLE), '')) AS name,
+		  'user_added' AS action_type, ui.ENCODED_DT AS action_time,
 		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
 		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'User' AS source_table
-		  FROM user_info ui LEFT JOIN user_info u ON ui.ENCODED_BY = u.IDNo WHERE ui.ENCODED_DT IS NOT NULL)
+		  FROM user_info ui
+		  LEFT JOIN user_role ur ON ur.IDNo = ui.PERMISSIONS
+		  LEFT JOIN user_info u ON ui.ENCODED_BY = u.IDNo
+		  WHERE ui.ENCODED_DT IS NOT NULL)
 		UNION ALL
-		(SELECT ui.IDNo AS related_id, CONCAT('Edited User: ', COALESCE(ui.USERNAME,'')) AS name, 'user_edited' AS action_type, ui.EDITED_DT AS action_time,
+		(SELECT ui.IDNo AS related_id,
+		  CONCAT('Edited User: ', COALESCE(ui.USERNAME,''),
+		    IF(ur.ROLE IS NOT NULL AND TRIM(ur.ROLE) <> '', CONCAT(' - Role: ', ur.ROLE), '')) AS name,
+		  'user_edited' AS action_type, ui.EDITED_DT AS action_time,
 		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
 		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'User' AS source_table
-		  FROM user_info ui LEFT JOIN user_info u ON ui.EDITED_BY = u.IDNo WHERE ui.EDITED_DT IS NOT NULL)
+		  FROM user_info ui
+		  LEFT JOIN user_role ur ON ur.IDNo = ui.PERMISSIONS
+		  LEFT JOIN user_info u ON ui.EDITED_BY = u.IDNo
+		  WHERE ui.ACTIVE = 1 AND ui.EDITED_DT IS NOT NULL AND ui.EDITED_DT > ui.ENCODED_DT)
+		UNION ALL
+		(SELECT ui.IDNo AS related_id, CONCAT('Deleted User: ', COALESCE(ui.USERNAME,''), ' (', COALESCE(ui.FIRSTNAME,''), ' ', COALESCE(ui.LASTNAME,''), ')') AS name, 'user_deleted' AS action_type, ui.EDITED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'User' AS source_table
+		  FROM user_info ui LEFT JOIN user_info u ON ui.EDITED_BY = u.IDNo WHERE ui.ACTIVE = 0 AND ui.EDITED_DT IS NOT NULL)
+		-- USER ROLE
+		UNION ALL
+		(SELECT ur.IDNo AS related_id, CONCAT('New Role Added: ', COALESCE(ur.ROLE, '')) AS name, 'role_added' AS action_type, ur.ENCODED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'User Role' AS source_table
+		  FROM user_role ur LEFT JOIN user_info u ON ur.ENCODED_BY = u.IDNo WHERE ur.ENCODED_DT IS NOT NULL)
+		UNION ALL
+		(SELECT ur.IDNo AS related_id, CONCAT('User Role (edited): ', COALESCE(ur.ROLE, '')) AS name, 'role_edited' AS action_type, ur.EDITED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'User Role' AS source_table
+		  FROM user_role ur LEFT JOIN user_info u ON ur.EDITED_BY = u.IDNo
+		  WHERE ur.ACTIVE = 1 AND ur.EDITED_DT IS NOT NULL AND ur.EDITED_DT > ur.ENCODED_DT)
+		UNION ALL
+		(SELECT ur.IDNo AS related_id, CONCAT('User Role (deleted): ', COALESCE(ur.ROLE, '')) AS name, 'role_deleted' AS action_type, ur.EDITED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'User Role' AS source_table
+		  FROM user_role ur LEFT JOIN user_info u ON ur.EDITED_BY = u.IDNo
+		  WHERE ur.ACTIVE = 0 AND ur.EDITED_DT IS NOT NULL)
+		-- TELEGRAM API SETTINGS
+		UNION ALL
+		(SELECT ta.IDNo AS related_id,
+		  CONCAT('Telegram settings edited: ', COALESCE(ta.USER, 'Unknown')) AS name,
+		  'telegram_edited' AS action_type, ta.EDITED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Telegram' AS source_table
+		  FROM telegram_api ta
+		  LEFT JOIN user_info u ON ta.EDITED_BY = u.IDNo
+		  WHERE ta.ACTIVE = 1 AND ta.EDITED_DT IS NOT NULL)
+		-- MODIFY GAME NUMBER (AUTO_INCREMENT change)
+		UNION ALL
+		(SELECT gnl.IDNo AS related_id,
+		  CONCAT('Modify Game No: #', COALESCE(gnl.PREVIOUS_GAME_NUMBER, ''), ' → #', COALESCE(gnl.NEW_GAME_NUMBER, '')) AS name,
+		  'game_number_changed' AS action_type, gnl.ENCODED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, gnl.NEW_GAME_NUMBER AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Modify Game' AS source_table
+		  FROM game_number_logs gnl
+		  LEFT JOIN user_info u ON gnl.ENCODED_BY = u.IDNo
+		  WHERE gnl.ENCODED_DT IS NOT NULL)
 		-- BOOKING
 		UNION ALL
 		(SELECT b.IDNo AS related_id, CONCAT('Booking #', COALESCE(b.CONFIRM_NUM,''), ' - ', COALESCE(b.GUEST_NAME,'')) AS name, 'booking_added' AS action_type, b.BOOKING_DATE AS action_time,
 		  NULL AS guest_name, NULL AS account_name, b.TOTAL_AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
 		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'booking' AS source_table
 		  FROM booking b LEFT JOIN user_info u ON b.BOOKED_BY = u.IDNo WHERE b.BOOKING_DATE IS NOT NULL)
+		UNION ALL
+		(SELECT b.IDNo AS related_id,
+		  CONCAT('Booking (edited) #', COALESCE(b.CONFIRM_NUM,''), ' - ', COALESCE(b.GUEST_NAME,''),
+		    ' | Check-in: ', COALESCE(DATE_FORMAT(b.CHECK_IN, '%Y-%m-%d'), 'N/A'),
+		    ' | Check-out: ', COALESCE(DATE_FORMAT(b.CHECK_OUT, '%Y-%m-%d'), 'N/A'),
+		    ' | Payment: ', CASE b.PAYMENT_STATUS WHEN 1 THEN 'Paid' WHEN 0 THEN 'Unpaid' ELSE COALESCE(CAST(b.PAYMENT_STATUS AS CHAR), 'N/A') END) AS name,
+		  'booking_edited' AS action_type, b.EDITED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, b.TOTAL_AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u2.FIRSTNAME, 'N/A') AS encoded_by_name, 'booking' AS source_table
+		  FROM booking b LEFT JOIN user_info u2 ON b.EDITED_BY = u2.IDNo
+		  WHERE b.ACTIVE = 1 AND b.EDITED_DT IS NOT NULL
+		    AND b.EDITED_DT > b.BOOKING_DATE)
+		UNION ALL
+		(SELECT b.IDNo AS related_id, CONCAT('Booking (deleted) #', COALESCE(b.CONFIRM_NUM,''), ' - ', COALESCE(b.GUEST_NAME,'')) AS name, 'booking_deleted' AS action_type, b.EDITED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, b.TOTAL_AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u2.FIRSTNAME, 'N/A') AS encoded_by_name, 'booking' AS source_table
+		  FROM booking b LEFT JOIN user_info u2 ON b.EDITED_BY = u2.IDNo WHERE b.ACTIVE = 0 AND b.EDITED_DT IS NOT NULL)
 		-- GAME_LIST (new game - includes initial buy-in amount)
 		UNION ALL
 		(SELECT gl.IDNo AS related_id, CONCAT('New Game: #', gl.IDNo, ' (', COALESCE(gl.GAME_TYPE,''), ') - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), ''), ' - Buy-in: ₱', FORMAT(COALESCE(buyin.initial_buyin, 0), 0)) AS name, 'game_added' AS action_type, gl.ENCODED_DT AS action_time,
@@ -342,7 +579,11 @@ router.get('/activity_logs', async (req, res) => {
 		  JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo
 		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
 		  LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo
-		  WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 5 AND gr.ROLLER_TRANSACTION = 1 AND gr.ENCODED_DT IS NOT NULL)
+		  WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 5 AND gr.ROLLER_TRANSACTION = 1 AND gr.ENCODED_DT IS NOT NULL
+		    AND NOT EXISTS (
+		      SELECT 1 FROM game_list gl_init
+		      WHERE gl_init.IDNo = gr.GAME_ID AND gl_init.ENCODED_DT = gr.ENCODED_DT
+		    ))
 		UNION ALL
 		(SELECT gr.GAME_ID AS related_id, CONCAT('Roller Chips - Game #', gl.IDNo, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), '')) AS name, 'roller_return' AS action_type, gr.ENCODED_DT AS action_time,
 		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name, (COALESCE(gr.ROLLER_NN_CHIPS,0) + COALESCE(gr.ROLLER_CC_CHIPS,0)) AS amount, COALESCE(gr.ROLLER_NN_CHIPS,0) AS nn_amount, COALESCE(gr.ROLLER_CC_CHIPS,0) AS cc_amount,
@@ -353,6 +594,106 @@ router.get('/activity_logs', async (req, res) => {
 		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
 		  LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo
 		  WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 5 AND gr.ROLLER_TRANSACTION = 2 AND gr.ENCODED_DT IS NOT NULL)
+		-- GAME_SETTLEMENT (commission ledger entry)
+		UNION ALL
+		(SELECT al.GAME_ID AS related_id, CONCAT('Game Settlement: Game #', al.GAME_ID, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), ''), ' - Commission: ₱', FORMAT(COALESCE(al.AMOUNT,0), 0)) AS name, 'game_settlement' AS action_type, al.ENCODED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name, al.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Game' AS source_table
+		  FROM account_ledger al
+		  JOIN account acc ON al.ACCOUNT_ID = acc.IDNo
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo
+		  WHERE al.ACTIVE = 1 AND al.TRANSACTION_TYPE = 5 AND al.TRANSACTION_DESC = 'COMMISSION' AND al.GAME_ID IS NOT NULL AND al.ENCODED_DT IS NOT NULL)
+		-- GAME_LIST (edited - status, commission, remarks, release, etc.)
+		UNION ALL
+		(SELECT gl.IDNo AS related_id, CONCAT('Game edited: #', gl.IDNo, ' (', COALESCE(gl.GAME_TYPE,''), ') - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), '')) AS name, 'game_edited' AS action_type, gl.EDITED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Game' AS source_table
+		  FROM game_list gl
+		  JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u ON gl.EDITED_BY = u.IDNo
+		  WHERE gl.ACTIVE IN (1, 2, 3) AND COALESCE(gl.FAKE_SETTLE, 0) = 0
+		    AND gl.EDITED_DT IS NOT NULL AND gl.EDITED_DT > gl.ENCODED_DT
+		    AND NOT EXISTS (
+		      SELECT 1 FROM daily_settlement_games dsg2
+		      WHERE dsg2.GAME_ID = gl.IDNo AND dsg2.ADDED_AT = gl.EDITED_DT
+		    ))
+		-- GAME_LIST (fake settle slip)
+		UNION ALL
+		(SELECT gl.IDNo AS related_id, CONCAT('Fake Settle: Game #', gl.IDNo, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), '')) AS name, 'game_fake_settle' AS action_type, gl.EDITED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Game' AS source_table
+		  FROM game_list gl
+		  JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u ON gl.EDITED_BY = u.IDNo
+		  WHERE gl.ACTIVE IN (1, 2, 3) AND gl.FAKE_SETTLE = 1 AND gl.EDITED_DT IS NOT NULL)
+		-- GAME_RECORD (edited - buy-in, cash-out, rolling, roller)
+		UNION ALL
+		(SELECT gr.GAME_ID AS related_id,
+		  CONCAT(
+		    CASE gr.CAGE_TYPE
+		      WHEN 1 THEN 'Buy-in edited'
+		      WHEN 2 THEN 'Cash Out edited'
+		      WHEN 3 THEN 'Buy-in edited'
+		      WHEN 4 THEN 'Rolling edited'
+		      WHEN 5 THEN 'Roller Chips edited'
+		      ELSE 'Game record edited'
+		    END,
+		    ' - Game #', gl.IDNo, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), ''),
+		    IF(gr.CAGE_TYPE = 5, '', CONCAT(' (₱', FORMAT(COALESCE(gr.NN_CHIPS,0) + COALESCE(gr.CC_CHIPS,0), 0), ')')),
+		    IF(gr.CAGE_TYPE = 5, CONCAT(' (₱', FORMAT(COALESCE(gr.ROLLER_NN_CHIPS,0) + COALESCE(gr.ROLLER_CC_CHIPS,0), 0), ')'), '')
+		  ) AS name, 'game_record_edited' AS action_type, gr.EDITED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name,
+		  CASE WHEN gr.CAGE_TYPE = 5 THEN (COALESCE(gr.ROLLER_NN_CHIPS,0) + COALESCE(gr.ROLLER_CC_CHIPS,0)) ELSE (COALESCE(gr.NN_CHIPS,0) + COALESCE(gr.CC_CHIPS,0)) END AS amount,
+		  CASE WHEN gr.CAGE_TYPE = 5 THEN COALESCE(gr.ROLLER_NN_CHIPS,0) ELSE COALESCE(gr.NN_CHIPS,0) END AS nn_amount,
+		  CASE WHEN gr.CAGE_TYPE = 5 THEN COALESCE(gr.ROLLER_CC_CHIPS,0) ELSE COALESCE(gr.CC_CHIPS,0) END AS cc_amount,
+		  COALESCE(u2.FIRSTNAME, 'N/A') AS encoded_by_name, 'Game' AS source_table
+		  FROM game_record gr
+		  JOIN game_list gl ON gr.GAME_ID = gl.IDNo
+		  JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u2 ON gr.EDITED_BY = u2.IDNo
+		  WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE IN (1, 2, 4, 5)
+		    AND gr.EDITED_DT IS NOT NULL AND gr.EDITED_DT > gr.ENCODED_DT)
+		-- GAME_RECORD (deleted single record - parent game still active)
+		UNION ALL
+		(SELECT gr.GAME_ID AS related_id,
+		  CONCAT(
+		    CASE gr.CAGE_TYPE
+		      WHEN 1 THEN 'Buy-in deleted'
+		      WHEN 2 THEN 'Cash Out deleted'
+		      WHEN 3 THEN 'Buy-in deleted'
+		      WHEN 4 THEN 'Rolling deleted'
+		      WHEN 5 THEN 'Roller Chips deleted'
+		      ELSE 'Game record deleted'
+		    END,
+		    ' - Game #', gl.IDNo, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), '')
+		  ) AS name, 'game_record_deleted' AS action_type, gr.EDITED_DT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name,
+		  CASE WHEN gr.CAGE_TYPE = 5 THEN (COALESCE(gr.ROLLER_NN_CHIPS,0) + COALESCE(gr.ROLLER_CC_CHIPS,0)) ELSE (COALESCE(gr.NN_CHIPS,0) + COALESCE(gr.CC_CHIPS,0)) END AS amount,
+		  CASE WHEN gr.CAGE_TYPE = 5 THEN COALESCE(gr.ROLLER_NN_CHIPS,0) ELSE COALESCE(gr.NN_CHIPS,0) END AS nn_amount,
+		  CASE WHEN gr.CAGE_TYPE = 5 THEN COALESCE(gr.ROLLER_CC_CHIPS,0) ELSE COALESCE(gr.CC_CHIPS,0) END AS cc_amount,
+		  COALESCE(u2.FIRSTNAME, 'N/A') AS encoded_by_name, 'Game' AS source_table
+		  FROM game_record gr
+		  JOIN game_list gl ON gr.GAME_ID = gl.IDNo AND gl.ACTIVE IN (1, 2, 3)
+		  JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u2 ON gr.EDITED_BY = u2.IDNo
+		  WHERE gr.ACTIVE = 0 AND gr.CAGE_TYPE IN (1, 2, 4, 5) AND gr.EDITED_DT IS NOT NULL)
+		-- DAILY_SETTLEMENT (game transferred into batch)
+		UNION ALL
+		(SELECT dsg.GAME_ID AS related_id, CONCAT('Daily settlement transfer: Game #', dsg.GAME_ID, ' - ', DATE_FORMAT(COALESCE(ds.SETTLEMENT_DATE, CURDATE()), '%M %e, %Y')) AS name, 'daily_settlement_transfer' AS action_type, dsg.ADDED_AT AS action_time,
+		  COALESCE(ag.NAME, '') AS guest_name, COALESCE(ag.AGENT_CODE, '') AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Daily Settlement' AS source_table
+		  FROM daily_settlement_games dsg
+		  JOIN daily_settlement ds ON dsg.DAILY_SETTLEMENT_ID = ds.IDNo AND ds.ACTIVE = 1
+		  JOIN game_list gl ON dsg.GAME_ID = gl.IDNo
+		  JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo
+		  LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo
+		  LEFT JOIN user_info u ON ds.ENCODED_BY = u.IDNo
+		  WHERE dsg.ADDED_AT IS NOT NULL)
 		-- GAME_LIST (deleted - Super Admin soft delete)
 		UNION ALL
 		(SELECT gl.IDNo AS related_id, CONCAT('Game Deleted: #', gl.IDNo, ' (', COALESCE(gl.GAME_TYPE,''), ') - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), ''), IF(COALESCE(gt.total_buyin, 0) > 0, CONCAT(' - Buy-in: ₱', FORMAT(gt.total_buyin, 0)), '')) AS name, 'game_deleted' AS action_type, gl.EDITED_DT AS action_time,
@@ -461,14 +802,21 @@ router.get('/activity_logs', async (req, res) => {
 		  LEFT JOIN user_info u2 ON gs.UPDATED_BY = u2.IDNo
 		  WHERE gs.ACTIVE = 0 AND gs.UPDATED_DT IS NOT NULL
 		    AND LOWER(gs.SERVICE_TYPE) IN ('fnb', 'hotel', 'delivery'))
-		-- JUNKET_TOTAL_CHIPS (chips buy-in, cashout, rolling)
+		-- JUNKET_TOTAL_CHIPS (chips buy-in, cashout, rolling, monthly cash-out)
 		UNION ALL
-		(SELECT j.IDNo AS related_id, CONCAT(CASE j.TRANSACTION_ID WHEN 1 THEN 'Buy-in' WHEN 2 THEN 'Cash-out' WHEN 3 THEN 'Rolling' ELSE 'Other' END, ': ₱', FORMAT(COALESCE(j.TOTAL_CHIPS,0), 0)) AS name, 'junket_chips_added' AS action_type, j.ENCODED_DT AS action_time,
+		(SELECT j.IDNo AS related_id, CONCAT(CASE j.TRANSACTION_ID WHEN 1 THEN 'Buy-in' WHEN 2 THEN 'Cash-out' WHEN 3 THEN 'Rolling' WHEN 4 THEN 'Monthly Cash-out' ELSE 'Other' END, ': ₱', FORMAT(COALESCE(j.TOTAL_CHIPS,0), 0)) AS name, 'junket_chips_added' AS action_type, j.ENCODED_DT AS action_time,
 		  NULL AS guest_name, NULL AS account_name, j.TOTAL_CHIPS AS amount, NULL AS nn_amount, NULL AS cc_amount,
 		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Junket Total Chips' AS source_table
 		  FROM junket_total_chips j
 		  LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo
 		  WHERE j.ACTIVE = 1 AND j.ENCODED_DT IS NOT NULL)
+		UNION ALL
+		(SELECT j.IDNo AS related_id, CONCAT('Deleted ', CASE j.TRANSACTION_ID WHEN 1 THEN 'Buy-in' WHEN 2 THEN 'Cash-out' WHEN 3 THEN 'Rolling' WHEN 4 THEN 'Monthly Cash-out' ELSE 'Chips' END, ': ₱', FORMAT(COALESCE(j.TOTAL_CHIPS,0), 0)) AS name, 'junket_chips_deleted' AS action_type, j.EDITED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, j.TOTAL_CHIPS AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u2.FIRSTNAME, 'N/A') AS encoded_by_name, 'Junket Total Chips' AS source_table
+		  FROM junket_total_chips j
+		  LEFT JOIN user_info u2 ON j.EDITED_BY = u2.IDNo
+		  WHERE j.ACTIVE = 0 AND j.EDITED_DT IS NOT NULL)
 		-- JUNKET_RETURN_MONEY (add)
 		UNION ALL
 		(SELECT rm.IDNo AS related_id, COALESCE(rm.DESCRIPTION,'') COLLATE utf8mb4_unicode_ci AS name, 'return_added' COLLATE utf8mb4_unicode_ci AS action_type, rm.ENCODED_DT AS action_time,
@@ -484,7 +832,14 @@ router.get('/activity_logs', async (req, res) => {
 		  COALESCE(u.FIRSTNAME, 'N/A') COLLATE utf8mb4_unicode_ci AS encoded_by_name, 'Junket Return Money' COLLATE utf8mb4_unicode_ci AS source_table
 		  FROM junket_return_money rm
 		  LEFT JOIN user_info u ON rm.EDITED_BY = u.IDNo
-		  WHERE rm.ACTIVE = 1 AND rm.EDITED_DT IS NOT NULL)
+		  WHERE rm.ACTIVE = 1 AND rm.EDITED_DT IS NOT NULL AND rm.EDITED_DT > rm.ENCODED_DT)
+		UNION ALL
+		(SELECT rm.IDNo AS related_id, CONCAT(COALESCE(rm.DESCRIPTION,''), ' (deleted)') COLLATE utf8mb4_unicode_ci AS name, 'return_deleted' COLLATE utf8mb4_unicode_ci AS action_type, rm.EDITED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, rm.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u2.FIRSTNAME, 'N/A') COLLATE utf8mb4_unicode_ci AS encoded_by_name, 'Junket Return Money' COLLATE utf8mb4_unicode_ci AS source_table
+		  FROM junket_return_money rm
+		  LEFT JOIN user_info u2 ON rm.EDITED_BY = u2.IDNo
+		  WHERE rm.ACTIVE = 0 AND rm.EDITED_DT IS NOT NULL)
 		-- JUNKET_CAPITAL (add)
 		UNION ALL
 		(SELECT jc.IDNo AS related_id, CONCAT(CONCAT_WS(' - ', CASE jc.TRANSACTION_ID WHEN 1 THEN 'Cash-in' WHEN 2 THEN 'Cash-out' ELSE 'Capital' END, NULLIF(TRIM(COALESCE(jc.REMARKS,'')), '')), ' (₱', FORMAT(COALESCE(jc.AMOUNT,0), 0), ')') COLLATE utf8mb4_unicode_ci AS name, 'capital_added' COLLATE utf8mb4_unicode_ci AS action_type, jc.ENCODED_DT AS action_time,
@@ -500,7 +855,22 @@ router.get('/activity_logs', async (req, res) => {
 		  COALESCE(u.FIRSTNAME, 'N/A') COLLATE utf8mb4_unicode_ci AS encoded_by_name, 'Junket Capital' COLLATE utf8mb4_unicode_ci AS source_table
 		  FROM junket_capital jc
 		  LEFT JOIN user_info u ON jc.EDITED_BY = u.IDNo
-		  WHERE jc.ACTIVE = 1 AND jc.EDITED_DT IS NOT NULL)
+		  WHERE jc.ACTIVE = 1 AND jc.EDITED_DT IS NOT NULL AND jc.EDITED_DT > jc.ENCODED_DT)
+		UNION ALL
+		(SELECT jc.IDNo AS related_id, CONCAT(CONCAT_WS(' - ', CASE jc.TRANSACTION_ID WHEN 1 THEN 'Cash-in' WHEN 2 THEN 'Cash-out' ELSE 'Capital' END, NULLIF(TRIM(COALESCE(jc.REMARKS,'')), '')), ' (deleted) (₱', FORMAT(COALESCE(jc.AMOUNT,0), 0), ')') COLLATE utf8mb4_unicode_ci AS name, 'capital_deleted' COLLATE utf8mb4_unicode_ci AS action_type, jc.EDITED_DT AS action_time,
+		  COALESCE(jc.FULLNAME, '') COLLATE utf8mb4_unicode_ci AS guest_name, '' COLLATE utf8mb4_unicode_ci AS account_name, jc.AMOUNT AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u2.FIRSTNAME, 'N/A') COLLATE utf8mb4_unicode_ci AS encoded_by_name, 'Junket Capital' COLLATE utf8mb4_unicode_ci AS source_table
+		  FROM junket_capital jc
+		  LEFT JOIN user_info u2 ON jc.EDITED_BY = u2.IDNo
+		  WHERE jc.ACTIVE = 0 AND jc.EDITED_DT IS NOT NULL)
+		-- EXPENSE_DAILY_SETTLEMENT (junket house expense batch finalize)
+		UNION ALL
+		(SELECT eds.IDNo AS related_id, CONCAT('Expense Daily Settlement: ', DATE_FORMAT(COALESCE(eds.SETTLEMENT_DATE, CURDATE()), '%M %e, %Y')) AS name, 'expense_settlement_added' AS action_type, eds.RUN_AT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'Junket Expense' AS source_table
+		  FROM expense_daily_settlement eds
+		  LEFT JOIN user_info u ON eds.ENCODED_BY = u.IDNo
+		  WHERE eds.ACTIVE = 1 AND eds.RUN_AT IS NOT NULL)
 		-- DAILY_SETTLEMENT
 		UNION ALL
 		(SELECT ds.IDNo AS related_id, CONCAT('Daily Settlement: ', DATE_FORMAT(COALESCE(ds.SETTLEMENT_DATE, CURDATE()), '%M %e, %Y')) AS name, 'settlement_added' AS action_type, ds.RUN_AT AS action_time,
@@ -537,20 +907,41 @@ router.get('/activity_logs', async (req, res) => {
 		  UNION ALL (SELECT ag.IDNo, COALESCE(ag.NAME, ''), 'added', ag.ENCODED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Guest' FROM agent ag LEFT JOIN user_info u ON ag.ENCODED_BY = u.IDNo WHERE ag.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT ag.IDNo, COALESCE(ag.NAME, ''), 'edited', ag.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Guest' FROM agent ag LEFT JOIN user_info u ON ag.EDITED_BY = u.IDNo WHERE ag.EDITED_DT IS NOT NULL AND ag.ACTIVE = 1)
 		  UNION ALL (SELECT ag.IDNo, COALESCE(ag.NAME, ''), 'deleted', ag.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Guest' FROM agent ag LEFT JOIN user_info u ON ag.EDITED_BY = u.IDNo WHERE ag.ACTIVE = 0 AND ag.EDITED_DT IS NOT NULL)
-		  UNION ALL (SELECT al.IDNo, CASE WHEN al.TRANSACTION_ID = 1 THEN CONCAT('Deposit: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') WHEN al.TRANSACTION_ID = 2 THEN CONCAT('Withdraw: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') WHEN al.TRANSACTION_ID = 3 THEN CONCAT('IOU - ', COALESCE(ag.NAME, 'Unknown Guest'), ' was Successful!') ELSE CONCAT('Unknown - ', COALESCE(ag.NAME, 'Unknown Guest'), ' was Successful!') END, CASE WHEN al.TRANSACTION_ID = 1 THEN 'deposit' WHEN al.TRANSACTION_ID = 2 THEN 'withdraw' ELSE 'transaction' END, al.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), al.AMOUNT, COALESCE(u.FIRSTNAME, 'N/A'), 'Account Transaction' FROM account_ledger al JOIN account acc ON al.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo LEFT JOIN account transfer_acc ON transfer_acc.IDNo = al.TRANSFER_AGENT AND al.TRANSFER = 1 LEFT JOIN agent transfer_ag ON transfer_acc.AGENT_ID = transfer_ag.IDNo WHERE al.ACTIVE = 1 AND al.TRANSACTION_ID IN (1, 2, 3) AND (al.TRANSFER != 1 OR al.TRANSFER IS NULL) AND ((al.TRANSACTION_ID IN (1, 2) AND al.TRANSACTION_DESC = 'ACCOUNT DETAILS') OR al.TRANSACTION_ID = 3))
+		  UNION ALL (SELECT acc.IDNo, CONCAT('Account edited: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')'), 'account_edited', acc.EDITED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Account' FROM account acc LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON acc.EDITED_BY = u.IDNo WHERE acc.ACTIVE = 1 AND acc.EDITED_DT IS NOT NULL)
+		  UNION ALL (SELECT acc.IDNo, CONCAT('Account deleted: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')'), 'account_deleted', acc.EDITED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), NULL, NULL, NULL, COALESCE(u2.FIRSTNAME, 'N/A'), 'Account' FROM account acc LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u2 ON acc.EDITED_BY = u2.IDNo WHERE acc.ACTIVE = 0 AND acc.EDITED_DT IS NOT NULL)
+		  UNION ALL (SELECT al.IDNo, CASE WHEN al.TRANSACTION_ID = 1 THEN CONCAT('Deposit: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') WHEN al.TRANSACTION_ID = 2 THEN CONCAT('Withdraw: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') ELSE CONCAT('Unknown - ', COALESCE(ag.NAME, 'Unknown Guest'), ' was Successful!') END, CASE WHEN al.TRANSACTION_ID = 1 THEN 'deposit' WHEN al.TRANSACTION_ID = 2 THEN 'withdraw' ELSE 'transaction' END, al.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), al.AMOUNT, COALESCE(u.FIRSTNAME, 'N/A'), 'Account Transaction' FROM account_ledger al JOIN account acc ON al.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo LEFT JOIN account transfer_acc ON transfer_acc.IDNo = al.TRANSFER_AGENT AND al.TRANSFER = 1 LEFT JOIN agent transfer_ag ON transfer_acc.AGENT_ID = transfer_ag.IDNo WHERE al.ACTIVE = 1 AND al.TRANSACTION_ID IN (1, 2) AND (al.TRANSFER != 1 OR al.TRANSFER IS NULL) AND al.TRANSACTION_DESC = 'ACCOUNT DETAILS')
 		  UNION ALL (SELECT al.IDNo, CONCAT('Transfer From: ', COALESCE(ag.AGENT_CODE,''), ' (', COALESCE(ag.NAME,''), ') - Transfer To: ', COALESCE(transfer_ag.AGENT_CODE,''), ' (', COALESCE(transfer_ag.NAME,''), ')'), 'transfer', al.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), al.AMOUNT, COALESCE(u.FIRSTNAME, 'N/A'), 'Account Transaction' FROM account_ledger al JOIN account acc ON al.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo LEFT JOIN account transfer_acc ON transfer_acc.IDNo = al.TRANSFER_AGENT AND al.TRANSFER = 1 LEFT JOIN agent transfer_ag ON transfer_acc.AGENT_ID = transfer_ag.IDNo WHERE al.ACTIVE = 1 AND al.TRANSFER = 1 AND al.TRANSACTION_ID = 2)
 		  UNION ALL (SELECT al.IDNo, CONCAT('Transfer To: ', COALESCE(transfer_ag.AGENT_CODE,''), ' (', COALESCE(transfer_ag.NAME,''), ') - Transfer From: ', COALESCE(ag.AGENT_CODE,''), ' (', COALESCE(ag.NAME,''), ')'), 'transfer', al.ENCODED_DT, COALESCE(transfer_ag.NAME, ''), COALESCE(transfer_ag.AGENT_CODE, ''), al.AMOUNT, COALESCE(u.FIRSTNAME, 'N/A'), 'Account Transaction' FROM account_ledger al JOIN account acc ON al.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo LEFT JOIN account transfer_acc ON transfer_acc.IDNo = al.TRANSFER_AGENT AND al.TRANSFER = 1 LEFT JOIN agent transfer_ag ON transfer_acc.AGENT_ID = transfer_ag.IDNo WHERE al.ACTIVE = 1 AND al.TRANSFER = 1 AND al.TRANSACTION_ID = 2)
 		  UNION ALL (SELECT al.IDNo, CONCAT(CASE WHEN al.TRANSACTION_ID = 1 AND al.TRANSACTION_TYPE = 4 THEN 'Chips return thru credit' WHEN al.TRANSACTION_ID = 11 AND al.TRANSACTION_TYPE = 3 THEN 'Credit return thru cash' WHEN al.TRANSACTION_ID = 12 AND al.TRANSACTION_TYPE = 3 THEN 'Credit return thru deposit' ELSE 'Credit Return' END, ': ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')'), 'credit_return', al.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), al.AMOUNT, COALESCE(u.FIRSTNAME, 'N/A'), 'Credit Return' FROM account_ledger al JOIN account acc ON al.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo WHERE al.ACTIVE = 1 AND ((al.TRANSACTION_ID = 1 AND al.TRANSACTION_TYPE = 4) OR (al.TRANSACTION_ID = 11 AND al.TRANSACTION_TYPE = 3) OR (al.TRANSACTION_ID = 12 AND al.TRANSACTION_TYPE = 3)))
+		  UNION ALL (SELECT al.IDNo, CONCAT('Credit issued: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')'), 'credit_issued', al.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), al.AMOUNT, COALESCE(u.FIRSTNAME, 'N/A'), 'Credit Return' FROM account_ledger al JOIN account acc ON al.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo WHERE al.ACTIVE = 1 AND al.TRANSACTION_ID = 3 AND al.ENCODED_DT IS NOT NULL)
+		  UNION ALL (SELECT al.IDNo, CONCAT('Marker Buy-in: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')'), 'marker_buyin', al.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), al.AMOUNT, COALESCE(u.FIRSTNAME, 'N/A'), 'Credit Return' FROM account_ledger al JOIN account acc ON al.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON al.ENCODED_BY = u.IDNo WHERE al.ACTIVE = 1 AND al.TRANSACTION_ID = 10 AND al.ENCODED_DT IS NOT NULL)
+		  UNION ALL (SELECT al.IDNo, CONCAT('Marker remarks edited: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')'), 'marker_remarks_edited', al.EDITED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), al.AMOUNT, COALESCE(u2.FIRSTNAME, 'N/A'), 'Credit Return' FROM account_ledger al JOIN account acc ON al.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u2 ON al.EDITED_BY = u2.IDNo WHERE al.ACTIVE = 1 AND al.EDITED_DT IS NOT NULL AND al.EDITED_DT > al.ENCODED_DT AND (al.TRANSACTION_ID IN (3, 10, 11, 12) OR al.TRANSACTION_TYPE = 4))
+		  UNION ALL (SELECT al.IDNo, CONCAT(CASE WHEN al.TRANSACTION_ID = 1 AND al.TRANSACTION_TYPE = 4 THEN CONCAT('Deleted Chips return thru credit: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') WHEN al.TRANSACTION_ID = 11 AND al.TRANSACTION_TYPE = 3 THEN CONCAT('Deleted Credit return thru cash: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') WHEN al.TRANSACTION_ID = 12 AND al.TRANSACTION_TYPE = 3 THEN CONCAT('Deleted Credit return thru deposit: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') WHEN al.TRANSACTION_ID = 10 THEN CONCAT('Deleted Marker Buy-in: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') WHEN al.TRANSACTION_ID = 3 THEN CONCAT('Deleted Credit issued: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') WHEN al.TRANSACTION_ID = 1 THEN CONCAT('Deleted Deposit: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') WHEN al.TRANSACTION_ID = 2 THEN CONCAT('Deleted Withdraw: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') ELSE CONCAT('Deleted Transaction: ', COALESCE(ag.AGENT_CODE, ''), ' (', COALESCE(ag.NAME, 'Unknown Guest'), ')') END), 'transaction_deleted', al.EDITED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), al.AMOUNT, COALESCE(u2.FIRSTNAME, 'N/A'), CASE WHEN (al.TRANSACTION_ID = 1 AND al.TRANSACTION_TYPE = 4) OR (al.TRANSACTION_ID IN (11, 12) AND al.TRANSACTION_TYPE = 3) OR al.TRANSACTION_ID IN (3, 10) OR al.TRANSACTION_TYPE = 4 THEN 'Credit Return' ELSE 'Account Transaction' END FROM account_ledger al JOIN account acc ON al.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u2 ON al.EDITED_BY = u2.IDNo WHERE al.ACTIVE = 0 AND al.EDITED_DT IS NOT NULL)
 		  UNION ALL (SELECT j.IDNo, CONCAT(COALESCE(ec.CATEGORY, 'Expense'), IFNULL(CONCAT(': ', NULLIF(TRIM(j.RECEIPT_NO), '')), ''), ' - ', COALESCE(j.DESCRIPTION, '')), 'expense_added', j.ENCODED_DT, NULL, NULL, j.AMOUNT, COALESCE(u.FIRSTNAME, 'N/A'), 'Junket Expense' FROM junket_house_expense j LEFT JOIN expense_category ec ON j.CATEGORY_ID = ec.IDNo LEFT JOIN user_info u ON j.ENCODED_BY = u.IDNo WHERE j.ACTIVE = 1 AND j.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT j.IDNo, CONCAT(COALESCE(ec.CATEGORY, 'Expense'), IFNULL(CONCAT(': ', NULLIF(TRIM(j.RECEIPT_NO), '')), ''), ' - ', COALESCE(j.DESCRIPTION, '')), 'expense_edited', j.EDITED_DT, NULL, NULL, j.AMOUNT, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Junket Expense' FROM junket_house_expense j LEFT JOIN expense_category ec ON j.CATEGORY_ID = ec.IDNo LEFT JOIN user_info u ON j.EDITED_BY = u.IDNo WHERE j.ACTIVE = 1 AND j.EDITED_DT IS NOT NULL)
+		  UNION ALL (SELECT j.IDNo, CONCAT(COALESCE(ec.CATEGORY, 'Expense'), IFNULL(CONCAT(': ', NULLIF(TRIM(j.RECEIPT_NO), '')), ''), ' (deleted) - ', COALESCE(j.DESCRIPTION, '')), 'expense_deleted', j.EDITED_DT, NULL, NULL, j.AMOUNT, NULL, NULL, COALESCE(u2.FIRSTNAME, 'N/A'), 'Junket Expense' FROM junket_house_expense j LEFT JOIN expense_category ec ON j.CATEGORY_ID = ec.IDNo LEFT JOIN user_info u2 ON j.EDITED_BY = u2.IDNo WHERE j.ACTIVE = 0 AND j.EDITED_DT IS NOT NULL)
 		  UNION ALL (SELECT jl.IDNo, CONCAT('Junket Loss: ', COALESCE(jl.DESCRIPTION,''), IF(NULLIF(TRIM(jl.IN_CHARGE),'') IS NOT NULL, CONCAT(' - In-Charge: ', jl.IN_CHARGE), ''), ' (₱', FORMAT(COALESCE(jl.AMOUNT,0), 0), ')'), 'junket_loss_added', jl.ENCODED_DT, NULL, NULL, jl.AMOUNT, NULL, NULL, COALESCE(u.FIRSTNAME,'N/A'), 'Junket Loss' FROM junket_loss jl LEFT JOIN user_info u ON jl.ENCODED_BY = u.IDNo WHERE jl.ACTIVE = 1 AND jl.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT jl.IDNo, CONCAT('Junket Loss (edited): ', COALESCE(jl.DESCRIPTION,''), IF(NULLIF(TRIM(jl.IN_CHARGE),'') IS NOT NULL, CONCAT(' - In-Charge: ', jl.IN_CHARGE), ''), ' (₱', FORMAT(COALESCE(jl.AMOUNT,0), 0), ')'), 'junket_loss_edited', jl.EDITED_DT, NULL, NULL, jl.AMOUNT, NULL, NULL, COALESCE(u2.FIRSTNAME,'N/A'), 'Junket Loss' FROM junket_loss jl LEFT JOIN user_info u2 ON jl.EDITED_BY = u2.IDNo WHERE jl.ACTIVE = 1 AND jl.EDITED_DT IS NOT NULL AND jl.EDITED_DT > jl.ENCODED_DT)
 		  UNION ALL (SELECT jl.IDNo, CONCAT('Junket Loss (deleted): ', COALESCE(jl.DESCRIPTION,''), IF(NULLIF(TRIM(jl.IN_CHARGE),'') IS NOT NULL, CONCAT(' - In-Charge: ', jl.IN_CHARGE), ''), ' (₱', FORMAT(COALESCE(jl.AMOUNT,0), 0), ')'), 'junket_loss_deleted', jl.EDITED_DT, NULL, NULL, jl.AMOUNT, NULL, NULL, COALESCE(u2.FIRSTNAME,'N/A'), 'Junket Loss' FROM junket_loss jl LEFT JOIN user_info u2 ON jl.EDITED_BY = u2.IDNo WHERE jl.ACTIVE = 0 AND jl.EDITED_DT IS NOT NULL)
 		  UNION ALL (SELECT t.ID, CONCAT('Money Exchange Deposit: ', COALESCE(NULLIF(TRIM(t.GUEST_NAME),''),'Walk-in'), ' | deposit'), 'money_exchange_deposit_added', t.ENCODED_DT, NULLIF(TRIM(t.GUEST_NAME),''), '', t.EXCHANGE_AMOUNT, NULL, NULL, COALESCE(u.FIRSTNAME,'N/A'), 'Money Exchange' FROM money_exchange_transaction t LEFT JOIN user_info u ON t.ENCODED_BY = u.IDNo WHERE t.ACTIVE = 1 AND t.TRANS_TYPE = 1 AND t.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT t.ID, CONCAT('Money Exchange Return: ', COALESCE(NULLIF(TRIM(t.GUEST_NAME),''),'Walk-in'), ' | return'), 'money_exchange_return_added', t.ENCODED_DT, NULLIF(TRIM(t.GUEST_NAME),''), '', t.RETURN_AMOUNT, NULL, NULL, COALESCE(u.FIRSTNAME,'N/A'), 'Money Exchange' FROM money_exchange_transaction t LEFT JOIN user_info u ON t.ENCODED_BY = u.IDNo WHERE t.ACTIVE = 1 AND t.TRANS_TYPE = 2 AND t.ENCODED_DT IS NOT NULL)
-		  UNION ALL (SELECT ui.IDNo, CONCAT('New User: ', COALESCE(ui.FIRSTNAME,''), ' ', COALESCE(ui.LASTNAME,''), ' (', COALESCE(ui.USERNAME,''), ')'), 'user_added', ui.ENCODED_DT, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User' FROM user_info ui LEFT JOIN user_info u ON ui.ENCODED_BY = u.IDNo WHERE ui.ENCODED_DT IS NOT NULL)
-		  UNION ALL (SELECT ui.IDNo, CONCAT('Edited User: ', COALESCE(ui.USERNAME,'')), 'user_edited', ui.EDITED_DT, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User' FROM user_info ui LEFT JOIN user_info u ON ui.EDITED_BY = u.IDNo WHERE ui.EDITED_DT IS NOT NULL)
+		  UNION ALL (SELECT t.ID, CONCAT('Money Exchange Deposit (edited): ', COALESCE(NULLIF(TRIM(t.GUEST_NAME),''),'Walk-in')), 'money_exchange_deposit_edited', t.EDITED_DT, NULLIF(TRIM(t.GUEST_NAME),''), '', t.EXCHANGE_AMOUNT, NULL, NULL, COALESCE(u2.FIRSTNAME,'N/A'), 'Money Exchange' FROM money_exchange_transaction t LEFT JOIN user_info u2 ON t.EDITED_BY = u2.IDNo WHERE t.ACTIVE = 1 AND t.TRANS_TYPE = 1 AND t.EDITED_DT IS NOT NULL AND t.EDITED_DT > t.ENCODED_DT)
+		  UNION ALL (SELECT t.ID, CONCAT('Money Exchange Return (edited): ', COALESCE(NULLIF(TRIM(t.GUEST_NAME),''),'Walk-in')), 'money_exchange_return_edited', t.EDITED_DT, NULLIF(TRIM(t.GUEST_NAME),''), '', t.RETURN_AMOUNT, NULL, NULL, COALESCE(u2.FIRSTNAME,'N/A'), 'Money Exchange' FROM money_exchange_transaction t LEFT JOIN user_info u2 ON t.EDITED_BY = u2.IDNo WHERE t.ACTIVE = 1 AND t.TRANS_TYPE = 2 AND t.EDITED_DT IS NOT NULL AND t.EDITED_DT > t.ENCODED_DT)
+		  UNION ALL (SELECT t.ID, CONCAT(CASE t.TRANS_TYPE WHEN 1 THEN 'Money Exchange Deposit (deleted): ' ELSE 'Money Exchange Return (deleted): ' END, COALESCE(NULLIF(TRIM(t.GUEST_NAME),''),'Walk-in')), 'money_exchange_deleted', t.EDITED_DT, NULLIF(TRIM(t.GUEST_NAME),''), '', COALESCE(t.EXCHANGE_AMOUNT, t.RETURN_AMOUNT), NULL, NULL, COALESCE(u2.FIRSTNAME,'N/A'), 'Money Exchange' FROM money_exchange_transaction t LEFT JOIN user_info u2 ON t.EDITED_BY = u2.IDNo WHERE t.ACTIVE = 0 AND t.EDITED_DT IS NOT NULL)
+		  UNION ALL (SELECT ui.IDNo, CONCAT('New User: ', COALESCE(ui.FIRSTNAME,''), ' ', COALESCE(ui.LASTNAME,''), ' (', COALESCE(ui.USERNAME,''), ')'), 'user_added', ui.ENCODED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User' FROM user_info ui LEFT JOIN user_info u ON ui.ENCODED_BY = u.IDNo WHERE ui.ENCODED_DT IS NOT NULL)
+		  UNION ALL (SELECT ui.IDNo, CONCAT('Edited User: ', COALESCE(ui.USERNAME,'')), 'user_edited', ui.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User' FROM user_info ui LEFT JOIN user_info u ON ui.EDITED_BY = u.IDNo WHERE ui.ACTIVE = 1 AND ui.EDITED_DT IS NOT NULL AND ui.EDITED_DT > ui.ENCODED_DT)
+		  UNION ALL (SELECT ui.IDNo, CONCAT('Deleted User: ', COALESCE(ui.USERNAME,'')), 'user_deleted', ui.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User' FROM user_info ui LEFT JOIN user_info u ON ui.EDITED_BY = u.IDNo WHERE ui.ACTIVE = 0 AND ui.EDITED_DT IS NOT NULL)
+		  UNION ALL (SELECT ur.IDNo, CONCAT('New Role Added: ', COALESCE(ur.ROLE, '')), 'role_added', ur.ENCODED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User Role' FROM user_role ur LEFT JOIN user_info u ON ur.ENCODED_BY = u.IDNo WHERE ur.ENCODED_DT IS NOT NULL)
+		  UNION ALL (SELECT ur.IDNo, CONCAT('User Role (edited): ', COALESCE(ur.ROLE, '')), 'role_edited', ur.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User Role' FROM user_role ur LEFT JOIN user_info u ON ur.EDITED_BY = u.IDNo WHERE ur.ACTIVE = 1 AND ur.EDITED_DT IS NOT NULL AND ur.EDITED_DT > ur.ENCODED_DT)
+		  UNION ALL (SELECT ur.IDNo, CONCAT('User Role (deleted): ', COALESCE(ur.ROLE, '')), 'role_deleted', ur.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User Role' FROM user_role ur LEFT JOIN user_info u ON ur.EDITED_BY = u.IDNo WHERE ur.ACTIVE = 0 AND ur.EDITED_DT IS NOT NULL)
+		  UNION ALL (SELECT cat.IDNo, CONCAT('Expense Category added: ', COALESCE(cat.CATEGORY, '')), 'expense_category_added', cat.ENCODED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Expense Category' FROM expense_category cat LEFT JOIN user_info u ON cat.ENCODED_BY = u.IDNo WHERE cat.ENCODED_DT IS NOT NULL)
+		  UNION ALL (SELECT cat.IDNo, CONCAT('Expense Category (edited): ', COALESCE(cat.CATEGORY, '')), 'expense_category_edited', cat.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Expense Category' FROM expense_category cat LEFT JOIN user_info u ON cat.EDITED_BY = u.IDNo WHERE cat.ACTIVE = 1 AND cat.EDITED_DT IS NOT NULL AND cat.EDITED_DT > cat.ENCODED_DT)
+		  UNION ALL (SELECT cat.IDNo, CONCAT('Expense Category (deleted): ', COALESCE(cat.CATEGORY, '')), 'expense_category_deleted', cat.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Expense Category' FROM expense_category cat LEFT JOIN user_info u ON cat.EDITED_BY = u.IDNo WHERE cat.ACTIVE = 0 AND cat.EDITED_DT IS NOT NULL)
+		  UNION ALL (SELECT ta.IDNo, CONCAT('Telegram settings edited: ', COALESCE(ta.USER, 'Unknown')), 'telegram_edited', ta.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Telegram' FROM telegram_api ta LEFT JOIN user_info u ON ta.EDITED_BY = u.IDNo WHERE ta.ACTIVE = 1 AND ta.EDITED_DT IS NOT NULL)
+		  UNION ALL (SELECT gnl.IDNo, CONCAT('Modify Game No: #', COALESCE(gnl.PREVIOUS_GAME_NUMBER, ''), ' → #', COALESCE(gnl.NEW_GAME_NUMBER, '')), 'game_number_changed', gnl.ENCODED_DT, NULL, NULL, gnl.NEW_GAME_NUMBER, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'Modify Game' FROM game_number_logs gnl LEFT JOIN user_info u ON gnl.ENCODED_BY = u.IDNo WHERE gnl.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT b.IDNo, CONCAT('Booking #', COALESCE(b.CONFIRM_NUM,''), ' - ', COALESCE(b.GUEST_NAME,'')), 'booking_added', b.BOOKING_DATE, NULL, NULL, b.TOTAL_AMOUNT, COALESCE(u.FIRSTNAME, 'N/A'), 'booking' FROM booking b LEFT JOIN user_info u ON b.BOOKED_BY = u.IDNo WHERE b.BOOKING_DATE IS NOT NULL)
+		  UNION ALL (SELECT b.IDNo, CONCAT('Booking (edited) #', COALESCE(b.CONFIRM_NUM,''), ' - ', COALESCE(b.GUEST_NAME,'')), 'booking_edited', b.EDITED_DT, NULL, NULL, b.TOTAL_AMOUNT, COALESCE(u2.FIRSTNAME, 'N/A'), 'booking' FROM booking b LEFT JOIN user_info u2 ON b.EDITED_BY = u2.IDNo WHERE b.ACTIVE = 1 AND b.EDITED_DT IS NOT NULL)
+		  UNION ALL (SELECT b.IDNo, CONCAT('Booking (deleted) #', COALESCE(b.CONFIRM_NUM,''), ' - ', COALESCE(b.GUEST_NAME,'')), 'booking_deleted', b.EDITED_DT, NULL, NULL, b.TOTAL_AMOUNT, COALESCE(u2.FIRSTNAME, 'N/A'), 'booking' FROM booking b LEFT JOIN user_info u2 ON b.EDITED_BY = u2.IDNo WHERE b.ACTIVE = 0 AND b.EDITED_DT IS NOT NULL)
 		  UNION ALL (SELECT gl.IDNo, CONCAT('New Game: #', gl.IDNo, ' (', COALESCE(gl.GAME_TYPE,''), ') - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), ''), ' - Buy-in: ₱', FORMAT(COALESCE(buyin.initial_buyin, 0), 0)), 'game_added', gl.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), COALESCE(buyin.initial_buyin, 0), COALESCE(buyin.nn_buyin, 0), COALESCE(buyin.cc_buyin, 0), COALESCE(u.FIRSTNAME, 'N/A'), 'Game' FROM game_list gl JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gl.ENCODED_BY = u.IDNo LEFT JOIN (SELECT r1.GAME_ID, (r1.NN_CHIPS + r1.CC_CHIPS) AS initial_buyin, r1.NN_CHIPS AS nn_buyin, r1.CC_CHIPS AS cc_buyin FROM game_record r1 WHERE r1.CAGE_TYPE = 1 AND r1.ACTIVE = 1 AND r1.IDNo = (SELECT MIN(r2.IDNo) FROM game_record r2 WHERE r2.GAME_ID = r1.GAME_ID AND r2.CAGE_TYPE = 1 AND r2.ACTIVE = 1)) buyin ON buyin.GAME_ID = gl.IDNo WHERE gl.ENCODED_DT IS NOT NULL AND (gl.ACTIVE IS NULL OR gl.ACTIVE NOT IN (1, 3)))
 		  UNION ALL (SELECT gr.GAME_ID, CONCAT('Buy-in - Game #', gl.IDNo, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), ''), ' (₱', FORMAT(COALESCE(gr.NN_CHIPS,0) + COALESCE(gr.CC_CHIPS,0), 0), ')'), 'game_buyin', gr.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), (COALESCE(gr.NN_CHIPS,0) + COALESCE(gr.CC_CHIPS,0)), COALESCE(u.FIRSTNAME, 'N/A'), 'Game' FROM game_record gr JOIN game_list gl ON gr.GAME_ID = gl.IDNo JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 1 AND gr.ENCODED_DT IS NOT NULL AND gr.IDNo != (SELECT MIN(r.IDNo) FROM game_record r WHERE r.GAME_ID = gr.GAME_ID AND r.CAGE_TYPE = 1 AND r.ACTIVE = 1))
 		  UNION ALL (SELECT gr.GAME_ID, CONCAT('Cash Out - Game #', gl.IDNo, ' - ', COALESCE(ag.AGENT_CODE,''), IFNULL(CONCAT(' (', NULLIF(TRIM(ag.NAME), ''), ')'), ''), ' (₱', FORMAT(COALESCE(gr.NN_CHIPS,0) + COALESCE(gr.CC_CHIPS,0), 0), ')'), 'game_cashout', gr.ENCODED_DT, COALESCE(ag.NAME, ''), COALESCE(ag.AGENT_CODE, ''), (COALESCE(gr.NN_CHIPS,0) + COALESCE(gr.CC_CHIPS,0)), COALESCE(u.FIRSTNAME, 'N/A'), 'Game' FROM game_record gr JOIN game_list gl ON gr.GAME_ID = gl.IDNo JOIN account acc ON gl.ACCOUNT_ID = acc.IDNo LEFT JOIN agent ag ON acc.AGENT_ID = ag.IDNo LEFT JOIN user_info u ON gr.ENCODED_BY = u.IDNo WHERE gr.ACTIVE = 1 AND gr.CAGE_TYPE = 2 AND gr.ENCODED_DT IS NOT NULL)

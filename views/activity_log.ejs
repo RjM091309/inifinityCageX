@@ -22,7 +22,9 @@
                                 <option value="all">All</option>
                                 <option value="Game">Game</option>
                                 <option value="Account Transaction">Account Transaction</option>
+                                <option value="Credit Return">Credit Return</option>
                                 <option value="Junket Expense">Junket Expense</option>
+                                <option value="Expense Category">Expense Category</option>
                                 <option value="Junket Loss">Junket Loss</option>
                                 <option value="Money Exchange">Money Exchange</option>
                                 <option value="F&B">F&B</option>
@@ -33,8 +35,12 @@
                                 <option value="Junket Capital">Junket Capital</option>
                                 <option value="Daily Settlement">Daily Settlement</option>
                                 <option value="Guest">Guest</option>
+                                <option value="Account">Account</option>
                                 <option value="agency">Agency</option>
                                 <option value="User">User</option>
+                                <option value="User Role">User Role</option>
+                                <option value="Telegram">Telegram</option>
+                                <option value="Modify Game">Modify Game</option>
                             </select>
                         </div>
                     </h3>
@@ -131,9 +137,10 @@
     }
 
     function getActionDisplay(actionType) {
-        const addKeys = ["added", "expense_added", "user_added", "role_added", "booking_added", "service_added", "junket_chips_added", "return_added", "capital_added", "junket_loss_added", "money_exchange_deposit_added", "money_exchange_return_added"];
-        const editKeys = ["edited", "expense_edited", "user_edited", "role_edited", "return_edited", "capital_edited", "service_edited", "junket_loss_edited", "money_exchange_deposit_edited", "money_exchange_return_edited"];
+        const addKeys = ["added", "account_added", "credit_issued", "expense_added", "expense_category_added", "expense_settlement_added", "user_added", "role_added", "booking_added", "service_added", "junket_chips_added", "return_added", "capital_added", "junket_loss_added", "money_exchange_deposit_added", "money_exchange_return_added"];
+        const editKeys = ["edited", "expense_edited", "expense_category_edited", "user_edited", "role_edited", "telegram_edited", "return_edited", "capital_edited", "service_edited", "junket_loss_edited", "money_exchange_deposit_edited", "money_exchange_return_edited", "booking_edited", "account_edited", "marker_remarks_edited", "game_edited", "game_record_edited"];
         if (actionType === "settlement_added") return "Settled";
+        if (actionType === "expense_settlement_added") return "Expense Settled";
         if (actionType === "game_added") return "New Game";
         if (addKeys.includes(actionType)) return "<%= __('dashboard.action_add') %>";
         if (editKeys.includes(actionType)) return "<%= __('dashboard.action_edit') %>";
@@ -145,11 +152,18 @@
         if (actionType === "game_buyin") return "Buy-in";
         if (actionType === "game_cashout") return "<%= __('dashboard.cash_out') %>";
         if (actionType === "game_rolling") return "<%= __('dashboard.rolling') %>";
+        if (actionType === "game_settlement") return "Settled";
+        if (actionType === "game_fake_settle") return "Fake Settle";
+        if (actionType === "daily_settlement_transfer") return "Daily Transfer";
         if (actionType === "game_deleted") return "<%= __('dashboard.action_delete') %>";
         if (actionType === "roller_add") return "<%= __('dashboard.action_add') %>";
         if (actionType === "roller_return") return "Return";
         if (actionType === "credit_return") return "Credit Return";
-        if (actionType === "service_deleted" || actionType === "junket_loss_deleted" || actionType === "money_exchange_deleted") return "<%= __('dashboard.action_delete') %>";
+        if (actionType === "credit_issued") return "Credit Issue";
+        if (actionType === "game_number_changed") return "Modify Game";
+        if (actionType === "telegram_edited") return "Telegram";
+        if (actionType === "service_deleted" || actionType === "junket_loss_deleted" || actionType === "junket_chips_deleted" || actionType === "money_exchange_deleted" || actionType === "expense_deleted" || actionType === "expense_category_deleted" || actionType === "return_deleted" || actionType === "capital_deleted" || actionType === "user_deleted" || actionType === "role_deleted" || actionType === "booking_deleted" || actionType === "transaction_deleted" || actionType === "account_deleted" || actionType === "game_record_deleted") return "<%= __('dashboard.action_delete') %>";
+        if (actionType === "marker_buyin") return "Marker Buy-in";
         if (actionType === "money_exchange_deposit_added") return "Deposit";
         if (actionType === "money_exchange_return_added") return "Return";
         return actionType || "-";
@@ -176,7 +190,7 @@
         // Translate the text first
         const translatedText = translateText(fullText);
         
-        const prefixes = ["<%= __('dashboard.new_booking') %>:", "<%= __('dashboard.transaction') %>:", "Transfer From:", "Transfer To:", "Transfer:", "Deposit:", "Withdraw:", "Daily Settlement:", "<%= __('dashboard.junket_expense') %>:", "Junket Loss:", "Junket Loss (edited):", "Junket Loss (deleted):", "Money Exchange Deposit:", "Money Exchange Deposit (edited):", "Money Exchange Deposit (deleted):", "Money Exchange Return:", "Money Exchange Return (edited):", "Money Exchange Return (deleted):", "New Game:", "Game Deleted:", "Buy-in -", "Cash Out -", "Rolling -", "Roller Chips -", "Service:", "Junket Chips:", "Return Money:", "Junket Capital:"];
+        const prefixes = ["<%= __('dashboard.new_booking') %>:", "<%= __('dashboard.transaction') %>:", "Transfer From:", "Transfer To:", "Transfer:", "Deposit:", "Withdraw:", "Deleted Deposit:", "Deleted Withdraw:", "Deleted IOU:", "Deleted Credit issued:", "Deleted Transfer From:", "Deleted Transfer To:", "Deleted Transaction:", "Deleted Marker Buy-in:", "Deleted Credit return thru cash:", "Deleted Credit return thru deposit:", "Deleted Chips return thru credit:", "Credit issued:", "Chips return thru credit", "Credit return thru cash", "Credit return thru deposit", "Marker Buy-in:", "Marker remarks edited:", "Account added:", "Account edited:", "Account deleted:", "Booking (edited)", "Daily Settlement:", "Daily settlement transfer:", "Game Settlement:", "Game edited:", "Fake Settle:", "Buy-in edited", "Cash Out edited", "Rolling edited", "Roller Chips edited", "Buy-in deleted", "Cash Out deleted", "Rolling deleted", "Roller Chips deleted", "<%= __('dashboard.junket_expense') %>:", "Expense Category added:", "Expense Category (edited):", "Expense Category (deleted):", "Telegram settings edited:", "Modify Game No:", "Junket Loss:", "Junket Loss (edited):", "Junket Loss (deleted):", "Money Exchange Deposit:", "Money Exchange Deposit (edited):", "Money Exchange Deposit (deleted):", "Money Exchange Return:", "Money Exchange Return (edited):", "Money Exchange Return (deleted):", "New User:", "Edited User:", "New Role Added:", "User Role (edited):", "User Role (deleted):", "New Game:", "Game Deleted:", "Buy-in -", "Cash Out -", "Rolling -", "Roller Chips -", "Service:", "Junket Chips:", "Return Money:", "Junket Capital:", "Booking (deleted)", "Deleted User:"];
         let pfx = prefixes.find(p => translatedText.startsWith(p));
         // Junket Expense: dynamic prefix (Category: description)
         if (!pfx && sourceTable === 'Junket Expense' && translatedText.includes(': ')) {
@@ -278,28 +292,40 @@
                 tbody.innerHTML = data.map((log, idx) => {
                     let url = "#";
                     if (log.related_id) {
-                        if (["transaction", "transfer", "deposit", "withdraw", "added", "edited", "deleted"].includes(log.action_type)) {
+                        if (["transaction", "transfer", "deposit", "withdraw", "added", "edited", "deleted", "transaction_deleted", "account_added", "account_edited", "account_deleted"].includes(log.action_type)) {
                             url = `/accounts?id=${log.related_id}`;
-                        } else if (["expense_added", "expense_edited", "return_added", "return_edited"].includes(log.action_type)) {
+                        } else if (["expense_added", "expense_edited", "expense_deleted", "expense_settlement_added", "return_added", "return_edited", "return_deleted"].includes(log.action_type)) {
                             url = `/junket/house_expense?id=${log.related_id}`;
                         } else if (["junket_loss_added", "junket_loss_edited", "junket_loss_deleted"].includes(log.action_type) && log.source_table === "Junket Loss") {
                             url = `/junket_loss`;
                         } else if (["money_exchange_deposit_added", "money_exchange_return_added", "money_exchange_deposit_edited", "money_exchange_return_edited", "money_exchange_deleted"].includes(log.action_type) && log.source_table === "Money Exchange") {
                             url = `/money_exchange`;
-                        } else if (["user_added", "user_edited"].includes(log.action_type)) {
-                            url = `/user_management?id=${log.related_id}`;
-                        } else if (["role_added", "role_edited"].includes(log.action_type)) {
-                            url = `/user_roles?id=${log.related_id}`;
-                        } else if (["booking_added"].includes(log.action_type)) {
+                        } else if (["marker_buyin", "marker_remarks_edited", "credit_return", "credit_issued"].includes(log.action_type) && log.source_table === "Credit Return") {
+                            url = `/markerHistory`;
+                        } else if (log.action_type === "transaction_deleted" && log.source_table === "Credit Return") {
+                            url = `/markerHistory`;
+                        } else if (["user_added", "user_edited", "user_deleted"].includes(log.action_type)) {
+                            url = `/manage_users`;
+                        } else if (["role_added", "role_edited", "role_deleted"].includes(log.action_type)) {
+                            url = `/user_roles`;
+                        } else if (["expense_category_added", "expense_category_edited", "expense_category_deleted"].includes(log.action_type)) {
+                            url = `/expense_category`;
+                        } else if (log.action_type === "telegram_edited") {
+                            url = `/telegramAPI`;
+                        } else if (log.action_type === "game_number_changed") {
+                            url = `/Change_Game_No`;
+                        } else if (["booking_added", "booking_edited", "booking_deleted"].includes(log.action_type)) {
                             url = `/booking?id=${log.related_id}`;
-                        } else if (["game_added", "game_buyin", "game_cashout", "game_rolling", "game_deleted", "roller_add", "roller_return"].includes(log.action_type)) {
+                        } else if (["game_added", "game_buyin", "game_cashout", "game_rolling", "game_deleted", "roller_add", "roller_return", "game_settlement", "game_edited", "game_fake_settle", "game_record_edited", "game_record_deleted"].includes(log.action_type)) {
                             url = `/game_list?id=${log.related_id}`;
+                        } else if (log.action_type === "daily_settlement_transfer" && log.source_table === "Daily Settlement") {
+                            url = "/game_list";
                         } else if (["service_added", "service_edited", "service_deleted"].includes(log.action_type) && ["F&B", "Hotel", "Delivery", "Services"].includes(log.source_table)) {
                             const gameMatch = (log.name || '').match(/Game #(\d+)/);
                             url = gameMatch ? `/game_list?id=${gameMatch[1]}` : "/fnb-hotel";
-                        } else if (log.action_type === "junket_chips_added" && log.source_table === "Junket Total Chips") {
+                        } else if (["junket_chips_added", "junket_chips_deleted"].includes(log.action_type) && log.source_table === "Junket Total Chips") {
                             url = "/dashboard";
-                        } else if (["capital_added", "capital_edited"].includes(log.action_type) && log.source_table === "Junket Capital") {
+                        } else if (["capital_added", "capital_edited", "capital_deleted"].includes(log.action_type) && log.source_table === "Junket Capital") {
                             url = "/dashboard";
                         } else if (log.action_type === "settlement_added" && log.source_table === "Daily Settlement") {
                             url = "/game_list";

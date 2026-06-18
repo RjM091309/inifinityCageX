@@ -20,6 +20,7 @@ router.post('/game_list/update_game_number', async (req, res) => {
 	  console.log("Received request body:", req.body);
 	  const { newGameNo } = req.body;
 	  const encodedBy = req.session.user_id;
+	  const date_now = new Date();
   
 	  if (!newGameNo || isNaN(newGameNo)) {
 		return res.json({ success: false, message: 'Invalid Game Number. Please enter a valid number.' });
@@ -54,10 +55,10 @@ router.post('/game_list/update_game_number', async (req, res) => {
   
 	  // ✅ Log the change
 	  const logQuery = `
-		INSERT INTO game_number_logs (PREVIOUS_GAME_NUMBER, NEW_GAME_NUMBER, ENCODED_BY) 
-		VALUES (?, ?, ?)
+		INSERT INTO game_number_logs (PREVIOUS_GAME_NUMBER, NEW_GAME_NUMBER, ENCODED_BY, ENCODED_DT) 
+		VALUES (?, ?, ?, ?)
 	  `;
-	  await pool.execute(logQuery, [latestGameNo, newGameNo, encodedBy]);
+	  await pool.execute(logQuery, [latestGameNo, newGameNo, encodedBy, date_now]);
   
 	  res.json({
 		success: true,

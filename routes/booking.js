@@ -74,7 +74,11 @@ router.put('/check_in/:id', async (req, res) => {
 	const checkInDate = req.body.checkInDate;
 
 	try {
-		await pool.execute('UPDATE booking SET CHECK_IN = ? WHERE IDNo = ?', [checkInDate, bookingId]);
+		const date_now = new Date();
+		await pool.execute(
+			'UPDATE booking SET CHECK_IN = ?, EDITED_DT = ?, EDITED_BY = ? WHERE IDNo = ?',
+			[checkInDate, date_now, req.session.user_id, bookingId]
+		);
 		res.status(200).json({ message: 'Check-in successful' });
 	} catch (err) {
 		console.error('Error during check-in:', err);
@@ -88,7 +92,11 @@ router.put('/check_out/:id', async (req, res) => {
 	const checkOutDate = req.body.checkOutDate;
 
 	try {
-		await pool.execute('UPDATE booking SET CHECK_OUT = ? WHERE IDNo = ?', [checkOutDate, bookingId]);
+		const date_now = new Date();
+		await pool.execute(
+			'UPDATE booking SET CHECK_OUT = ?, EDITED_DT = ?, EDITED_BY = ? WHERE IDNo = ?',
+			[checkOutDate, date_now, req.session.user_id, bookingId]
+		);
 		res.status(200).json({ message: 'Check-out successful' });
 	} catch (err) {
 		console.error('Error during check-out:', err);
@@ -102,7 +110,11 @@ router.put('/booking_payment_status_update/:id', async (req, res) => {
 	const paymentStatus = req.body.paymentStatus;
 
 	try {
-		await pool.execute('UPDATE booking SET PAYMENT_STATUS = ? WHERE IDNo = ?', [paymentStatus, bookingId]);
+		const date_now = new Date();
+		await pool.execute(
+			'UPDATE booking SET PAYMENT_STATUS = ?, EDITED_DT = ?, EDITED_BY = ? WHERE IDNo = ?',
+			[paymentStatus, date_now, req.session.user_id, bookingId]
+		);
 		res.status(200).json({ message: 'Payment status updated successfully' });
 	} catch (err) {
 		console.error('Error updating payment status:', err);

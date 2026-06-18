@@ -3095,9 +3095,9 @@ router.post('/undo-month-settle', async (req, res) => {
 		);
 		await connection.execute(
 			`UPDATE junket_total_chips
-			 SET ACTIVE = 0, RESET = 1, MONTH_SETTLE_ID = NULL
+			 SET ACTIVE = 0, RESET = 1, MONTH_SETTLE_ID = NULL, EDITED_BY = ?, EDITED_DT = ?
 			 WHERE MONTH_SETTLE_ID = ? AND ACTIVE = 1 AND TRANSACTION_ID = 4`,
-			[monthSettleId]
+			[req.session.user_id, new Date(), monthSettleId]
 		);
 
 		// Soft delete month_settle itself
