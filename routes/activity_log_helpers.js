@@ -29,9 +29,10 @@ const BRANCH_FROM = [
 function injectCrossJoin(sql) {
 	let out = sql;
 	for (const from of BRANCH_FROM) {
-		const needle = `FROM ${from}`;
-		const replacement = `FROM ${from} CROSS JOIN date_range dr`;
-		out = out.split(needle).join(replacement);
+		const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		// Require whitespace after alias so "account acc" does not match "account acc2"
+		const re = new RegExp(`FROM ${escaped}(?=\\s)`, 'g');
+		out = out.replace(re, `FROM ${from} CROSS JOIN date_range dr`);
 	}
 	return out;
 }
