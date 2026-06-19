@@ -49,13 +49,15 @@ function formatTelegramLogTime() {
   });
 }
 
-// Send a message with retry logic for network issues (GUEST bot only)
-// options: { retries?: number, logPreview?: string, logMeta?: { accountCode, guestName, amount } }
+// Send a message with retry logic for network/API issues (GUEST bot only)
+// options: { retries?: number, throwOnFailure?: boolean, logPreview?: string, logMeta?: { accountCode, guestName, amount } }
 //  - logPreview is stored in telegram_send_log.message_preview instead of the full Telegram body
 //  - logMeta is stored in dedicated columns (guest_account_code, guest_name, amount)
+//  - throwOnFailure lets routes surface the final Telegram failure after retries
 async function sendTelegramMessage(text, telegramId, options = {}) {
   const opts = typeof options === 'number' ? { retries: options } : options || {};
   const retries = opts.retries != null ? opts.retries : 2;
+  const throwOnFailure = opts.throwOnFailure === true;
   const logPreview =
     opts.logPreview != null && String(opts.logPreview).trim() !== '' ? opts.logPreview : null;
   const meta = extractLogMeta(opts);
@@ -78,15 +80,32 @@ async function sendTelegramMessage(text, telegramId, options = {}) {
       guestName: meta.guestName,
       amount: meta.amount
     });
+    if (throwOnFailure) {
+      throw new Error('No Telegram token configured for GUEST bot');
+    }
     return;
   }
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const isRetryableTelegramError = (error) => {
+    const message = error.message || '';
+    return (
+      error.name === 'AbortError' ||
+      error.statusCode === 429 ||
+      (error.statusCode >= 500 && error.statusCode < 600) ||
+      message.includes('ETIMEDOUT') ||
+      message.includes('ECONNRESET') ||
+      message.includes('network') ||
+      error.code === 'ETIMEDOUT' ||
+      error.code === 'ECONNRESET'
+    );
+  };
 
   for (let attempt = 0; attempt <= retries; attempt++) {
+    let timeoutId;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       const response = await fetch(url, {
         method: 'POST',
@@ -99,7 +118,9 @@ async function sendTelegramMessage(text, telegramId, options = {}) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Telegram API error: ${errorData.description || response.statusText}`);
+        const telegramError = new Error(`Telegram API error: ${errorData.description || response.statusText}`);
+        telegramError.statusCode = response.status;
+        throw telegramError;
       }
 
       await insertTelegramSendLog({
@@ -116,21 +137,15 @@ async function sendTelegramMessage(text, telegramId, options = {}) {
       });
       return;
     } catch (error) {
-      // If it's a network error and we have retries left, try again
-      if (attempt < retries && (
-        error.name === 'AbortError' ||
-        error.message.includes('ETIMEDOUT') ||
-        error.message.includes('ECONNRESET') ||
-        error.message.includes('network') ||
-        error.code === 'ETIMEDOUT' ||
-        error.code === 'ECONNRESET'
-      )) {
-        console.warn(`⚠️ Network error sending message (attempt ${attempt + 1}/${retries + 1}), retrying...`);
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (attempt < retries && isRetryableTelegramError(error)) {
+        console.warn(`⚠️ Retryable Telegram send error (attempt ${attempt + 1}/${retries + 1}), retrying...`);
         await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
         continue;
       }
 
-      // Non-retryable API errors (e.g. chat not found): log only — never throw so DB flows (settlement, etc.) still succeed
+      // Log the final failure. By default we do not throw so DB flows (settlement, etc.) still succeed.
       console.error(`❌ Error sending Telegram message at ${formatTelegramLogTime()} after ${attempt + 1} attempts:`, error.message);
       await insertTelegramSendLog({
         botUser: 'GUEST',
@@ -144,6 +159,9 @@ async function sendTelegramMessage(text, telegramId, options = {}) {
         guestName: meta.guestName,
         amount: meta.amount
       });
+      if (throwOnFailure) {
+        throw error;
+      }
       return;
     }
   }
@@ -189,13 +207,18 @@ async function getAdditionalChatIds() {
 async function sendTelegramToAdditionalChats(text, options = {}) {
   const opts = typeof options === 'number' ? { retries: options } : options || {};
   const chatIds = await getAdditionalChatIds();
+  const errors = [];
   for (const id of chatIds) {
     try {
       await sendTelegramMessage(text, id, opts);
     } catch (error) {
       console.error(`Error sending Telegram message to guest chat ID ${id}:`, error.message);
+      errors.push(`${id}: ${error.message}`);
       // Continue sending to other chat IDs even if one fails
     }
+  }
+  if (opts.throwOnFailure === true && errors.length > 0) {
+    throw new Error(errors.join('; '));
   }
 }
 

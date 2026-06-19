@@ -801,6 +801,7 @@ router.post('/add_account_details', async (req, res) => {
 					transactionDesc: transacDesc
 				});
 				const telegramSendOpts = {
+					throwOnFailure: true,
 					logPreview: telegramLogPreview,
 					logMeta: {
 						accountCode: guestAccountNum,
