@@ -940,6 +940,8 @@
 		"live": "LIVE",
 		"telebet": "TELEBET",
 		"choose_account_placeholder": "Choose an account...",
+		"remarks": "Remarks",
+		"remarks_placeholder": "Remarks",
 		"nn_placeholder": "NN Chips",
 		"cc_placeholder": "CC Chips",
 		"cash_game": "Cash",

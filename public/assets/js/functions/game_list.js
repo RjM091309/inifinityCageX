@@ -5,7 +5,43 @@ var _servicesSettled = 0;
 // Cache accounts so Select2 doesn't flash "No results found" while AJAX is still loading
 var _accountOptionsCache = null;
 var _accountOptionsPromise = null;
-	
+
+function updateNewGameAgentRemarks(accountId) {
+	var $row = $('#agent-remarks-new-game-row');
+	var $remarks = $('#agentRemarksNewGame');
+	if (!$row.length || !$remarks.length) return;
+
+	if (!accountId) {
+		$remarks.val('');
+		$row.hide();
+		return;
+	}
+
+	if (!Array.isArray(_accountOptionsCache)) {
+		if (_accountOptionsPromise) {
+			_accountOptionsPromise.then(function () {
+				updateNewGameAgentRemarks(accountId);
+			}).catch(function () {
+				$remarks.val('');
+				$row.hide();
+			});
+		} else {
+			$remarks.val('');
+			$row.hide();
+		}
+		return;
+	}
+
+	var account = _accountOptionsCache.find(function (opt) {
+		return String(opt.account_id) === String(accountId);
+	});
+	var remarks = account && account.agent_remarks != null
+		? String(account.agent_remarks).trim()
+		: '';
+
+	$remarks.val(remarks);
+	$row.show();
+}
 
 function addGameList(id) {
 	var $select = $('#txtTrans');
@@ -41,6 +77,7 @@ function addGameList(id) {
 	
 	// Show modal IMMEDIATELY for smooth UX (don't wait for data)
 	$('#modal-new-game-list').modal('show');
+	updateNewGameAgentRemarks(null);
 	$('#enableSplitNewGame').prop('checked', false);
 	$('#split-new-game-row').hide();
 	$('#splitCashNN, #splitCashCC, #splitDepNN, #splitDepCC, #splitCreditNN, #splitCreditCC').val('').removeClass('is-invalid');
@@ -3063,7 +3100,8 @@ $('#add_game_list').submit(function (event) {
                 split_dep_nn: splitDepNN,
                 split_dep_cc: splitDepCC,
                 split_credit_nn: splitCreditNN,
-                split_credit_cc: splitCreditCC
+                split_credit_cc: splitCreditCC,
+                txtAgentRemarks: ($('#agentRemarksNewGame').val() || '').trim()
             };
 
             $.ajax({
@@ -7351,6 +7389,8 @@ function settlement_history(record_id, acc_id, agentCode) {
 $('#txtTrans').on('change', function () {
     var account_id = $(this).val();  // Get the selected account ID
 
+    updateNewGameAgentRemarks(account_id);
+
     if (account_id) {
         // Make an AJAX call to fetch account details
         $.ajax({
@@ -7388,5 +7428,4 @@ $('#txtTrans').on('change', function () {
         });
     }
 });
-
 

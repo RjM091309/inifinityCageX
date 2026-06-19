@@ -244,7 +244,8 @@ router.post('/add_game_list', async (req, res) => {
 		txtTransType,
 		txtCommisionType,
 		txtCommisionRate,
-		totalBalanceGuest1
+		totalBalanceGuest1,
+		txtAgentRemarks
 	} = req.body;
 
 	const date_now = new Date();
@@ -335,6 +336,13 @@ router.post('/add_game_list', async (req, res) => {
 		}
 
 		const { agent_id: agentId, AGENT_CODE: agentCode, NAME: agentName } = agentResults[0];
+
+		if (txtAgentRemarks != null && agentId) {
+			await pool.execute(
+				'UPDATE agent SET REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+				[String(txtAgentRemarks).trim(), encodedBy, date_now, agentId]
+			);
+		}
 
 		// 5. Get telegram ID
 		const [telegramIdResults] = await pool.execute(`
@@ -490,7 +498,8 @@ router.post('/add_game_list_split', async (req, res) => {
 		split_dep_nn,
 		split_dep_cc,
 		split_credit_nn,
-		split_credit_cc
+		split_credit_cc,
+		txtAgentRemarks
 	} = req.body;
 
 	const parseAmt = (v) => {
@@ -599,6 +608,14 @@ router.post('/add_game_list_split', async (req, res) => {
 			WHERE account.ACTIVE = 1 AND account.IDNo = ?`,
 			[accountId]
 		);
+
+		if (txtAgentRemarks != null && agentRows.length > 0 && agentRows[0].agent_id) {
+			await connection.execute(
+				'UPDATE agent SET REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+				[String(txtAgentRemarks).trim(), encodedBy, date_now, agentRows[0].agent_id]
+			);
+		}
+
 		if (cashTotal > 0 && cashRecordId && agentRows.length > 0 && agentRows[0].agent_id) {
 			await connection.execute(`
 				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)

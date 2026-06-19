@@ -927,6 +927,8 @@
 		"live": "라이브",
 		"telebet": "텔레벳",
 		"choose_account_placeholder": "계정 선택...",
+		"remarks": "비고",
+		"remarks_placeholder": "비고",
 		"nn_placeholder": "NN 칩",
 		"cc_placeholder": "CC 칩",
 		"cash_game": "현금 게임",
