@@ -37,6 +37,18 @@ function extractLogMeta(opts) {
   };
 }
 
+function formatTelegramLogTime() {
+  return new Date().toLocaleString('en-PH', {
+    timeZone: 'Asia/Manila',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
 // Send a message with retry logic for network issues (GUEST bot only)
 // options: { retries?: number, logPreview?: string, logMeta?: { accountCode, guestName, amount } }
 //  - logPreview is stored in telegram_send_log.message_preview instead of the full Telegram body
@@ -119,7 +131,7 @@ async function sendTelegramMessage(text, telegramId, options = {}) {
       }
 
       // Non-retryable API errors (e.g. chat not found): log only — never throw so DB flows (settlement, etc.) still succeed
-      console.error(`❌ Error sending Telegram message after ${attempt + 1} attempts:`, error.message);
+      console.error(`❌ Error sending Telegram message at ${formatTelegramLogTime()} after ${attempt + 1} attempts:`, error.message);
       await insertTelegramSendLog({
         botUser: 'GUEST',
         messageKind: 'text',
