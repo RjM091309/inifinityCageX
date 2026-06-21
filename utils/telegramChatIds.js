@@ -1,6 +1,8 @@
 /**
  * Parse / serialize telegram_api CHAT_ID and AGENT_CHATID values.
- * Supports legacy comma-separated IDs (all enabled) and JSON:
+ * Supports legacy comma-separated IDs (all enabled), compact JSON:
+ * [["123",1],["456",0]]
+ * and verbose JSON:
  * [{"chatId":"123","enabled":true},{"chatId":"456","enabled":false}]
  */
 
@@ -9,6 +11,12 @@ function normalizeEntry(item) {
 	if (typeof item === 'string' || typeof item === 'number') {
 		const chatId = String(item).trim();
 		return chatId ? { chatId, enabled: true } : null;
+	}
+	if (Array.isArray(item)) {
+		const chatId = String(item[0] ?? '').trim();
+		if (!chatId) return null;
+		const enabled = item[1] === false || item[1] === 0 || item[1] === '0' ? false : true;
+		return { chatId, enabled };
 	}
 	if (typeof item === 'object') {
 		const chatId = String(item.chatId ?? item.chat_id ?? '').trim();
@@ -98,7 +106,7 @@ function serializeChatIdEntries(entries) {
 		}
 	}
 	if (!normalized.length) return null;
-	return JSON.stringify(normalized);
+	return JSON.stringify(normalized.map((entry) => [entry.chatId, entry.enabled ? 1 : 0]));
 }
 
 function getEnabledChatIds(raw) {
