@@ -9,6 +9,30 @@ const {
 	validateChatIdsPayload
 } = require('../utils/telegramChatIds');
 
+let telegramChatColumnsEnsured = false;
+
+async function ensureTelegramChatIdColumns() {
+	if (telegramChatColumnsEnsured) return;
+
+	const [columns] = await pool.execute(
+		'SHOW COLUMNS FROM telegram_api WHERE Field IN (?, ?)',
+		['CHAT_ID', 'AGENT_CHATID']
+	);
+
+	for (const column of columns) {
+		const field = column.Field;
+		const type = String(column.Type || '').toLowerCase();
+		if (field === 'CHAT_ID' && !type.includes('text')) {
+			await pool.execute('ALTER TABLE telegram_api MODIFY CHAT_ID TEXT NOT NULL');
+		}
+		if (field === 'AGENT_CHATID' && !type.includes('text')) {
+			await pool.execute('ALTER TABLE telegram_api MODIFY AGENT_CHATID TEXT NULL');
+		}
+	}
+
+	telegramChatColumnsEnsured = true;
+}
+
 router.get('/telegramAPI/logs', checkSession, (req, res) => {
 	res.redirect(302, '/telegramAPI#message-log');
 });
@@ -224,6 +248,7 @@ router.get('/telegramAPI/account-info/:accountCode', checkSession, async (req, r
 // Get chat IDs by USER type (all use CHAT_ID column)
 router.get('/telegramAPI/chat-ids/:userType', checkSession, async (req, res) => {
 	try {
+		await ensureTelegramChatIdColumns();
 		const userType = req.params.userType || 'GUEST';
 		const [rows] = await pool.execute(
 			'SELECT CHAT_ID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
@@ -241,6 +266,7 @@ router.get('/telegramAPI/chat-ids/:userType', checkSession, async (req, res) => 
 // Update chat IDs by USER type (all use CHAT_ID column)
 router.put('/telegramAPI/chat-ids/:userType', checkSession, async (req, res) => {
 	try {
+		await ensureTelegramChatIdColumns();
 		const userType = req.params.userType || 'GUEST';
 		const chatIds = validateChatIdsPayload(req.body.chatIds);
 		const value = serializeChatIdEntries(chatIds);
@@ -258,6 +284,7 @@ router.put('/telegramAPI/chat-ids/:userType', checkSession, async (req, res) => 
 // Get agent-specific notification chat IDs (AGENT_CHATID column for GUEST)
 router.get('/telegramAPI/agent-chat-ids', checkSession, async (req, res) => {
 	try {
+		await ensureTelegramChatIdColumns();
 		const [rows] = await pool.execute(
 			'SELECT AGENT_CHATID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
 			['GUEST']
@@ -279,6 +306,7 @@ router.get('/telegramAPI/agent-chat-ids', checkSession, async (req, res) => {
 // Update agent-specific notification chat IDs (AGENT_CHATID column for GUEST)
 router.put('/telegramAPI/agent-chat-ids', checkSession, async (req, res) => {
 	try {
+		await ensureTelegramChatIdColumns();
 		const validated = validateChatIdsPayload(req.body.agentChatIds);
 		const value = serializeChatIdEntries(validated);
 		

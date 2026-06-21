@@ -25,6 +25,17 @@ function parseChatIdEntries(raw) {
 	const trimmed = String(raw).trim();
 	if (!trimmed) return [];
 
+	if (trimmed.startsWith('"')) {
+		try {
+			const parsed = JSON.parse(trimmed);
+			if (typeof parsed === 'string' && parsed !== trimmed) {
+				return parseChatIdEntries(parsed);
+			}
+		} catch (e) {
+			/* fall through */
+		}
+	}
+
 	if (trimmed.startsWith('[')) {
 		try {
 			const parsed = JSON.parse(trimmed);
@@ -41,7 +52,9 @@ function parseChatIdEntries(raw) {
 				return out;
 			}
 		} catch (e) {
-			/* fall through to legacy */
+			const recovered = recoverJsonChatIdEntries(trimmed);
+			if (recovered.length) return recovered;
+			return [];
 		}
 	}
 
@@ -50,6 +63,27 @@ function parseChatIdEntries(raw) {
 		.map((s) => s.trim())
 		.filter(Boolean)
 		.map((chatId) => ({ chatId, enabled: true }));
+}
+
+function recoverJsonChatIdEntries(raw) {
+	const out = [];
+	const seen = new Set();
+	const chatIdRegex = /"chatId"\s*:\s*"([^"]+)"/g;
+	let match;
+
+	while ((match = chatIdRegex.exec(raw)) !== null) {
+		const chatId = match[1].trim();
+		if (!chatId || seen.has(chatId)) continue;
+
+		const nextMatchIndex = raw.indexOf('"chatId"', chatIdRegex.lastIndex);
+		const objectFragment = raw.slice(match.index, nextMatchIndex === -1 ? raw.length : nextMatchIndex);
+		const enabled = !/"enabled"\s*:\s*(false|0|"0")/.test(objectFragment);
+
+		seen.add(chatId);
+		out.push({ chatId, enabled });
+	}
+
+	return out;
 }
 
 function serializeChatIdEntries(entries) {
