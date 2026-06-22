@@ -27,11 +27,9 @@
 								<table id="usersTable" class="table  nowrap small-text" style="width:100%">
 									<thead>
 										<tr>
-											<th class="d-none d-sm-table-cell"><%= __('manage_users.last_name') %></th>
-											<th class="d-none d-sm-table-cell"><%= __('manage_users.first_name') %></th>
+											<th class="d-none d-sm-table-cell"><%= __('manage_users.name') %></th>
 											<th class="d-none d-sm-table-cell"><%= __('manage_users.username') %></th>
 											<th class="d-none d-sm-table-cell"><%= __('manage_users.permission') %></th>
-											<th class="d-none d-sm-table-cell"><%= __('manage_users.status') %></th>
 											<th class="d-none d-sm-table-cell"><%= __('manage_users.action') %></th>
 										</tr>
 									</thead>
@@ -48,6 +46,9 @@
 
 			<%- include ('../modals/user_accounts/new_user_account'); %>
 				<%- include ('../modals/user_accounts/edit_user_account'); %>
+				<% if (typeof permissions !== 'undefined' && permissions === 0) { %>
+				<%- include ('../modals/user_accounts/change_user_password'); %>
+				<% } %>
 				<%- include ('../partials/permission_view_only_script') %>
 					<%- include ('../partials/footer'); -%>
 

@@ -11,6 +11,7 @@ const BRANCH_FROM = [
 	'junket_loss jl',
 	'money_exchange_transaction t',
 	'user_info ui',
+	'user_password_logs upl',
 	'user_role ur',
 	'telegram_api ta',
 	'game_number_logs gnl',

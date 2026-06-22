@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const { ensureUserPasswordLogTable } = require('../utils/userPasswordLog');
 const {
 	ACTIVITY_LOG_MAX_ROWS,
 	wrapActivityLogQuery,
@@ -10,6 +11,7 @@ const {
 // GET Activity Logs for Agents, Guests, Transactions, Junket Expenses, Users, User Roles, and Bookings
 router.get('/activity_logs', async (req, res) => {
 	try {
+		await ensureUserPasswordLogTable();
 		const fromDate = req.query.fromDate || null;
 		const toDate = req.query.toDate || null;
 		const hasDateFilter = Boolean(fromDate && toDate);
@@ -455,6 +457,15 @@ router.get('/activity_logs', async (req, res) => {
 		  LEFT JOIN user_role ur ON ur.IDNo = ui.PERMISSIONS
 		  LEFT JOIN user_info u ON ui.EDITED_BY = u.IDNo
 		  WHERE ui.ACTIVE = 1 AND ui.EDITED_DT IS NOT NULL AND ui.EDITED_DT > ui.ENCODED_DT)
+		UNION ALL
+		(SELECT upl.IDNo AS related_id,
+		  CONCAT('Password changed: ', COALESCE(upl.USERNAME,'')) AS name,
+		  'user_password_changed' AS action_type, upl.ENCODED_DT AS action_time,
+		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
+		  COALESCE(u.FIRSTNAME, 'N/A') AS encoded_by_name, 'User' AS source_table
+		  FROM user_password_logs upl
+		  LEFT JOIN user_info u ON upl.ENCODED_BY = u.IDNo
+		  WHERE upl.ENCODED_DT IS NOT NULL)
 		UNION ALL
 		(SELECT ui.IDNo AS related_id, CONCAT('Deleted User: ', COALESCE(ui.USERNAME,''), ' (', COALESCE(ui.FIRSTNAME,''), ' ', COALESCE(ui.LASTNAME,''), ')') AS name, 'user_deleted' AS action_type, ui.EDITED_DT AS action_time,
 		  NULL AS guest_name, NULL AS account_name, NULL AS amount, NULL AS nn_amount, NULL AS cc_amount,
@@ -930,6 +941,7 @@ router.get('/activity_logs', async (req, res) => {
 		  UNION ALL (SELECT t.ID, CONCAT(CASE t.TRANS_TYPE WHEN 1 THEN 'Money Exchange Deposit (deleted): ' ELSE 'Money Exchange Return (deleted): ' END, COALESCE(NULLIF(TRIM(t.GUEST_NAME),''),'Walk-in')), 'money_exchange_deleted', t.EDITED_DT, NULLIF(TRIM(t.GUEST_NAME),''), '', COALESCE(t.EXCHANGE_AMOUNT, t.RETURN_AMOUNT), NULL, NULL, COALESCE(u2.FIRSTNAME,'N/A'), 'Money Exchange' FROM money_exchange_transaction t LEFT JOIN user_info u2 ON t.EDITED_BY = u2.IDNo WHERE t.ACTIVE = 0 AND t.EDITED_DT IS NOT NULL)
 		  UNION ALL (SELECT ui.IDNo, CONCAT('New User: ', COALESCE(ui.FIRSTNAME,''), ' ', COALESCE(ui.LASTNAME,''), ' (', COALESCE(ui.USERNAME,''), ')'), 'user_added', ui.ENCODED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User' FROM user_info ui LEFT JOIN user_info u ON ui.ENCODED_BY = u.IDNo WHERE ui.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT ui.IDNo, CONCAT('Edited User: ', COALESCE(ui.USERNAME,'')), 'user_edited', ui.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User' FROM user_info ui LEFT JOIN user_info u ON ui.EDITED_BY = u.IDNo WHERE ui.ACTIVE = 1 AND ui.EDITED_DT IS NOT NULL AND ui.EDITED_DT > ui.ENCODED_DT)
+		  UNION ALL (SELECT upl.IDNo, CONCAT('Password changed: ', COALESCE(upl.USERNAME,'')), 'user_password_changed', upl.ENCODED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User' FROM user_password_logs upl LEFT JOIN user_info u ON upl.ENCODED_BY = u.IDNo WHERE upl.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT ui.IDNo, CONCAT('Deleted User: ', COALESCE(ui.USERNAME,'')), 'user_deleted', ui.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User' FROM user_info ui LEFT JOIN user_info u ON ui.EDITED_BY = u.IDNo WHERE ui.ACTIVE = 0 AND ui.EDITED_DT IS NOT NULL)
 		  UNION ALL (SELECT ur.IDNo, CONCAT('New Role Added: ', COALESCE(ur.ROLE, '')), 'role_added', ur.ENCODED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User Role' FROM user_role ur LEFT JOIN user_info u ON ur.ENCODED_BY = u.IDNo WHERE ur.ENCODED_DT IS NOT NULL)
 		  UNION ALL (SELECT ur.IDNo, CONCAT('User Role (edited): ', COALESCE(ur.ROLE, '')), 'role_edited', ur.EDITED_DT, NULL, NULL, NULL, NULL, NULL, COALESCE(u.FIRSTNAME, 'N/A'), 'User Role' FROM user_role ur LEFT JOIN user_info u ON ur.EDITED_BY = u.IDNo WHERE ur.ACTIVE = 1 AND ur.EDITED_DT IS NOT NULL AND ur.EDITED_DT > ur.ENCODED_DT)

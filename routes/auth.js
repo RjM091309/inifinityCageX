@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 const argon2 = require('argon2');
 const crypto = require('crypto');
+const { logUserPasswordChange } = require('../utils/userPasswordLog');
 
 function isArgonHash(hash) {
     return typeof hash === 'string' && hash.startsWith('$argon2');
@@ -443,9 +444,11 @@ router.put('/user_role/remove/:id', async (req, res) => {
 router.get('/users', async (req, res) => {
 	try {
 		const query = `
-			SELECT *, user_role.ROLE AS role, user_info.IDNo AS user_id 
+			SELECT *, 
+				COALESCE(user_role.ROLE, 'Super Admin') AS role, 
+				user_info.IDNo AS user_id 
 			FROM user_info 
-			JOIN user_role ON user_role.IDno = user_info.PERMISSIONS 
+			LEFT JOIN user_role ON user_role.IDno = user_info.PERMISSIONS 
 			WHERE user_info.ACTIVE = 1
 		`;
 		const [results] = await pool.execute(query);
@@ -543,6 +546,55 @@ router.put('/user/:id', async (req, res) => {
 	} catch (err) {
 		console.error('Error updating user role:', err);
 		res.status(500).send('Error updating user role');
+	}
+});
+
+// CHANGE USER PASSWORD (Super Admin only)
+router.put('/user/:id/change-password', async (req, res) => {
+	try {
+		if (req.session.permissions !== 0) {
+			return res.status(403).json({ error: 'forbidden' });
+		}
+
+		const id = parseInt(req.params.id);
+		const { txtPassword, txtPassword2 } = req.body;
+
+		if (!txtPassword || !txtPassword2) {
+			return res.status(400).json({ error: 'missing_password' });
+		}
+
+		if (txtPassword !== txtPassword2) {
+			return res.status(400).json({ error: 'password' });
+		}
+
+		const [users] = await pool.execute(
+			'SELECT IDNo, USERNAME FROM user_info WHERE IDNo = ? AND ACTIVE = 1',
+			[id]
+		);
+
+		if (!users || users.length === 0) {
+			return res.status(404).json({ error: 'user_not_found' });
+		}
+
+		const hashedPassword = await argon2.hash(txtPassword);
+		const date_now = new Date();
+
+		await logUserPasswordChange({
+			userId: id,
+			username: users[0].USERNAME,
+			encodedBy: req.session.user_id,
+			encodedDt: date_now,
+		});
+
+		await pool.execute(
+			`UPDATE user_info SET PASSWORD = ?, SALT = NULL WHERE IDNo = ?`,
+			[hashedPassword, id]
+		);
+
+		res.json({ success: true });
+	} catch (err) {
+		console.error('Error changing user password:', err);
+		res.status(500).json({ error: 'server_error' });
 	}
 });
 

@@ -22,6 +22,9 @@ $(document).ready(function () {
 	});
 
 	function reloadData() {
+		var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
+		var isSuperAdmin = userPermissions === 0;
+
 		$.ajax({
 			url: '/users', // Endpoint to fetch data
 			method: 'GET',
@@ -29,33 +32,34 @@ $(document).ready(function () {
 				dataTable.clear();
 				data.forEach(function (row) {
 
-					// ONLINE / OFFLINE based on USER_STATUS (1 = online, 0 = offline)
-					var status = '';
-					if (row.USER_STATUS === 1 || row.USER_STATUS === '1') {
-						status = '<span class="css-online">ONLINE</span>';
-					} else {
-						status = '<span class="css-offline">OFFLINE</span>';
-					}
-
 					var btn = `<div class="btn-group">
         
               <button type="button" class="btn btn-sm bg-danger-subtle js-bs-tooltip-enabled" onclick="archive_user(${row.user_id})"
-              data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
+              data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete">
               <i class="fa fa-trash"></i>
-            </button>
-           
-            
+            </button>`;
+
+					if (isSuperAdmin) {
+						btn += `
+            <button type="button" class="btn btn-sm bg-warning-subtle js-bs-tooltip-enabled" onclick="change_password(${row.user_id}, '${row.USERNAME}')"
+              data-bs-toggle="tooltip" aria-label="Change Password" data-bs-original-title="Change Password">
+              <i class="fa fa-key"></i>
+            </button>`;
+					}
+
+					btn += `
             <button type="button" class="btn btn-sm bg-info-subtle js-bs-tooltip-enabled" onclick="edit_user(${row.user_id}, '${row.FIRSTNAME}', '${row.LASTNAME}', '${row.USERNAME}', ${row.PERMISSIONS})"
               data-bs-toggle="tooltip" aria-label="Edit" data-bs-original-title="Edit">
               <i class="fa fa-pencil-alt"></i>
             </button>
           </div>`;
 
-					dataTable.row.add([row.LASTNAME, row.FIRSTNAME, row.USERNAME, row.role, status, btn]).draw();
+					dataTable.row.add([row.FIRSTNAME, row.USERNAME, row.role, btn]).draw();
 				});
 				// View-only: disable delete and edit buttons after table is populated
 				if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
 					window.PermissionViewOnly.disableForViewOnly('#usersTable .btn.bg-danger-subtle');
+					window.PermissionViewOnly.disableForViewOnly('#usersTable .btn.bg-warning-subtle');
 					window.PermissionViewOnly.disableForViewOnly('#usersTable .btn.bg-info-subtle');
 				}
 			},
@@ -82,6 +86,54 @@ $(document).ready(function () {
 			},
 			error: function (error) {
 				console.error('Error updating user:', error);
+			}
+		});
+	});
+
+	$('#change_password').submit(function (event) {
+		event.preventDefault();
+
+		var formData = $(this).serialize();
+		$.ajax({
+			url: '/user/' + user_id + '/change-password',
+			type: 'PUT',
+			data: formData,
+			success: function () {
+				$('#modal-change_password').modal('hide');
+				$('#change_password')[0].reset();
+				Swal.fire({
+					icon: 'success',
+					title: 'Successfully',
+					text: 'Password changed successfully.'
+				});
+			},
+			error: function (xhr) {
+				var errorMessage = xhr.responseJSON && xhr.responseJSON.error;
+				if (errorMessage === 'password') {
+					Swal.fire({
+						icon: 'error',
+						title: 'Oops...',
+						text: 'Password not match!'
+					});
+				} else if (errorMessage === 'user_not_found') {
+					Swal.fire({
+						icon: 'error',
+						title: 'Oops...',
+						text: 'User not found.'
+					});
+				} else if (xhr.status === 403) {
+					Swal.fire({
+						icon: 'error',
+						title: 'Oops...',
+						text: 'Only Super Admin can change passwords.'
+					});
+				} else {
+					Swal.fire({
+						icon: 'error',
+						title: 'Oops...',
+						text: 'Failed to change password.'
+					});
+				}
 			}
 		});
 	});
@@ -140,6 +192,13 @@ function generateSalt(length) {
 	}
 
 	return salt;
+}
+
+function change_password(id, username) {
+	$('#modal-change_password').modal('show');
+	$('#change_password')[0].reset();
+	$('#change_password_username').text('Username: ' + username);
+	user_id = id;
 }
 
 function edit_user(id, firstname, lastname, username, role) {

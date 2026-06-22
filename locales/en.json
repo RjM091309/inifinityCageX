@@ -505,6 +505,7 @@
 	"manage_users": {
 		"manage_users": "Manage Users",
 		"new_user": "New User",
+		"name": "Name",
 		"last_name": "Last Name",
 		"first_name": "First Name",
 		"username": "Username",
@@ -1057,6 +1058,7 @@
 	},
 	"modal_new_user_account": {
 		"new_account": "New Account",
+		"name_placeholder": "Name",
 		"first_name_placeholder": "First Name",
 		"last_name_placeholder": "Last Name",
 		"username_placeholder": "Username",
@@ -1067,9 +1069,17 @@
 	},
 	"modal_edit_user_account": {
 		"edit_account": "Edit Account",
+		"name_placeholder": "Name",
 		"first_name_placeholder": "First Name",
 		"last_name_placeholder": "Last Name",
 		"username_placeholder": "Username",
+		"save": "Save",
+		"close": "Close"
+	},
+	"modal_change_user_password": {
+		"change_password": "Change Password",
+		"password_placeholder": "New Password",
+		"confirm_password_placeholder": "Confirm Password",
 		"save": "Save",
 		"close": "Close"
 	},

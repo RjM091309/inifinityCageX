@@ -161,6 +161,7 @@
         if (actionType === "credit_return") return "Credit Return";
         if (actionType === "credit_issued") return "Credit Issue";
         if (actionType === "game_number_changed") return "Modify Game";
+        if (actionType === "user_password_changed") return "Change Password";
         if (actionType === "telegram_edited") return "Telegram";
         if (actionType === "service_deleted" || actionType === "junket_loss_deleted" || actionType === "junket_chips_deleted" || actionType === "money_exchange_deleted" || actionType === "expense_deleted" || actionType === "expense_category_deleted" || actionType === "return_deleted" || actionType === "capital_deleted" || actionType === "user_deleted" || actionType === "role_deleted" || actionType === "booking_deleted" || actionType === "transaction_deleted" || actionType === "account_deleted" || actionType === "game_record_deleted") return "<%= __('dashboard.action_delete') %>";
         if (actionType === "marker_buyin") return "Marker Buy-in";
@@ -304,7 +305,7 @@
                             url = `/markerHistory`;
                         } else if (log.action_type === "transaction_deleted" && log.source_table === "Credit Return") {
                             url = `/markerHistory`;
-                        } else if (["user_added", "user_edited", "user_deleted"].includes(log.action_type)) {
+                        } else if (["user_added", "user_edited", "user_deleted", "user_password_changed"].includes(log.action_type)) {
                             url = `/manage_users`;
                         } else if (["role_added", "role_edited", "role_deleted"].includes(log.action_type)) {
                             url = `/user_roles`;

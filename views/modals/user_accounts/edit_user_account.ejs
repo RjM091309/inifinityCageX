@@ -15,14 +15,10 @@
 				<form id="edit_user">
 					<div class="row mb-2">
 						<div class="col-sm-12">
-							<input type="text" class="form-control" name="txtFirstName" placeholder="<%= __('modal_edit_user_account.first_name_placeholder') %>" id="firstname">
+							<input type="text" class="form-control" name="txtFirstName" placeholder="<%= __('modal_edit_user_account.name_placeholder') %>" id="firstname">
 						</div>
 					</div>
-					<div class="row mb-2">
-						<div class="col-sm-12">
-							<input type="text" class="form-control" name="txtLastName" placeholder="<%= __('modal_edit_user_account.last_name_placeholder') %>" id="lastname">
-						</div>
-					</div>
+					<input type="hidden" name="txtLastName" id="lastname">
 					<div class="row mb-2">
 						<div class="col-sm-12">
 							<input type="text" class="form-control" name="txtUserName" placeholder="<%= __('modal_edit_user_account.username_placeholder') %>" id="username">

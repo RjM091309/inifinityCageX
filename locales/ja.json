@@ -500,6 +500,7 @@
 	"manage_users": {
 		"manage_users": "ユーザー管理",
 		"new_user": "新しいユーザー",
+		"name": "名前",
 		"last_name": "姓",
 		"first_name": "名",
 		"username": "ユーザー名",
@@ -1044,6 +1045,7 @@
 	},
 	"modal_new_user_account": {
 		"new_account": "新規アカウント",
+		"name_placeholder": "名前",
 		"first_name_placeholder": "名前",
 		"last_name_placeholder": "姓",
 		"username_placeholder": "ユーザー名",
@@ -1054,9 +1056,17 @@
 	},
 	"modal_edit_user_account": {
 		"edit_account": "アカウントの編集",
+		"name_placeholder": "名前",
 		"first_name_placeholder": "名前",
 		"last_name_placeholder": "姓",
 		"username_placeholder": "ユーザー名",
+		"save": "保存",
+		"close": "閉じる"
+	},
+	"modal_change_user_password": {
+		"change_password": "パスワード変更",
+		"password_placeholder": "新しいパスワード",
+		"confirm_password_placeholder": "確認パスワード",
 		"save": "保存",
 		"close": "閉じる"
 	},

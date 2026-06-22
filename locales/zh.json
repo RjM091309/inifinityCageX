@@ -502,6 +502,7 @@
 	"manage_users": {
 		"manage_users": "管理用户",
 		"new_user": "新用户",
+		"name": "姓名",
 		"last_name": "姓",
 		"first_name": "名",
 		"username": "用户名",
@@ -1044,6 +1045,7 @@
 	},
 	"modal_new_user_account": {
 		"new_account": "新账户",
+		"name_placeholder": "姓名",
 		"first_name_placeholder": "名",
 		"last_name_placeholder": "姓",
 		"username_placeholder": "用户名",
@@ -1054,9 +1056,17 @@
 	},
 	"modal_edit_user_account": {
 		"edit_account": "编辑账户",
+		"name_placeholder": "姓名",
 		"first_name_placeholder": "名",
 		"last_name_placeholder": "姓",
 		"username_placeholder": "用户名",
+		"save": "保存",
+		"close": "关闭"
+	},
+	"modal_change_user_password": {
+		"change_password": "更改密码",
+		"password_placeholder": "新密码",
+		"confirm_password_placeholder": "确认密码",
 		"save": "保存",
 		"close": "关闭"
 	},
