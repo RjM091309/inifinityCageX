@@ -828,6 +828,10 @@
 		updateMxEditExchangeAmount();
 	});
 
+	$(document).on('input change', '#mx-edit-return-amount', function () {
+		formatInputWithCommasLive(this);
+	});
+
 	$(document).on('click', '.btn-mx-txn-edit', function () {
 		const id = $(this).data('id');
 		if (!id) return;
@@ -900,9 +904,22 @@
 				return;
 			}
 			updateMxEditExchangeAmount();
+			const amountIn = parseFormattedNumber($('#mx-edit-amount-in').val());
+			const ratePct = Number($('#mx-edit-rate-percent').val());
+			const exchangeAmt = parseFormattedNumber($('#mx-edit-exchange-amount').val());
+			if (
+				!Number.isFinite(amountIn) ||
+				!Number.isFinite(ratePct) ||
+				!Number.isFinite(exchangeAmt) ||
+				amountIn <= 0 ||
+				exchangeAmt <= 0
+			) {
+				Swal.fire('Validation', 'Enter valid amount, rate %, and exchange amount.', 'warning');
+				return;
+			}
 		} else {
-			const ra = Number($('#mx-edit-return-amount').val());
-			if (Number.isNaN(ra) || ra <= 0) {
+			const ra = parseFormattedNumber($('#mx-edit-return-amount').val());
+			if (!Number.isFinite(ra) || ra <= 0) {
 				Swal.fire('Validation', 'Enter a valid return amount.', 'warning');
 				return;
 			}
@@ -915,20 +932,22 @@
 		};
 		let data;
 		if (type === 1) {
+			const amountIn = parseFormattedNumber($('#mx-edit-amount-in').val());
+			const exchangeAmt = parseFormattedNumber($('#mx-edit-exchange-amount').val());
 			data = Object.assign({}, base, {
 				txtInCurrencyId: $('#mx-edit-in-currency').val(),
 				txtExchangeCurrencyId: $('#mx-edit-exchange-currency').val(),
-				txtAmountIn: String(parseFormattedNumber($('#mx-edit-amount-in').val())),
+				txtAmountIn: String(amountIn),
 				txtRatePercent: $('#mx-edit-rate-percent').val(),
-				txtExchangeAmount: String(parseFormattedNumber($('#mx-edit-exchange-amount').val())),
+				txtExchangeAmount: String(exchangeAmt),
 			});
 		} else {
 			const mv = String($('#mx-edit-margin-return').val() || '').trim();
 			data = Object.assign({}, base, {
-				txtReturnAmount: $('#mx-edit-return-amount').val(),
+				txtReturnAmount: String(parseFormattedNumber($('#mx-edit-return-amount').val())),
 				txtSourceDepositId: $('#mx-edit-source-deposit-id').val() || '',
 			});
-			if (mv !== '') data.txtMarginReturn = mv;
+			if (mv !== '') data.txtMarginReturn = String(parseFormattedNumber(mv));
 		}
 
 		const $btn = $('#btn-mx-edit-txn-save');
