@@ -921,7 +921,8 @@
 		"Contact_placeholder": "Contact Number",
 		"Remarks_placeholder": "Remarks",
 		"save": "Save",
-		"close": "Close"
+		"close": "Close",
+		"change_passport": "Change passport"
 	},
 	"modal_edit_agent": {
 		"edit_guest": "Edit Guest",

@@ -82,6 +82,555 @@ function renderAgentActionCell(row, readOnly) {
 	);
 }
 
+// Pending passport extraction (used to auto-fill New Guest before save)
+window.__pendingPassportExtract = null;
+window.__pendingPassportImageDataUrl = null;
+window.__pendingPassportFile = null;
+window.__pendingFaceFile = null;
+window.__pendingFacePreviewDataUrl = null;
+window.__passportScanInProgress = false;
+
+function setHidden(id, value) {
+	if (!id) return;
+	var el = document.getElementById(id);
+	if (!el) return;
+	el.value = value == null ? '' : String(value);
+}
+
+function applyPassportExtractToGuestForm(extract) {
+	if (!extract || typeof extract !== 'object') return;
+
+	if (extract.full_name) {
+		var newName = document.querySelector('#modal-new-agent input[name="txtName"]');
+		if (newName) newName.value = extract.full_name;
+	}
+
+	setHidden('txtDocumentType', extract.document_type);
+	setHidden('txtCountryCode', extract.country_code);
+	setHidden('txtPassportNo', extract.passport_number);
+	setHidden('txtNationality', extract.nationality);
+	setHidden('txtDateOfBirth', extract.date_of_birth);
+	setHidden('txtExpiryDate', extract.expiry_date);
+	setHidden('txtGender', extract.gender);
+	setHidden('txtMrzLine', extract.mrz_line);
+}
+
+function resetNewGuestFormAfterCreate() {
+	var form = document.getElementById('add_new_agent');
+	var agencyLineEl = document.getElementById('txtAgencyLine');
+	var agencyLineVal = agencyLineEl ? agencyLineEl.value : '';
+	if (form && typeof form.reset === 'function') form.reset();
+	if (agencyLineEl) agencyLineEl.value = agencyLineVal;
+
+	setHidden('txtDocumentType', '');
+	setHidden('txtCountryCode', '');
+	setHidden('txtPassportNo', '');
+	setHidden('txtNationality', '');
+	setHidden('txtDateOfBirth', '');
+	setHidden('txtExpiryDate', '');
+	setHidden('txtGender', '');
+	setHidden('txtMrzLine', '');
+
+	window.__pendingPassportExtract = null;
+	window.__pendingPassportImageDataUrl = null;
+	window.__pendingPassportFile = null;
+	window.__pendingFaceFile = null;
+	window.__pendingFacePreviewDataUrl = null;
+
+	var fileInput = document.querySelector('#modal-new-agent .js-passport-file');
+	if (fileInput) fileInput.value = '';
+
+	hideNewGuestPassportPreview();
+}
+
+function getMrzLines(mrz) {
+	if (!mrz || !String(mrz).trim()) return ['—', '—'];
+	var lines = String(mrz)
+		.trim()
+		.split(/\r?\n/)
+		.map(function (l) { return l.trim(); })
+		.filter(Boolean);
+	if (lines.length >= 2) return [lines[0], lines[1]];
+	var t = String(mrz).replace(/\s+/g, '');
+	if (!t) return ['—', '—'];
+	return [t.slice(0, 44) || t, t.slice(44, 88) || '—'];
+}
+
+function expiryStatus(expiry) {
+	if (!expiry) return 'unknown';
+	var d = new Date(expiry);
+	if (Number.isNaN(d.getTime())) return 'unknown';
+	var t = new Date();
+	t.setHours(0, 0, 0, 0);
+	d.setHours(0, 0, 0, 0);
+	return d >= t ? 'valid' : 'expired';
+}
+
+function hideNewGuestPassportPreview() {
+	var wrap = document.getElementById('new-guest-passport-preview');
+	if (!wrap) return;
+	wrap.classList.add('d-none');
+	var img = document.getElementById('ngp-face-thumb');
+	if (img) {
+		img.removeAttribute('src');
+		img.alt = '';
+	}
+}
+
+function resetNewGuestPassportUpload() {
+	setHidden('txtDocumentType', '');
+	setHidden('txtCountryCode', '');
+	setHidden('txtPassportNo', '');
+	setHidden('txtNationality', '');
+	setHidden('txtDateOfBirth', '');
+	setHidden('txtExpiryDate', '');
+	setHidden('txtGender', '');
+	setHidden('txtMrzLine', '');
+
+	window.__pendingPassportExtract = null;
+	window.__pendingPassportImageDataUrl = null;
+	window.__pendingPassportFile = null;
+	window.__pendingFaceFile = null;
+	window.__pendingFacePreviewDataUrl = null;
+
+	var fileInput = document.querySelector('#modal-new-agent .js-passport-file');
+	if (fileInput) fileInput.value = '';
+
+	var newName = document.querySelector('#modal-new-agent input[name="txtName"]');
+	if (newName) newName.value = '';
+
+	hideNewGuestPassportPreview();
+}
+
+function renderNewGuestPassportPreview(extract, facePreviewDataUrl) {
+	if (!extract) return;
+	var wrap = document.getElementById('new-guest-passport-preview');
+	if (!wrap) return;
+
+	var countryTitle = ((extract.nationality || extract.country_code || 'PASSPORT') + '').toUpperCase();
+	var docType = extract.document_type || 'P';
+	var exp = expiryStatus(extract.expiry_date);
+	var mrz = getMrzLines(extract.mrz_line);
+
+	var elCountry = document.getElementById('ngp-country-title');
+	var elDoc = document.getElementById('ngp-doc-badge');
+	if (elCountry) elCountry.textContent = countryTitle;
+	if (elDoc) elDoc.textContent = 'PASSPORT · ' + docType;
+
+	var expBadge = document.getElementById('ngp-expiry-badge');
+	if (expBadge) {
+		if (exp === 'expired') {
+			expBadge.textContent = 'Expired';
+			expBadge.style.background = '#fee2e2';
+			expBadge.style.color = '#991b1b';
+		} else if (exp === 'valid') {
+			expBadge.textContent = 'Valid';
+			expBadge.style.background = '#dcfce7';
+			expBadge.style.color = '#166534';
+		} else {
+			expBadge.textContent = 'Unknown';
+			expBadge.style.background = '#f3f4f6';
+			expBadge.style.color = '#374151';
+		}
+	}
+
+	var thumb = document.getElementById('ngp-face-thumb');
+	if (thumb) {
+		if (facePreviewDataUrl) {
+			thumb.src = facePreviewDataUrl;
+			thumb.alt = 'Face';
+		} else {
+			thumb.removeAttribute('src');
+			thumb.alt = '';
+		}
+	}
+
+	var elName = document.getElementById('ngp-full-name');
+	var elPp = document.getElementById('ngp-passport-no');
+	var elGen = document.getElementById('ngp-gender');
+	var elDob = document.getElementById('ngp-dob');
+	if (elName) elName.textContent = extract.full_name || '—';
+	if (elPp) elPp.textContent = extract.passport_number || '—';
+	if (elGen) elGen.textContent = extract.gender || '—';
+	if (elDob) elDob.textContent = extract.date_of_birth || '—';
+
+	var expEl = document.getElementById('ngp-expiry');
+	if (expEl) {
+		expEl.textContent = extract.expiry_date || '—';
+		if (exp === 'expired') {
+			expEl.style.color = '#dc2626';
+		} else if (exp === 'valid') {
+			expEl.style.color = '#16a34a';
+		} else {
+			expEl.style.color = '#111827';
+		}
+	}
+
+	var elMrz1 = document.getElementById('ngp-mrz-1');
+	var elMrz2 = document.getElementById('ngp-mrz-2');
+	if (elMrz1) elMrz1.textContent = mrz[0];
+	if (elMrz2) elMrz2.textContent = mrz[1];
+
+	wrap.classList.remove('d-none');
+}
+
+function setGuestSubmitButtonsDisabled(disabled) {
+	$('#submit-new-agent-btn').prop('disabled', !!disabled);
+}
+
+function prepareGuestPhotoFormData(formData) {
+	if (window.__passportScanInProgress) {
+		return { ok: false, message: 'Passport scan is still in progress. Please wait.' };
+	}
+
+	var hasPassportScan = !!(window.__pendingPassportExtract || window.__pendingPassportFile);
+	if (hasPassportScan) {
+		if (!window.__pendingFaceFile) {
+			return {
+				ok: false,
+				message: 'Face photo is not ready. Wait for passport processing to finish or re-upload the passport.'
+			};
+		}
+		formData.delete('photo');
+		formData.append('photo', window.__pendingFaceFile);
+		if (window.__pendingPassportFile) {
+			formData.append('passportImage', window.__pendingPassportFile);
+		}
+		return { ok: true };
+	}
+
+	if (window.__pendingFaceFile) {
+		formData.delete('photo');
+		formData.append('photo', window.__pendingFaceFile);
+	}
+
+	return { ok: true };
+}
+
+function showGuestFormError(message) {
+	if (typeof Swal !== 'undefined') {
+		Swal.fire({ icon: 'warning', title: 'Cannot save', text: message });
+	} else {
+		alert(message);
+	}
+}
+
+async function runPassportScanForNewGuest(file, options) {
+	options = options || {};
+	var showBusy = options.showBusy !== false;
+
+	window.__passportScanInProgress = true;
+	setGuestSubmitButtonsDisabled(true);
+	try {
+		if (showBusy && typeof Swal !== 'undefined') {
+			Swal.fire({
+				title: 'Scanning passport…',
+				text: 'Please wait while we read the passport details.',
+				allowOutsideClick: false,
+				allowEscapeKey: false,
+				didOpen: function () { Swal.showLoading(); }
+			});
+		}
+
+		var r = await extractPassportFromFile(file);
+		var extract = r.extract;
+		if (!extract || extract.is_passport === false) {
+			throw new Error('This does not appear to be a passport. Please upload a valid passport image.');
+		}
+
+		window.__pendingPassportExtract = extract;
+		window.__pendingPassportImageDataUrl = r.dataUrl;
+		applyPassportExtractToGuestForm(extract);
+
+		var face = await cropFaceFromDataUrl(r.dataUrl);
+		window.__pendingFaceFile = face.file;
+		window.__pendingFacePreviewDataUrl = face.previewDataUrl || null;
+
+		renderNewGuestPassportPreview(extract, window.__pendingFacePreviewDataUrl);
+	} finally {
+		window.__passportScanInProgress = false;
+		setGuestSubmitButtonsDisabled(false);
+		if (showBusy && typeof Swal !== 'undefined') Swal.close();
+	}
+}
+
+function fileToDataUrl(file) {
+	return new Promise(function (resolve, reject) {
+		var reader = new FileReader();
+		reader.onerror = function () { reject(new Error('Failed to read file')); };
+		reader.onload = function () { resolve(String(reader.result || '')); };
+		reader.readAsDataURL(file);
+	});
+}
+
+function canvasToWebpDataUrl(canvas, quality) {
+	var q = typeof quality === 'number' ? quality : 0.92;
+	try {
+		var url = canvas.toDataURL('image/webp', q);
+		if (url && /^data:image\/webp/i.test(url)) return url;
+	} catch (_) {
+		/* ignore */
+	}
+	return canvas.toDataURL('image/jpeg', q);
+}
+
+function dataUrlToWebpFile(dataUrl, filename) {
+	var name = (filename && String(filename)) || 'face.webp';
+	if (!name.toLowerCase().endsWith('.webp')) name += '.webp';
+	var blob = dataUrlToBlob(dataUrl);
+	var mime = (blob && blob.type) || '';
+	if (mime !== 'image/webp') {
+		return new File([blob], name.replace(/\.webp$/i, '.jpg'), { type: mime || 'image/jpeg' });
+	}
+	return new File([blob], name, { type: 'image/webp' });
+}
+
+async function cropFaceFromDataUrl(dataUrl) {
+	var img = new Image();
+	img.crossOrigin = 'anonymous';
+	await new Promise(function (resolve, reject) {
+		img.onload = resolve;
+		img.onerror = function () { reject(new Error('Failed to load image')); };
+		img.src = dataUrl;
+	});
+
+	var w = img.naturalWidth || img.width;
+	var h = img.naturalHeight || img.height;
+	if (!w || !h) throw new Error('Invalid image dimensions');
+
+	try {
+		var faceDataUrl = await detectAndCropFaceLikePassportScanner(dataUrl, img);
+		if (faceDataUrl) {
+			return { file: dataUrlToWebpFile(faceDataUrl, 'face.webp'), previewDataUrl: faceDataUrl };
+		}
+	} catch (_) {
+		/* fall back below */
+	}
+
+	var sx = Math.floor(w * 0.06);
+	var sy = Math.floor(h * 0.42);
+	var sw = Math.min(Math.floor(w * 0.30), w - sx);
+	var sh = Math.min(Math.floor(h * 0.36), h - sy);
+
+	var canvas = document.createElement('canvas');
+	canvas.width = sw;
+	canvas.height = sh;
+	var ctx = canvas.getContext('2d');
+	if (!ctx) throw new Error('Canvas not supported');
+	ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+	var previewDataUrl = canvasToWebpDataUrl(canvas, 0.9);
+	var blob = await new Promise(function (resolve) {
+		canvas.toBlob(function (b) { resolve(b); }, 'image/webp', 0.9);
+	});
+	if (!blob || blob.type !== 'image/webp') {
+		previewDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+		blob = await new Promise(function (resolve) {
+			canvas.toBlob(function (b) { resolve(b); }, 'image/jpeg', 0.9);
+		});
+	}
+	if (!blob) throw new Error('Failed to create cropped image');
+
+	var isWebp = blob.type === 'image/webp';
+	return {
+		file: new File([blob], isWebp ? 'face.webp' : 'face.jpg', { type: isWebp ? 'image/webp' : 'image/jpeg' }),
+		previewDataUrl: previewDataUrl
+	};
+}
+window.cropFaceFromDataUrl = cropFaceFromDataUrl;
+
+var __faceModelsLoaded = false;
+
+function dataUrlToBlob(dataUrl) {
+	var parts = String(dataUrl || '').split(',');
+	var meta = parts[0] || '';
+	var b64 = parts[1] || '';
+	var mime = (meta.match(/:(.*?);/) || [])[1] || 'image/jpeg';
+	var bin = atob(b64);
+	var len = bin.length;
+	var u8 = new Uint8Array(len);
+	for (var i = 0; i < len; i++) u8[i] = bin.charCodeAt(i);
+	return new Blob([u8], { type: mime });
+}
+
+async function loadFaceApiModels() {
+	if (__faceModelsLoaded) return;
+	if (!window.faceapi) throw new Error('face-api.js not loaded');
+	await Promise.all([
+		window.faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+		window.faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models')
+	]);
+	__faceModelsLoaded = true;
+}
+
+function drawContainTo160x200(colorImg, source) {
+	var OUT_W = 160;
+	var OUT_H = 200;
+	var canvas = document.createElement('canvas');
+	canvas.width = OUT_W;
+	canvas.height = OUT_H;
+	var ctx = canvas.getContext('2d');
+	if (!ctx) return null;
+	ctx.fillStyle = '#ffffff';
+	ctx.fillRect(0, 0, OUT_W, OUT_H);
+	var scaleX = OUT_W / source.w;
+	var scaleY = OUT_H / source.h;
+	var scale = Math.max(scaleX, scaleY);
+	var drawW = source.w * scale;
+	var drawH = source.h * scale;
+	var dx = (OUT_W - drawW) / 2;
+	var dy = (OUT_H - drawH) / 2;
+	ctx.drawImage(colorImg, source.x, source.y, source.w, source.h, dx, dy, drawW, drawH);
+	return canvasToWebpDataUrl(canvas, 0.92);
+}
+
+function extractVerticalStripFromImg(img, startYFrac, endYFrac) {
+	var startY = Math.floor(img.height * startYFrac);
+	var endY = Math.max(startY + 1, Math.floor(img.height * endYFrac));
+	var cropHeight = endY - startY;
+	var canvas = document.createElement('canvas');
+	canvas.width = img.width;
+	canvas.height = cropHeight;
+	var ctx = canvas.getContext('2d');
+	if (!ctx) throw new Error('Canvas 2d context not available');
+	ctx.drawImage(img, 0, startY, img.width, cropHeight, 0, 0, img.width, cropHeight);
+	return { dataUrl: canvasToWebpDataUrl(canvas, 0.95), offsetY: startY };
+}
+
+function buildLandmarkDrivenRect(positions, canvasW, canvasH, offsetY) {
+	if (!positions || positions.length < 27) return null;
+	function yf(py) { return py + offsetY; }
+	var browTop = Infinity;
+	for (var i = 17; i < 27; i++) browTop = Math.min(browTop, yf(positions[i].y));
+	var chin = positions[8];
+	var jawLeft = positions[0];
+	var jawRight = positions[16];
+	var faceWidth = jawRight.x - jawLeft.x;
+	if (faceWidth <= 1) return null;
+	var faceCenterX = (jawLeft.x + jawRight.x) / 2;
+	var top = browTop - faceWidth * 1.0;
+	var bottom = yf(chin.y) + faceWidth * 0.45;
+	var srcH = bottom - top;
+	if (srcH <= 1) return null;
+	var srcW = srcH * (4 / 5);
+	var scaleFit = Math.min(1, canvasW / srcW, canvasH / srcH);
+	srcW *= scaleFit;
+	srcH *= scaleFit;
+	var x = Math.max(0, Math.min(canvasW - srcW, faceCenterX - srcW / 2));
+	var y = Math.max(0, Math.min(canvasH - srcH, top));
+	return { x: x, y: y, w: srcW, h: srcH };
+}
+
+async function tryDetectAndCropStrip(colorImg, stripDataUrl, offsetY) {
+	var detectionImg = await window.faceapi.fetchImage(stripDataUrl);
+	var result = await window.faceapi
+		.detectSingleFace(detectionImg, new window.faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 }))
+		.withFaceLandmarks(true);
+	if (!result || !result.detection || !result.detection.box) return null;
+	var positions = result.landmarks && result.landmarks.positions ? result.landmarks.positions : null;
+
+	var rect = buildLandmarkDrivenRect(positions, colorImg.width, colorImg.height, offsetY);
+	if (rect) return drawContainTo160x200(colorImg, rect);
+
+	var b = result.detection.box;
+	var pad = Math.max(b.width, b.height) * 0.6;
+	var cx = b.x + b.width / 2;
+	var cy = b.y + b.height / 2 + offsetY;
+	var rw = (b.width + pad) * 1.35;
+	var rh = rw * (200 / 160);
+	var sx = Math.max(0, Math.min(colorImg.width - rw, cx - rw / 2));
+	var sy = Math.max(0, Math.min(colorImg.height - rh, cy - rh / 2));
+	return drawContainTo160x200(colorImg, { x: sx, y: sy, w: rw, h: rh });
+}
+
+async function detectAndCropFaceLikePassportScanner(imageDataUrl, colorImg) {
+	await loadFaceApiModels();
+
+	var photoPage = extractVerticalStripFromImg(colorImg, 0, 0.52);
+	var fromPhoto = await tryDetectAndCropStrip(colorImg, photoPage.dataUrl, photoPage.offsetY);
+	if (fromPhoto) return fromPhoto;
+
+	var dataPage = extractVerticalStripFromImg(colorImg, 0.4, 1);
+	var fromData = await tryDetectAndCropStrip(colorImg, dataPage.dataUrl, dataPage.offsetY);
+	return fromData || null;
+}
+
+async function extractPassportFromFile(file) {
+	if (!file || !file.type || !file.type.startsWith('image/')) {
+		throw new Error('Please choose an image file.');
+	}
+	var dataUrl = await fileToDataUrl(file);
+
+	async function toReasonableJpegDataUrl(inputDataUrl) {
+		try {
+			var img = await new Promise(function (resolve, reject) {
+				var el = new Image();
+				el.onload = function () { resolve(el); };
+				el.onerror = function () { reject(new Error('Failed to load image')); };
+				el.src = inputDataUrl;
+			});
+			var maxDim = 1600;
+			var w = img.naturalWidth || img.width;
+			var h = img.naturalHeight || img.height;
+			if (!w || !h) return inputDataUrl;
+			var scale = Math.min(1, maxDim / Math.max(w, h));
+			var canvas = document.createElement('canvas');
+			canvas.width = Math.max(1, Math.round(w * scale));
+			canvas.height = Math.max(1, Math.round(h * scale));
+			var ctx = canvas.getContext('2d');
+			if (!ctx) return inputDataUrl;
+			ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+			return canvas.toDataURL('image/jpeg', 0.85);
+		} catch (_) {
+			return inputDataUrl;
+		}
+	}
+
+	// Always downscale/compress before API — keeps payload small and avoids 413 errors
+	dataUrl = await toReasonableJpegDataUrl(dataUrl);
+
+	var rawBase64 = (dataUrl.split(',')[1] || '').trim();
+	if (!rawBase64) throw new Error('Invalid image.');
+
+	var base64 = (dataUrl.split(',')[1] || '').trim();
+	if (!base64) throw new Error('Invalid image.');
+
+	var res = await fetch('/api/scanner/passport-extract-internal', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ imageBase64: base64, imageMimeType: 'image/jpeg' })
+	});
+	var json = await res.json().catch(function () { return null; });
+	if (!res.ok) {
+		var errObj = json && json.error ? json.error : null;
+		var code = errObj && errObj.code ? String(errObj.code).toUpperCase() : '';
+		var serverMsg = errObj && (errObj.message || errObj.error) ? String(errObj.message || errObj.error) : '';
+		var msg = '';
+		if (res.status === 401) {
+			msg = 'Unauthorized: not logged in. Please re-login and try again.';
+		} else if (res.status === 413) {
+			msg = 'Image is too large for the server. Please use a smaller/clearer photo.';
+		} else if (res.status === 503 && code === 'GCP_CREDENTIALS_MISCONFIGURED') {
+			msg = 'Passport scanner is not configured on the server. Please contact admin.';
+		} else if (code === 'IMAGE_REQUIRED') {
+			msg = 'Passport image is required. Please scan again.';
+		} else if (code === 'IMAGE_BASE64_INVALID' || code === 'IMAGE_EMPTY') {
+			msg = 'Invalid passport image. Please scan again (clear photo, no glare).';
+		} else if (code === 'VERTEX_NO_TEXT') {
+			msg = 'Scanner could not read the passport. Please retake photo (good lighting, focus, no blur).';
+		} else if (code === 'VERTEX_BAD_JSON') {
+			msg = 'Scanner returned an invalid response. Please try again.';
+		} else if (code === 'EXTRACTION_FAILED') {
+			msg = 'Passport scan failed. Please try again.';
+		} else {
+			msg = serverMsg || ('HTTP ' + res.status);
+		}
+		throw new Error(msg);
+	}
+	return { extract: json && json.data ? json.data : null, dataUrl: dataUrl };
+}
+window.extractPassportFromFile = extractPassportFromFile;
+
 // Function to fetch Telegram username from chat ID
 function fetchTelegramUsername(chatId, userType) {
 	if (!chatId || chatId === '' || chatId === null) {
@@ -287,6 +836,12 @@ $(document).ready(function () {
 	
 		var formData = new FormData(this); // FormData for file upload
 		var $btn = $('#submit-new-agent-btn'); // Reference to the button
+
+		var photoPrep = prepareGuestPhotoFormData(formData);
+		if (!photoPrep.ok) {
+			showGuestFormError(photoPrep.message);
+			return;
+		}
 	
 		// Show spinner loading
 		$btn.prop('disabled', true).html(`
@@ -303,20 +858,23 @@ $(document).ready(function () {
 			success: function(response) {
 				Swal.fire({
 					title: 'Success!',
-					text: response.message,
+					text: (response && response.message) ? response.message : 'Guest saved successfully.',
 					icon: 'success',
 					confirmButtonText: 'OK'
 				}).then((result) => {
 					if (result.isConfirmed) {
-						window.location.href = '/agency'; // Redirect
+						window.location.href = '/agency';
 					}
 				});
 			},
 			error: function(xhr) {
-				console.error('Error:', xhr.responseJSON ? xhr.responseJSON.error : 'Unknown error occurred');
+				var errText = (xhr.responseJSON && xhr.responseJSON.error)
+					? xhr.responseJSON.error
+					: (xhr.responseText || 'Unknown error');
+				console.error('Error:', errText);
 				Swal.fire({
 					title: 'Error!',
-					text: xhr.responseJSON ? xhr.responseJSON.error : 'Unknown error',
+					text: errText,
 					icon: 'error',
 					confirmButtonText: 'OK'
 				});
@@ -384,9 +942,67 @@ $(document).ready(function () {
 	// Make globally accessible if needed
 	window.addAgent = addAgent;
 
-	// Auto re-open ledger modal when closing new-agent modal
+	// Clear New Guest form whenever the modal closes
 	$('#modal-new-agent').on('hidden.bs.modal', function () {
+		resetNewGuestFormAfterCreate();
 		$('#modal-account-ledger').modal('show');
+	});
+
+	// Auto-extract passport data when choosing file (New Guest)
+	$(document).on('change', '.js-passport-file', function () {
+		var file = this.files && this.files[0];
+		var inNewGuest = !!this.closest && this.closest('#modal-new-agent');
+
+		if (!file) {
+			if (inNewGuest) hideNewGuestPassportPreview();
+			return;
+		}
+
+		if (!inNewGuest) return;
+
+		window.__pendingPassportFile = file;
+		window.__pendingPassportExtract = null;
+		window.__pendingPassportImageDataUrl = null;
+		window.__pendingFaceFile = null;
+		window.__pendingFacePreviewDataUrl = null;
+
+		runPassportScanForNewGuest(file, { showBusy: true }).catch(function (err) {
+			window.__pendingPassportExtract = null;
+			window.__pendingPassportImageDataUrl = null;
+			window.__pendingFaceFile = null;
+			window.__pendingFacePreviewDataUrl = null;
+			hideNewGuestPassportPreview();
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'error', title: 'Passport scan failed', text: (err && err.message) ? err.message : 'Failed to scan passport.' });
+			} else {
+				alert((err && err.message) ? err.message : 'Failed to scan passport.');
+			}
+		});
+	});
+
+	$(document).on('click', '#btn-new-guest-reextract', function () {
+		var file = window.__pendingPassportFile;
+		if (!file) {
+			if (typeof Swal !== 'undefined') {
+				Swal.fire({ icon: 'warning', title: 'No passport image', text: 'Choose a passport image first.' });
+			}
+			return;
+		}
+		var $btn = $(this);
+		$btn.prop('disabled', true);
+		runPassportScanForNewGuest(file, { showBusy: true })
+			.catch(function (err) {
+				if (typeof Swal !== 'undefined') {
+					Swal.fire({ icon: 'error', title: 'Re-extract failed', text: (err && err.message) ? err.message : 'Failed to re-extract passport.' });
+				}
+			})
+			.finally(function () {
+				$btn.prop('disabled', false);
+			});
+	});
+
+	$(document).on('click', '#btn-new-guest-change-passport', function () {
+		resetNewGuestPassportUpload();
 	});
 
 		// Auto re-open ledger modal when closing new-agent modal
