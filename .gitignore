@@ -60,6 +60,3 @@ Thumbs.db
 # Upload directories
 ReceiptUpload/
 PassportUpload/
-
-# GCP service account keys (never commit)
-config/passport-scanner-v1-*.json

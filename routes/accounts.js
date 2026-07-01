@@ -1,9 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
-const fs = require('fs').promises;
-const path = require('path');
-const sharp = require('sharp');
 
 const { checkSession, sessions } = require('./auth');
 const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
@@ -166,59 +163,11 @@ const recordHistory = async ({
 const storage = multer.diskStorage({
 	destination: 'PassportUpload/',
 	filename: (req, file, cb) => {
-		const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}.upload`;
+		const uniqueName = `${Date.now()}-${file.originalname}`; // Unique filename
 		cb(null, uniqueName);
 	}
 });
 
-function collectMulterFiles(req) {
-	const out = [];
-	if (req.file) out.push(req.file);
-	if (req.files) {
-		if (Array.isArray(req.files)) out.push(...req.files);
-		else {
-			for (const k of Object.keys(req.files)) {
-				const arr = req.files[k];
-				if (Array.isArray(arr)) out.push(...arr);
-			}
-		}
-	}
-	return out;
-}
-
-async function convertPassportUploadsToWebp(req, res, next) {
-	try {
-		const files = collectMulterFiles(req);
-		for (const f of files) {
-			if (!f?.path) continue;
-			const inPath = f.path;
-			const dir = path.dirname(inPath);
-			const base = path.basename(inPath, path.extname(inPath));
-			const outName = `${base}.webp`;
-			const outPath = path.join(dir, outName);
-
-			await sharp(inPath)
-				.rotate()
-				.webp({ quality: 86 })
-				.toFile(outPath);
-
-			try {
-				await fs.unlink(inPath);
-			} catch (_) {
-				/* ignore */
-			}
-
-			f.filename = outName;
-			f.path = outPath;
-			f.destination = dir;
-			f.mimetype = 'image/webp';
-		}
-		next();
-	} catch (err) {
-		console.error('WebP conversion failed:', err);
-		next(err);
-	}
-}
 
 const uploadPassportImg = multer({
 	storage: storage,
@@ -226,32 +175,13 @@ const uploadPassportImg = multer({
 		fileSize: 5 * 1024 * 1024 // Limit file size to 5MB
 	},
 	fileFilter(req, file, cb) {
-		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
 		if (!allowedTypes.includes(file.mimetype)) {
 			return cb(new Error('File type not allowed'));
 		}
 		cb(null, true);
 	}
 });
-
-function handlePassportUpload(req, res, next) {
-	uploadPassportImg.fields([{ name: 'photo', maxCount: 1 }, { name: 'passportImage', maxCount: 1 }])(req, res, (err) => {
-		if (err) {
-			console.error('Passport upload error:', err);
-			const message = err.code === 'LIMIT_FILE_SIZE'
-				? 'Image file is too large (max 5MB per file).'
-				: (err.message || 'Upload failed');
-			return res.status(400).json({ error: message });
-		}
-		next();
-	});
-}
-
-function wantsJsonResponse(req) {
-	return req.xhr
-		|| req.headers['x-requested-with'] === 'XMLHttpRequest'
-		|| String(req.headers.accept || '').includes('application/json');
-}
 
 
 router.get("/agency", checkSession, function (req, res) {
@@ -351,7 +281,7 @@ router.put('/agency/remove/:id', async (req, res) => {
 
 
 // ADD AGENT
-router.post('/add_agent', handlePassportUpload, convertPassportUploadsToWebp, async (req, res) => {
+router.post('/add_agent', uploadPassportImg.fields([{ name: 'photo', maxCount: 1 }, { name: 'passportImage', maxCount: 1 }]), async (req, res) => {
 	// API key check for Passport Scanner app (no session)
 	const apiKey = req.headers['x-api-key'];
 	const validApiKey = process.env.SCANNER_API_KEY;
@@ -413,15 +343,9 @@ router.post('/add_agent', handlePassportUpload, convertPassportUploadsToWebp, as
 		if (isApiRequest && !req.session?.user_id) {
 		  return res.status(200).json({ success: true, agent_id });
 		}
-		if (wantsJsonResponse(req)) {
-			return res.status(200).json({ success: true, message: 'Guest saved successfully.', agent_id });
-		}
 		res.redirect('/agent');
 	} catch (err) {
 		console.error('Error adding agent:', err);
-		if (wantsJsonResponse(req)) {
-			return res.status(500).json({ error: 'Error adding agent' });
-		}
 		res.status(500).send('Error adding agent');
 	}
 });
@@ -1635,108 +1559,24 @@ router.put('/account/:accountId/agent_remarks', async (req, res) => {
 	}
 });
 
-// UPDATE ACCOUNT (AGENT) PHOTO from Guest Portal modal (+ optional passport re-scan)
-router.post('/account/:accountId/update_photo', handlePassportUpload, convertPassportUploadsToWebp, async (req, res) => {
+// UPDATE ACCOUNT (AGENT) PHOTO from Guest Portal modal
+router.post('/account/:accountId/update_photo', uploadPassportImg.single('photo'), async (req, res) => {
 	try {
 		const accountId = req.params.accountId;
-		const faceFile = req.files?.photo?.[0];
-		if (!faceFile) {
+		const file = req.file;
+		if (!file) {
 			return res.status(400).json({ error: 'No photo file' });
 		}
 		const [[row]] = await pool.query('SELECT AGENT_ID FROM account WHERE IDNo = ?', [accountId]);
 		if (!row || row.AGENT_ID == null) {
 			return res.status(404).json({ error: 'Account or agent not found' });
 		}
-		const agentId = row.AGENT_ID;
 		const date_now = new Date();
-		const editorId = req.session?.user_id ?? 1;
-
 		await pool.execute(
 			'UPDATE agent SET PHOTO = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
-			[faceFile.filename, editorId, date_now, agentId]
+			[file.filename, req.session.user_id, date_now, row.AGENT_ID]
 		);
-
-		const passportFile = req.files?.passportImage?.[0];
-		const {
-			txtDocumentType,
-			txtCountryCode,
-			txtPassportNo,
-			txtNationality,
-			txtDateOfBirth,
-			txtExpiryDate,
-			txtGender,
-			txtMrzLine,
-			txtFullName,
-		} = req.body;
-		const passportImagePath = passportFile ? passportFile.filename : null;
-		const hasPassportData =
-			passportImagePath || (txtPassportNo && String(txtPassportNo).trim());
-		if (hasPassportData) {
-			const dobVal =
-				txtDateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(String(txtDateOfBirth).trim())
-					? String(txtDateOfBirth).trim()
-					: null;
-			const expiryVal =
-				txtExpiryDate && /^\d{4}-\d{2}-\d{2}$/.test(String(txtExpiryDate).trim())
-					? String(txtExpiryDate).trim()
-					: null;
-			try {
-				const [existing] = await pool.execute(
-					'SELECT IDNo FROM agent_passport WHERE AGENT_ID = ? ORDER BY ENCODED_DT DESC LIMIT 1',
-					[agentId]
-				);
-				if (existing && existing.length > 0) {
-					const rowId = existing[0].IDNo;
-					await pool.execute(
-						`UPDATE agent_passport SET
-							DOCUMENT_TYPE = ?, COUNTRY_CODE = ?, PASSPORT_NO = ?, FULL_NAME = ?, NATIONALITY = ?,
-							DATE_OF_BIRTH = ?, EXPIRY_DATE = ?, GENDER = ?, MRZ_LINE = ?,
-							PASSPORT_IMAGE = IFNULL(?, PASSPORT_IMAGE),
-							ENCODED_BY = ?, ENCODED_DT = ?
-						WHERE IDNo = ?`,
-						[
-							txtDocumentType ?? null,
-							txtCountryCode ?? null,
-							txtPassportNo ?? null,
-							txtFullName ?? null,
-							txtNationality ?? null,
-							dobVal,
-							expiryVal,
-							txtGender ?? null,
-							txtMrzLine ?? null,
-							passportImagePath,
-							editorId,
-							date_now,
-							rowId,
-						]
-					);
-				} else {
-					await pool.execute(
-						`INSERT INTO agent_passport (AGENT_ID, DOCUMENT_TYPE, COUNTRY_CODE, PASSPORT_NO, FULL_NAME, NATIONALITY, DATE_OF_BIRTH, EXPIRY_DATE, GENDER, MRZ_LINE, PASSPORT_IMAGE, ENCODED_BY, ENCODED_DT)
-						 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-						[
-							agentId,
-							txtDocumentType ?? null,
-							txtCountryCode ?? null,
-							txtPassportNo ?? null,
-							txtFullName ?? null,
-							txtNationality ?? null,
-							dobVal,
-							expiryVal,
-							txtGender ?? null,
-							txtMrzLine ?? null,
-							passportImagePath ?? null,
-							editorId,
-							date_now,
-						]
-					);
-				}
-			} catch (passportErr) {
-				console.warn('⚠ agent_passport update skipped (table may not exist):', passportErr.message);
-			}
-		}
-
-		res.json({ success: true, photo: faceFile.filename, passportUpdated: !!hasPassportData });
+		res.json({ success: true, photo: file.filename });
 	} catch (error) {
 		console.error('Error updating account photo:', error);
 		res.status(500).json({ error: 'Error updating photo' });
