@@ -129,6 +129,144 @@ function formatCommissionRateDisplay(rate) {
 	return numRate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
 }
 
+function buildCutoffGameIdCell(row) {
+	var gameId = row.game_list_id;
+	var parentId = row.CUTOFF_PARENT_GAME_ID || row.cutoff_parent_game_id;
+	var continuedId = row.CUTOFF_CONTINUED_GAME_ID || row.cutoff_continued_game_id;
+	var linkedId = parentId || continuedId;
+
+	if (linkedId) {
+		var title = parentId
+			? 'Continuation from cut off game #' + parentId
+			: 'Cut off continued to game #' + continuedId;
+		return (
+			String(gameId) +
+			' <span class="text-muted" title="' +
+			title +
+			'">(' +
+			linkedId +
+			')</span>'
+		);
+	}
+
+	return String(gameId);
+}
+
+function applyChangeStatusCutoffOption(currentStatus) {
+	var $cutoffOption = $('#status option[value="4"]');
+	if (currentStatus == 1 || currentStatus == 3) {
+		$cutoffOption.hide();
+		if ($('#status').val() == '4') {
+			$('#status option:first').prop('selected', true);
+		}
+	} else {
+		$cutoffOption.show();
+	}
+}
+
+function computeGameRollingAndRollerTotalsFromRecords(rows) {
+	var total_rolling_nn = 0;
+	var total_rolling = 0;
+	var total_rolling_real = 0;
+	var total_rolling_nn_real = 0;
+	var total_rolling_cc_real = 0;
+	var total_cash_out_nn = 0;
+	var total_roller_nn = 0;
+	var total_roller_cc = 0;
+	var total_roller_return_cc = 0;
+
+	(rows || []).forEach(function (res) {
+		var cageType = parseInt(res.CAGE_TYPE, 10);
+
+		if (cageType === 2) {
+			total_cash_out_nn += Number(res.NN_CHIPS) || 0;
+		}
+
+		if (cageType === 3) {
+			total_rolling += Number(res.AMOUNT) || 0;
+			total_rolling_nn += Number(res.NN_CHIPS) || 0;
+		}
+
+		if (cageType === 4) {
+			total_rolling_real += Number(res.AMOUNT) || 0;
+			total_rolling_nn_real += Number(res.NN_CHIPS) || 0;
+			total_rolling_cc_real += Number(res.CC_CHIPS) || 0;
+		}
+
+		if (cageType === 5) {
+			var rollerTransaction = parseInt(res.ROLLER_TRANSACTION, 10);
+			if (Number.isNaN(rollerTransaction) || rollerTransaction === 0) {
+				rollerTransaction = 1;
+			}
+			if (rollerTransaction === 1) {
+				total_roller_nn += Number(res.ROLLER_NN_CHIPS) || 0;
+				total_roller_cc += Number(res.ROLLER_CC_CHIPS) || 0;
+			} else if (rollerTransaction === 2) {
+				total_roller_nn -= Number(res.ROLLER_NN_CHIPS) || 0;
+				total_roller_cc -= Number(res.ROLLER_CC_CHIPS) || 0;
+				total_roller_return_cc += Number(res.ROLLER_CC_CHIPS) || 0;
+			}
+		}
+	});
+
+	var totalRollingCCWithReturns = total_roller_return_cc;
+	var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+	var total_roller_chips = total_roller_nn + total_roller_cc;
+
+	return {
+		total_rolling_chips: total_rolling_chips,
+		total_roller_chips: total_roller_chips
+	};
+}
+
+function validateRollingAgainstRollerChips(rows, ccAmount) {
+	var totals = computeGameRollingAndRollerTotalsFromRecords(rows);
+	if (ccAmount > totals.total_roller_chips) {
+		return {
+			ok: false,
+			message: 'Rolling cannot exceed Roller Chips (' + totals.total_roller_chips.toLocaleString() + ').',
+			total_roller_chips: totals.total_roller_chips
+		};
+	}
+	return { ok: true, total_roller_chips: totals.total_roller_chips };
+}
+
+function validateRollingAgainstNnBalance(ccAmount, nnBalance, previousCcAmount) {
+	previousCcAmount = parseFloat(previousCcAmount) || 0;
+	nnBalance = parseFloat(nnBalance) || 0;
+	ccAmount = parseFloat(ccAmount) || 0;
+	var maxAllowed = nnBalance + previousCcAmount;
+	if (ccAmount > maxAllowed) {
+		return {
+			ok: false,
+			message: 'CC rolling cannot exceed the current NN balance of ' + nnBalance.toLocaleString('en-US') + '.'
+		};
+	}
+	return { ok: true };
+}
+
+function gameListChangeStatusOnclick(row, net, account, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, currentStatus) {
+	var cs = (currentStatus === null || currentStatus === undefined) ? 'null' : currentStatus;
+	var parentId = row.CUTOFF_PARENT_GAME_ID || row.cutoff_parent_game_id || 'null';
+	var continuedId = row.CUTOFF_CONTINUED_GAME_ID || row.cutoff_continued_game_id || 'null';
+	var agentArg = "'" + (row.agent_code || '').replace(/'/g, "\\'") + "'";
+	return (
+		'changeStatus(' +
+		row.game_list_id + ', ' +
+		(net === null || net === undefined ? 'null' : net) + ', ' +
+		(account === null || account === undefined ? 'null' : account) + ', ' +
+		(total_amount === null || total_amount === undefined ? 'null' : total_amount) + ', ' +
+		(total_cash_out_chips === null || total_cash_out_chips === undefined ? 'null' : total_cash_out_chips) + ', ' +
+		(total_rolling_chips === null || total_rolling_chips === undefined ? 'null' : total_rolling_chips) + ', ' +
+		(WinLoss === null || WinLoss === undefined ? 'null' : WinLoss) + ', ' +
+		cs + ', ' +
+		parentId + ', ' +
+		continuedId + ', ' +
+		agentArg +
+		')'
+	);
+}
+
 function getGameTypeLabelStyle(gameType) {
 	if (gameType === 'LIVE') return 'color:rgb(32,174,243);text-decoration:none;font-size:11px;font-weight:500;';
 	if (gameType === 'TELEBET') return 'color:rgb(255,87,51);text-decoration:none;font-size:11px;font-weight:500;';
@@ -1366,7 +1504,7 @@ $(document).ready(function () {
                         data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details">
                         <i class="fa fa-file-alt"></i>
                         </button>
-                        <button type="button" onclick="changeStatus(${row.game_list_id}, null, null, null, null, null, null, null, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
+                        <button type="button" onclick="${gameListChangeStatusOnclick(row, null, null, null, null, null, null, null)}" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
                         data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status">
                         <i class="fa fa-exchange-alt"></i>
                         </button>
@@ -1571,7 +1709,7 @@ $(document).ready(function () {
 											data-bs-toggle="tooltip" aria-label="Status" data-bs-original-title="${settledTooltip}"
 											style="font-size:10px !important;" onclick="showSettledAlert(); return false;">${onGameText}</button>`;
 									} else {
-										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss}, null, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
+										status = `<button type="button" onclick="${gameListChangeStatusOnclick(row, net, row.ACCOUNT_ID, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, null)}" class="btn btn-sm btn-primary-subtle js-bs-tooltip-enabled"
 											data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:8px !important;">${onGameText}</button>`;
 									}
 								} else {
@@ -1633,7 +1771,7 @@ $(document).ready(function () {
                                 let rowNode = dataTable.row.add([
                                     gameStartCellOg,
                                     buildGameTypeCell(row),
-                                    `${row.game_list_id}`,
+                                    buildCutoffGameIdCell(row),
                                     acct_no_link,
                                     buyin_td,
                                     cashout_td,
@@ -1702,7 +1840,7 @@ $(document).ready(function () {
 									if (isSettled && userPermissions !== 0) { // Super admin (0) can edit even when settled
 										status = `<button type="button" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="${settledTooltip}" style="font-size:10px !important;" onclick="showSettledAlert(); return false;">${pendingText}</button>`;
 									} else {
-										status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
+										status = `<button type="button" onclick="${gameListChangeStatusOnclick(row, net, row.ACCOUNT_ID, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, 3)}" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
 									}
 								} else {
 									// PENDING STATUS NOT EDITABLE
@@ -1766,7 +1904,7 @@ $(document).ready(function () {
 								let rowNode = dataTable.row.add([
 									gameStartCell,
 									buildGameTypeCell(row),
-									`${row.game_list_id}`,
+									buildCutoffGameIdCell(row),
 									acct_no_link,
 									buyin_td,
 									cashout_td,
@@ -1820,7 +1958,7 @@ $(document).ready(function () {
 									if (isSettled && userPermissions !== 0) { // Super admin (0) can edit even when settled
 										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" aria-label="Status" data-bs-toggle="tooltip" data-bs-original-title="${settledTooltip}" onclick="showSettledAlert(); return false;">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
 									} else {
-										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, null, '${(row.agent_code || '').replace(/'/g, "\\'")}')">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
+										status = `<a href="#" class="${statusDateClass}" style="font-size:10px !important;" onclick="${gameListChangeStatusOnclick(row, net, row.ACCOUNT_ID, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, null)}">${moment(row.GAME_ENDED).format('MMMM DD, HH:mm')}</a>`;
 									}
 
 								} else {
@@ -1883,7 +2021,7 @@ $(document).ready(function () {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
 						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-						   let rowNode = dataTable.row.add([gameStartCell, buildGameTypeCell(row), `${row.game_list_id}`, acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw().node();
+						   let rowNode = dataTable.row.add([gameStartCell, buildGameTypeCell(row), buildCutoffGameIdCell(row), acct_no_link, buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw().node();
 						   if (isInitialBuyinMarker) {
 							   var $buyinCellEndGame = $(rowNode).find('td').eq(4);
 							   var buyinCellEndGameEl = $buyinCellEndGame.get(0);
@@ -3994,14 +4132,73 @@ $('#add_buyin').submit(function (event) {
 			$btn.prop('disabled', false).text('Save');
 			return;
 		}
-		
-		// Build confirmation message
-		var confirmationMessage = `Confirm Rolling Transaction:<br><br>`;
-		confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(ccAmount).toLocaleString()}<br>`;
-		
+
+		var gameId = $('.game_list_id').val();
+		if (!gameId) {
+			Swal.fire({
+				icon: 'warning',
+				title: 'Warning',
+				text: 'No game selected for rolling.',
+				confirmButtonText: 'OK'
+			});
+			$btn.prop('disabled', false).text(buttonLabel);
+			return;
+		}
+
 		var $form = $(this); // Store form reference
-		
-		Swal.fire({
+
+		$btn.prop('disabled', true).html(`
+			<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+			Validating...
+		`);
+
+		var previousCcAmount = parseFloat($('.rolling_prev_cc').val()) || 0;
+
+		$.when(
+			$.ajax({ url: '/game_list/' + gameId + '/record', method: 'GET' }),
+			$.ajax({ url: '/game_list_company_balance', method: 'GET' })
+		).done(function (recordsResp, balanceResp) {
+			var records = recordsResp[0];
+			var balances = balanceResp[0] || {};
+			var nnBalance = parseFloat(balances.nnChipsBalance) || 0;
+
+			var rollingValidation = validateRollingAgainstRollerChips(records, ccAmount);
+			if (!rollingValidation.ok) {
+				Swal.fire({
+					icon: 'error',
+					title: 'Validation Error',
+					text: rollingValidation.message,
+					confirmButtonText: 'OK',
+					allowOutsideClick: false,
+					allowEscapeKey: false
+				}).then(() => {
+					$('#modal-add-rolling').modal('show');
+				});
+				$btn.prop('disabled', false).text(buttonLabel);
+				return;
+			}
+
+			var nnValidation = validateRollingAgainstNnBalance(ccAmount, nnBalance, previousCcAmount);
+			if (!nnValidation.ok) {
+				Swal.fire({
+					icon: 'error',
+					title: 'Exceeds NN balance',
+					text: nnValidation.message,
+					confirmButtonText: 'OK',
+					allowOutsideClick: false,
+					allowEscapeKey: false
+				}).then(() => {
+					$('#modal-add-rolling').modal('show');
+				});
+				$btn.prop('disabled', false).text(buttonLabel);
+				return;
+			}
+
+			// Build confirmation message
+			var confirmationMessage = `Confirm Rolling Transaction:<br><br>`;
+			confirmationMessage += `<strong>CC Chips:</strong> ${parseFloat(ccAmount).toLocaleString('en-US')}<br>`;
+
+			Swal.fire({
 			icon: 'question',
 			title: isUpdate ? 'Confirm Update' : 'Confirm Transaction',
 			html: confirmationMessage + '<br>Are you sure you want to proceed?',
@@ -4069,6 +4266,15 @@ $('#add_buyin').submit(function (event) {
 				// User cancelled, re-enable button
 				$btn.prop('disabled', false).text(buttonLabel);
 			}
+		});
+		}).fail(function () {
+			Swal.fire({
+				icon: 'error',
+				title: 'Error',
+				text: 'Unable to validate rolling transaction.',
+				confirmButtonText: 'OK'
+			});
+			$btn.prop('disabled', false).text(buttonLabel);
 		});
 	});
 
@@ -4480,13 +4686,16 @@ $('#edit_status').submit(function (event) {
 								reloadData();
 								$('#modal-change_status').modal('hide');
 							},
-							error: function (error) {
+							error: function (xhr) {
+								var msg = (xhr.responseJSON && xhr.responseJSON.error)
+									? xhr.responseJSON.error
+									: 'Failed to update status. Please try again.';
 								Swal.fire({
 									icon: 'error',
 									title: 'Error!',
-									text: 'Failed to update status. Please try again.',
+									text: msg,
 								});
-								console.error('Error updating status:', error);
+								console.error('Error updating status:', xhr);
 							},
 							complete: function () {
 								$btn.prop('disabled', false).html('Save');
@@ -4505,8 +4714,57 @@ $('#edit_status').submit(function (event) {
 		}
 	}
 
+	// Validation for CUT OFF (status = 4)
+	if (status == '4') {
+		var remainingNN = parseFloat(($('#txtCutoffRemainingNN').val() || '').toString().trim().replace(/,/g, '')) || 0;
+		var remainingCC = parseFloat(($('#txtCutoffRemainingCC').val() || '').toString().trim().replace(/,/g, '')) || 0;
+		var remainingTotal = remainingNN + remainingCC;
+
+		if (remainingTotal <= 0) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid cutoff remaining chips',
+				text: 'Please enter a valid total (NN + CC) greater than 0.'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		if (remainingNN > 0 && remainingNN % 1000 !== 0) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid cutoff NN',
+				text: 'Cutoff Remaining NN Chips must be in thousands (e.g. 1,000 / 2,000).'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		var lastRollingCC = parseFloat(($('#txtCutoffLastRolling').val() || '').toString().trim().replace(/,/g, '')) || 0;
+		if (lastRollingCC < 0 || !Number.isFinite(lastRollingCC)) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid Last Rolling',
+				text: 'Please enter a valid Last Rolling (>= 0).'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+
+		var rollerBalance = parseFloat($('#modal-change_status').data('requiredReturnTotal')) || 0;
+		if (lastRollingCC > 0 && lastRollingCC > rollerBalance + 0.001) {
+			Swal.fire({
+				icon: 'error',
+				title: 'Invalid Last Rolling',
+				text: 'Last Rolling (' + parseFloat(lastRollingCC).toLocaleString() + ') exceeds available roller chips balance (' + parseFloat(rollerBalance).toLocaleString() + ').'
+			});
+			$btn.prop('disabled', false).html('Save');
+			return;
+		}
+	}
+
 	// All validations passed, show confirmation dialog
-	var statusText = (status == '1') ? 'END GAME' : (status == '2') ? 'ON GAME' : (status == '3') ? 'PENDING' : status;
+	var statusText = (status == '1') ? 'END GAME' : (status == '2') ? 'ON GAME' : (status == '3') ? 'PENDING' : (status == '4') ? 'CUT OFF' : status;
 
 	var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
 	var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
@@ -4543,6 +4801,17 @@ $('#edit_status').submit(function (event) {
 				confirmationRows += buildRow('Roller Chips Return:', rollerText);
 			}
 		}
+	}
+
+	// Add cutoff info
+	if (status == '4') {
+		var remainingNN = parseFloat(($('#txtCutoffRemainingNN').val() || '').toString().trim().replace(/,/g, '')) || 0;
+		var remainingCC = parseFloat(($('#txtCutoffRemainingCC').val() || '').toString().trim().replace(/,/g, '')) || 0;
+		var lastRollingCC = parseFloat(($('#txtCutoffLastRolling').val() || '').toString().trim().replace(/,/g, '')) || 0;
+
+		confirmationRows += buildRow('Cutoff Remaining NN:', `${parseFloat(remainingNN).toLocaleString()}`);
+		confirmationRows += buildRow('Cutoff Remaining CC:', `${parseFloat(remainingCC).toLocaleString()}`);
+		confirmationRows += buildRow('Last Rolling (CC):', `${parseFloat(lastRollingCC).toLocaleString()}`);
 	}
 
 	var confirmationMessage = `
@@ -4593,13 +4862,16 @@ $('#edit_status').submit(function (event) {
 					reloadData();
 					$('#modal-change_status').modal('hide');
 				},
-				error: function (error) {
+				error: function (xhr) {
+					var msg = (xhr.responseJSON && xhr.responseJSON.error)
+						? xhr.responseJSON.error
+						: 'Failed to update status. Please try again.';
 					Swal.fire({
 						icon: 'error',
 						title: 'Error!',
-						text: 'Failed to update status. Please try again.',
+						text: msg,
 					});
-					console.error('Error updating status:', error);
+					console.error('Error updating status:', xhr);
 				},
 				complete: function () {
 					$btn.prop('disabled', false).html('Save');
@@ -4755,6 +5027,9 @@ function setRollingMode(mode, recordId) {
 
 	$('.rolling_action').val(normalizedMode);
 	$('.rolling_record_id').val(normalizedMode === 'update' ? recordId : '');
+	if (normalizedMode !== 'update') {
+		$('.rolling_prev_cc').val('0');
+	}
 	$('#submit-rolling-btn').text(normalizedMode === 'update' ? 'Update' : 'Save');
 }
 
@@ -4810,6 +5085,7 @@ $(document).on('click', '#load-last-rolling-btn', function () {
 
 			var ccValue = parseFloat(record.CC_CHIPS) || 0;
 			$('.txtCC').val(ccValue ? ccValue.toLocaleString() : '');
+			$('.rolling_prev_cc').val(ccValue);
 			setRollingMode('update', record.IDNo);
 		},
 		error: function (xhr) {
@@ -5633,9 +5909,11 @@ function checkPermissionToDeleteHistory(id) {
 	}
 
 
-function changeStatus(id, net, account, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, currentStatus, agentCode) {
+function changeStatus(id, net, account, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, currentStatus, cutoffParentGameId, cutoffContinuedGameId, agentCode) {
 	$('#change-status-agent-code').text(agentCode || '');
 	$('#modal-change_status').modal('show');
+
+	applyChangeStatusCutoffOption(currentStatus);
 
 	// Store settlement preview data for validation
 	const $changeStatusModal = $('#modal-change_status');
@@ -5654,6 +5932,12 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 	$('.txtReturnRollerNN').val('');
 	$('.txtReturnRollerCC').val('');
 	$('#roller-chips-return-section').hide();
+
+	// Reset cutoff fields and hide section immediately
+	$('#cutoff-details-section').hide();
+	$('#txtCutoffRemainingNN').val('');
+	$('#txtCutoffRemainingCC').val('');
+	$('#txtCutoffLastRolling').val('');
 
 	game_id = id;
 	
@@ -5724,6 +6008,18 @@ function changeStatus(id, net, account, total_amount, total_cash_out_chips, tota
 					$('#txtReturnRollerNN').val('');
 					$('#txtReturnRollerCC').val('');
 					$('#roller-chips-return-section').hide();
+				}
+			});
+
+			$('#status').off('change.cutoffsection');
+			$('#status').on('change.cutoffsection', function () {
+				if ($(this).val() == '4') {
+					$('#cutoff-details-section').show();
+				} else {
+					$('#cutoff-details-section').hide();
+					$('#txtCutoffRemainingNN').val('');
+					$('#txtCutoffRemainingCC').val('');
+					$('#txtCutoffLastRolling').val('');
 				}
 			});
 			
@@ -6541,7 +6837,7 @@ $(document).ready(function () {
 						data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Details">
 						<i class="fa fa-file-alt"></i>
 						</button>
-						<button type="button" onclick="changeStatus(${row.game_list_id}, null, null, null, null, null, null, null, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
+						<button type="button" onclick="${gameListChangeStatusOnclick(row, null, null, null, null, null, null, null)}" class="btn btn-sm btn-alt-warning action-btn-square js-bs-tooltip-enabled"
 						data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status">
 						<i class="fa fa-exchange-alt"></i>
 						</button>
@@ -6692,7 +6988,7 @@ $(document).ready(function () {
 							var cashout_td = '';
 							if (row.game_status == 2) {
 								const onGameText = window.gamelistTranslations?.on_game || "ON GAME";
-								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID } , ${total_amount} , ${total_cash_out_chips} , ${total_rolling_chips} , ${WinLoss}, null, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
+								status = `<button type="button" onclick="${gameListChangeStatusOnclick(row, net, row.ACCOUNT_ID, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, null)}" class="btn btn-sm btn-info-subtle js-bs-tooltip-enabled"
 									data-bs-toggle="tooltip" aria-label="Details" data-bs-original-title="Status"  style="font-size:10px !important;">${onGameText}</button>`;
 
 								buyin_td = '<button class="btn btn-link" style="font-size:11px;text-decoration: underline;" onclick="addBuyin(' + row.game_list_id + ', ' + row.ACCOUNT_ID + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')">' + parseFloat(total_amount).toLocaleString() + '</button>';
@@ -6704,7 +7000,7 @@ $(document).ready(function () {
 							} else if (row.game_status == 3) {
 								// PENDING STATUS (discrepancy in roller chips return)
 								const pendingText = "PENDING";
-								status = `<button type="button" onclick="changeStatus(${row.game_list_id}, ${net}, ${row.ACCOUNT_ID }, ${total_amount}, ${total_cash_out_chips}, ${total_rolling_chips}, ${WinLoss}, 3, '${(row.agent_code || '').replace(/'/g, "\\'")}')" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
+								status = `<button type="button" onclick="${gameListChangeStatusOnclick(row, net, row.ACCOUNT_ID, total_amount, total_cash_out_chips, total_rolling_chips, WinLoss, 3)}" class="btn btn-sm btn-warning-subtle js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Pending Review" data-bs-original-title="Pending Review" style="font-size:10px !important;">${pendingText}</button>`;
 								
 								buyin_td = parseFloat(total_amount).toLocaleString();
 								rolling_td = parseFloat(total_rolling_real_chips).toLocaleString();

@@ -21,7 +21,37 @@
 						<option value="2"><%= __('modal_change_status.on_game_option') %></option>
 						<!-- <option value="3">FINISH</option> -->
 						<option value="1"><%= __('modal_change_status.end_game_option') %></option>
+						<option value="4">CUT OFF</option>
 					</select>
+				</div>
+			</div>
+
+			<!-- Cut Off Section (no program date, no split, no tip) -->
+			<div id="cutoff-details-section" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+				<div class="row mb-2">
+					<label class="form-label mb-0">Remaining Chips</label>
+					<div class="col-sm-12">
+						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+							class="form-control text-center txtCutoffRemainingNN"
+							name="txtCutoffRemainingNN" id="txtCutoffRemainingNN"
+							placeholder="NN Chips" autocomplete="off" />
+					</div>
+					<!-- <div class="col-sm-6">
+						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+							class="form-control text-center txtCutoffRemainingCC"
+							name="txtCutoffRemainingCC" id="txtCutoffRemainingCC"
+							placeholder="CC Chips" autocomplete="off" />
+					</div> -->
+				</div>
+
+				<div class="row mb-2">
+					<div class="col-sm-12">
+						<label class="form-label mb-0" for="txtCutoffLastRolling">Last Rolling</label>
+						<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number"
+							class="form-control text-center txtCutoffLastRolling"
+							name="txtCutoffLastRolling" id="txtCutoffLastRolling"
+							placeholder="CC Chips" autocomplete="off" />
+					</div>
 				</div>
 			</div>
 			
