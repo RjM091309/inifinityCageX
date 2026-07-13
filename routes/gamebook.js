@@ -651,14 +651,23 @@ router.post('/add_game_list_split', async (req, res) => {
 				const gameTypeForMgmtSplit = (val) => (val === '라이브' ? '라이브 Live' : val === '아바타' ? '아바타 AVATAR' : val);
 				const translatedGameTypeSplit = translateGameTypeSplit(gameType);
 				const displayGameTypeMgmtSplit = gameTypeForMgmtSplit(translatedGameTypeSplit);
+				const commissionTypeSplit = parseInt(commType, 10) || null;
+				const commissionTextLineSplit =
+					commissionTypeSplit === 2 ? '\n게임타입 : 셰어' :
+					commissionTypeSplit === 3 ? '\n게임타입 : 루징' :
+					'';
+				const commissionMgmtLineSplit =
+					commissionTypeSplit === 2 ? '\n게임타입 GameType : 셰어 Share' :
+					commissionTypeSplit === 3 ? '\n게임타입 GameType : 루징 Losing' :
+					'';
 				const balanceAfterDeposit = totalBalanceGuest - depositTotal;
 				const splitLinesKo = [];
 				if (cashTotal > 0) splitLinesKo.push(`현금: ${cashTotal.toLocaleString()}`);
 				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString()}`);
 				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString()}`);
 				const splitTextBlockKo = splitLinesKo.join('\n');
-				const text = `Infinity Cage\n\n* 게임 시작 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameId} - ${translatedGameTypeSplit}\n${splitTextBlockKo}\n총 바이인: ${grandTotal.toLocaleString()}${depositTotal > 0 ? `\n잔고: ${balanceAfterDeposit.toLocaleString()}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				const managementText = `Infinity Cage\n\n* 게임 시작 Game Start *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameId} - ${displayGameTypeMgmtSplit}\n총 바이인 Total Buy-in : ${grandTotal.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				const text = `Infinity Cage\n\n* 게임 시작 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameId} - ${translatedGameTypeSplit}${commissionTextLineSplit}\n${splitTextBlockKo}\n총 바이인: ${grandTotal.toLocaleString()}${depositTotal > 0 ? `\n잔고: ${balanceAfterDeposit.toLocaleString()}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+				const managementText = `Infinity Cage\n\n* 게임 시작 Game Start *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameId} - ${displayGameTypeMgmtSplit}${commissionMgmtLineSplit}\n총 바이인 Total Buy-in : ${grandTotal.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 
 				const splitOpts = gamebookTelegramOpts('Game Start', agentCode, agentName, grandTotal, gameId);
 
