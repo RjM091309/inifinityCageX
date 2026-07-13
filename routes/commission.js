@@ -62,7 +62,7 @@ router.get('/commission_data', async (req, res) => {
         ORDER BY game_list.IDNo ASC`;
 
     try {
-        const [rows] = await pool.execute(query, [start, end]);
+        const [rows] = await pool.query(query, [start, end]);
         res.json(rows);
     } catch (error) {
         console.error('Error executing query:', error);
