@@ -3,9 +3,10 @@ const router = express.Router();
 const pool = require('../config/db');
 
 const { checkSession, sessions } = require('./auth');
-const { sendTelegramMessage, sendTelegramToAdditionalChats } = require('../utils/telegram');
+const { sendTelegramMessage, sendTelegramToAdditionalChats, sendTelegramToManagement } = require('../utils/telegram');
 const { guestPortalTransactionLogPreview, balanceCheckTelegramLogPreview } = require('../utils/telegramSendLog');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
+const { getEnabledChatIds } = require('../utils/telegramChatIds');
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
@@ -116,6 +117,593 @@ const getCreditBalance = async (accountId) => {
 	`;
 	const [[row]] = await pool.execute(query, [accountId]);
 	return parseFloat(row?.credit_balance) || 0;
+};
+
+const getLedgerCashBalanceAfter = async (accountId, ledgerId) => {
+	const [rows] = await pool.execute(
+		`
+			SELECT *,
+				account_ledger.IDNo AS account_details_id,
+				account_ledger.ENCODED_DT AS encoded_date
+			FROM account_ledger
+			JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+			WHERE account_ledger.ACTIVE = 1
+			  AND account_ledger.TRANSACTION_TYPE IN (2, 5, 3)
+			  AND account_ledger.ACCOUNT_ID = ?
+			ORDER BY account_ledger.IDNo DESC
+		`,
+		[accountId]
+	);
+	attachBalanceAfterToLedgerRows(rows);
+	const row = rows.find((ledgerRow) => Number(ledgerRow.account_details_id) === Number(ledgerId));
+	return parseFloat(row?.balance_after) || 0;
+};
+
+const getLedgerCreditBalanceAfter = async (accountId, ledgerId) => {
+	const [[row]] = await pool.execute(
+		`
+			SELECT
+				SUM(CASE WHEN TRANSACTION_ID IN (3, 10) THEN AMOUNT ELSE 0 END) -
+				SUM(CASE WHEN TRANSACTION_ID IN (11, 12, 1) THEN AMOUNT ELSE 0 END) AS credit_balance
+			FROM account_ledger
+			WHERE ACTIVE = 1
+			  AND TRANSACTION_TYPE IN (3, 4)
+			  AND ACCOUNT_ID = ?
+			  AND IDNo <= ?
+		`,
+		[accountId, ledgerId]
+	);
+	return parseFloat(row?.credit_balance) || 0;
+};
+
+const formatLedgerTelegramDate = (dateValue) => {
+	const dt = dateValue ? new Date(dateValue) : new Date();
+	return {
+		date: dt.toLocaleDateString(),
+		time: dt.toLocaleTimeString()
+	};
+};
+
+const translateGameTypeForTelegram = (gameTypeValue) => {
+	if (!gameTypeValue) return gameTypeValue;
+	const upperValue = String(gameTypeValue).toUpperCase();
+	if (upperValue === 'LIVE') return '라이브';
+	if (upperValue === 'TELEBET') return '아바타';
+	return gameTypeValue;
+};
+
+const gameTypeForManagement = (gameTypeValue) => {
+	if (gameTypeValue === '라이브') return '라이브 Live';
+	if (gameTypeValue === '아바타') return '아바타 AVATAR';
+	return gameTypeValue;
+};
+
+const commissionManagementLine = (commissionType) => {
+	const type = parseInt(commissionType, 10) || null;
+	if (type === 2) return '\n게임타입 GameType : 셰어 Share';
+	if (type === 3) return '\n게임타입 GameType : 루징 Losing';
+	return '';
+};
+
+const commissionGuestLine = (commissionType) => {
+	const type = parseInt(commissionType, 10) || null;
+	if (type === 2) return '\n게임타입 : 셰어';
+	if (type === 3) return '\n게임타입 : 루징';
+	return '';
+};
+
+const gamebookTelegramOpts = (label, accountCode, guestName, amount, gameId) => {
+	const gid = gameId != null && String(gameId).trim() !== '' ? String(gameId).trim() : '';
+	return {
+		logPreview: gid ? `${label} · Game #${gid}` : label,
+		logMeta: {
+			accountCode: accountCode || '',
+			guestName: guestName || '',
+			amount: Math.abs(Number(amount) || 0)
+		}
+	};
+};
+
+const getAgentNotificationChatIds = async () => {
+	try {
+		const [rows] = await pool.execute(
+			'SELECT AGENT_CHATID FROM telegram_api WHERE ACTIVE = 1 AND USER = ? LIMIT 1',
+			['GUEST']
+		);
+		if (!rows.length || !rows[0].AGENT_CHATID) return [];
+		return getEnabledChatIds(rows[0].AGENT_CHATID);
+	} catch (error) {
+		console.warn('Error fetching agent notification chat IDs (AGENT_CHATID column may not exist):', error.message);
+		return [];
+	}
+};
+
+const sendToAgentNotifications = async (agentCode, messageText, options = {}) => {
+	if (!agentCode || !messageText) return;
+	const agentCodeUpper = String(agentCode).toUpperCase();
+	if (agentCodeUpper < 'INF501' || agentCodeUpper > 'INF599') return;
+
+	const chatIds = await getAgentNotificationChatIds();
+	for (const chatId of chatIds) {
+		try {
+			await sendTelegramMessage(messageText, chatId, options || {});
+		} catch (error) {
+			console.error(`Error sending message to chat ID ${chatId} for agent ${agentCode}:`, error.message);
+		}
+	}
+};
+
+const getGameBuyinKind = (ledger) => {
+	const desc = String(ledger.TRANSACTION_DESC || '').toUpperCase();
+	const remarks = String(ledger.REMARKS || '').toUpperCase();
+	if (desc === 'INITIAL BUY-IN' || remarks.startsWith('BUY-IN GAME:')) return 'initial';
+	if (desc === 'ADDITIONAL BUY-IN' || remarks.startsWith('ADD BUY-IN GAME:')) return 'additional';
+	return null;
+};
+
+const sendGameBuyinOriginalResend = async (ledger, telegramErrors) => {
+	const buyinKind = getGameBuyinKind(ledger);
+	if (!buyinKind) return false;
+
+	const gameId = ledger.GAME_ID || null;
+	const [gameRows] = gameId
+		? await pool.execute(
+			'SELECT GAME_TYPE, COMMISSION_TYPE FROM game_list WHERE IDNo = ? LIMIT 1',
+			[gameId]
+		)
+		: [[]];
+	const game = gameRows[0] || {};
+	const rawGameType = game.GAME_TYPE || '';
+	const translatedGameType = translateGameTypeForTelegram(game.GAME_TYPE || '');
+	const displayGameType = gameTypeForManagement(translatedGameType);
+	const gameLineKo = translatedGameType ? `${gameId || 'N/A'} - ${translatedGameType}` : String(gameId || 'N/A');
+	const gameLineMgmt = displayGameType ? `${gameId || 'N/A'} - ${displayGameType}` : String(gameId || 'N/A');
+	const amount = parseFloat(ledger.AMOUNT) || 0;
+	const { date, time } = formatLedgerTelegramDate(ledger.encoded_date);
+	const transType = parseInt(ledger.TRANSACTION_TYPE, 10);
+	const isAdditional = buyinKind === 'additional';
+	const isLiveGame = rawGameType && (String(rawGameType).toUpperCase() === 'LIVE' || rawGameType === '라이브');
+	const isTelebetGame = rawGameType && (String(rawGameType).toUpperCase() === 'TELEBET' || rawGameType === '텔레벳');
+	const useKorean = isLiveGame || isTelebetGame || isAdditional;
+	const labels = {
+		gameStart: useKorean ? '게임 시작' : 'Game Start',
+		account: useKorean ? '계정' : 'Account',
+		game: useKorean ? '게임' : 'Game',
+		buyIn: useKorean ? '바이인' : 'Buy-in',
+		accountBalance: useKorean ? '잔고' : 'Account Balance',
+		date: useKorean ? '날짜' : 'Date',
+		time: useKorean ? '시간' : 'Time',
+		cash: useKorean ? '현금' : 'Cash',
+		deposit: useKorean ? '계좌출금' : 'Deposit',
+		credit: useKorean ? '크레딧' : 'Credit'
+	};
+	const balanceAfter = await getLedgerCashBalanceAfter(ledger.ACCOUNT_ID, ledger.ledger_id);
+	let text = '';
+	let managementText = '';
+	let totalBuyin = amount;
+
+	if (isAdditional && gameId) {
+		const [[totalRow]] = await pool.execute(
+			`
+				SELECT COALESCE(SUM(COALESCE(NN_CHIPS, 0) + COALESCE(CC_CHIPS, 0)), 0) AS total_buyin
+				FROM game_record
+				WHERE ACTIVE = 1
+				  AND CAGE_TYPE = 1
+				  AND TRANSACTION IN (1, 2, 3)
+				  AND GAME_ID = ?
+			`,
+			[gameId]
+		);
+		totalBuyin = parseFloat(totalRow?.total_buyin) || amount;
+	}
+
+	if (isAdditional) {
+		const paymentLabel = transType === 2 ? labels.deposit : transType === 1 ? labels.cash : labels.credit;
+		text = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n바이인: ${amount.toLocaleString()} - ${paymentLabel}\n바이인 합계: ${totalBuyin.toLocaleString()}${transType === 2 ? `\n잔고: ${balanceAfter.toLocaleString()}` : ''}\n\n날짜: ${date}\n시간: ${time}`;
+		managementText = `Infinity Cage\n\n* 추가 바이인 Add Buy-in *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}\n바이인 Buy-in : ${amount.toLocaleString()}\n바이인 합계 Total Buy-in : ${totalBuyin.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
+	} else {
+		const gameLine = useKorean ? gameLineKo : `${gameId || 'N/A'} - ${rawGameType || translatedGameType || 'N/A'}`;
+		if (transType === 2) {
+			text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${ledger.AGENT_CODE} - ${ledger.NAME}\n${labels.game} #: ${gameLine}${commissionGuestLine(game.COMMISSION_TYPE)}\n${labels.buyIn}: ${amount.toLocaleString()} - ${labels.deposit}\n${labels.accountBalance}: ${balanceAfter.toLocaleString()}\n\n${labels.date}: ${date}\n${labels.time}: ${time}`;
+		} else if (transType === 1) {
+			text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${ledger.AGENT_CODE} - ${ledger.NAME}\n${labels.game} #: ${gameLine}${commissionGuestLine(game.COMMISSION_TYPE)}\n${labels.buyIn}: ${amount.toLocaleString()} - ${labels.cash}\n\n${labels.date}: ${date}\n${labels.time}: ${time}`;
+		} else {
+			text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${ledger.AGENT_CODE} - ${ledger.NAME}\n${labels.game} #: ${gameLine}${commissionGuestLine(game.COMMISSION_TYPE)}\n${labels.buyIn}: ${amount.toLocaleString()} - ${labels.credit}\n\n${labels.date}: ${date}\n${labels.time}: ${time}`;
+		}
+		managementText = `Infinity Cage\n\n* 게임 시작 Game Start *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}${commissionManagementLine(game.COMMISSION_TYPE)}\n바이인 Buy-in : ${amount.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
+	}
+
+	const label = isAdditional ? 'Add Buy-in' : 'Game Start';
+	const opts = gamebookTelegramOpts(label, ledger.AGENT_CODE, ledger.NAME, amount, gameId);
+	const telegramId = getAgentTelegramChatId(ledger);
+
+	if (telegramId) {
+		try {
+			await sendTelegramMessage(text, telegramId, opts);
+		} catch (telegramError) {
+			telegramErrors.push(`Guest Telegram failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+			console.error('Resend game buy-in Telegram to guest failed:', telegramError.message);
+		}
+	} else {
+		telegramErrors.push(`Guest Telegram ID is missing or disabled for ${ledger.AGENT_CODE} - ${ledger.NAME}.`);
+	}
+
+	try {
+		await sendToAgentNotifications(ledger.AGENT_CODE, managementText, opts);
+	} catch (telegramError) {
+		telegramErrors.push(`Agent notification failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+		console.error('Resend game buy-in agent notification failed:', telegramError.message);
+	}
+
+	try {
+		await sendTelegramToAdditionalChats(text, opts);
+	} catch (telegramError) {
+		telegramErrors.push(`Additional chats failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+		console.error('Resend game buy-in additional chats failed:', telegramError.message);
+	}
+
+	try {
+		await sendTelegramToManagement(managementText, opts);
+	} catch (telegramError) {
+		telegramErrors.push(`Management Telegram failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+		console.error('Resend Telegram to management failed:', telegramError.message);
+	}
+
+	return true;
+};
+
+const isGameCashoutLedger = (ledger) => (
+	String(ledger.TRANSACTION_DESC || '').toUpperCase() === 'CHIPS RETURNED' &&
+	Number(ledger.TRANSACTION_ID) === 1 &&
+	ledger.GAME_ID
+);
+
+const sendGameCashoutOriginalResend = async (ledger, telegramErrors) => {
+	if (!isGameCashoutLedger(ledger)) return false;
+
+	const gameId = ledger.GAME_ID;
+	const [gameRows] = await pool.execute(
+		'SELECT GAME_TYPE FROM game_list WHERE IDNo = ? LIMIT 1',
+		[gameId]
+	);
+	const game = gameRows[0] || {};
+	const translatedGameType = translateGameTypeForTelegram(game.GAME_TYPE || '');
+	const displayGameType = gameTypeForManagement(translatedGameType);
+	const gameLineKo = translatedGameType ? `${gameId} - ${translatedGameType}` : String(gameId);
+	const gameLineMgmt = displayGameType ? `${gameId} - ${displayGameType}` : String(gameId);
+	const { date, time } = formatLedgerTelegramDate(ledger.encoded_date);
+
+	const [sameCashoutRows] = await pool.execute(
+		`
+			SELECT
+				account_ledger.IDNo AS ledger_id,
+				account_ledger.ACCOUNT_ID,
+				account_ledger.GAME_ID,
+				account_ledger.TRANSACTION_ID,
+				account_ledger.TRANSACTION_TYPE,
+				account_ledger.TRANSACTION_DESC,
+				account_ledger.AMOUNT,
+				account_ledger.REMARKS,
+				account_ledger.TRANSFER,
+				account_ledger.TRANSFER_AGENT,
+				account_ledger.ENCODED_DT AS encoded_date,
+				transaction_type.TRANSACTION,
+				agent.AGENT_CODE,
+				agent.NAME,
+				agent.TELEGRAM_ID,
+				COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
+			FROM account_ledger
+			JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+			JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
+			JOIN agent ON agent.IDNo = account.AGENT_ID
+			WHERE account_ledger.ACTIVE = 1
+			  AND account_ledger.ACCOUNT_ID = ?
+			  AND account_ledger.GAME_ID = ?
+			  AND account_ledger.TRANSACTION_ID = 1
+			  AND account_ledger.TRANSACTION_DESC = 'Chips Returned'
+			  AND account_ledger.ENCODED_DT = ?
+		`,
+		[ledger.ACCOUNT_ID, gameId, ledger.encoded_date]
+	);
+
+	const hasCashLeg = sameCashoutRows.some((row) => Number(row.TRANSACTION_TYPE) === 1);
+	const hasDepositLeg = sameCashoutRows.some((row) => Number(row.TRANSACTION_TYPE) === 2);
+	const rowsForMessage = hasCashLeg && hasDepositLeg ? sameCashoutRows : [ledger];
+	const cashTotal = rowsForMessage
+		.filter((row) => Number(row.TRANSACTION_TYPE) === 1)
+		.reduce((sum, row) => sum + (parseFloat(row.AMOUNT) || 0), 0);
+	const depositTotal = rowsForMessage
+		.filter((row) => Number(row.TRANSACTION_TYPE) === 2)
+		.reduce((sum, row) => sum + (parseFloat(row.AMOUNT) || 0), 0);
+	const creditTotal = rowsForMessage
+		.filter((row) => Number(row.TRANSACTION_TYPE) === 4)
+		.reduce((sum, row) => sum + (parseFloat(row.AMOUNT) || 0), 0);
+	const totalAmount = rowsForMessage.reduce((sum, row) => sum + (parseFloat(row.AMOUNT) || 0), 0);
+	const balanceAfter = depositTotal > 0
+		? await getLedgerCashBalanceAfter(ledger.ACCOUNT_ID, ledger.ledger_id)
+		: 0;
+
+	let text = '';
+	let managementText = '';
+	if (hasCashLeg && hasDepositLeg) {
+		text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n\n현금: ${cashTotal.toLocaleString()}\n계좌입금: ${depositTotal.toLocaleString()}\n총 캐시아웃: ${totalAmount.toLocaleString()}\n잔고: ${balanceAfter.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`;
+		managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}\n총 캐시아웃 Total Cash-out : ${totalAmount.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
+	} else if (Number(ledger.TRANSACTION_TYPE) === 2) {
+		const displayAmount = depositTotal || totalAmount;
+		text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n캐시아웃: ${displayAmount.toLocaleString()} - 계좌입금\n잔고: ${balanceAfter.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`;
+		managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}\n캐시아웃 Cash-out : ${totalAmount.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
+	} else if (Number(ledger.TRANSACTION_TYPE) === 1) {
+		const displayAmount = cashTotal || totalAmount;
+		text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n캐시아웃: ${displayAmount.toLocaleString()} - 현금\n\n날짜: ${date}\n시간: ${time}`;
+		managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}\n캐시아웃 Cash-out : ${totalAmount.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
+	} else if (Number(ledger.TRANSACTION_TYPE) === 4) {
+		const displayAmount = creditTotal || totalAmount;
+		text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n캐시아웃: ${displayAmount.toLocaleString()} - 크레딧\n\n날짜: ${date}\n시간: ${time}`;
+		managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}\n캐시아웃 Cash-out : ${totalAmount.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
+	}
+
+	const opts = gamebookTelegramOpts('Cash-out', ledger.AGENT_CODE, ledger.NAME, totalAmount, gameId);
+	const telegramId = getAgentTelegramChatId(ledger);
+	if (telegramId) {
+		try {
+			await sendTelegramMessage(text, telegramId, opts);
+		} catch (telegramError) {
+			telegramErrors.push(`Guest Telegram failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+			console.error('Resend game cash-out Telegram to guest failed:', telegramError.message);
+		}
+	} else {
+		telegramErrors.push(`Guest Telegram ID is missing or disabled for ${ledger.AGENT_CODE} - ${ledger.NAME}.`);
+	}
+
+	try {
+		await sendToAgentNotifications(ledger.AGENT_CODE, managementText, opts);
+	} catch (telegramError) {
+		telegramErrors.push(`Agent notification failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+		console.error('Resend game cash-out agent notification failed:', telegramError.message);
+	}
+
+	try {
+		await sendTelegramToAdditionalChats(text, opts);
+	} catch (telegramError) {
+		telegramErrors.push(`Additional chats failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+		console.error('Resend game cash-out additional chats failed:', telegramError.message);
+	}
+
+	try {
+		await sendTelegramToManagement(managementText, opts);
+	} catch (telegramError) {
+		telegramErrors.push(`Management Telegram failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+		console.error('Resend game cash-out management failed:', telegramError.message);
+	}
+
+	return true;
+};
+
+const sendServiceOriginalResend = async (ledger, telegramErrors) => {
+	if (String(ledger.TRANSACTION_DESC || '').toUpperCase() !== 'SERVICES') return false;
+
+	const [serviceRows] = await pool.execute(
+		`
+			SELECT SERVICE_TYPE, REMARKS, GAME_ID
+			FROM game_services
+			WHERE ACTIVE = 1
+			  AND TRANSACTION_ID = 2
+			  AND AGENT_ID = (
+				SELECT AGENT_ID FROM account WHERE IDNo = ? LIMIT 1
+			  )
+			  AND AMOUNT = ?
+			  AND (GAME_ID <=> ?)
+			ORDER BY ABS(TIMESTAMPDIFF(SECOND, ENCODED_DT, ?)) ASC, IDNo DESC
+			LIMIT 1
+		`,
+		[ledger.ACCOUNT_ID, ledger.AMOUNT, ledger.GAME_ID || null, ledger.encoded_date]
+	);
+	const service = serviceRows[0] || {};
+	const serviceLabel = String(service.SERVICE_TYPE || 'SERVICE').toUpperCase();
+	const remarksText = String(service.REMARKS || ledger.REMARKS || '').trim();
+	const serviceLine = remarksText
+		? `서비스: ${serviceLabel} - ${remarksText}`
+		: `서비스: ${serviceLabel}`;
+	const amount = parseFloat(ledger.AMOUNT) || 0;
+	const { date, time } = formatLedgerTelegramDate(ledger.encoded_date);
+	const text = `Infinity Cage\n\n* 서비스 결제 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n${serviceLine}\n금액: ${amount.toLocaleString('en-US')} - 계좌출금\n\n날짜: ${date}\n시간: ${time}`;
+	const opts = gamebookTelegramOpts('Service Payment', ledger.AGENT_CODE, ledger.NAME, amount, ledger.GAME_ID);
+	const telegramId = getAgentTelegramChatId(ledger);
+
+	if (telegramId) {
+		try {
+			await sendTelegramMessage(text, telegramId, opts);
+		} catch (telegramError) {
+			telegramErrors.push(`Guest Telegram failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+			console.error('Resend service Telegram to guest failed:', telegramError.message);
+		}
+
+		try {
+			await sendTelegramToAdditionalChats(text, opts);
+		} catch (telegramError) {
+			telegramErrors.push(`Additional chats failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+			console.error('Resend service additional chats failed:', telegramError.message);
+		}
+	} else {
+		telegramErrors.push(`Guest Telegram ID is missing or disabled for ${ledger.AGENT_CODE} - ${ledger.NAME}.`);
+	}
+
+	return true;
+};
+
+const sendMarkerReturnOriginalResend = async (ledger, telegramErrors) => {
+	if (Number(ledger.TRANSACTION_TYPE) !== 3 || ![11, 12].includes(Number(ledger.TRANSACTION_ID))) return false;
+
+	const amount = parseFloat(ledger.AMOUNT) || 0;
+	const balanceAfter = Number(ledger.TRANSACTION_ID) === 12
+		? await getLedgerCashBalanceAfter(ledger.ACCOUNT_ID, ledger.ledger_id)
+		: 0;
+	const { date, time } = formatLedgerTelegramDate(ledger.encoded_date);
+	const text = Number(ledger.TRANSACTION_ID) === 12
+		? `Infinity Cage\n\n* 크레딧 리턴 *\n\n게임: ${ledger.AGENT_CODE} - ${ledger.NAME}\n금액: ${amount.toLocaleString()} - 계좌출금\n잔고: ${balanceAfter.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`
+		: `Infinity Cage\n\n* 크레딧 리턴 *\n\n게임: ${ledger.AGENT_CODE} - ${ledger.NAME}\n금액: ${amount.toLocaleString()} - 현금\n\n날짜: ${date}\n시간: ${time}`;
+	const sourceDesc = String(ledger.TRANSACTION_DESC || '').toUpperCase();
+	const source = sourceDesc === 'RETURN_SOURCE:CREDIT' ? 'credit' : 'buyin';
+	const logPreview = Number(ledger.TRANSACTION_ID) === 12
+		? (source === 'credit' ? 'Junket Credit Return Thru Deposit' : 'Game Credit Return Thru Deposit')
+		: (source === 'credit' ? 'Junket Credit Return Thru Cash' : 'Game Credit Return Thru Cash');
+	const opts = {
+		logPreview,
+		logMeta: {
+			accountCode: ledger.AGENT_CODE,
+			guestName: ledger.NAME,
+			amount: Math.abs(Number(amount) || 0)
+		}
+	};
+	const telegramId = getAgentTelegramChatId(ledger);
+
+	if (telegramId) {
+		try {
+			await sendTelegramMessage(text, telegramId, opts);
+		} catch (telegramError) {
+			telegramErrors.push(`Guest Telegram failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+			console.error('Resend marker return Telegram to guest failed:', telegramError.message);
+		}
+	} else {
+		telegramErrors.push(`Guest Telegram ID is missing or disabled for ${ledger.AGENT_CODE} - ${ledger.NAME}.`);
+	}
+
+	try {
+		await sendTelegramToAdditionalChats(text, opts);
+	} catch (telegramError) {
+		telegramErrors.push(`Additional chats failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+		console.error('Resend marker return additional chats failed:', telegramError.message);
+	}
+
+	return true;
+};
+
+const getSettlementTotals = async (gameId) => {
+	const [gameRecords] = await pool.execute(
+		`SELECT AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE
+		 FROM game_record
+		 WHERE ACTIVE != 0 AND GAME_ID = ?
+		 ORDER BY IDNo ASC`,
+		[gameId]
+	);
+
+	let totalNnInit = 0;
+	let totalCcInit = 0;
+	let totalNn = 0;
+	let totalCc = 0;
+	let totalCashOutNn = 0;
+	let totalCashOutCc = 0;
+	let totalRollingNn = 0;
+	let totalRollingAmount = 0;
+	let totalRollingReal = 0;
+	let totalRollingNnReal = 0;
+	let totalRollingCcReal = 0;
+	let totalRollerReturnCc = 0;
+
+	for (const record of gameRecords) {
+		const cageType = Number(record.CAGE_TYPE);
+		if (cageType === 1 && (totalNnInit !== 0 || totalCcInit !== 0)) {
+			totalNn += Number(record.NN_CHIPS) || 0;
+			totalCc += Number(record.CC_CHIPS) || 0;
+		}
+		if (cageType === 1 && totalNnInit === 0 && totalCcInit === 0) {
+			totalNnInit += Number(record.NN_CHIPS) || 0;
+			totalCcInit += Number(record.CC_CHIPS) || 0;
+		}
+		if (cageType === 2) {
+			totalCashOutNn += Number(record.NN_CHIPS) || 0;
+			totalCashOutCc += Number(record.CC_CHIPS) || 0;
+		}
+		if (cageType === 3) {
+			totalRollingAmount += Number(record.AMOUNT) || 0;
+			totalRollingNn += Number(record.NN_CHIPS) || 0;
+		}
+		if (cageType === 4) {
+			totalRollingReal += Number(record.AMOUNT) || 0;
+			totalRollingNnReal += Number(record.NN_CHIPS) || 0;
+			totalRollingCcReal += Number(record.CC_CHIPS) || 0;
+		}
+		if (cageType === 5) {
+			const rollerTransaction = parseInt(record.ROLLER_TRANSACTION, 10) || 1;
+			if (rollerTransaction === 2) {
+				totalRollerReturnCc += Number(record.ROLLER_CC_CHIPS) || 0;
+			}
+		}
+	}
+
+	const totalInitial = totalNnInit + totalCcInit;
+	const totalBuyInChips = totalNn + totalCc;
+	const totalBuyIn = totalInitial + totalBuyInChips;
+	const totalCashOut = totalCashOutNn + totalCashOutCc;
+	const totalAmount = totalBuyInChips + totalInitial;
+	const winlossRaw = totalAmount - totalCashOut;
+	const winloss = winlossRaw < 0 ? Math.abs(winlossRaw) : -winlossRaw;
+	const totalRolling = totalRollingNn + totalRollerReturnCc + totalRollingAmount + totalRollingReal + totalRollingNnReal + totalRollingCcReal - totalCashOutNn;
+
+	return { totalBuyIn, totalCashOut, winloss, totalRolling };
+};
+
+const sendSettlementOriginalResend = async (ledger, telegramErrors) => {
+	if (String(ledger.TRANSACTION_DESC || '').toUpperCase() !== 'COMMISSION' || Number(ledger.TRANSACTION_TYPE) !== 5 || !ledger.GAME_ID) return false;
+
+	const amount = parseFloat(ledger.AMOUNT) || 0;
+	const { totalBuyIn, totalCashOut, winloss, totalRolling } = await getSettlementTotals(ledger.GAME_ID);
+	const [gameRows] = await pool.execute(
+		'SELECT COMMISSION_TYPE, GAME_TYPE FROM game_list WHERE IDNo = ? LIMIT 1',
+		[ledger.GAME_ID]
+	);
+	const game = gameRows[0] || {};
+	const translatedGameType = translateGameTypeForTelegram(game.GAME_TYPE || '');
+	const displayGameType = gameTypeForManagement(translatedGameType);
+	const gameLineKo = translatedGameType ? `${ledger.GAME_ID} - ${translatedGameType}` : String(ledger.GAME_ID);
+	const gameLineMgmt = displayGameType ? `${ledger.GAME_ID} - ${displayGameType}` : String(ledger.GAME_ID);
+	const balanceAfter = Number(ledger.TRANSACTION_ID) === 1
+		? await getLedgerCashBalanceAfter(ledger.ACCOUNT_ID, ledger.ledger_id)
+		: 0;
+	const { date, time } = formatLedgerTelegramDate(ledger.encoded_date);
+	const commissionGuest = commissionGuestLine(game.COMMISSION_TYPE);
+	const commissionMgmt = commissionManagementLine(game.COMMISSION_TYPE);
+
+	const text = Number(ledger.TRANSACTION_ID) === 1
+		? `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}${commissionGuest}\n커미션: ${amount.toLocaleString()} - 계좌입금\n잔고: ${balanceAfter.toLocaleString()}\n\n바이인 합계: ${totalBuyIn.toLocaleString()}\n캐시아웃 합계: ${totalCashOut.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${totalRolling.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`
+		: `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}${commissionGuest}\n커미션: ${amount.toLocaleString()} - 현금\n\n바이인 합계: ${totalBuyIn.toLocaleString()}\n캐시아웃 합계: ${totalCashOut.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${totalRolling.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`;
+	const managementText = `Infinity Cage\n\n* 게임종료 / 정산 End Game *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}${commissionMgmt}\n커미션 Commission : ${amount.toLocaleString()}\n\n바이인 합계 Total Buy-in : ${totalBuyIn.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${totalCashOut.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${totalRolling.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
+	const opts = gamebookTelegramOpts('End Game / Settlement', ledger.AGENT_CODE, ledger.NAME, amount, ledger.GAME_ID);
+	const telegramId = getAgentTelegramChatId(ledger);
+
+	if (telegramId) {
+		try {
+			await sendTelegramMessage(text, telegramId, opts);
+		} catch (telegramError) {
+			telegramErrors.push(`Guest Telegram failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+			console.error('Resend settlement Telegram to guest failed:', telegramError.message);
+		}
+	} else {
+		telegramErrors.push(`Guest Telegram ID is missing or disabled for ${ledger.AGENT_CODE} - ${ledger.NAME}.`);
+	}
+
+	try {
+		await sendToAgentNotifications(ledger.AGENT_CODE, managementText, opts);
+	} catch (telegramError) {
+		telegramErrors.push(`Agent notification failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+		console.error('Resend settlement agent notification failed:', telegramError.message);
+	}
+
+	try {
+		await sendTelegramToAdditionalChats(text, opts);
+	} catch (telegramError) {
+		telegramErrors.push(`Additional chats failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+		console.error('Resend settlement additional chats failed:', telegramError.message);
+	}
+
+	try {
+		await sendTelegramToManagement(managementText, opts);
+	} catch (telegramError) {
+		telegramErrors.push(`Management Telegram failed for ${ledger.AGENT_CODE} - ${ledger.NAME}: ${telegramError.message}`);
+		console.error('Resend settlement management failed:', telegramError.message);
+	}
+
+	return true;
 };
 
 const recordHistory = async ({
@@ -870,6 +1458,265 @@ router.post('/add_account_details', async (req, res) => {
 	} catch (error) {
 		console.error('Error executing query or sending message:', error);
 		res.status(500).send('Error processing request.');
+	}
+});
+
+router.post('/account_details/:ledgerId/resend_telegram', async (req, res) => {
+	const ledgerId = parseInt(req.params.ledgerId, 10);
+	if (!Number.isFinite(ledgerId) || ledgerId <= 0) {
+		return res.status(400).json({ success: false, message: 'Invalid transaction ID.' });
+	}
+
+	try {
+		const [rows] = await pool.execute(
+			`
+				SELECT
+					account_ledger.IDNo AS ledger_id,
+					account_ledger.ACCOUNT_ID,
+					account_ledger.GAME_ID,
+					account_ledger.TRANSACTION_ID,
+					account_ledger.TRANSACTION_TYPE,
+					account_ledger.TRANSACTION_DESC,
+					account_ledger.AMOUNT,
+					account_ledger.REMARKS,
+					account_ledger.TRANSFER,
+					account_ledger.TRANSFER_AGENT,
+					account_ledger.ENCODED_DT AS encoded_date,
+					transaction_type.TRANSACTION,
+					agent.AGENT_CODE,
+					agent.NAME,
+					agent.TELEGRAM_ID,
+					COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
+				FROM account_ledger
+				JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+				JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
+				JOIN agent ON agent.IDNo = account.AGENT_ID
+				WHERE account_ledger.IDNo = ?
+				  AND account_ledger.ACTIVE = 1
+				LIMIT 1
+			`,
+			[ledgerId]
+		);
+
+		if (!rows.length) {
+			return res.status(404).json({ success: false, message: 'Transaction not found.' });
+		}
+
+		const ledger = rows[0];
+		const amount = parseFloat(ledger.AMOUNT) || 0;
+		const { date, time } = formatLedgerTelegramDate(ledger.encoded_date);
+		const telegramErrors = [];
+		let text = '';
+		let logPreview = '';
+		let balanceAfter = await getLedgerCashBalanceAfter(ledger.ACCOUNT_ID, ledger.ledger_id);
+		const sendResendMessage = async (targetLedger, messageText, targetLogPreview) => {
+			const targetTelegramId = getAgentTelegramChatId(targetLedger);
+			const telegramSendOpts = {
+				throwOnFailure: true,
+				logPreview: targetLogPreview,
+				logMeta: {
+					accountCode: targetLedger.AGENT_CODE,
+					guestName: targetLedger.NAME,
+					amount: Math.abs(Number(targetLedger.AMOUNT) || 0)
+				}
+			};
+
+			if (targetTelegramId) {
+				try {
+					await sendTelegramMessage(messageText, targetTelegramId, telegramSendOpts);
+				} catch (telegramError) {
+					telegramErrors.push(`Guest Telegram failed for ${targetLedger.AGENT_CODE} - ${targetLedger.NAME}: ${telegramError.message}`);
+					console.error('Resend Telegram to guest failed:', telegramError.message);
+				}
+			} else {
+				telegramErrors.push(`Guest Telegram ID is missing or disabled for ${targetLedger.AGENT_CODE} - ${targetLedger.NAME}.`);
+			}
+
+			try {
+				await sendTelegramToAdditionalChats(messageText, telegramSendOpts);
+			} catch (telegramError) {
+				telegramErrors.push(`Additional chats failed for ${targetLedger.AGENT_CODE} - ${targetLedger.NAME}: ${telegramError.message}`);
+				console.error('Resend Telegram to additional chats failed:', telegramError.message);
+			}
+		};
+
+		const gameBuyinResent = await sendGameBuyinOriginalResend(ledger, telegramErrors);
+		if (gameBuyinResent) {
+			if (telegramErrors.length) {
+				return res.status(200).json({
+					success: true,
+					message: 'Game buy-in resend finished, but some Telegram deliveries failed.',
+					errors: telegramErrors
+				});
+			}
+
+			return res.json({ success: true, message: 'Game buy-in Telegram messages resent successfully.' });
+		}
+
+		const gameCashoutResent = await sendGameCashoutOriginalResend(ledger, telegramErrors);
+		if (gameCashoutResent) {
+			if (telegramErrors.length) {
+				return res.status(200).json({
+					success: true,
+					message: 'Game cash-out resend finished, but some Telegram deliveries failed.',
+					errors: telegramErrors
+				});
+			}
+
+			return res.json({ success: true, message: 'Game cash-out Telegram messages resent successfully.' });
+		}
+
+		const serviceResent = await sendServiceOriginalResend(ledger, telegramErrors);
+		if (serviceResent) {
+			if (telegramErrors.length) {
+				return res.status(200).json({
+					success: true,
+					message: 'Service payment resend finished, but some Telegram deliveries failed.',
+					errors: telegramErrors
+				});
+			}
+
+			return res.json({ success: true, message: 'Service payment Telegram messages resent successfully.' });
+		}
+
+		const markerReturnResent = await sendMarkerReturnOriginalResend(ledger, telegramErrors);
+		if (markerReturnResent) {
+			if (telegramErrors.length) {
+				return res.status(200).json({
+					success: true,
+					message: 'Credit return resend finished, but some Telegram deliveries failed.',
+					errors: telegramErrors
+				});
+			}
+
+			return res.json({ success: true, message: 'Credit return Telegram messages resent successfully.' });
+		}
+
+		const settlementResent = await sendSettlementOriginalResend(ledger, telegramErrors);
+		if (settlementResent) {
+			if (telegramErrors.length) {
+				return res.status(200).json({
+					success: true,
+					message: 'Settlement resend finished, but some Telegram deliveries failed.',
+					errors: telegramErrors
+				});
+			}
+
+			return res.json({ success: true, message: 'Settlement Telegram messages resent successfully.' });
+		}
+
+		if (Number(ledger.TRANSFER) === 1) {
+			const [pairedRows] = await pool.execute(
+				`
+					SELECT
+						account_ledger.IDNo AS ledger_id,
+						account_ledger.ACCOUNT_ID,
+						account_ledger.GAME_ID,
+						account_ledger.TRANSACTION_ID,
+						account_ledger.TRANSACTION_TYPE,
+						account_ledger.TRANSACTION_DESC,
+						account_ledger.AMOUNT,
+						account_ledger.REMARKS,
+						account_ledger.TRANSFER,
+						account_ledger.TRANSFER_AGENT,
+						account_ledger.ENCODED_DT AS encoded_date,
+						transaction_type.TRANSACTION,
+						agent.AGENT_CODE,
+						agent.NAME,
+						agent.TELEGRAM_ID,
+						COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
+					FROM account_ledger
+					JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+					JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
+					JOIN agent ON agent.IDNo = account.AGENT_ID
+					WHERE account_ledger.ACTIVE = 1
+					  AND account_ledger.TRANSFER = 1
+					  AND account_ledger.IDNo <> ?
+					  AND account_ledger.ACCOUNT_ID = ?
+					  AND account_ledger.TRANSFER_AGENT = ?
+					  AND account_ledger.AMOUNT = ?
+					ORDER BY ABS(TIMESTAMPDIFF(SECOND, account_ledger.ENCODED_DT, ?)) ASC, account_ledger.IDNo DESC
+					LIMIT 1
+				`,
+				[ledger.ledger_id, ledger.TRANSFER_AGENT, ledger.ACCOUNT_ID, ledger.AMOUNT, ledger.encoded_date]
+			);
+
+			if (!pairedRows.length) {
+				telegramErrors.push('Matching transfer receiver/sender row was not found; resent only the selected row.');
+			}
+
+			const transferLedgers = pairedRows.length ? [ledger, pairedRows[0]] : [ledger];
+			for (const targetLedger of transferLedgers) {
+				const otherLedger =
+					Number(targetLedger.ledger_id) === Number(ledger.ledger_id)
+						? (pairedRows[0] || {})
+						: ledger;
+				const otherCode = otherLedger.AGENT_CODE || 'N/A';
+				const otherName = otherLedger.NAME || 'N/A';
+				const targetAmount = parseFloat(targetLedger.AMOUNT) || 0;
+				const targetBalanceAfter = await getLedgerCashBalanceAfter(targetLedger.ACCOUNT_ID, targetLedger.ledger_id);
+				const targetDateTime = formatLedgerTelegramDate(targetLedger.encoded_date);
+
+				if (targetLedger.TRANSACTION === 'DEPOSIT') {
+					text = `Infinity Cage\n\n* 이체 *\n\n받으신분: ${targetLedger.AGENT_CODE} - ${targetLedger.NAME}\n보내신분: ${otherCode} - ${otherName}\n금액: ${targetAmount.toLocaleString()}\n잔고: ${targetBalanceAfter.toLocaleString()}\n\n날짜: ${targetDateTime.date}\n시간: ${targetDateTime.time}`;
+					logPreview = `Transfer Received ← ${otherCode}`;
+				} else {
+					text = `Infinity Cage\n\n* 이체 *\n\n계정: ${targetLedger.AGENT_CODE} - ${targetLedger.NAME}\n받으신분: ${otherCode} - ${otherName}\n금액: -${targetAmount.toLocaleString()}\n잔고: ${targetBalanceAfter.toLocaleString()}\n\n날짜: ${targetDateTime.date}\n시간: ${targetDateTime.time}`;
+					logPreview = `Transfer Sent → ${otherCode}`;
+				}
+
+				await sendResendMessage(targetLedger, text, logPreview);
+			}
+
+			if (telegramErrors.length) {
+				return res.status(200).json({
+					success: true,
+					message: 'Transfer resend finished, but some Telegram deliveries failed.',
+					errors: telegramErrors
+				});
+			}
+
+			return res.json({ success: true, message: 'Transfer Telegram messages resent successfully.' });
+		} else {
+			const transaction = ledger.TRANSACTION;
+			const translateTransaction = (trans) => {
+				if (trans === 'DEPOSIT') return '어카운트 입금';
+				if (trans === 'WITHDRAW') return '어카운트 출금';
+				if (trans === 'CREDIT' || trans === 'IOU CASH' || trans === 'CREDIT CASH') return '크레딧';
+				return trans;
+			};
+			const isCredit = transaction === 'CREDIT' || transaction === 'IOU CASH' || transaction === 'CREDIT CASH';
+			if (isCredit) {
+				balanceAfter = await getLedgerCreditBalanceAfter(ledger.ACCOUNT_ID, ledger.ledger_id);
+			}
+			const remarksLine = ledger.REMARKS ? `비고: ${ledger.REMARKS}\n` : '';
+			const balanceLabel = isCredit ? '총 크레딧' : '잔고';
+			text = `Infinity Cage\n\n* ${translateTransaction(transaction)} *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n금액: ${Math.abs(amount).toLocaleString()}\n${balanceLabel}: ${balanceAfter.toLocaleString()}\n${remarksLine}\n날짜: ${date}\n시간: ${time}`;
+			logPreview = guestPortalTransactionLogPreview(transaction, {
+				transactionDesc: ledger.TRANSACTION_DESC || 'ACCOUNT DETAILS'
+			});
+		}
+		await sendResendMessage(ledger, text, logPreview);
+
+		if (telegramErrors.length) {
+			return res.status(200).json({
+				success: true,
+				message: 'Resend finished, but some Telegram deliveries failed.',
+				errors: telegramErrors
+			});
+		}
+
+		return res.json({
+			success: true,
+			message: 'Telegram message resent successfully.'
+		});
+	} catch (error) {
+		console.error('Error resending Telegram transaction message:', error);
+		return res.status(500).json({
+			success: false,
+			message: 'Error resending Telegram message.',
+			error: error.message || String(error)
+		});
 	}
 });
 

@@ -167,6 +167,7 @@
                                             <th class="text-center" style="width: 130px;"><%= __('modal_account_details.amount') %></th>
                                             <th class="text-center" style="width: 140px;"><%= __('modal_account_details.balance_after') %></th>
                                             <th class="text-center" style="width: 160px;"><%= __('modal_account_details.remarks') %></th>
+                                            <th class="text-center tele-column">Send</th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -775,6 +776,44 @@
 #accountDetails td:last-child {
     text-align: right;
     color: #333;
+}
+
+#accountDetails th:last-child,
+#accountDetails td:last-child {
+    text-align: center;
+    width: 42px;
+    min-width: 42px;
+    max-width: 42px;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.btn-resend-account-telegram {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #2f55d4;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.btn-resend-account-telegram:hover,
+.btn-resend-account-telegram:focus {
+    color: #1d3ea6;
+    background: transparent;
+    outline: none;
+    box-shadow: none;
+}
+
+.btn-resend-account-telegram:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 

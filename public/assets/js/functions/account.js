@@ -799,6 +799,15 @@ function formatAccountDetailsBalance(val) {
 	return `₱${(parseFloat(val) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
+function renderTelegramResendButton(ledgerId) {
+	if (!ledgerId) return '';
+	return `
+		<button type="button" class="btn-resend-account-telegram" data-ledger-id="${ledgerId}" title="Send Message" aria-label="Send Message">
+			<i class="fa-brands fa-telegram"></i>
+		</button>
+	`;
+}
+
 function reloadDataDetails() {
 	if (!accountDetailsDataTable || !currentAccountDetailsId) return;
 
@@ -849,7 +858,8 @@ function reloadDataDetails() {
 									transactionCell,
 									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
 									formatAccountDetailsBalance(row.balance_after),
-									row.REMARKS
+									row.REMARKS,
+									renderTelegramResendButton(row.account_details_id)
 								]);
 								resolve();
 							},
@@ -866,7 +876,8 @@ function reloadDataDetails() {
 									transactionCell,
 									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
 									formatAccountDetailsBalance(row.balance_after),
-									row.REMARKS
+									row.REMARKS,
+									renderTelegramResendButton(row.account_details_id)
 								]);
 								resolve();
 							}
@@ -896,7 +907,8 @@ function reloadDataDetails() {
 							transactionCell,
 							`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
 							formatAccountDetailsBalance(row.balance_after),
-							row.REMARKS
+							row.REMARKS,
+							renderTelegramResendButton(row.account_details_id)
 						]);
 						resolve();
 					}
@@ -938,6 +950,54 @@ function reloadDataDetails() {
 		}
 	});
 }
+
+$(document).off('click', '.btn-resend-account-telegram').on('click', '.btn-resend-account-telegram', function () {
+	const button = $(this);
+	const ledgerId = button.data('ledger-id');
+	if (!ledgerId || button.prop('disabled')) return;
+
+	const originalHtml = button.html();
+	button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+
+	$.ajax({
+		url: '/account_details/' + encodeURIComponent(ledgerId) + '/resend_telegram',
+		type: 'POST',
+		success: function (response) {
+			const errors = response && Array.isArray(response.errors) ? response.errors : [];
+			if (errors.length) {
+				Swal.fire({
+					icon: 'warning',
+					title: 'Telegram Resend Finished',
+					html: '<strong>' + (response.message || 'Some deliveries failed.') + '</strong><br><br>' + errors.map(function (err) {
+						return $('<div>').text(err).html();
+					}).join('<br>'),
+					confirmButtonText: 'OK'
+				});
+				return;
+			}
+
+			Swal.fire({
+				icon: 'success',
+				title: 'Telegram Resent',
+				text: (response && response.message) || 'Telegram message resent successfully.',
+				timer: 1600,
+				showConfirmButton: false
+			});
+		},
+		error: function (xhr) {
+			const message = xhr.responseJSON?.message || xhr.responseJSON?.error || 'Failed to resend Telegram message.';
+			Swal.fire({
+				icon: 'error',
+				title: 'Telegram Resend Failed',
+				text: message,
+				confirmButtonText: 'OK'
+			});
+		},
+		complete: function () {
+			button.prop('disabled', false).html(originalHtml);
+		}
+	});
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // account_details_v2: tawagin mula sa Activity Logs
