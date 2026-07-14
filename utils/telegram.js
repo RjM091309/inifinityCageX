@@ -805,7 +805,37 @@ async function startGuestBot() {
       // Agent found, send Korean welcome message with agent code
       const agentCode = accountResults[0].AGENT_CODE;
 
-      const welcomeMessage = `Welcome to Infinity Cage!`;
+      const welcomeMessage = `INFINITY 를 이용해 주셔서 감사합니다.
+
+고객님의 어카운트 번호는 INF${agentCode} 입니다.
+
+✅아래는 어카운트 이용 시 유의사항입니다.
+
+1. 어카운트 생성 후 INFINITY 에서 입·출금 및 게임 이용이 가능합니다.
+
+2. 어카운트는 본인 외 입·출금, 내역 열람 및 게임 이용은 제한됩니다.
+
+✅공식 텔레그램 공지 채널을 통해
+
+INFINITY 의 최신 이벤트 및 정보를 확인하실 수 있습니다.
+
+https://t.me/InfinityClark
+
+✅문의사항
+
+INFINITY 플로어
+📱 @INF_FLOOR
+📞 +63 920 237 9003
+
+INFINITY 케이지
+📱 @INF_CAGE
+📞 +63 962 688 4227
+
+INFINITY 컨시어지
+📱 @INF_CONCIERGE
+📞 +63 947 745 1088
+
+감사합니다.`;
 
       bot.sendMessage(chatId, welcomeMessage, {
         reply_markup: {
