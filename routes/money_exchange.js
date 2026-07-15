@@ -49,6 +49,29 @@ function parseOptionalTxnId(v) {
 	return !Number.isNaN(n) && n > 0 ? n : null;
 }
 
+function getDepositBaseAmount(dep) {
+	const inCode = String(dep.IN_CURRENCY_CODE || '').toUpperCase();
+	const exCode = String(dep.EXCHANGE_CURRENCY_CODE || '').toUpperCase();
+	const base =
+		inCode === 'PHP' && exCode !== 'PHP'
+			? Number(dep.AMOUNT_IN)
+			: Number(dep.EXCHANGE_AMOUNT);
+	return Number.isFinite(base) ? base : NaN;
+}
+
+async function getReturnedTotal(sourceDepositId, excludeId) {
+	let sql = `SELECT COALESCE(SUM(RETURN_AMOUNT), 0) AS total
+		FROM money_exchange_transaction
+		WHERE ACTIVE = 1 AND TRANS_TYPE = 2 AND SOURCE_DEPOSIT_ID = ?`;
+	const params = [sourceDepositId];
+	if (excludeId) {
+		sql += ' AND ID <> ?';
+		params.push(excludeId);
+	}
+	const [rows] = await pool.execute(sql, params);
+	return Number(rows[0] && rows[0].total) || 0;
+}
+
 /** Trimmed guest name or null; caller validates walk-in requires non-empty */
 function parseGuestName(body) {
 	const s = String(body.txtGuestName || body.txtGuestname || '').trim();
@@ -158,27 +181,16 @@ router.post('/add_money_exchange_return', checkSession, async (req, res) => {
 		if (Number(dep.ACTIVE) !== 1 || Number(dep.TRANS_TYPE) !== 1) {
 			return res.status(400).send('Selected record is not an active deposit');
 		}
-		const inCode = String(dep.IN_CURRENCY_CODE || '').toUpperCase();
-		const exCode = String(dep.EXCHANGE_CURRENCY_CODE || '').toUpperCase();
-		const baseAmount =
-			inCode === 'PHP' && exCode !== 'PHP'
-				? Number(dep.AMOUNT_IN)
-				: Number(dep.EXCHANGE_AMOUNT);
+		const baseAmount = getDepositBaseAmount(dep);
 		if (!Number.isFinite(baseAmount)) {
 			return res.status(400).send('Selected deposit has invalid base return amount');
 		}
-		const computedMargin = Math.max(0, returnAmt - baseAmount);
-
-		const [linkedRows] = await pool.execute(
-			`SELECT ID
-			 FROM money_exchange_transaction
-			 WHERE ACTIVE = 1 AND TRANS_TYPE = 2 AND SOURCE_DEPOSIT_ID = ?
-			 LIMIT 1`,
-			[sourceDepositId]
-		);
-		if (linkedRows && linkedRows.length) {
-			return res.status(400).send('This deposit is already returned');
+		const returnedTotal = await getReturnedTotal(sourceDepositId);
+		const remaining = Math.max(0, baseAmount - returnedTotal);
+		if (remaining <= 0) {
+			return res.status(400).send('This deposit is already fully returned');
 		}
+		const computedMargin = Math.max(0, returnAmt - remaining);
 
 		await pool.execute(
 			`INSERT INTO money_exchange_transaction (
@@ -226,25 +238,55 @@ router.get('/money_exchange_deposit_history', checkSession, async (req, res) => 
 				c2.CODE AS exchange_currency_code,
 				t.RATE_PERCENT AS rate_percent,
 				t.EXCHANGE_AMOUNT AS exchange_amount,
-				r.ID AS return_txn_id,
-				DATE_FORMAT(r.TRANS_DATETIME, '%b %e, %Y %H:%i') AS return_datetime,
-				r.RETURN_AMOUNT AS return_amount,
-				r.MARGIN_RETURN AS margin_return,
-				r.REMARK AS return_remark,
+				IFNULL(ra.return_count, 0) AS return_count,
+				IFNULL(ra.total_return_amount, 0) AS total_return_amount,
+				IFNULL(ra.total_margin_return, 0) AS total_margin_return,
+				(
+					CASE
+						WHEN UPPER(IFNULL(c1.CODE, '')) = 'PHP'
+							AND UPPER(IFNULL(c2.CODE, '')) <> 'PHP'
+						THEN t.AMOUNT_IN
+						ELSE t.EXCHANGE_AMOUNT
+					END
+				) AS return_base_amount,
+				GREATEST(
+					0,
+					(
+						CASE
+							WHEN UPPER(IFNULL(c1.CODE, '')) = 'PHP'
+								AND UPPER(IFNULL(c2.CODE, '')) <> 'PHP'
+							THEN t.AMOUNT_IN
+							ELSE t.EXCHANGE_AMOUNT
+						END
+					) - IFNULL(ra.total_return_amount, 0)
+				) AS remaining_return,
 				CASE
-					WHEN r.ID IS NOT NULL
-					THEN 'Returned'
-					ELSE 'Pending'
+					WHEN IFNULL(ra.return_count, 0) = 0 THEN 'Pending'
+					WHEN IFNULL(ra.total_return_amount, 0) < (
+						CASE
+							WHEN UPPER(IFNULL(c1.CODE, '')) = 'PHP'
+								AND UPPER(IFNULL(c2.CODE, '')) <> 'PHP'
+							THEN t.AMOUNT_IN
+							ELSE t.EXCHANGE_AMOUNT
+						END
+					) THEN 'Partial'
+					ELSE 'Returned'
 				END AS return_status
 			FROM money_exchange_transaction t
 			LEFT JOIN account acc ON acc.IDNo = t.ACCOUNT_ID
 			LEFT JOIN agent ag ON ag.IDNo = acc.AGENT_ID
 			LEFT JOIN currency_master c1 ON c1.ID = t.IN_CURRENCY_ID
 			LEFT JOIN currency_master c2 ON c2.ID = t.EXCHANGE_CURRENCY_ID
-			LEFT JOIN money_exchange_transaction r
-				ON r.SOURCE_DEPOSIT_ID = t.ID
-				AND r.TRANS_TYPE = 2
-				AND r.ACTIVE = 1
+			LEFT JOIN (
+				SELECT
+					SOURCE_DEPOSIT_ID,
+					COUNT(*) AS return_count,
+					SUM(RETURN_AMOUNT) AS total_return_amount,
+					SUM(MARGIN_RETURN) AS total_margin_return
+				FROM money_exchange_transaction
+				WHERE ACTIVE = 1 AND TRANS_TYPE = 2
+				GROUP BY SOURCE_DEPOSIT_ID
+			) ra ON ra.SOURCE_DEPOSIT_ID = t.ID
 			WHERE t.TRANS_TYPE = 1 AND t.ACTIVE = 1
 			ORDER BY t.TRANS_DATETIME DESC, t.ID DESC
 			LIMIT ${limit}`
@@ -253,6 +295,32 @@ router.get('/money_exchange_deposit_history', checkSession, async (req, res) => 
 	} catch (err) {
 		console.error('money_exchange_deposit_history:', err);
 		res.status(500).send('Error loading deposit history');
+	}
+});
+
+/** GET returns for one deposit (JSON) */
+router.get('/money_exchange_deposit/:id/returns', checkSession, async (req, res) => {
+	try {
+		const id = parseOptionalTxnId(req.params.id);
+		if (!id) {
+			return res.status(400).send('Invalid id');
+		}
+		const [rows] = await pool.execute(
+			`SELECT
+				r.ID AS id,
+				DATE_FORMAT(r.TRANS_DATETIME, '%b %e, %Y %H:%i') AS return_datetime,
+				r.RETURN_AMOUNT AS return_amount,
+				r.MARGIN_RETURN AS margin_return,
+				r.REMARK AS remark
+			 FROM money_exchange_transaction r
+			 WHERE r.ACTIVE = 1 AND r.TRANS_TYPE = 2 AND r.SOURCE_DEPOSIT_ID = ?
+			 ORDER BY r.TRANS_DATETIME ASC, r.ID ASC`,
+			[id]
+		);
+		res.json(rows || []);
+	} catch (err) {
+		console.error('money_exchange_deposit returns:', err);
+		res.status(500).send('Error loading returns');
 	}
 });
 
@@ -451,27 +519,13 @@ router.put(
 				if (Number(dep.ACTIVE) !== 1 || Number(dep.TRANS_TYPE) !== 1) {
 					return res.status(400).send('Selected record is not an active deposit');
 				}
-				const inCode = String(dep.IN_CURRENCY_CODE || '').toUpperCase();
-				const exCode = String(dep.EXCHANGE_CURRENCY_CODE || '').toUpperCase();
-				const baseAmount =
-					inCode === 'PHP' && exCode !== 'PHP'
-						? Number(dep.AMOUNT_IN)
-						: Number(dep.EXCHANGE_AMOUNT);
+				const baseAmount = getDepositBaseAmount(dep);
 				if (!Number.isFinite(baseAmount)) {
 					return res.status(400).send('Selected deposit has invalid base return amount');
 				}
-				const computedMargin = Math.max(0, returnAmt - baseAmount);
-
-				const [linkedRows] = await pool.execute(
-					`SELECT ID
-					 FROM money_exchange_transaction
-					 WHERE ACTIVE = 1 AND TRANS_TYPE = 2 AND SOURCE_DEPOSIT_ID = ? AND ID <> ?
-					 LIMIT 1`,
-					[sourceDepositId, id]
-				);
-				if (linkedRows && linkedRows.length) {
-					return res.status(400).send('This deposit is already returned');
-				}
+				const returnedOthers = await getReturnedTotal(sourceDepositId, id);
+				const remaining = Math.max(0, baseAmount - returnedOthers);
+				const computedMargin = Math.max(0, returnAmt - remaining);
 
 				const [result] = await pool.execute(
 					`UPDATE money_exchange_transaction SET

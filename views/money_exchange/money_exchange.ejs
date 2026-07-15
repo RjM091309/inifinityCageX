@@ -172,21 +172,9 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body mx-return-details-body">
-        <div class="mx-ret-row">
-          <div class="mx-ret-label">Return Date/Time</div>
-          <div class="mx-ret-value" id="mx-ret-detail-datetime">—</div>
-        </div>
-        <div class="mx-ret-row">
-          <div class="mx-ret-label">Return Amount</div>
-          <div class="mx-ret-value" id="mx-ret-detail-amount">—</div>
-        </div>
-        <div class="mx-ret-row">
-          <div class="mx-ret-label">Margin</div>
-          <div class="mx-ret-value" id="mx-ret-detail-margin">—</div>
-        </div>
-        <div class="mx-ret-row">
-          <div class="mx-ret-label">Remark</div>
-          <div class="mx-ret-value mx-ret-remark" id="mx-ret-detail-remark">—</div>
+        <div class="mx-ret-summary mb-2 small text-muted" id="mx-ret-summary">—</div>
+        <div class="mx-ret-list" id="mx-ret-list">
+          <div class="text-center text-muted py-2">Loading…</div>
         </div>
       </div>
     </div>
@@ -775,6 +763,18 @@
     filter: brightness(1.04);
   }
 
+  .money-exchange-board .mx-status-partial {
+    color: #fff;
+    background: linear-gradient(180deg, #f0a04b 0%, #e89149 100%);
+    box-shadow: 0 1px 2px rgba(180, 100, 20, 0.25);
+    border: none;
+    cursor: pointer;
+  }
+
+  .money-exchange-board .mx-status-partial:hover {
+    filter: brightness(1.04);
+  }
+
   #modal-mx-return-details .modal-content {
     border: 1px solid #dbe6f2;
     border-radius: 0.55rem;
@@ -805,18 +805,34 @@
     padding: 0.9rem 0.95rem 0.65rem;
   }
 
+  #modal-mx-return-details .mx-ret-summary {
+    padding: 0.35rem 0.1rem 0.55rem;
+    border-bottom: 1px solid #e8eef6;
+    margin-bottom: 0.35rem !important;
+  }
+
+  #modal-mx-return-details .mx-ret-entry {
+    padding: 0.55rem 0.1rem 0.45rem;
+    border-bottom: 1px dashed #e8eef6;
+  }
+
+  #modal-mx-return-details .mx-ret-entry:last-child {
+    border-bottom: none;
+  }
+
+  #modal-mx-return-details .mx-ret-entry-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 0.35rem;
+  }
+
   #modal-mx-return-details .mx-ret-row {
     display: grid;
     grid-template-columns: 9.75rem 1fr;
     gap: 0.65rem;
-    padding: 0.42rem 0.1rem;
-    border-bottom: 1px dashed #e8eef6;
+    padding: 0.22rem 0;
     align-items: start;
-  }
-
-  #modal-mx-return-details .mx-ret-row:last-child {
-    border-bottom: none;
-    padding-bottom: 0.15rem;
   }
 
   #modal-mx-return-details .mx-ret-label {

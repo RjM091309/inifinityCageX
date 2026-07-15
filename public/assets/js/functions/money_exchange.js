@@ -7,6 +7,7 @@
 	const urlMxReturn = '/add_money_exchange_return';
 	const urlMxHistDeposit = '/money_exchange_deposit_history';
 	const urlMxHistReturn = '/money_exchange_return_history';
+	const urlMxDepositReturns = (id) => '/money_exchange_deposit/' + id + '/returns';
 	const urlMxTxn = (id) => '/money_exchange_transaction/' + id;
 	const urlMxTxnDelete = (id) => '/money_exchange_transaction/' + id + '/delete';
 	let currencyRowsCache = [];
@@ -224,6 +225,9 @@
 		if (s === 'returned') {
 			return '<span class="mx-status-badge mx-status-returned">Returned</span>';
 		}
+		if (s === 'partial') {
+			return '<span class="mx-status-badge mx-status-partial">Partial</span>';
+		}
 		return '<span class="badge bg-warning text-dark">Pending</span>';
 	}
 
@@ -248,6 +252,22 @@
 
 	function getReturnBaseAmount(row) {
 		if (!row) return NaN;
+		if (row.remaining_return != null && Number.isFinite(Number(row.remaining_return))) {
+			return Number(row.remaining_return);
+		}
+		const inCode = String(row.in_currency_code || '').toUpperCase();
+		const exCode = String(row.exchange_currency_code || '').toUpperCase();
+		if (inCode === 'PHP' && exCode !== 'PHP') {
+			return Number(row.amount_in);
+		}
+		return Number(row.exchange_amount);
+	}
+
+	function getOriginalReturnBaseAmount(row) {
+		if (!row) return NaN;
+		if (row.return_base_amount != null && Number.isFinite(Number(row.return_base_amount))) {
+			return Number(row.return_base_amount);
+		}
 		const inCode = String(row.in_currency_code || '').toUpperCase();
 		const exCode = String(row.exchange_currency_code || '').toUpperCase();
 		if (inCode === 'PHP' && exCode !== 'PHP') {
@@ -264,12 +284,12 @@
 			return;
 		}
 		const ret = parseFormattedNumber(raw);
-		const baseAmount = getReturnBaseAmount(row);
-		if (!Number.isFinite(ret) || !Number.isFinite(baseAmount)) {
+		const remaining = getReturnBaseAmount(row);
+		if (!Number.isFinite(ret) || !Number.isFinite(remaining)) {
 			$('#mx-margin-return').val('');
 			return;
 		}
-		const margin = Math.max(0, ret - baseAmount);
+		const margin = Math.max(0, ret - remaining);
 		$('#mx-margin-return').val(formatCommaNumber(margin));
 	}
 
@@ -277,10 +297,14 @@
 		if (!row || !row.id) return;
 		const depId = String(row.id);
 		$('#mx-source-deposit-id').val(depId);
-		const baseAmount = getReturnBaseAmount(row);
-		$('#mx-source-deposit-note').text(
-			'Return deposit #' + depId + '. Amount: ' + fmtWhole(baseAmount)
-		);
+		const remaining = getReturnBaseAmount(row);
+		const base = getOriginalReturnBaseAmount(row);
+		const returned = Number(row.total_return_amount) || 0;
+		let note = 'Return deposit #' + depId + '. Remaining: ' + fmtWhole(remaining);
+		if (returned > 0) {
+			note += ' (returned ' + fmtWhole(returned) + ' of ' + fmtWhole(base) + ')';
+		}
+		$('#mx-source-deposit-note').text(note + '.');
 		setReturnFormEnabled(true);
 		const accountId = row.account_id != null ? String(row.account_id) : '';
 		$('#mx-account').val(accountId).trigger('change');
@@ -295,17 +319,31 @@
 
 	function mxDepositStatusCell(row) {
 		const status = row && row.return_status ? String(row.return_status) : 'Pending';
-		if (status.toLowerCase() !== 'pending') {
+		const s = status.toLowerCase();
+		const idAttr = escapeHtml(String(row.id));
+		if (s === 'returned') {
 			return (
 				'<button type="button" class="mx-status-badge mx-status-returned btn-mx-view-return" data-id="' +
-				escapeHtml(String(row.id)) +
+				idAttr +
 				'" title="View return details">Returned</button>'
+			);
+		}
+		if (s === 'partial') {
+			return (
+				'<div class="d-flex flex-column align-items-center gap-1">' +
+				'<button type="button" class="mx-status-badge mx-status-partial btn-mx-view-return" data-id="' +
+				idAttr +
+				'" title="View return details">Partial</button>' +
+				'<button type="button" class="btn btn-sm btn-outline-primary btn-mx-link-return py-0 px-2" data-id="' +
+				idAttr +
+				'">Return</button>' +
+				'</div>'
 			);
 		}
 		return (
 			'<div class="d-flex flex-column align-items-center">' +
 			'<button type="button" class="btn btn-sm btn-outline-primary btn-mx-link-return py-0 px-2" data-id="' +
-			escapeHtml(String(row.id)) +
+			idAttr +
 			'">Return</button></div>'
 		);
 	}
@@ -416,14 +454,61 @@
 			party = 'Name: ' + String(depRow.guest_name).trim();
 		}
 		$('#mx-ret-header-meta').text(depRef + ' | ' + party);
-		$('#mx-ret-detail-id').text(depRow.return_txn_id || '—');
-		$('#mx-ret-detail-datetime').text(depRow.return_datetime || '—');
-		$('#mx-ret-detail-amount').text(fmtWhole(depRow.return_amount));
-		$('#mx-ret-detail-margin').text(
-			depRow.margin_return == null ? '—' : fmtWhole(depRow.margin_return)
+		const base = getOriginalReturnBaseAmount(depRow);
+		const returned = Number(depRow.total_return_amount) || 0;
+		const remaining = Number(depRow.remaining_return);
+		const remText = Number.isFinite(remaining) ? remaining : Math.max(0, base - returned);
+		$('#mx-ret-summary').text(
+			'Returned ' +
+				fmtWhole(returned) +
+				' of ' +
+				fmtWhole(base) +
+				' · Remaining ' +
+				fmtWhole(remText)
 		);
-		$('#mx-ret-detail-remark').text(depRow.return_remark || '—');
+		$('#mx-ret-list').html('<div class="text-center text-muted py-2">Loading…</div>');
 		showModal('modal-mx-return-details');
+		$.getJSON(urlMxDepositReturns(depRow.id))
+			.done(function (rows) {
+				const list = rows || [];
+				if (!list.length) {
+					$('#mx-ret-list').html(
+						'<div class="text-center text-muted py-2">No returns yet.</div>'
+					);
+					return;
+				}
+				const html = list
+					.map(function (r, i) {
+						return (
+							'<div class="mx-ret-entry">' +
+							'<div class="mx-ret-entry-title">Return #' +
+							(i + 1) +
+							'</div>' +
+							'<div class="mx-ret-row"><div class="mx-ret-label">Date/Time</div><div class="mx-ret-value">' +
+							escapeHtml(r.return_datetime || '—') +
+							'</div></div>' +
+							'<div class="mx-ret-row"><div class="mx-ret-label">Amount</div><div class="mx-ret-value">' +
+							fmtWhole(r.return_amount) +
+							'</div></div>' +
+							'<div class="mx-ret-row"><div class="mx-ret-label">Margin</div><div class="mx-ret-value">' +
+							(r.margin_return == null ? '—' : fmtWhole(r.margin_return)) +
+							'</div></div>' +
+							'<div class="mx-ret-row"><div class="mx-ret-label">Remark</div><div class="mx-ret-value mx-ret-remark">' +
+							escapeHtml(r.remark || '—') +
+							'</div></div>' +
+							'</div>'
+						);
+					})
+					.join('');
+				$('#mx-ret-list').html(html);
+			})
+			.fail(function (xhr) {
+				$('#mx-ret-list').html(
+					'<div class="text-center text-danger py-2">' +
+						escapeHtml(xhr.responseText || 'Failed to load returns.') +
+						'</div>'
+				);
+			});
 	}
 
 	function initMxEditAccountSelect2() {
@@ -1098,6 +1183,11 @@
 		const id = $(this).data('id');
 		const row = getDepositRowById(id);
 		if (!row) return;
+		const remaining = getReturnBaseAmount(row);
+		if (Number.isFinite(remaining) && remaining <= 0) {
+			Swal.fire('Validation', 'This deposit is already fully returned.', 'warning');
+			return;
+		}
 		applyDepositToReturnForm(row);
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	});
