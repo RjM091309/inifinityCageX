@@ -269,7 +269,8 @@
 			$('#mx-margin-return').val('');
 			return;
 		}
-		$('#mx-margin-return').val(formatCommaNumber(ret - baseAmount));
+		const margin = Math.max(0, ret - baseAmount);
+		$('#mx-margin-return').val(formatCommaNumber(margin));
 	}
 
 	function applyDepositToReturnForm(row) {
@@ -277,7 +278,9 @@
 		const depId = String(row.id);
 		$('#mx-source-deposit-id').val(depId);
 		const baseAmount = getReturnBaseAmount(row);
-		$('#mx-source-deposit-note').text('Return deposit #' + depId + '. Min return: ' + fmtWhole(baseAmount) + '.');
+		$('#mx-source-deposit-note').text(
+			'Return deposit #' + depId + '. Amount: ' + fmtWhole(baseAmount)
+		);
 		setReturnFormEnabled(true);
 		const accountId = row.account_id != null ? String(row.account_id) : '';
 		$('#mx-account').val(accountId).trigger('change');
@@ -1059,19 +1062,9 @@
 			Swal.fire('Validation', 'Select a pending deposit row first.', 'warning');
 			return;
 		}
-		const dep = getLinkedDepositRow();
 		const ret = parseFormattedNumber($('#mx-return-amount').val());
-		const baseAmount = dep ? getReturnBaseAmount(dep) : NaN;
 		if (!Number.isFinite(ret) || ret <= 0) {
 			Swal.fire('Validation', 'Enter a valid return amount.', 'warning');
-			return;
-		}
-		if (Number.isFinite(baseAmount) && ret < baseAmount) {
-			Swal.fire(
-				'Validation',
-				'Return amount cannot be lower than required base amount (' + fmtWhole(baseAmount) + ').',
-				'warning'
-			);
 			return;
 		}
 		updateReturnMarginAuto();

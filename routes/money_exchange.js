@@ -167,12 +167,7 @@ router.post('/add_money_exchange_return', checkSession, async (req, res) => {
 		if (!Number.isFinite(baseAmount)) {
 			return res.status(400).send('Selected deposit has invalid base return amount');
 		}
-		if (returnAmt < baseAmount) {
-			return res
-				.status(400)
-				.send(`Return amount cannot be lower than required base amount (${baseAmount})`);
-		}
-		const computedMargin = returnAmt - baseAmount;
+		const computedMargin = Math.max(0, returnAmt - baseAmount);
 
 		const [linkedRows] = await pool.execute(
 			`SELECT ID
@@ -465,12 +460,7 @@ router.put(
 				if (!Number.isFinite(baseAmount)) {
 					return res.status(400).send('Selected deposit has invalid base return amount');
 				}
-				if (returnAmt < baseAmount) {
-					return res
-						.status(400)
-						.send(`Return amount cannot be lower than required base amount (${baseAmount})`);
-				}
-				const computedMargin = returnAmt - baseAmount;
+				const computedMargin = Math.max(0, returnAmt - baseAmount);
 
 				const [linkedRows] = await pool.execute(
 					`SELECT ID
