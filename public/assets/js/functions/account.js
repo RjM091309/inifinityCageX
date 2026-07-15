@@ -951,11 +951,30 @@ function reloadDataDetails() {
 	});
 }
 
-$(document).off('click', '.btn-resend-account-telegram').on('click', '.btn-resend-account-telegram', function () {
-	const button = $(this);
-	const ledgerId = button.data('ledger-id');
-	if (!ledgerId || button.prop('disabled')) return;
+function escapeTelegramPreviewHtml(text) {
+	return $('<div>').text(text == null ? '' : String(text)).html();
+}
 
+function formatTelegramPreviewHtml(messages) {
+	const list = Array.isArray(messages) ? messages.filter(Boolean) : [];
+	if (!list.length) {
+		return '<p class="text-muted mb-0">No message preview available.</p>';
+	}
+
+	return list.map(function (msg, index) {
+		const label = list.length > 1
+			? '<div class="small text-muted mb-1">Message ' + (index + 1) + ' of ' + list.length + '</div>'
+			: '';
+		return label +
+			'<pre style="text-align:left;white-space:pre-wrap;word-break:break-word;background:#f4f6fa;border:1px solid #e3e6ef;border-radius:8px;padding:12px;margin:0 0 ' +
+			(index < list.length - 1 ? '12px' : '0') +
+			';font-size:13px;line-height:1.45;max-height:280px;overflow:auto;">' +
+			escapeTelegramPreviewHtml(msg) +
+			'</pre>';
+	}).join('');
+}
+
+function resendAccountTelegramMessage(button, ledgerId) {
 	const originalHtml = button.html();
 	button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
 
@@ -969,7 +988,7 @@ $(document).off('click', '.btn-resend-account-telegram').on('click', '.btn-resen
 					icon: 'warning',
 					title: 'Telegram Resend Finished',
 					html: '<strong>' + (response.message || 'Some deliveries failed.') + '</strong><br><br>' + errors.map(function (err) {
-						return $('<div>').text(err).html();
+						return escapeTelegramPreviewHtml(err);
 					}).join('<br>'),
 					confirmButtonText: 'OK'
 				});
@@ -995,6 +1014,50 @@ $(document).off('click', '.btn-resend-account-telegram').on('click', '.btn-resen
 		},
 		complete: function () {
 			button.prop('disabled', false).html(originalHtml);
+		}
+	});
+}
+
+$(document).off('click', '.btn-resend-account-telegram').on('click', '.btn-resend-account-telegram', function () {
+	const button = $(this);
+	const ledgerId = button.data('ledger-id');
+	if (!ledgerId || button.prop('disabled')) return;
+
+	const originalHtml = button.html();
+	button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+
+	$.ajax({
+		url: '/account_details/' + encodeURIComponent(ledgerId) + '/telegram_preview',
+		type: 'GET',
+		success: function (preview) {
+			button.prop('disabled', false).html(originalHtml);
+
+			const messages = preview && Array.isArray(preview.messages) ? preview.messages : [];
+			Swal.fire({
+				icon: 'question',
+				title: 'Send Telegram Message?',
+				html: '<div class="mb-2 text-start small text-muted">Please confirm the message below before sending:</div>' +
+					formatTelegramPreviewHtml(messages),
+				showCancelButton: true,
+				confirmButtonText: 'Send',
+				cancelButtonText: 'Cancel',
+				confirmButtonColor: '#2f55d4',
+				width: 520
+			}).then(function (result) {
+				if (result.isConfirmed) {
+					resendAccountTelegramMessage(button, ledgerId);
+				}
+			});
+		},
+		error: function (xhr) {
+			button.prop('disabled', false).html(originalHtml);
+			const message = xhr.responseJSON?.message || xhr.responseJSON?.error || 'Failed to load Telegram message preview.';
+			Swal.fire({
+				icon: 'error',
+				title: 'Preview Failed',
+				text: message,
+				confirmButtonText: 'OK'
+			});
 		}
 	});
 });

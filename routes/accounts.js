@@ -241,7 +241,7 @@ const getGameBuyinKind = (ledger) => {
 	return null;
 };
 
-const sendGameBuyinOriginalResend = async (ledger, telegramErrors) => {
+const sendGameBuyinOriginalResend = async (ledger, telegramErrors, previewOut = null) => {
 	const buyinKind = getGameBuyinKind(ledger);
 	if (!buyinKind) return false;
 
@@ -313,6 +313,11 @@ const sendGameBuyinOriginalResend = async (ledger, telegramErrors) => {
 		managementText = `Infinity Cage\n\n* 게임 시작 Game Start *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}${commissionManagementLine(game.COMMISSION_TYPE)}\n바이인 Buy-in : ${amount.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
 	}
 
+	if (Array.isArray(previewOut)) {
+		if (text) previewOut.push(text);
+		return true;
+	}
+
 	const label = isAdditional ? 'Add Buy-in' : 'Game Start';
 	const opts = gamebookTelegramOpts(label, ledger.AGENT_CODE, ledger.NAME, amount, gameId);
 	const telegramId = getAgentTelegramChatId(ledger);
@@ -358,7 +363,7 @@ const isGameCashoutLedger = (ledger) => (
 	ledger.GAME_ID
 );
 
-const sendGameCashoutOriginalResend = async (ledger, telegramErrors) => {
+const sendGameCashoutOriginalResend = async (ledger, telegramErrors, previewOut = null) => {
 	if (!isGameCashoutLedger(ledger)) return false;
 
 	const gameId = ledger.GAME_ID;
@@ -442,6 +447,11 @@ const sendGameCashoutOriginalResend = async (ledger, telegramErrors) => {
 		managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}\n캐시아웃 Cash-out : ${totalAmount.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
 	}
 
+	if (Array.isArray(previewOut)) {
+		if (text) previewOut.push(text);
+		return true;
+	}
+
 	const opts = gamebookTelegramOpts('Cash-out', ledger.AGENT_CODE, ledger.NAME, totalAmount, gameId);
 	const telegramId = getAgentTelegramChatId(ledger);
 	if (telegramId) {
@@ -479,7 +489,7 @@ const sendGameCashoutOriginalResend = async (ledger, telegramErrors) => {
 	return true;
 };
 
-const sendServiceOriginalResend = async (ledger, telegramErrors) => {
+const sendServiceOriginalResend = async (ledger, telegramErrors, previewOut = null) => {
 	if (String(ledger.TRANSACTION_DESC || '').toUpperCase() !== 'SERVICES') return false;
 
 	const [serviceRows] = await pool.execute(
@@ -507,6 +517,11 @@ const sendServiceOriginalResend = async (ledger, telegramErrors) => {
 	const amount = parseFloat(ledger.AMOUNT) || 0;
 	const { date, time } = formatLedgerTelegramDate(ledger.encoded_date);
 	const text = `Infinity Cage\n\n* 서비스 결제 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n${serviceLine}\n금액: ${amount.toLocaleString('en-US')} - 계좌출금\n\n날짜: ${date}\n시간: ${time}`;
+	if (Array.isArray(previewOut)) {
+		previewOut.push(text);
+		return true;
+	}
+
 	const opts = gamebookTelegramOpts('Service Payment', ledger.AGENT_CODE, ledger.NAME, amount, ledger.GAME_ID);
 	const telegramId = getAgentTelegramChatId(ledger);
 
@@ -531,7 +546,7 @@ const sendServiceOriginalResend = async (ledger, telegramErrors) => {
 	return true;
 };
 
-const sendMarkerReturnOriginalResend = async (ledger, telegramErrors) => {
+const sendMarkerReturnOriginalResend = async (ledger, telegramErrors, previewOut = null) => {
 	if (Number(ledger.TRANSACTION_TYPE) !== 3 || ![11, 12].includes(Number(ledger.TRANSACTION_ID))) return false;
 
 	const amount = parseFloat(ledger.AMOUNT) || 0;
@@ -542,6 +557,11 @@ const sendMarkerReturnOriginalResend = async (ledger, telegramErrors) => {
 	const text = Number(ledger.TRANSACTION_ID) === 12
 		? `Infinity Cage\n\n* 크레딧 리턴 *\n\n게임: ${ledger.AGENT_CODE} - ${ledger.NAME}\n금액: ${amount.toLocaleString()} - 계좌출금\n잔고: ${balanceAfter.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`
 		: `Infinity Cage\n\n* 크레딧 리턴 *\n\n게임: ${ledger.AGENT_CODE} - ${ledger.NAME}\n금액: ${amount.toLocaleString()} - 현금\n\n날짜: ${date}\n시간: ${time}`;
+	if (Array.isArray(previewOut)) {
+		previewOut.push(text);
+		return true;
+	}
+
 	const sourceDesc = String(ledger.TRANSACTION_DESC || '').toUpperCase();
 	const source = sourceDesc === 'RETURN_SOURCE:CREDIT' ? 'credit' : 'buyin';
 	const logPreview = Number(ledger.TRANSACTION_ID) === 12
@@ -643,7 +663,7 @@ const getSettlementTotals = async (gameId) => {
 	return { totalBuyIn, totalCashOut, winloss, totalRolling };
 };
 
-const sendSettlementOriginalResend = async (ledger, telegramErrors) => {
+const sendSettlementOriginalResend = async (ledger, telegramErrors, previewOut = null) => {
 	if (String(ledger.TRANSACTION_DESC || '').toUpperCase() !== 'COMMISSION' || Number(ledger.TRANSACTION_TYPE) !== 5 || !ledger.GAME_ID) return false;
 
 	const amount = parseFloat(ledger.AMOUNT) || 0;
@@ -668,6 +688,11 @@ const sendSettlementOriginalResend = async (ledger, telegramErrors) => {
 		? `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}${commissionGuest}\n커미션: ${amount.toLocaleString()} - 계좌입금\n잔고: ${balanceAfter.toLocaleString()}\n\n바이인 합계: ${totalBuyIn.toLocaleString()}\n캐시아웃 합계: ${totalCashOut.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${totalRolling.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`
 		: `Infinity Cage\n\n* 게임종료 / 정산 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}${commissionGuest}\n커미션: ${amount.toLocaleString()} - 현금\n\n바이인 합계: ${totalBuyIn.toLocaleString()}\n캐시아웃 합계: ${totalCashOut.toLocaleString()}\n윈/로스: ${winloss.toLocaleString()}\n토탈롤링: ${totalRolling.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`;
 	const managementText = `Infinity Cage\n\n* 게임종료 / 정산 End Game *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}${commissionMgmt}\n커미션 Commission : ${amount.toLocaleString()}\n\n바이인 합계 Total Buy-in : ${totalBuyIn.toLocaleString()}\n캐시아웃 합계 Total Cashout: ${totalCashOut.toLocaleString()}\n윈/로스 Win/Loss : ${winloss.toLocaleString()}\n토탈롤링 Total Rolling: ${totalRolling.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
+	if (Array.isArray(previewOut)) {
+		previewOut.push(text);
+		return true;
+	}
+
 	const opts = gamebookTelegramOpts('End Game / Settlement', ledger.AGENT_CODE, ledger.NAME, amount, ledger.GAME_ID);
 	const telegramId = getAgentTelegramChatId(ledger);
 
@@ -1461,14 +1486,50 @@ router.post('/add_account_details', async (req, res) => {
 	}
 });
 
-router.post('/account_details/:ledgerId/resend_telegram', async (req, res) => {
-	const ledgerId = parseInt(req.params.ledgerId, 10);
-	if (!Number.isFinite(ledgerId) || ledgerId <= 0) {
-		return res.status(400).json({ success: false, message: 'Invalid transaction ID.' });
-	}
+const loadLedgerForTelegramResend = async (ledgerId) => {
+	const [rows] = await pool.execute(
+		`
+			SELECT
+				account_ledger.IDNo AS ledger_id,
+				account_ledger.ACCOUNT_ID,
+				account_ledger.GAME_ID,
+				account_ledger.TRANSACTION_ID,
+				account_ledger.TRANSACTION_TYPE,
+				account_ledger.TRANSACTION_DESC,
+				account_ledger.AMOUNT,
+				account_ledger.REMARKS,
+				account_ledger.TRANSFER,
+				account_ledger.TRANSFER_AGENT,
+				account_ledger.ENCODED_DT AS encoded_date,
+				transaction_type.TRANSACTION,
+				agent.AGENT_CODE,
+				agent.NAME,
+				agent.TELEGRAM_ID,
+				COALESCE(agent.TELEGRAM_ENABLED, 1) AS TELEGRAM_ENABLED
+			FROM account_ledger
+			JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+			JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
+			JOIN agent ON agent.IDNo = account.AGENT_ID
+			WHERE account_ledger.IDNo = ?
+			  AND account_ledger.ACTIVE = 1
+			LIMIT 1
+		`,
+		[ledgerId]
+	);
+	return rows[0] || null;
+};
 
-	try {
-		const [rows] = await pool.execute(
+const buildTelegramResendPreviewMessages = async (ledger) => {
+	const messages = [];
+
+	if (await sendGameBuyinOriginalResend(ledger, [], messages)) return messages;
+	if (await sendGameCashoutOriginalResend(ledger, [], messages)) return messages;
+	if (await sendServiceOriginalResend(ledger, [], messages)) return messages;
+	if (await sendMarkerReturnOriginalResend(ledger, [], messages)) return messages;
+	if (await sendSettlementOriginalResend(ledger, [], messages)) return messages;
+
+	if (Number(ledger.TRANSFER) === 1) {
+		const [pairedRows] = await pool.execute(
 			`
 				SELECT
 					account_ledger.IDNo AS ledger_id,
@@ -1491,18 +1552,104 @@ router.post('/account_details/:ledgerId/resend_telegram', async (req, res) => {
 				JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
 				JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID
 				JOIN agent ON agent.IDNo = account.AGENT_ID
-				WHERE account_ledger.IDNo = ?
-				  AND account_ledger.ACTIVE = 1
+				WHERE account_ledger.ACTIVE = 1
+				  AND account_ledger.TRANSFER = 1
+				  AND account_ledger.IDNo <> ?
+				  AND account_ledger.ACCOUNT_ID = ?
+				  AND account_ledger.TRANSFER_AGENT = ?
+				  AND account_ledger.AMOUNT = ?
+				ORDER BY ABS(TIMESTAMPDIFF(SECOND, account_ledger.ENCODED_DT, ?)) ASC, account_ledger.IDNo DESC
 				LIMIT 1
 			`,
-			[ledgerId]
+			[ledger.ledger_id, ledger.TRANSFER_AGENT, ledger.ACCOUNT_ID, ledger.AMOUNT, ledger.encoded_date]
 		);
 
-		if (!rows.length) {
+		const transferLedgers = pairedRows.length ? [ledger, pairedRows[0]] : [ledger];
+		for (const targetLedger of transferLedgers) {
+			const otherLedger =
+				Number(targetLedger.ledger_id) === Number(ledger.ledger_id)
+					? (pairedRows[0] || {})
+					: ledger;
+			const otherCode = otherLedger.AGENT_CODE || 'N/A';
+			const otherName = otherLedger.NAME || 'N/A';
+			const targetAmount = parseFloat(targetLedger.AMOUNT) || 0;
+			const targetBalanceAfter = await getLedgerCashBalanceAfter(targetLedger.ACCOUNT_ID, targetLedger.ledger_id);
+			const targetDateTime = formatLedgerTelegramDate(targetLedger.encoded_date);
+
+			if (targetLedger.TRANSACTION === 'DEPOSIT') {
+				messages.push(
+					`Infinity Cage\n\n* 이체 *\n\n받으신분: ${targetLedger.AGENT_CODE} - ${targetLedger.NAME}\n보내신분: ${otherCode} - ${otherName}\n금액: ${targetAmount.toLocaleString()}\n잔고: ${targetBalanceAfter.toLocaleString()}\n\n날짜: ${targetDateTime.date}\n시간: ${targetDateTime.time}`
+				);
+			} else {
+				messages.push(
+					`Infinity Cage\n\n* 이체 *\n\n계정: ${targetLedger.AGENT_CODE} - ${targetLedger.NAME}\n받으신분: ${otherCode} - ${otherName}\n금액: -${targetAmount.toLocaleString()}\n잔고: ${targetBalanceAfter.toLocaleString()}\n\n날짜: ${targetDateTime.date}\n시간: ${targetDateTime.time}`
+				);
+			}
+		}
+		return messages;
+	}
+
+	const amount = parseFloat(ledger.AMOUNT) || 0;
+	const { date, time } = formatLedgerTelegramDate(ledger.encoded_date);
+	const transaction = ledger.TRANSACTION;
+	const translateTransaction = (trans) => {
+		if (trans === 'DEPOSIT') return '어카운트 입금';
+		if (trans === 'WITHDRAW') return '어카운트 출금';
+		if (trans === 'CREDIT' || trans === 'IOU CASH' || trans === 'CREDIT CASH') return '크레딧';
+		return trans;
+	};
+	const isCredit = transaction === 'CREDIT' || transaction === 'IOU CASH' || transaction === 'CREDIT CASH';
+	const balanceAfter = isCredit
+		? await getLedgerCreditBalanceAfter(ledger.ACCOUNT_ID, ledger.ledger_id)
+		: await getLedgerCashBalanceAfter(ledger.ACCOUNT_ID, ledger.ledger_id);
+	const remarksLine = ledger.REMARKS ? `비고: ${ledger.REMARKS}\n` : '';
+	const balanceLabel = isCredit ? '총 크레딧' : '잔고';
+	messages.push(
+		`Infinity Cage\n\n* ${translateTransaction(transaction)} *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n금액: ${Math.abs(amount).toLocaleString()}\n${balanceLabel}: ${balanceAfter.toLocaleString()}\n${remarksLine}\n날짜: ${date}\n시간: ${time}`
+	);
+	return messages;
+};
+
+router.get('/account_details/:ledgerId/telegram_preview', async (req, res) => {
+	const ledgerId = parseInt(req.params.ledgerId, 10);
+	if (!Number.isFinite(ledgerId) || ledgerId <= 0) {
+		return res.status(400).json({ success: false, message: 'Invalid transaction ID.' });
+	}
+
+	try {
+		const ledger = await loadLedgerForTelegramResend(ledgerId);
+		if (!ledger) {
 			return res.status(404).json({ success: false, message: 'Transaction not found.' });
 		}
 
-		const ledger = rows[0];
+		const messages = await buildTelegramResendPreviewMessages(ledger);
+		return res.json({
+			success: true,
+			messages,
+			message: messages[0] || ''
+		});
+	} catch (error) {
+		console.error('Error building Telegram resend preview:', error);
+		return res.status(500).json({
+			success: false,
+			message: 'Error loading Telegram message preview.',
+			error: error.message || String(error)
+		});
+	}
+});
+
+router.post('/account_details/:ledgerId/resend_telegram', async (req, res) => {
+	const ledgerId = parseInt(req.params.ledgerId, 10);
+	if (!Number.isFinite(ledgerId) || ledgerId <= 0) {
+		return res.status(400).json({ success: false, message: 'Invalid transaction ID.' });
+	}
+
+	try {
+		const ledger = await loadLedgerForTelegramResend(ledgerId);
+		if (!ledger) {
+			return res.status(404).json({ success: false, message: 'Transaction not found.' });
+		}
+
 		const amount = parseFloat(ledger.AMOUNT) || 0;
 		const { date, time } = formatLedgerTelegramDate(ledger.encoded_date);
 		const telegramErrors = [];
