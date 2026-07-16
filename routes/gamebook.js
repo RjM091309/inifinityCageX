@@ -242,6 +242,7 @@ router.post('/add_game_list', async (req, res) => {
 		txtRollerNN,
 		txtRollerCC,
 		txtTransType,
+		txtCoinAmount,
 		txtCommisionType,
 		txtCommisionRate,
 		totalBalanceGuest1,
@@ -261,7 +262,9 @@ router.post('/add_game_list', async (req, res) => {
 	const ccAmount = parseFloat((txtCC || '0').replace(/,/g, '')) || 0;
 	const rollerNNAmount = parseFloat((txtRollerNN || '0').replace(/,/g, '')) || 0;
 	const rollerCCAmount = parseFloat((txtRollerCC || '0').replace(/,/g, '')) || 0;
-	const transType = parseInt(txtTransType) || null;
+	const isCoinBuyin = String(txtTransType || '').toLowerCase() === 'coin';
+	const transType = isCoinBuyin ? 3 : (parseInt(txtTransType, 10) || null);
+	const coinAmount = parseFloat(String(txtCoinAmount || '0').replace(/,/g, '')) || 0;
 	const encodedBy = req.session?.user_id || null;
 	const totalAmount = nnAmount + ccAmount;
 	const totalBalanceGuest = parseFloat(totalBalanceGuest1 || '0') || 0;
@@ -269,12 +272,15 @@ router.post('/add_game_list', async (req, res) => {
 	const initialMOP = {
 		1: 'CASH',
 		2: 'DEPOSIT',
-		3: 'IOU'
+		3: isCoinBuyin ? 'COIN' : 'IOU'
 	}[transType];
 
 	if (!initialMOP || !accountId || !transType || encodedBy === null) {
 		console.error('Invalid or missing fields');
 		return res.status(400).send('Invalid input data');
+	}
+	if (isCoinBuyin && coinAmount <= 0) {
+		return res.status(400).json({ error: 'Coin amount is required for Coin buy-in.' });
 	}
 
 	try {
@@ -314,11 +320,22 @@ router.post('/add_game_list', async (req, res) => {
 				[accountId, gameId, 2, transType, 'INITIAL BUY-IN', totalAmount, encodedBy, date_now]
 			);
 		} else if (transType === 3) {
-			await pool.execute(`
-				INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				[accountId, gameId, 10, transType, totalAmount, `Buy-in Game: ${gameId}`, encodedBy, date_now]
-			);
+			const remarksBase = `Buy-in Game: ${gameId}`;
+			const remarks = isCoinBuyin ? `${remarksBase} | COIN_AMOUNT:${Number(coinAmount).toLocaleString('en-US')}` : remarksBase;
+			const ledgerDesc = isCoinBuyin ? 'BUYIN_SOURCE:COIN' : null;
+			if (ledgerDesc) {
+				await pool.execute(`
+					INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					[accountId, gameId, 10, transType, ledgerDesc, totalAmount, remarks, encodedBy, date_now]
+				);
+			} else {
+				await pool.execute(`
+					INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+					[accountId, gameId, 10, transType, totalAmount, remarks, encodedBy, date_now]
+				);
+			}
 		}
 
 		// 4. Get agent info
@@ -425,7 +442,10 @@ router.post('/add_game_list', async (req, res) => {
 		// Management/agent message: bilingual labels, no payment type
 		managementText = `Infinity Cage\n\n* ${mgmtLabels.gameStart} *\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}\n${mgmtLabels.game} #: ${gameId} - ${gameTypeForMgmt(translatedGameType)}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
 	} else if (transType === 3) {
-		text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${gameId} - ${translatedGameType}${commissionTextLine}\n${labels.buyIn}: ${totalAmount.toLocaleString()} - ${labels.credit}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
+		const creditPayLabel = isCoinBuyin
+			? `Coin${coinAmount > 0 ? ` (${coinAmount.toLocaleString()})` : ''}`
+			: labels.credit;
+		text = `Infinity Cage\n\n* ${labels.gameStart} *\n\n${labels.account}: ${agentCode} - ${agentName}\n${labels.game} #: ${gameId} - ${translatedGameType}${commissionTextLine}\n${labels.buyIn}: ${totalAmount.toLocaleString()} - ${creditPayLabel}\n\n${labels.date}: ${date_nowTG}\n${labels.time}: ${updated_time}`;
 		// Management/agent message: bilingual labels, no payment type
 		managementText = `Infinity Cage\n\n* ${mgmtLabels.gameStart} *\n\n${mgmtLabels.account} : ${agentCode} - ${agentName}\n${mgmtLabels.game} #: ${gameId} - ${gameTypeForMgmt(translatedGameType)}${commissionMgmtLine}\n${mgmtLabels.buyIn} : ${totalAmount.toLocaleString()}\n\n${mgmtLabels.date} : ${date_nowTG}\n${mgmtLabels.time} : ${updated_time}`;
 	}
@@ -3190,6 +3210,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 		txtTransType,
 		txtNN,
 		txtCC,
+		txtCoinAmount,
 		totalBalanceGuest2,
 		txtTotalAmountBuyin
 	} = req.body;
@@ -3203,34 +3224,48 @@ router.post('/game_list/add/buyin', async (req, res) => {
 	let date_now = new Date();
 
 	// Remove commas from NN and CC
-	let txtNNamount = txtNN.split(',').join("") || 0;
-	let txtCCamount = txtCC.split(',').join("") || 0;
+	let txtNNamount = (txtNN || '0').toString().split(',').join("") || 0;
+	let txtCCamount = (txtCC || '0').toString().split(',').join("") || 0;
+	const isCoinBuyin = String(txtTransType || '').toLowerCase() === 'coin';
+	const resolvedTransType = isCoinBuyin ? 3 : parseInt(txtTransType, 10);
+	const coinAmount = parseFloat(String(txtCoinAmount || '0').replace(/,/g, '')) || 0;
+
+	if (isCoinBuyin && coinAmount <= 0) {
+		return res.status(400).json({ error: 'Coin amount is required for Coin buy-in.' });
+	}
 
 	let AddBuyinDESC = 'ADDITIONAL BUY-IN';
 
 	try {
 		// First insert into game_record table (CAGE_TYPE = 1)
 		const query1 = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-		const [result1] = await pool.execute(query1, [game_id, date_now, 1, 0, txtNNamount, txtCCamount, txtTransType, req.session.user_id, date_now]);
+		const [result1] = await pool.execute(query1, [game_id, date_now, 1, 0, txtNNamount, txtCCamount, resolvedTransType, req.session.user_id, date_now]);
 
 		const gameRecordId = result1.insertId; // ✅ This is your IDNo of the inserted game_record
 
 		// Second insert into game_record table (CAGE_TYPE = 3)
 		const query2 = `INSERT INTO game_record (GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-		await pool.execute(query2, [game_id, date_now, 3, 0, txtNNamount, txtCCamount, txtTransType, req.session.user_id, date_now]);
+		await pool.execute(query2, [game_id, date_now, 3, 0, txtNNamount, txtCCamount, resolvedTransType, req.session.user_id, date_now]);
 
 		let queries = [];
 		let totalAmount = parseFloat(txtNNamount) + parseFloat(txtCCamount);
 
 		// Insert into account_ledger if transaction type is 2 or 3 (GAME_ID for direct link)
-		if (txtTransType == 2) {
+		if (resolvedTransType == 2) {
 			const query3 = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-			queries.push(pool.execute(query3, [txtAccountCode, game_id, 2, txtTransType, AddBuyinDESC, totalAmount, req.session.user_id, date_now]));
+			queries.push(pool.execute(query3, [txtAccountCode, game_id, 2, resolvedTransType, AddBuyinDESC, totalAmount, req.session.user_id, date_now]));
 		}
 
-		if (txtTransType == 3) {
-			const query4 = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-			queries.push(pool.execute(query4, [txtAccountCode, game_id, 10, txtTransType, totalAmount, `Add Buy-in Game: ${game_id}`, req.session.user_id, date_now]));
+		if (resolvedTransType == 3) {
+			const remarksBase = `Add Buy-in Game: ${game_id}`;
+			const remarks = isCoinBuyin ? `${remarksBase} | COIN_AMOUNT:${Number(coinAmount).toLocaleString('en-US')}` : remarksBase;
+			if (isCoinBuyin) {
+				const query4 = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+				queries.push(pool.execute(query4, [txtAccountCode, game_id, 10, resolvedTransType, 'BUYIN_SOURCE:COIN', totalAmount, remarks, req.session.user_id, date_now]));
+			} else {
+				const query4 = `INSERT INTO account_ledger (ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+				queries.push(pool.execute(query4, [txtAccountCode, game_id, 10, resolvedTransType, totalAmount, remarks, req.session.user_id, date_now]));
+			}
 		}
 
 		// Wait for all queries to finish
@@ -3283,16 +3318,17 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			// Prepare Telegram message text
 			let text = '';
 			let managementText = ''; // Message for management (without account balance)
-			if (txtTransType == 2) {
+			if (resolvedTransType == 2) {
 				text = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameLineKo}\n바이인: ${parseFloat(totalAmount).toLocaleString()} - 계좌출금\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString()}\n잔고: ${parseFloat(newTotalBalance).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				// Management/agent message: bilingual labels, no payment type
 				managementText = `Infinity Cage\n\n* 추가 바이인 Add Buy-in *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString()}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
-			} else if (txtTransType == 1) {
+			} else if (resolvedTransType == 1) {
 				text = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameLineKo}\n바이인: ${parseFloat(totalAmount).toLocaleString()} - 현금\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				// Management/agent message: bilingual labels, no payment type
 				managementText = `Infinity Cage\n\n* 추가 바이인 Add Buy-in *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString()}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
-			} else if (txtTransType == 3) {
-				text = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameLineKo}\n바이인: ${parseFloat(totalAmount).toLocaleString()} - 크레딧\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			} else if (resolvedTransType == 3) {
+				const payLabel = isCoinBuyin ? `코인${coinAmount > 0 ? ` (${coinAmount.toLocaleString()})` : ''}` : '크레딧';
+				text = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameLineKo}\n바이인: ${parseFloat(totalAmount).toLocaleString()} - ${payLabel}\n바이인 합계: ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 				// Management/agent message: bilingual labels, no payment type
 				managementText = `Infinity Cage\n\n* 추가 바이인 Add Buy-in *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameLineMgmt}\n바이인 Buy-in : ${parseFloat(totalAmount).toLocaleString()}\n바이인 합계 Total Buy-in : ${parseFloat(totalBuyin).toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 			}
@@ -3329,7 +3365,7 @@ router.post('/game_list/add/buyin', async (req, res) => {
 			}
 		}
 
-		if (txtTransType == 1 && agentResults.length > 0 && agentResults[0].agent_id) {
+		if (resolvedTransType == 1 && agentResults.length > 0 && agentResults[0].agent_id) {
 			const cashTransactionQuery = `
 				INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)

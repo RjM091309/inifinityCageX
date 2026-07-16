@@ -19,6 +19,21 @@ var accountDetailsDataTable = null;
 var currentAccountDetailsId = null;
 var lastSavedAgentRemarks = '';
 
+/** Friendly remarks for coin overage deposit (supports old pipe format). */
+function formatCoinOverageDepositRemarks(remarks) {
+	var raw = remarks != null ? String(remarks) : '';
+	if (!raw) return raw;
+	// Hide internal link id from UI
+	raw = raw.replace(/\s*\|\s*SETTLE_LEDGER_ID\s*:\s*\d+/gi, '').trim();
+	if (/Coin Value\s*=/i.test(raw)) return raw;
+	var cv = raw.match(/COIN_VALUE\s*:\s*([\d,]+(?:\.\d+)?)/i);
+	var ds = raw.match(/DEBT_SETTLED\s*:\s*([\d,]+(?:\.\d+)?)/i);
+	if (cv && ds) {
+		return 'Coin Value = ' + cv[1] + ', Credit Settled = ' + ds[1];
+	}
+	return raw;
+}
+
 // Cache for Telegram usernames
 var telegramUsernameCache = {};
 
@@ -898,6 +913,12 @@ function reloadDataDetails() {
 							displayDesc = '';
 						}
 
+						// Friendly label for coin settle overage credited to deposit
+						if (row.TRANSACTION === 'DEPOSIT' && transactionDesc === 'COIN_OVERAGE_DEPOSIT') {
+							displayTransaction = 'Coin Over';
+							displayDesc = '';
+						}
+
 						const transactionCell = displayDesc
 							? `${displayTransaction} - <strong>${displayDesc}</strong>`
 							: displayTransaction;
@@ -907,7 +928,7 @@ function reloadDataDetails() {
 							transactionCell,
 							`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
 							formatAccountDetailsBalance(row.balance_after),
-							row.REMARKS,
+							formatCoinOverageDepositRemarks(row.REMARKS),
 							renderTelegramResendButton(row.account_details_id)
 						]);
 						resolve();
@@ -1132,12 +1153,21 @@ async function account_details_v2(ledgerId, guestName, acctName) {
   
 		  rows.forEach(r=>{
 			const amt = parseFloat(r.AMOUNT)||0;
+			let displayTransaction = r.TRANSACTION || '';
+			let displayDesc = r.TRANSACTION_DESC || '';
+			if (r.TRANSACTION === 'DEPOSIT' && displayDesc === 'COIN_OVERAGE_DEPOSIT') {
+			  displayTransaction = 'Coin Over';
+			  displayDesc = '';
+			}
+			const transactionCell = displayDesc
+			  ? `${displayTransaction} - <strong>${displayDesc}</strong>`
+			  : displayTransaction;
 			const rowApi = dt.row.add([
 			  moment(r.encoded_date).format('MMMM DD, YYYY HH:mm:ss'),
-			  `${r.TRANSACTION} - <strong>${r.TRANSACTION_DESC||''}</strong>`,
+			  transactionCell,
 			  `₱${amt.toLocaleString()}`,
 			  formatAccountDetailsBalance(r.balance_after),
-			  r.REMARKS||''
+			  formatCoinOverageDepositRemarks(r.REMARKS||'')
 			]).draw(false);
   
 			const node = rowApi.node();

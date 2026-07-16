@@ -3310,7 +3310,25 @@ $('#add_game_list').submit(function (event) {
         });
 
         $btn.prop('disabled', false).text('Submit'); // Re-enable button
-    } else if (transType == 2 && (txtNNamount + txtCCamount) > totalBalanceGuest1) {
+        return;
+    }
+
+    if (transType === 'coin') {
+        var coinAmountRaw = ($('#txtCoinAmount').val() || '').toString().replace(/,/g, '').trim();
+        var coinAmountNum = parseFloat(coinAmountRaw) || 0;
+        if (!coinAmountRaw || coinAmountNum <= 0) {
+            Swal.fire({
+                title: 'Warning',
+                text: 'Please enter the Coin Amount given by the guest.',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+            $btn.prop('disabled', false).text('Submit');
+            return;
+        }
+    }
+
+    if (transType == 2 && (txtNNamount + txtCCamount) > totalBalanceGuest1) {
         // If Transaction Type is 2, check if the sum of NN and CC exceeds the total balance
         Swal.fire({
             title: 'Insufficient Balance',
@@ -3320,7 +3338,10 @@ $('#add_game_list').submit(function (event) {
         });
 
         $btn.prop('disabled', false).text('Submit'); // Re-enable button
-    } else {
+        return;
+    }
+
+    {
         // All validations passed, show confirmation dialog
         var gameType = $('input[name="txtGameType"]:checked').val() || '';
         var accountCode = $('#txtTrans').val() || '';
@@ -3352,6 +3373,7 @@ $('#add_game_list').submit(function (event) {
         if (transType == '1') transTypeText = 'Cash';
         else if (transType == '2') transTypeText = 'Deposit';
         else if (transType == '3') transTypeText = 'Credit';
+        else if (transType == 'coin') transTypeText = 'Coin';
 
         var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
         var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
@@ -3374,6 +3396,10 @@ $('#add_game_list').submit(function (event) {
         }
 
         confirmationRows += buildRow('Payment Type:', transTypeText || '-');
+        if (transType === 'coin') {
+            var coinAmtConfirm = parseFloat((($('#txtCoinAmount').val() || '0').toString().replace(/,/g, ''))) || 0;
+            if (coinAmtConfirm > 0) confirmationRows += buildRow('Coin Amount:', coinAmtConfirm.toLocaleString());
+        }
 
         if (rollerNNAmount > 0 || rollerCCAmount > 0) {
             var rollerParts = [];
@@ -3623,33 +3649,63 @@ $('#add_buyin').submit(function (event) {
 			icon: 'warning',
 			confirmButtonText: 'OK'
 		});
-	} else if (!nnChips && !ccChips) {
+		$btn.prop('disabled', false).text('Submit');
+		return;
+	}
+	if (!nnChips && !ccChips) {
 		Swal.fire({
 			title: 'Warning',
 			text: 'Please fill in at least one field: NN Chips or CC Chips!',
 			icon: 'warning',
 			confirmButtonText: 'OK'
 		});
-	} else if (!transTypeSelected) {
+		$btn.prop('disabled', false).text('Submit');
+		return;
+	}
+	if (!transTypeSelected) {
 		Swal.fire({
 			title: 'Warning',
 			text: 'Please select a Transaction Type!',
 			icon: 'warning',
 			confirmButtonText: 'OK'
 		});
-	} else if (transType == '2' && totalEnteredAmount > totalBalanceGuest2) { // Deposit type
+		$btn.prop('disabled', false).text('Submit');
+		return;
+	}
+
+	if (transType === 'coin') {
+		const coinAmountRaw = ($('#txtCoinAmountBuyin').val() || '').toString().replace(/,/g, '').trim();
+		const coinAmountNum = parseFloat(coinAmountRaw) || 0;
+		if (!coinAmountRaw || coinAmountNum <= 0) {
+			Swal.fire({
+				title: 'Warning',
+				text: 'Please enter the Coin Amount given by the guest.',
+				icon: 'warning',
+				confirmButtonText: 'OK'
+			});
+			$btn.prop('disabled', false).text('Submit');
+			return;
+		}
+	}
+
+	if (transType == '2' && totalEnteredAmount > totalBalanceGuest2) { // Deposit type
 		Swal.fire({
 			title: 'Insufficient Balance',
 			text: 'The amount exceeds the available total balance of ₱' + formatNumberWithCommas(totalBalanceGuest2),
 			icon: 'error',
 			confirmButtonText: 'OK'
 		});
-	} else {
+		$btn.prop('disabled', false).text('Submit');
+		return;
+	}
+
+	{
 		// All validations passed, show confirmation dialog
 		var transTypeText = '';
 		if (transType == '1') transTypeText = 'Cash';
 		else if (transType == '2') transTypeText = 'Deposit';
 		else if (transType == '3') transTypeText = 'Credit';
+		else if (transType == 'coin') transTypeText = 'Coin';
 
 		var labelStyle = 'padding:4px 20px 4px 0;font-weight:600;text-align:left;white-space:nowrap;';
 		var valueStyle = 'padding:4px 0 4px 0;text-align:left;';
@@ -3659,6 +3715,10 @@ $('#add_buyin').submit(function (event) {
 
 		var confirmationRows = '';
 		confirmationRows += buildRow('Payment Type:', transTypeText || '-');
+		if (transType === 'coin') {
+			var coinAmtBuyin = parseFloat((($('#txtCoinAmountBuyin').val() || '0').toString().replace(/,/g, ''))) || 0;
+			if (coinAmtBuyin > 0) confirmationRows += buildRow('Coin Amount:', coinAmtBuyin.toLocaleString());
+		}
 		if (txtNNamount > 0) {
 			confirmationRows += buildRow('NN Chips:', parseFloat(txtNNamount).toLocaleString());
 		}

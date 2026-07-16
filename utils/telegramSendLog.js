@@ -101,9 +101,14 @@ function junketExpenseTelegramLogPreview(action) {
  */
 function markerReturnTelegramLogPreview(optTransType, optReturnSource) {
   const isDeposit = String(optTransType) === '12';
+  const isCoinValue = String(optTransType) === 'coin';
   const src = String(optReturnSource || '');
   if (src === 'credit') {
     return isDeposit ? 'Junket Credit Return Thru Deposit' : 'Junket Credit Return Thru Cash';
+  }
+  if (src === 'buyin_coin') {
+    if (isCoinValue) return 'Game Credit Return Thru Coin';
+    return isDeposit ? 'Game Credit (Coin) Return Thru Deposit' : 'Game Credit (Coin) Return Thru Cash';
   }
   if (src === 'buyin') {
     return isDeposit ? 'Game Credit Return Thru Deposit' : 'Game Credit Return Thru Cash';

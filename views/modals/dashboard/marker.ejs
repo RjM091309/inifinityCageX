@@ -22,28 +22,39 @@
                     </div>
                 </div>
                 <div class="row mb-1">
-                    <div class="col-sm-6">
+                    <div class="col-sm-4">
                         <label class="form-label text-muted small mb-1 text-center">Total Cash Credit</label>
                         <input type="text" class="form-control text-center" id="txtTotalJunketCredit" readonly />
                     </div>
-                    <div class="col-sm-6">
-                        <label class="form-label text-muted small mb-1 text-center">Total Game Credit</label>
-                        <input type="text" class="form-control text-center" id="txtTotalGameCredit" readonly />
+                    <div class="col-sm-4">
+                        <label class="form-label text-muted small mb-1 text-center">Total Game Credit (Cash)</label>
+                        <input type="text" class="form-control text-center" id="txtTotalGameCreditCash" readonly />
+                    </div>
+                    <div class="col-sm-4">
+                        <label class="form-label text-muted small mb-1 text-center">Total Game Credit (Coin)</label>
+                        <input type="text" class="form-control text-center" id="txtTotalGameCreditCoin" readonly />
                     </div>
                 </div>
+                <input type="hidden" id="txtTotalGameCredit" />
 
                 <div class="row d-flex justify-content-center mb-2">
                     
-                    <div class="col-sm-3 d-flex justify-content-center">
+                    <div class="col-sm-4 d-flex justify-content-center">
                         <div class="form-check">
                             <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="return-source-credit" name="optReturnSource" value="credit">
                             <label class="form-check-label" for="return-source-credit"><%= __('dashboard_marker.tab_credit') %></label>
                         </div>
                     </div>
-                    <div class="col-sm-3 d-flex justify-content-center">
+                    <div class="col-sm-4 d-flex justify-content-center">
                         <div class="form-check">
                             <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="return-source-buyin" name="optReturnSource" value="buyin">
-                            <label class="form-check-label" for="return-source-buyin"><%= __('dashboard_marker.tab_buyin') %></label>
+                            <label class="form-check-label" for="return-source-buyin"><%= __('dashboard_marker.tab_buyin_cash') %></label>
+                        </div>
+                    </div>
+                    <div class="col-sm-4 d-flex justify-content-center">
+                        <div class="form-check">
+                            <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="return-source-buyin-coin" name="optReturnSource" value="buyin_coin">
+                            <label class="form-check-label" for="return-source-buyin-coin"><%= __('dashboard_marker.tab_buyin_coin') %></label>
                         </div>
                     </div>
                 </div>
@@ -64,6 +75,21 @@
                       
                     </div>
                 </div>
+                <div class="row justify-content-center mb-3 marker-coin-pay-mode-row d-none">
+                    <div class="col-sm-12">
+                        <label class="form-label text-muted small d-block mb-2 text-center"><%= __('dashboard_marker.tab_buyin_coin') %> — <%= __('dashboard_marker.transaction_type') %></label>
+                        <div class="d-flex flex-wrap justify-content-center align-items-center gap-4 mb-1">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="coin-mode-settle" name="optCoinPayMode" value="coin_value" checked />
+                                <label class="form-check-label" for="coin-mode-settle"><%= __('dashboard_marker.coin_mode_settle') %></label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="coin-mode-pay" name="optCoinPayMode" value="pay_remaining" />
+                                <label class="form-check-label" for="coin-mode-pay"><%= __('dashboard_marker.coin_mode_pay_remaining') %></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="row d-flex justify-content-center mb-2">
                     <div class="col-sm-6">
                     
@@ -78,6 +104,11 @@
                        
                     </div>
                 </div>
+                <div class="row d-flex justify-content-center mb-2 marker-coin-amount-row d-none">
+                    <div class="col-sm-6">
+                        <input type="text" class="form-control" placeholder="<%= __('dashboard_marker.coin_amount') %>" name="txtCoinAmount" id="txtCoinAmountReturn" autocomplete="off" onkeypress="return onlyNumberKey(event)" data-type="number" />
+                    </div>
+                </div>
             </div>
                 
                 <div class="row d-flex justify-content-center mb-2">
@@ -86,8 +117,8 @@
                     </div>
                 </div>
 
-                <!-- Radio Buttons -->
-                <div class="row d-flex justify-content-center ">
+                <!-- Cash / Deposit (hidden when Settle Coin Value) -->
+                <div class="row d-flex justify-content-center marker-cash-deposit-row">
                     <div class="col-sm-3 d-flex justify-content-center">
                         <div class="form-check">
                             <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" id="cash" name="optTransType" value="11">
@@ -100,6 +131,7 @@
                             <label class="form-check-label" for="deposit"><%= __('dashboard_marker.deposit') %></label>
                         </div>
                     </div>
+                    <input class="d-none" type="radio" id="coin_settle" name="optTransType" value="coin" tabindex="-1" aria-hidden="true" />
                 </div>
 
                 <!-- Save / Close buttons positioned near the form -->
@@ -117,7 +149,7 @@
                 </div>
             <hr style="border: none; border-top: 0.2rem solid black;">
 
-            <!-- 4 Tabs: Total Credit (default), Junket Credit, Game Credit, History -->
+            <!-- Tabs: Total Credit, Cash Credit, Game Credit Cash/Coin, History -->
             <ul class="nav nav-tabs marker-balance-tabs mb-2" id="marker-balance-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="tab-total-credit" data-tab="total" type="button" role="tab"><%= __('dashboard_marker.tab_total_credit') %></button>
@@ -126,7 +158,10 @@
                     <button class="nav-link" id="tab-credit-balance" data-tab="credit" type="button" role="tab"><%= __('dashboard_marker.tab_credit') %></button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-buyin-balance" data-tab="buyin" type="button" role="tab"><%= __('dashboard_marker.tab_buyin') %></button>
+                    <button class="nav-link" id="tab-buyin-balance" data-tab="buyin" type="button" role="tab"><%= __('dashboard_marker.tab_buyin_cash') %></button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-buyin-coin-balance" data-tab="buyin_coin" type="button" role="tab"><%= __('dashboard_marker.tab_buyin_coin') %></button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="tab-marker-history" data-tab="marker-history" type="button" role="tab"><%= __('dashboard_marker.marker_history') %></button>
@@ -140,12 +175,13 @@
                             <tr>
                                 <th class="marker-total-col-account"><%= __('dashboard_marker.account_name') %></th>
                                 <th class="text-end marker-balance-col-amount marker-total-col-junket"><%= __('dashboard_marker.tab_credit') %></th>
-                                <th class="text-end marker-balance-col-amount marker-total-col-game"><%= __('dashboard_marker.tab_buyin') %></th>
+                                <th class="text-end marker-balance-col-amount marker-total-col-game"><%= __('dashboard_marker.tab_buyin_cash') %></th>
+                                <th class="text-end marker-balance-col-amount marker-total-col-game-coin"><%= __('dashboard_marker.tab_buyin_coin') %></th>
                                 <th class="text-end marker-balance-col-amount marker-total-col-sum"><%= __('dashboard_marker.total') %></th>
                             </tr>
                         </thead>
                         <tbody></tbody>
-                        <tfoot><tr><th></th><th class="text-end marker-balance-col-amount marker-total-col-junket"></th><th class="text-end marker-balance-col-amount marker-total-col-game"></th><th class="text-end marker-balance-col-amount marker-total-col-sum"></th></tr></tfoot>
+                        <tfoot><tr><th></th><th class="text-end marker-balance-col-amount marker-total-col-junket"></th><th class="text-end marker-balance-col-amount marker-total-col-game"></th><th class="text-end marker-balance-col-amount marker-total-col-game-coin"></th><th class="text-end marker-balance-col-amount marker-total-col-sum"></th></tr></tfoot>
                     </table>
                 </div>
             </div>
@@ -191,6 +227,21 @@
             <div id="marker-accounts-buyin-wrapper" class="marker-tab-panel mb-3" data-panel="buyin" style="display: none;">
                 <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
                     <table id="marker-accounts-buyin-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
+                        <thead>
+                            <tr>
+                                <th><%= __('dashboard_marker.account_name') %></th>
+                                <th class="text-end marker-balance-col-amount"><%= __('dashboard_marker.balance') %></th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot><tr><th></th><th class="text-end marker-balance-col-amount"></th></tr></tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div id="marker-accounts-buyin-coin-wrapper" class="marker-tab-panel mb-3" data-panel="buyin_coin" style="display: none;">
+                <div class="marker-balance-dt-wrap marker-balance-card table-responsive">
+                    <table id="marker-accounts-buyin-coin-tbl" class="table marker-balance-tbl marker-balance-table w-100 mb-0">
                         <thead>
                             <tr>
                                 <th><%= __('dashboard_marker.account_name') %></th>
@@ -490,12 +541,14 @@
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table thead th:first-child,
-        #marker-accounts-buyin-wrapper .marker-balance-table thead th:first-child {
+        #marker-accounts-buyin-wrapper .marker-balance-table thead th:first-child,
+        #marker-accounts-buyin-coin-wrapper .marker-balance-table thead th:first-child {
             text-align: left;
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table tbody td,
-        #marker-accounts-buyin-wrapper .marker-balance-table tbody td {
+        #marker-accounts-buyin-wrapper .marker-balance-table tbody td,
+        #marker-accounts-buyin-coin-wrapper .marker-balance-table tbody td {
             padding: 0.65rem 0.75rem;
             color: #334155;
             border-color: #eef2f7 !important;
@@ -503,31 +556,38 @@
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table tbody tr:nth-child(even) td,
-        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:nth-child(even) td {
+        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:nth-child(even) td,
+        #marker-accounts-buyin-coin-wrapper .marker-balance-table tbody tr:nth-child(even) td {
             background-color: #fafbfd;
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table tbody tr:nth-child(odd) td,
-        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:nth-child(odd) td {
+        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:nth-child(odd) td,
+        #marker-accounts-buyin-coin-wrapper .marker-balance-table tbody tr:nth-child(odd) td {
             background-color: #fff;
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table tbody tr:hover td,
-        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:hover td {
+        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:hover td,
+        #marker-accounts-buyin-coin-wrapper .marker-balance-table tbody tr:hover td {
             background-color: #f0f6ff !important;
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table tbody tr:hover td:first-child,
-        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:hover td:first-child {
+        #marker-accounts-buyin-wrapper .marker-balance-table tbody tr:hover td:first-child,
+        #marker-accounts-buyin-coin-wrapper .marker-balance-table tbody tr:hover td:first-child {
             box-shadow: inset 3px 0 0 var(--bs-primary);
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table thead th.marker-balance-col-amount,
         #marker-accounts-buyin-wrapper .marker-balance-table thead th.marker-balance-col-amount,
+        #marker-accounts-buyin-coin-wrapper .marker-balance-table thead th.marker-balance-col-amount,
         #marker-accounts-credit-wrapper .marker-balance-table tbody td.marker-balance-col-amount,
         #marker-accounts-buyin-wrapper .marker-balance-table tbody td.marker-balance-col-amount,
+        #marker-accounts-buyin-coin-wrapper .marker-balance-table tbody td.marker-balance-col-amount,
         #marker-accounts-credit-wrapper .marker-balance-table tfoot th.marker-balance-col-amount,
-        #marker-accounts-buyin-wrapper .marker-balance-table tfoot th.marker-balance-col-amount {
+        #marker-accounts-buyin-wrapper .marker-balance-table tfoot th.marker-balance-col-amount,
+        #marker-accounts-buyin-coin-wrapper .marker-balance-table tfoot th.marker-balance-col-amount {
             width: 5.75rem;
             max-width: 6.25rem;
             min-width: 4.5rem;
@@ -538,7 +598,8 @@
         }
 
         #marker-accounts-credit-wrapper .marker-balance-table tfoot th,
-        #marker-accounts-buyin-wrapper .marker-balance-table tfoot th {
+        #marker-accounts-buyin-wrapper .marker-balance-table tfoot th,
+        #marker-accounts-buyin-coin-wrapper .marker-balance-table tfoot th {
             background-color: #f4f6fa;
             border-top: 2px solid #dee2e6;
             padding: 0.65rem 0.75rem;
@@ -588,9 +649,9 @@
         #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-account,
         #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-account,
         #marker-accounts-total-wrapper .marker-total-table tfoot th:first-child {
-            width: 34%;
-            max-width: 12.5rem;
-            min-width: 8rem;
+            width: 28%;
+            max-width: 11rem;
+            min-width: 7rem;
             text-align: left;
             white-space: normal;
             word-wrap: break-word;
@@ -600,25 +661,28 @@
         #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-junket,
         #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-junket,
         #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-junket {
-            width: 18%;
+            width: 16%;
             max-width: 7rem;
-            min-width: 5.5rem;
+            min-width: 5rem;
         }
 
         #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-game,
         #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-game,
-        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-game {
+        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-game,
+        #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-game-coin,
+        #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-game-coin,
+        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-game-coin {
             width: 18%;
-            max-width: 7rem;
+            max-width: 8rem;
             min-width: 5.5rem;
         }
 
         #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-sum,
         #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-sum,
         #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-sum {
-            width: 30%;
-            max-width: 9rem;
-            min-width: 6rem;
+            width: 20%;
+            max-width: 8rem;
+            min-width: 5.5rem;
         }
 
         #marker-accounts-total-wrapper .marker-total-table tbody td,
@@ -660,6 +724,9 @@
         #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-game,
         #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-game,
         #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-game,
+        #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-game-coin,
+        #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-game-coin,
+        #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-game-coin,
         #marker-accounts-total-wrapper .marker-total-table thead th.marker-total-col-sum,
         #marker-accounts-total-wrapper .marker-total-table tbody td.marker-total-col-sum,
         #marker-accounts-total-wrapper .marker-total-table tfoot th.marker-total-col-sum {
@@ -858,7 +925,12 @@ window.markerTranslations = window.markerTranslations || {
 	next: "<%= __('dashboard_marker.next') %>",
 	search: "<%= __('dashboard_marker.search') %>",
 	no_data_available: "<%= __('dashboard_marker.no_data_available') %>",
-	total: "<%= __('dashboard_marker.total') %>"
+	total: "<%= __('dashboard_marker.total') %>",
+	coin_value_peso: "<%= __('dashboard_marker.coin_value_peso') %>",
+	coin_mode_settle: "<%= __('dashboard_marker.coin_mode_settle') %>",
+	coin_mode_pay_remaining: "<%= __('dashboard_marker.coin_mode_pay_remaining') %>",
+	credits_return: "<%= __('dashboard_marker.credits_return') %>",
+	coin_amount_new: "<%= __('dashboard_marker.coin_amount_new') %>"
 };
 </script>
 <!-- Marker init runs from footer (after jQuery + marker_common.js) -->

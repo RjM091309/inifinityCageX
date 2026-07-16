@@ -54,35 +54,45 @@
 							</div>
 
 							<div class="row mb-2" id="buyin-trans-type-row">
-								<div class="col-sm-4">
+								<div class="col-sm-3">
 									<div class="form-check">
 										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash" name="txtTransType">
 										<label class="form-check-label" for="cash">
-											<span class="d-flex align-items-center">
-												Cash
-											</span>
+											<span class="d-flex align-items-center">Cash</span>
 										</label>
 									</div>
 								</div>
-								<div class="col-sm-4">
+								<div class="col-sm-3">
 									<div class="form-check">
 										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="deposit" name="txtTransType">
 										<label class="form-check-label" for="deposit">
-											<span class="d-flex align-items-center">
-												Deposit
-											</span>
+											<span class="d-flex align-items-center">Deposit</span>
 										</label>
 									</div>
 								</div>
-								<div class="col-sm-4">
+								<div class="col-sm-3">
 									<div class="form-check">
 										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="marker" name="txtTransType">
 										<label class="form-check-label" for="marker">
-											<span class="d-flex align-items-center">
-												Credit
-											</span>
+											<span class="d-flex align-items-center">Credit</span>
 										</label>
 									</div>
+								</div>
+								<div class="col-sm-3">
+									<div class="form-check">
+										<input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="coin" id="coin_buyin" name="txtTransType">
+										<label class="form-check-label" for="coin_buyin">
+											<span class="d-flex align-items-center">Coin</span>
+										</label>
+									</div>
+								</div>
+							</div>
+
+							<div class="row mb-3" id="coin-amount-buyin-row" style="display:none;">
+								<div class="col-sm-12">
+									<label class="form-label text-muted small mb-1">Coin Amount</label>
+									<input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control text-center" name="txtCoinAmount" id="txtCoinAmountBuyin" placeholder="Coins given by guest" autocomplete="off" />
+									<div class="form-text small text-muted text-center">Coin face amount only — peso value is assessed after the game.</div>
 								</div>
 							</div>
 
@@ -163,6 +173,8 @@ document.addEventListener('DOMContentLoaded', function () {
 	const splitRow = document.getElementById('split-buyin-row');
 	const nnccRow = document.getElementById('buyin-nncc-row');
 	const transTypeRow = document.getElementById('buyin-trans-type-row');
+	const coinAmountRow = document.getElementById('coin-amount-buyin-row');
+	const coinAmountInput = document.getElementById('txtCoinAmountBuyin');
 	const radios = document.querySelectorAll('#modal-add-buyin input[name="txtTransType"]');
 	const splitInputs = [
 		document.getElementById('splitBuyinCashNN'),
@@ -172,6 +184,19 @@ document.addEventListener('DOMContentLoaded', function () {
 		document.getElementById('splitBuyinCreditNN'),
 		document.getElementById('splitBuyinCreditCC')
 	];
+
+	const syncBuyinCoinAmountVisibility = function () {
+		const selected = document.querySelector('#modal-add-buyin input[name="txtTransType"]:checked');
+		const showCoin = !!(selected && selected.value === 'coin' && !(splitToggle && splitToggle.checked));
+		if (coinAmountRow) coinAmountRow.style.display = showCoin ? '' : 'none';
+		if (!showCoin && coinAmountInput) {
+			coinAmountInput.value = '';
+			coinAmountInput.classList.remove('is-invalid');
+		}
+	};
+	radios.forEach(function (radio) {
+		radio.addEventListener('change', syncBuyinCoinAmountVisibility);
+	});
 
 	const validateSplit = function (el) {
 		if (!el) return;
@@ -204,8 +229,10 @@ document.addEventListener('DOMContentLoaded', function () {
 					el.classList.remove('is-invalid');
 				});
 			}
+			syncBuyinCoinAmountVisibility();
 		});
 	}
+	syncBuyinCoinAmountVisibility();
 });
 </script>
 					<div class="modal-footer">

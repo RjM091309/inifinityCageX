@@ -104,25 +104,39 @@
               <div class="row mb-2">
                   <div class="col-sm-12">
                       <div class="row mb-2">
-                          <div class="col-sm-4">
+                          <div class="col-sm-3">
                               <div class="form-check">
                                   <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="1" id="cash_game" name="txtTransType" >
                                   <label class="form-check-label" for="cash_game"><%= __('modal_new_game_list.cash_game') %></label>
                               </div>
                           </div>
-                          <div class="col-sm-4">
+                          <div class="col-sm-3">
                               <div class="form-check">
                                   <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="2" id="deposit_game" name="txtTransType" >
                                   <label class="form-check-label" for="deposit_game"><%= __('modal_new_game_list.deposit_game') %></label>
                               </div>
                           </div>
-                          <div class="col-sm-4">
+                          <div class="col-sm-3">
                               <div class="form-check">
                                   <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="3" id="marker_game" name="txtTransType" >
                                   <label class="form-check-label" for="marker_game"><%= __('modal_new_game_list.marker_game') %></label>
                               </div>
                           </div>
+                          <div class="col-sm-3">
+                              <div class="form-check">
+                                  <input class="form-check-input" style="border-color: #8a92a6 !important;" type="radio" value="coin" id="coin_game" name="txtTransType" >
+                                  <label class="form-check-label" for="coin_game"><%= __('modal_new_game_list.coin_game') %></label>
+                              </div>
+                          </div>
                       </div>
+                  </div>
+              </div>
+
+              <div class="row mb-2" id="coin-amount-new-game-row" style="display:none;">
+                  <div class="col-sm-12">
+                      <label class="form-label text-muted small mb-1"><%= __('modal_new_game_list.coin_amount') %></label>
+                      <input type="text" onkeypress="return onlyNumberKey(event)" data-type="number" class="form-control" name="txtCoinAmount" id="txtCoinAmount" placeholder="<%= __('modal_new_game_list.coin_amount_placeholder') %>" autocomplete="off" />
+                      <div class="form-text small text-muted"><%= __('modal_new_game_list.coin_amount_hint') %></div>
                   </div>
               </div>
 
@@ -324,6 +338,21 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    const coinAmountRow = document.getElementById('coin-amount-new-game-row');
+    const coinAmountInput = document.getElementById('txtCoinAmount');
+    const syncCoinAmountVisibility = function () {
+        const selected = document.querySelector('#modal-new-game-list input[name="txtTransType"]:checked');
+        const showCoin = !!(selected && selected.value === 'coin' && !(splitToggle && splitToggle.checked));
+        if (coinAmountRow) coinAmountRow.style.display = showCoin ? '' : 'none';
+        if (!showCoin && coinAmountInput) {
+            coinAmountInput.value = '';
+            coinAmountInput.classList.remove('is-invalid');
+        }
+    };
+    transTypeRadios.forEach(function (radio) {
+        radio.addEventListener('change', syncCoinAmountVisibility);
+    });
+
     if (!splitToggle) return;
     splitToggle.addEventListener('change', function () {
         const isOn = !!this.checked;
@@ -341,7 +370,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 inputEl.classList.remove('is-invalid');
             });
         }
+        syncCoinAmountVisibility();
     });
+    syncCoinAmountVisibility();
 });
 
 document.addEventListener("DOMContentLoaded", function () {

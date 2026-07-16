@@ -2395,12 +2395,14 @@ router.get('/marker_data', async (req, res) => {
 	}
 });
 
-// GET MARKER DATA WITH BREAKDOWN (Credit 3-3 vs Buy-in 10-3 per account, minus returns 11,12,1)
+// GET MARKER DATA WITH BREAKDOWN (Credit 3-3 vs Buy-in cash/coin 10-3 per account, minus returns 11,12,1)
 router.get('/marker_data_breakdown', async (req, res) => {
 	const query = `
 		SELECT inner_sub.ACCOUNT_ID, inner_sub.AGENT_CODE, inner_sub.AGENT_NAME,
 			inner_sub.BALANCE_CREDIT,
-			inner_sub.TOTAL_AMOUNT - inner_sub.BALANCE_CREDIT AS BALANCE_BUYIN,
+			inner_sub.BALANCE_BUYIN_CASH,
+			inner_sub.BALANCE_BUYIN_COIN,
+			inner_sub.BALANCE_BUYIN_CASH + inner_sub.BALANCE_BUYIN_COIN AS BALANCE_BUYIN,
 			inner_sub.TOTAL_AMOUNT
 		FROM (
 			SELECT sub.ACCOUNT_ID, sub.AGENT_CODE, sub.AGENT_NAME,
@@ -2414,19 +2416,34 @@ router.get('/marker_data_breakdown', async (req, res) => {
 					0
 				) AS BALANCE_CREDIT,
 				ROUND(
-					sub.TOTAL_ISSUED - sub.RETURNS_TAGGED_CREDIT - sub.RETURNS_TAGGED_BUYIN - sub.RETURNS_UNTAGGED,
+					GREATEST(
+						0,
+						sub.BUYIN_CASH_ISSUED -
+						sub.RETURNS_TAGGED_BUYIN -
+						COALESCE(sub.RETURNS_UNTAGGED * sub.BUYIN_CASH_ISSUED / NULLIF(sub.TOTAL_ISSUED, 0), 0)
+					),
+					0
+				) AS BALANCE_BUYIN_CASH,
+				ROUND(
+					GREATEST(0, sub.BUYIN_COIN_ISSUED - sub.RETURNS_TAGGED_BUYIN_COIN),
+					0
+				) AS BALANCE_BUYIN_COIN,
+				ROUND(
+					sub.TOTAL_ISSUED - sub.RETURNS_TAGGED_CREDIT - sub.RETURNS_TAGGED_BUYIN - sub.RETURNS_TAGGED_BUYIN_COIN - sub.RETURNS_UNTAGGED,
 					0
 				) AS TOTAL_AMOUNT
 			FROM (
 				SELECT account.IDNo AS ACCOUNT_ID, agent.AGENT_CODE, agent.NAME AS AGENT_NAME,
 					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 3 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS CREDIT_ISSUED,
-					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 10 AND account_ledger.TRANSACTION_TYPE = 3 THEN account_ledger.AMOUNT ELSE 0 END) AS BUYIN_ISSUED,
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 10 AND account_ledger.TRANSACTION_TYPE = 3 AND COALESCE(account_ledger.TRANSACTION_DESC, '') = 'BUYIN_SOURCE:COIN' THEN account_ledger.AMOUNT ELSE 0 END) AS BUYIN_COIN_ISSUED,
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID = 10 AND account_ledger.TRANSACTION_TYPE = 3 AND COALESCE(account_ledger.TRANSACTION_DESC, '') <> 'BUYIN_SOURCE:COIN' THEN account_ledger.AMOUNT ELSE 0 END) AS BUYIN_CASH_ISSUED,
 					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:CREDIT' THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_CREDIT,
 					SUM(CASE WHEN (account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC = 'RETURN_SOURCE:BUYIN') OR (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = '')) OR (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4) THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_BUYIN,
+					SUM(CASE WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1) AND account_ledger.TRANSACTION_DESC IN ('RETURN_SOURCE:BUYIN_COIN', 'RETURN_SOURCE:BUYIN_COIN_VALUE') THEN account_ledger.AMOUNT ELSE 0 END) AS RETURNS_TAGGED_BUYIN_COIN,
 					SUM(CASE 
 						WHEN account_ledger.TRANSACTION_ID IN (11, 12, 1)
 							AND NOT (account_ledger.TRANSACTION_ID = 1 AND account_ledger.TRANSACTION_TYPE = 4)
-							AND (account_ledger.TRANSACTION_DESC IS NULL OR account_ledger.TRANSACTION_DESC NOT IN ('RETURN_SOURCE:CREDIT', 'RETURN_SOURCE:BUYIN'))
+							AND (account_ledger.TRANSACTION_DESC IS NULL OR account_ledger.TRANSACTION_DESC NOT IN ('RETURN_SOURCE:CREDIT', 'RETURN_SOURCE:BUYIN', 'RETURN_SOURCE:BUYIN_COIN', 'RETURN_SOURCE:BUYIN_COIN_VALUE'))
 							AND NOT (account_ledger.TRANSACTION_ID IN (11, 12) AND (account_ledger.TRANSACTION_DESC IS NULL OR TRIM(account_ledger.TRANSACTION_DESC) = ''))
 						THEN account_ledger.AMOUNT 
 						ELSE 0 
@@ -2446,6 +2463,42 @@ router.get('/marker_data_breakdown', async (req, res) => {
 
 	try {
 		const [results] = await pool.execute(query);
+
+		// Outstanding physical coin amount = buy-in COIN_AMOUNT minus settled return COIN_AMOUNT
+		const parseCoinAmountFromRemarks = (remarks) => {
+			const m = String(remarks || '').match(/COIN_AMOUNT\s*:\s*([\d,]+(?:\.\d+)?)/i);
+			if (!m) return 0;
+			return parseFloat(String(m[1]).replace(/,/g, '')) || 0;
+		};
+		const [coinRemarkRows] = await pool.execute(`
+			SELECT ACCOUNT_ID, TRANSACTION_DESC, REMARKS
+			FROM account_ledger
+			WHERE ACTIVE = 1
+				AND TRANSACTION_TYPE IN (3, 4)
+				AND (
+					(TRANSACTION_ID = 10 AND COALESCE(TRANSACTION_DESC, '') = 'BUYIN_SOURCE:COIN')
+					OR (TRANSACTION_ID IN (11, 12, 1) AND COALESCE(TRANSACTION_DESC, '') = 'RETURN_SOURCE:BUYIN_COIN_VALUE')
+				)
+		`);
+		const coinAmtByAccount = {};
+		(coinRemarkRows || []).forEach((row) => {
+			const accountId = String(row.ACCOUNT_ID);
+			if (!coinAmtByAccount[accountId]) {
+				coinAmtByAccount[accountId] = { issued: 0, returned: 0 };
+			}
+			const amt = parseCoinAmountFromRemarks(row.REMARKS);
+			if (row.TRANSACTION_DESC === 'BUYIN_SOURCE:COIN') {
+				coinAmtByAccount[accountId].issued += amt;
+			} else {
+				coinAmtByAccount[accountId].returned += amt;
+			}
+		});
+		(results || []).forEach((row) => {
+			const bag = coinAmtByAccount[String(row.ACCOUNT_ID)];
+			const outstanding = bag ? Math.max(0, bag.issued - bag.returned) : 0;
+			row.OUTSTANDING_COIN_AMOUNT = outstanding;
+		});
+
 		res.json(results);
 	} catch (error) {
 		console.error('Error fetching marker data breakdown:', error);
@@ -2455,7 +2508,7 @@ router.get('/marker_data_breakdown', async (req, res) => {
 
 // ADD MARKER RETURN
 router.post('/add_marker_settlement', async (req, res) => {
-	const { txtAccountMarker, txtMarkerReturn, optTransType, optReturnSource, AgentBalance, remarks } = req.body;
+	const { txtAccountMarker, txtMarkerReturn, optTransType, optReturnSource, AgentBalance, remarks, txtCoinAmount } = req.body;
 
 	let date_now = new Date();
 	let time_now = new Date();
@@ -2463,12 +2516,24 @@ router.post('/add_marker_settlement', async (req, res) => {
 	let updated_time = time_now.toLocaleTimeString();
 	let date_nowTG = date_now.toLocaleDateString();
 	let markerReturn = parseFloat(txtMarkerReturn.replace(/,/g, '')) || 0;
+	const coinAmountReceived = parseFloat(String(txtCoinAmount || '0').replace(/,/g, '')) || 0;
 
 	try {
-		if (!['credit', 'buyin'].includes(String(optReturnSource || ''))) {
+		if (!['credit', 'buyin', 'buyin_coin'].includes(String(optReturnSource || ''))) {
 			return res.status(400).json({ error: 'Please select where to deduct the return.' });
 		}
-		if (optTransType === '12') {
+		const isCoinSource = String(optReturnSource) === 'buyin_coin';
+		const isCoinValueSettle = isCoinSource && String(optTransType || '').toLowerCase() === 'coin';
+		// Coin value settle uses cash ledger bucket (11); Cash/Deposit use 11/12 against coin balance
+		const settleTransType = isCoinValueSettle ? '11' : String(optTransType || '');
+		if (!['11', '12'].includes(settleTransType)) {
+			return res.status(400).json({ error: 'Please select a valid transaction type (Cash, Deposit, or Coin).' });
+		}
+		if (isCoinValueSettle && coinAmountReceived <= 0) {
+			return res.status(400).json({ error: 'Please enter the Coin Amount (physical coins received).' });
+		}
+
+		if (settleTransType === '12') {
 			// Total balance excludes Credit/IOU (IOU CASH / CREDIT CASH)
 			const checkBalanceQuery = `
                 SELECT 
@@ -2493,7 +2558,39 @@ router.post('/add_marker_settlement', async (req, res) => {
 			}
 		}
 
-		await insertSettlementRecord();
+		// Validate source balance server-side
+		const [breakdownRows] = await pool.execute(`
+			SELECT
+				SUM(CASE WHEN TRANSACTION_ID = 3 AND TRANSACTION_TYPE = 3 THEN AMOUNT ELSE 0 END) AS CREDIT_ISSUED,
+				SUM(CASE WHEN TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND COALESCE(TRANSACTION_DESC, '') = 'BUYIN_SOURCE:COIN' THEN AMOUNT ELSE 0 END) AS BUYIN_COIN_ISSUED,
+				SUM(CASE WHEN TRANSACTION_ID = 10 AND TRANSACTION_TYPE = 3 AND COALESCE(TRANSACTION_DESC, '') <> 'BUYIN_SOURCE:COIN' THEN AMOUNT ELSE 0 END) AS BUYIN_CASH_ISSUED,
+				SUM(CASE WHEN TRANSACTION_ID IN (11, 12, 1) AND TRANSACTION_DESC = 'RETURN_SOURCE:CREDIT' THEN AMOUNT ELSE 0 END) AS RETURNS_CREDIT,
+				SUM(CASE WHEN (TRANSACTION_ID IN (11, 12, 1) AND TRANSACTION_DESC = 'RETURN_SOURCE:BUYIN') OR (TRANSACTION_ID IN (11, 12) AND (TRANSACTION_DESC IS NULL OR TRIM(TRANSACTION_DESC) = '')) OR (TRANSACTION_ID = 1 AND TRANSACTION_TYPE = 4) THEN AMOUNT ELSE 0 END) AS RETURNS_BUYIN,
+				SUM(CASE WHEN TRANSACTION_ID IN (11, 12, 1) AND TRANSACTION_DESC IN ('RETURN_SOURCE:BUYIN_COIN', 'RETURN_SOURCE:BUYIN_COIN_VALUE') THEN AMOUNT ELSE 0 END) AS RETURNS_BUYIN_COIN
+			FROM account_ledger
+			WHERE ACCOUNT_ID = ? AND ACTIVE = 1 AND TRANSACTION_TYPE IN (3, 4)
+		`, [txtAccountMarker]);
+		const br = breakdownRows[0] || {};
+		const balCredit = Math.max(0, (parseFloat(br.CREDIT_ISSUED) || 0) - (parseFloat(br.RETURNS_CREDIT) || 0));
+		const balBuyinCash = Math.max(0, (parseFloat(br.BUYIN_CASH_ISSUED) || 0) - (parseFloat(br.RETURNS_BUYIN) || 0));
+		const balBuyinCoin = Math.max(0, (parseFloat(br.BUYIN_COIN_ISSUED) || 0) - (parseFloat(br.RETURNS_BUYIN_COIN) || 0));
+		let sourceBal = balCredit;
+		if (optReturnSource === 'buyin') sourceBal = balBuyinCash;
+		if (optReturnSource === 'buyin_coin') sourceBal = balBuyinCoin;
+
+		let settleAmount = markerReturn;
+		let depositOverage = 0;
+		if (isCoinValueSettle && markerReturn > sourceBal) {
+			settleAmount = sourceBal;
+			depositOverage = Math.round((markerReturn - sourceBal) * 100) / 100;
+			if (settleAmount <= 0) {
+				return res.status(400).json({ error: 'No Game Credit (Coin) balance to settle.' });
+			}
+		} else if (markerReturn > sourceBal) {
+			return res.status(400).json({ error: 'Return amount exceeds the selected credit balance.' });
+		}
+
+		await insertSettlementRecord(settleTransType, isCoinValueSettle, settleAmount, depositOverage);
 
 		const agentQuery = `
             SELECT agent.AGENT_CODE, agent.NAME, agent.TELEGRAM_ID
@@ -2508,21 +2605,27 @@ router.post('/add_marker_settlement', async (req, res) => {
 			let text;
 
 			// Safely parse AgentBalance
-			const currentBalance = parseFloat(AgentBalance.replace(/,/g, '')) - markerReturn;
+			const agentBalNum = parseFloat(String(AgentBalance || '0').replace(/,/g, '')) || 0;
+			const currentBalance = agentBalNum - markerReturn;
 
-			if (optTransType === '12') {
+			if (isCoinValueSettle) {
+				const overageTxt = depositOverage > 0
+					? `\n초과분 예치: ${parseFloat(depositOverage).toLocaleString()}`
+					: '';
+				text = `Infinity Cage\n\n* 크레딧 리턴 (코인) *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(settleAmount).toLocaleString()} - 코인${overageTxt}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			} else if (settleTransType === '12') {
 				text = `Infinity Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(markerReturn).toLocaleString()} - 계좌출금\n잔고: ${parseFloat(currentBalance).toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			} else {
 				text = `Infinity Cage\n\n* 크레딧 리턴 *\n\n게임: ${agentCode} - ${agentName}\n금액: ${parseFloat(markerReturn).toLocaleString()} - 현금\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 			}
 
-			const markerLogPreview = markerReturnTelegramLogPreview(optTransType, optReturnSource);
+			const markerLogPreview = markerReturnTelegramLogPreview(isCoinValueSettle ? 'coin' : settleTransType, optReturnSource);
 			const markerTelegramOpts = {
 				logPreview: markerLogPreview,
 				logMeta: {
 					accountCode: agentCode,
 					guestName: agentName,
-					amount: Math.abs(Number(markerReturn) || 0)
+					amount: Math.abs(Number(isCoinValueSettle ? settleAmount : markerReturn) || 0)
 				}
 			};
 
@@ -2553,13 +2656,58 @@ router.post('/add_marker_settlement', async (req, res) => {
 		res.status(500).json({ success: false, message: 'Error processing the transaction' });
 	}
 
-	async function insertSettlementRecord() {
-		const returnSourceDesc = optReturnSource === 'credit' ? 'RETURN_SOURCE:CREDIT' : 'RETURN_SOURCE:BUYIN';
+	async function insertSettlementRecord(settleTransType, isCoinValueSettle, settleAmount, depositOverage) {
+		let returnSourceDesc = 'RETURN_SOURCE:BUYIN';
+		if (optReturnSource === 'credit') {
+			returnSourceDesc = 'RETURN_SOURCE:CREDIT';
+		} else if (optReturnSource === 'buyin_coin') {
+			returnSourceDesc = isCoinValueSettle ? 'RETURN_SOURCE:BUYIN_COIN_VALUE' : 'RETURN_SOURCE:BUYIN_COIN';
+		}
+		const remarksBase = (remarks || '').toString().trim();
+		let remarksToSave = remarksBase || null;
+		if (isCoinValueSettle) {
+			const tags = [`COIN_AMOUNT:${Number(coinAmountReceived).toLocaleString('en-US')}`];
+			if (depositOverage > 0) {
+				tags.push(`DEPOSIT_CREDIT:${Number(depositOverage).toLocaleString('en-US')}`);
+			}
+			const coinTag = tags.join(' | ');
+			remarksToSave = remarksBase ? `${remarksBase} | ${coinTag}` : coinTag;
+		}
 		const insertQuery = `
             INSERT INTO account_ledger (ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_BY, ENCODED_DT, REMARKS, TRANSACTION_DESC) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-		await pool.execute(insertQuery, [txtAccountMarker, optTransType, 3, markerReturn, req.session.user_id, date_now, remarks || null, returnSourceDesc]);
+		const connection = await pool.getConnection();
+		try {
+			await connection.beginTransaction();
+			const [settleResult] = await connection.execute(insertQuery, [
+				txtAccountMarker, settleTransType, 3, settleAmount, req.session.user_id, date_now, remarksToSave, returnSourceDesc
+			]);
+			const settleLedgerId = settleResult && settleResult.insertId;
+
+			// Excess coin value → guest deposit balance (linked to settle for delete sync)
+			if (isCoinValueSettle && depositOverage > 0) {
+				const depositRemarks =
+					`Coin Value = ${Number(markerReturn).toLocaleString('en-US')}, Credit Settled = ${Number(settleAmount).toLocaleString('en-US')}` +
+					(settleLedgerId ? ` | SETTLE_LEDGER_ID:${settleLedgerId}` : '');
+				await connection.execute(insertQuery, [
+					txtAccountMarker,
+					1, // DEPOSIT
+					2, // account deposit type
+					depositOverage,
+					req.session.user_id,
+					date_now,
+					depositRemarks,
+					'COIN_OVERAGE_DEPOSIT'
+				]);
+			}
+			await connection.commit();
+		} catch (txErr) {
+			await connection.rollback();
+			throw txErr;
+		} finally {
+			connection.release();
+		}
 	}
 });
 
@@ -2606,7 +2754,7 @@ router.delete('/marker_record/:id', async (req, res) => {
 
 	try {
 		const [rows] = await pool.execute(
-			`SELECT IDNo, ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, ENCODED_DT 
+			`SELECT IDNo, ACCOUNT_ID, GAME_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_DT 
 			 FROM account_ledger 
 			 WHERE IDNo = ? AND ACTIVE = 1 
 			 AND (TRANSACTION_ID IN (3, 10, 11, 12) OR TRANSACTION_TYPE = 4)`,
@@ -2624,12 +2772,48 @@ router.delete('/marker_record/:id', async (req, res) => {
 		const accountId = rec.ACCOUNT_ID;
 		const amount = parseFloat(rec.AMOUNT) || 0;
 		const encodedDt = rec.ENCODED_DT;
+		const transactionDesc = String(rec.TRANSACTION_DESC || '');
+		const remarksText = String(rec.REMARKS || '');
 
 		// 1. Always soft delete account_ledger
 		await pool.execute(
 			'UPDATE account_ledger SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
 			[req.session.user_id, date_now, id]
 		);
+
+		// 1b. Coin value settle with overage → also soft-delete paired Coin Over deposit
+		if (transId === 11 && transactionDesc === 'RETURN_SOURCE:BUYIN_COIN_VALUE') {
+			const overageMatch = remarksText.match(/DEPOSIT_CREDIT\s*:\s*([\d,]+(?:\.\d+)?)/i);
+			const overageAmt = overageMatch
+				? (parseFloat(String(overageMatch[1]).replace(/,/g, '')) || 0)
+				: 0;
+			await pool.execute(
+				`UPDATE account_ledger
+				 SET ACTIVE = 0, EDITED_BY = ?, EDITED_DT = ?
+				 WHERE ACCOUNT_ID = ?
+				   AND ACTIVE = 1
+				   AND TRANSACTION_ID = 1
+				   AND TRANSACTION_TYPE = 2
+				   AND COALESCE(TRANSACTION_DESC, '') = 'COIN_OVERAGE_DEPOSIT'
+				   AND (
+					 REMARKS LIKE ?
+					 OR (
+					   ? > 0
+					   AND ABS(TIMESTAMPDIFF(SECOND, ENCODED_DT, ?)) <= 5
+					   AND ABS(AMOUNT - ?) < 0.01
+					 )
+				   )`,
+				[
+					req.session.user_id,
+					date_now,
+					accountId,
+					`%SETTLE_LEDGER_ID:${id}%`,
+					overageAmt,
+					encodedDt,
+					overageAmt
+				]
+			);
+		}
 
 		// 2. For Buy-in (TRANSACTION_ID 10): soft delete game_record (CAGE_TYPE 1 and 3)
 		if (transId === 10 && gameId) {

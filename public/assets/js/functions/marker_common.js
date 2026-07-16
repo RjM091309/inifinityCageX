@@ -60,16 +60,23 @@
         }
     }
 
-    function renderTransactionType(data) {
+    function renderTransactionType(data, type, row) {
         if (!data) return '';
         var parts = String(data).split('-');
         var transactionId = parseInt(parts[0], 10);
         var transactionType = parseInt(parts[1], 10);
+        var desc = row && row.TRANSACTION_DESC != null ? String(row.TRANSACTION_DESC) : '';
         switch (transactionId) {
             case 3: return 'Junket Credit';
-            case 11: return 'Credit Returned thru Cash';
-            case 12: return 'Credit Returned thru Deposit';
-            case 10: return 'Buy-in thru Credit';
+            case 11:
+                if (desc === 'RETURN_SOURCE:BUYIN_COIN_VALUE') return 'Game Credit Returned thru Coin';
+                if (desc === 'RETURN_SOURCE:BUYIN_COIN') return 'Game Credit (Coin) Returned thru Cash';
+                return 'Credit Returned thru Cash';
+            case 12:
+                if (desc === 'RETURN_SOURCE:BUYIN_COIN') return 'Game Credit (Coin) Returned thru Deposit';
+                return 'Credit Returned thru Deposit';
+            case 10:
+                return desc === 'BUYIN_SOURCE:COIN' ? 'Buy-in thru Coin' : 'Buy-in thru Credit';
             default:
                 return transactionType === 4 ? 'Chips Return thru Credit' : 'Unknown Transaction';
         }
@@ -150,7 +157,7 @@
                         return formatMarkerHistoryAmount(data);
                     }
                 },
-                { data: 'TRANSACTION_INFO', render: renderTransactionType },
+                { data: 'TRANSACTION_INFO', render: function (data, type, row) { return renderTransactionType(data, type, row); } },
                 { data: 'ENCODED_DT' },
                 { data: 'REMARKS', defaultContent: '' }
             ],
@@ -180,7 +187,22 @@
                         if (type !== 'display') {
                             return raw;
                         }
-                        var safe = escapeHtml(raw);
+                        // Friendly coin tags + thousand separators (hide internal SETTLE_LEDGER_ID)
+                        var displayRaw = raw
+                            .replace(/\s*\|\s*SETTLE_LEDGER_ID\s*:\s*\d+/gi, '')
+                            .replace(/\b(COIN_AMOUNT|DEPOSIT_CREDIT|COIN_VALUE|DEBT_SETTLED)\s*:\s*([\d,]+(?:\.\d+)?)/gi, function (_m, key, num) {
+                                var n = parseFloat(String(num).replace(/,/g, ''));
+                                if (isNaN(n)) return _m;
+                                var labelMap = {
+                                    COIN_AMOUNT: 'Coin Amount',
+                                    DEPOSIT_CREDIT: 'Deposit Credit',
+                                    COIN_VALUE: 'Coin Value',
+                                    DEBT_SETTLED: 'Credit Settled'
+                                };
+                                var label = labelMap[String(key).toUpperCase()] || key;
+                                return label + ' = ' + Number(n).toLocaleString('en-US');
+                            });
+                        var safe = escapeHtml(displayRaw);
                         var textHtml = safe ? safe : '<span class="text-muted">—</span>';
                         if (!isSuperAdmin) {
                             return textHtml;
@@ -519,8 +541,124 @@
         function getSourceAmountByRow(row, source) {
             if (!row) return 0;
             if (source === 'credit') return row.BALANCE_CREDIT != null ? Number(row.BALANCE_CREDIT) : 0;
-            if (source === 'buyin') return row.BALANCE_BUYIN != null ? Number(row.BALANCE_BUYIN) : 0;
+            if (source === 'buyin_coin') return row.BALANCE_BUYIN_COIN != null ? Number(row.BALANCE_BUYIN_COIN) : 0;
+            if (source === 'buyin') {
+                if (row.BALANCE_BUYIN_CASH != null) return Number(row.BALANCE_BUYIN_CASH);
+                return row.BALANCE_BUYIN != null ? Number(row.BALANCE_BUYIN) : 0;
+            }
             return row.TOTAL_AMOUNT != null ? Number(row.TOTAL_AMOUNT) : 0;
+        }
+
+        function getSelectedCoinPayMode() {
+            var $mode = $form.find('input[name="optCoinPayMode"]:checked');
+            return $mode.length ? $mode.val() : 'coin_value';
+        }
+
+        function syncCoinReturnUi() {
+            var selectedSource = getSelectedReturnSource();
+            var isCoinSource = selectedSource === 'buyin_coin';
+            var coinMode = isCoinSource ? getSelectedCoinPayMode() : null;
+            var isCoinSettle = isCoinSource && coinMode === 'coin_value';
+            var isPayRemaining = isCoinSource && coinMode === 'pay_remaining';
+            var t = window.markerTranslations || {};
+
+            $form.find('.marker-coin-pay-mode-row').toggleClass('d-none', !isCoinSource);
+            // Cash/Deposit only when not coin-source, or when paying remaining with cash/deposit
+            // Use d-none (!important) so Bootstrap d-flex cannot keep them visible
+            var showCashDeposit = !isCoinSource || isPayRemaining;
+            $form.find('.marker-cash-deposit-heading').toggleClass('d-none', !showCashDeposit);
+            $form.find('.marker-cash-deposit-row').toggleClass('d-none', !showCashDeposit);
+            // Entire cash/deposit actions row (page): hide when settle so only left Save shows
+            $form.find('.marker-page-actions').toggleClass('d-none', isCoinSettle);
+            $form.find('.marker-coin-amount-row').toggleClass('d-none', !isCoinSettle);
+            if (!isCoinSettle) {
+                $form.find('input[name="txtCoinAmount"]').val('');
+            }
+
+            // Credit History page only: move Save to left under remarks when Settle Coin Value
+            var $settleSaveRow = $form.find('.marker-settle-save-row');
+            var $settleSaveSlot = $form.find('.marker-settle-save-slot');
+            var $saveGap = $form.find('.marker-save-gap');
+            var $saveBtn = $form.find(submitBtnSelector);
+            if ($settleSaveRow.length && $settleSaveSlot.length && $saveBtn.length) {
+                if (isCoinSettle) {
+                    $settleSaveRow.removeClass('d-none');
+                    $settleSaveSlot.append($saveBtn);
+                    $saveGap.addClass('d-none');
+                } else {
+                    $settleSaveRow.addClass('d-none');
+                    $saveGap.removeClass('d-none');
+                    $saveGap.after($saveBtn);
+                }
+            }
+
+            var $coinOpt = $form.find('input[name="' + optTransTypeName + '"][value="coin"]');
+            var $cashOpt = $form.find('input[name="' + optTransTypeName + '"][value="11"]');
+            var $depositOpt = $form.find('input[name="' + optTransTypeName + '"][value="12"]');
+
+            if (isCoinSettle) {
+                $cashOpt.prop('checked', false);
+                $depositOpt.prop('checked', false);
+                $coinOpt.prop('checked', true);
+            } else if (isPayRemaining) {
+                $coinOpt.prop('checked', false);
+                if (!$cashOpt.is(':checked') && !$depositOpt.is(':checked')) {
+                    $cashOpt.prop('checked', true);
+                }
+            } else {
+                $coinOpt.prop('checked', false);
+            }
+
+            var coinValueLabel = t.coin_value_peso || 'Coin Value (₱)';
+            var creditsReturnLabel = t.credits_return || 'Credits Return';
+
+            var $returnLabel = $(markerReturnSelector).closest('.col-sm-6').find('.form-label').first();
+            if ($returnLabel.length) {
+                if (!$returnLabel.data('defaultLabel')) {
+                    $returnLabel.data('defaultLabel', $returnLabel.text() || creditsReturnLabel);
+                }
+                $returnLabel.text(isCoinSettle ? coinValueLabel : $returnLabel.data('defaultLabel'));
+            }
+
+            var $returnInput = $(markerReturnSelector);
+            if ($returnInput.length && $returnInput.attr('placeholder') != null) {
+                if (!$returnInput.data('defaultPlaceholder')) {
+                    $returnInput.data('defaultPlaceholder', $returnInput.attr('placeholder') || creditsReturnLabel);
+                }
+                $returnInput.attr('placeholder', isCoinSettle ? coinValueLabel : $returnInput.data('defaultPlaceholder'));
+            }
+
+            if (isCoinSettle) {
+                autofillOutstandingCoinAmount();
+            }
+        }
+
+        function autofillOutstandingCoinAmount() {
+            var $coinAmountInput = $form.find('input[name="txtCoinAmount"]');
+            if (!$coinAmountInput.length) return;
+            if (getSelectedReturnSource() !== 'buyin_coin' || getSelectedCoinPayMode() !== 'coin_value') {
+                return;
+            }
+            var selectedAccountId = $accountSelect.val();
+            if (!selectedAccountId) {
+                $coinAmountInput.val('');
+                return;
+            }
+            var breakdownAcc = findBreakdownAccount(selectedAccountId);
+            var outstanding = breakdownAcc && breakdownAcc.OUTSTANDING_COIN_AMOUNT != null
+                ? Number(breakdownAcc.OUTSTANDING_COIN_AMOUNT)
+                : 0;
+            if (outstanding > 0) {
+                $coinAmountInput.val(formatWithCommas(outstanding));
+            } else {
+                // Buy-in coins already fully recorded on prior settles — leave blank for new coins
+                $coinAmountInput.val('');
+                var debtLeft = breakdownAcc ? getSourceAmountByRow(breakdownAcc, 'buyin_coin') : 0;
+                if (debtLeft > 0) {
+                    var tCoin = window.markerTranslations || {};
+                    $coinAmountInput.attr('placeholder', tCoin.coin_amount_new || 'New coins received');
+                }
+            }
         }
 
         function refreshAccountOptionsBySource() {
@@ -558,6 +696,7 @@
             if (!selectedAccountId) {
                 $(markerIssueSelector).val('');
                 $(markerBalanceSelector).val('');
+                $form.find('input[name="txtCoinAmount"]').val('');
                 return;
             }
             var selectedSource = getSelectedReturnSource();
@@ -566,6 +705,9 @@
                 var sourceAmount = getSourceAmountByRow(breakdownAcc, selectedSource);
                 $(markerIssueSelector).val(formatWithCommas(sourceAmount));
                 $(markerBalanceSelector).val(formatWithCommas(sourceAmount));
+                if (selectedSource === 'buyin_coin' && getSelectedCoinPayMode() === 'coin_value') {
+                    autofillOutstandingCoinAmount();
+                }
                 return;
             }
             var selectedAccount = (markerData || []).filter(function (a) { return String(a.ACCOUNT_ID) === String(selectedAccountId); })[0];
@@ -604,7 +746,12 @@
 
         $(document).off('change.markerReturnSource', 'input[name="' + optReturnSourceName + '"]').on('change.markerReturnSource', 'input[name="' + optReturnSourceName + '"]', function () {
             var currentAccount = $accountSelect.val();
+            if (getSelectedReturnSource() === 'buyin_coin') {
+                var $settleMode = $form.find('input[name="optCoinPayMode"][value="coin_value"]');
+                if ($settleMode.length) $settleMode.prop('checked', true);
+            }
             refreshAccountOptionsBySource();
+            syncCoinReturnUi();
             if (currentAccount && $accountSelect.find('option[value="' + currentAccount + '"]').length) {
                 $accountSelect.val(currentAccount).trigger('change');
             } else {
@@ -613,6 +760,13 @@
                 $(markerBalanceSelector).val('');
             }
         });
+        $(document).off('change.markerCoinPayMode', 'input[name="optCoinPayMode"]').on('change.markerCoinPayMode', 'input[name="optCoinPayMode"]', function () {
+            syncCoinReturnUi();
+        });
+        $(document).off('change.markerTransType', 'input[name="' + optTransTypeName + '"]').on('change.markerTransType', 'input[name="' + optTransTypeName + '"]', function () {
+            syncCoinReturnUi();
+        });
+        syncCoinReturnUi();
 
         // Agent balance for deposit check (account_details_data_deposit)
         $accountSelect.off('change.markerBalance').on('change.markerBalance', function () {
@@ -641,11 +795,14 @@
             var markerIssue = parseFloat($(markerIssueSelector).val().replace(/,/g, '')) || 0;
             var raw = $(this).val().replace(/,/g, '');
             var markerReturn = parseFloat(raw) || 0;
-            if (markerReturn > markerIssue) {
+            var allowOverage = getSelectedReturnSource() === 'buyin_coin' && getSelectedCoinPayMode() === 'coin_value';
+            if (!allowOverage && markerReturn > markerIssue) {
                 $(this).val(formatWithCommas(markerIssue));
                 $(markerBalanceSelector).val(formatWithCommas(0));
+            } else if (allowOverage && markerReturn > markerIssue) {
+                $(markerBalanceSelector).val(formatWithCommas(0));
             } else {
-                $(markerBalanceSelector).val(formatWithCommas(markerIssue - markerReturn));
+                $(markerBalanceSelector).val(formatWithCommas(Math.max(0, markerIssue - markerReturn)));
             }
             $(this).val(formatWithCommas(raw));
         }).on('focusout.markerForm', function () {
@@ -668,27 +825,79 @@
                 if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select an account.' });
                 return;
             }
-            if (!selectedTransType) {
+            if (!selectedReturnSource) {
+                if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select where to deduct the return (Cash Credit, Game Credit Cash, or Game Credit Coin).' });
+                return;
+            }
+            if (selectedReturnSource === 'buyin_coin') {
+                var coinPayMode = getSelectedCoinPayMode();
+                if (coinPayMode === 'coin_value') {
+                    $form.find('input[name="' + optTransTypeName + '"][value="coin"]').prop('checked', true);
+                    selectedTransType = 'coin';
+                    var coinAmountRaw = ($form.find('input[name="txtCoinAmount"]').val() || '').toString().replace(/,/g, '').trim();
+                    var coinAmountVal = parseFloat(coinAmountRaw) || 0;
+                    if (!coinAmountRaw || coinAmountVal <= 0) {
+                        if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please enter the Coin Amount (physical coins received).' });
+                        return;
+                    }
+                } else if (!selectedTransType || selectedTransType === 'coin') {
+                    if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select Cash or Deposit to pay the remaining Game Credit (Coin).' });
+                    return;
+                }
+            } else if (!selectedTransType || selectedTransType === 'coin') {
                 if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select a transaction type (Cash or Deposit).' });
                 return;
             }
-            if (!selectedReturnSource) {
-                if (window.Swal) Swal.fire({ icon: 'error', title: 'Missing Information', text: 'Please select where to deduct the return (Junket Credit or Game Credit).' });
-                return;
-            }
             if (!markerReturnRaw || markerReturn <= 0) {
-                if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Amount', text: 'Credit Return must be greater than zero.' });
+                var amountMsg = (selectedReturnSource === 'buyin_coin' && getSelectedCoinPayMode() === 'coin_value')
+                    ? 'Coin Value must be greater than zero.'
+                    : 'Credit Return must be greater than zero.';
+                if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Amount', text: amountMsg });
                 return;
             }
             if (markerReturn > markerIssue) {
-                if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Return', text: 'Credit Return cannot be greater than Credit Issue!' });
-                return;
+                var allowOverageSubmit = selectedReturnSource === 'buyin_coin' && getSelectedCoinPayMode() === 'coin_value';
+                if (!allowOverageSubmit) {
+                    if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Return', text: 'Amount cannot be greater than Credit Issue!' });
+                    return;
+                }
             }
 
             var accountMarker = $accountSelect.find('option:selected').text();
             var markerReturnFormatted = $(markerReturnSelector).val();
-            var transTypeLabel = $('input[name="' + optTransTypeName + '"]:checked').next('label').text();
+            var tSubmit = window.markerTranslations || {};
+            var transTypeLabel;
+            if (selectedTransType === 'coin') {
+                transTypeLabel = tSubmit.coin_mode_settle || 'Settle Coin Value';
+            } else {
+                transTypeLabel = $('input[name="' + optTransTypeName + '"]:checked').next('label').text();
+            }
             var returnSourceLabel = $('input[name="' + optReturnSourceName + '"]:checked').next('label').text();
+            var coinAmountFormatted = '';
+            if (selectedTransType === 'coin') {
+                var coinAmtRawConfirm = ($form.find('input[name="txtCoinAmount"]').val() || '').toString().replace(/,/g, '').trim();
+                coinAmountFormatted = formatWithCommas(coinAmtRawConfirm);
+            }
+            var depositOverage = 0;
+            if (selectedTransType === 'coin' && markerReturn > markerIssue) {
+                depositOverage = Math.round((markerReturn - markerIssue) * 100) / 100;
+            }
+            var confirmExtraCoinRow = coinAmountFormatted
+                ? '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Coin Amount:</td><td style="padding:8px 0 8px 4px">' + coinAmountFormatted + '</td></tr>'
+                : '';
+            var confirmOverageRow = depositOverage > 0
+                ? '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">To Deposit:</td><td style="padding:8px 0 8px 4px">' + formatWithCommas(depositOverage) + '</td></tr>'
+                : '';
+            var confirmTableHtml = '<div style="text-align:center;margin-bottom:20px">' +
+                '<table style="margin:0 auto"><tr><td style="padding:8px 4px 8px 0;font-weight:bold">Account:</td><td style="padding:8px 0 8px 4px">' + (accountMarker || 'N/A') + '</td></tr>' +
+                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">' + (selectedTransType === 'coin' ? 'Coin Value:' : 'Amount:') + '</td><td style="padding:8px 0 8px 4px">' + (markerReturnFormatted || '0') + '</td></tr>' +
+                confirmExtraCoinRow +
+                confirmOverageRow +
+                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Transaction:</td><td style="padding:8px 0 8px 4px">' + (transTypeLabel || 'N/A') + '</td></tr>' +
+                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Deduct From:</td><td style="padding:8px 0 8px 4px">' + (returnSourceLabel || 'N/A') + '</td></tr></table>' +
+                (depositOverage > 0
+                    ? '<p style="margin-top:15px">Excess coin value will be credited to Deposit. Proceed?</p></div>'
+                    : '<p style="margin-top:15px">Are you sure you want to proceed with this marker return?</p></div>');
 
             var proceedSubmitFlow = function () {
                 var showConfirmAndSubmit = function () {
@@ -703,6 +912,7 @@
                         success: function (response) {
                             if (response.success) {
                                 $form[0].reset();
+                                syncCoinReturnUi();
                                 if (table && table.ajax) table.ajax.reload();
                                 $.getJSON('/marker_total_credits_issue', function (data) {
                                     var total = (data && data.total != null) ? data.total : 0;
@@ -714,12 +924,7 @@
                                 populateAccounts(function (accounts) {
                                     if (savedAccountId) {
                                         $accountSelect.val(savedAccountId).trigger('change');
-                                        var acc = (accounts || []).filter(function (a) { return a.ACCOUNT_ID == savedAccountId; })[0];
-                                        if (acc) {
-                                            var totalIssue = acc.TOTAL_AMOUNT || 0;
-                                            $(markerIssueSelector).val(formatWithCommas(totalIssue));
-                                            $(markerBalanceSelector).val(formatWithCommas(totalIssue));
-                                        }
+                                        updateIssueAndBalanceBySelectedAccount();
                                     }
                                 });
                                 if (window.Swal) {
@@ -743,6 +948,7 @@
                 };
 
                 // Deposit (12): check balance BEFORE showing confirm; insufficient = show error immediately
+                // Coin value settle skips deposit check
                 if (selectedTransType === '12') {
                     $.ajax({
                         url: '/account_details_data_deposit/' + selectedAccount,
@@ -765,12 +971,7 @@
                                 Swal.fire({
                                     icon: 'question',
                                     title: 'Confirm Marker Return',
-                                    html: '<div style="text-align:center;margin-bottom:20px">' +
-                                        '<table style="margin:0 auto"><tr><td style="padding:8px 4px 8px 0;font-weight:bold">Account:</td><td style="padding:8px 0 8px 4px">' + (accountMarker || 'N/A') + '</td></tr>' +
-                                        '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Amount:</td><td style="padding:8px 0 8px 4px">' + (markerReturnFormatted || '0') + '</td></tr>' +
-                                        '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Transaction:</td><td style="padding:8px 0 8px 4px">' + (transTypeLabel || 'N/A') + '</td></tr>' +
-                                        '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Deduct From:</td><td style="padding:8px 0 8px 4px">' + (returnSourceLabel || 'N/A') + '</td></tr></table>' +
-                                        '<p style="margin-top:15px">Are you sure you want to proceed with this marker return?</p></div>',
+                                    html: confirmTableHtml,
                                     showCancelButton: true,
                                     confirmButtonColor: '#3085d6',
                                     cancelButtonColor: '#d33',
@@ -792,12 +993,7 @@
                         Swal.fire({
                             icon: 'question',
                             title: 'Confirm Credit Return',
-                            html: '<div style="text-align:center;margin-bottom:20px">' +
-                                '<table style="margin:0 auto"><tr><td style="padding:8px 4px 8px 0;font-weight:bold">Account:</td><td style="padding:8px 0 8px 4px">' + (accountMarker || 'N/A') + '</td></tr>' +
-                                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Amount:</td><td style="padding:8px 0 8px 4px">' + (markerReturnFormatted || '0') + '</td></tr>' +
-                                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Transaction:</td><td style="padding:8px 0 8px 4px">' + (transTypeLabel || 'N/A') + '</td></tr>' +
-                                '<tr><td style="padding:8px 4px 8px 0;font-weight:bold">Deduct From:</td><td style="padding:8px 0 8px 4px">' + (returnSourceLabel || 'N/A') + '</td></tr></table>' +
-                                '<p style="margin-top:15px">Are you sure you want to proceed with this credit return?</p></div>',
+                            html: confirmTableHtml,
                             showCancelButton: true,
                             confirmButtonColor: '#3085d6',
                             cancelButtonColor: '#d33',
@@ -820,16 +1016,19 @@
                     var sourceRow = list.filter(function (r) { return String(r.ACCOUNT_ID) === String(selectedAccount); })[0];
                     var sourceBalance = 0;
                     if (sourceRow) {
-                        sourceBalance = selectedReturnSource === 'credit'
-                            ? (sourceRow.BALANCE_CREDIT != null ? Number(sourceRow.BALANCE_CREDIT) : 0)
-                            : (sourceRow.BALANCE_BUYIN != null ? Number(sourceRow.BALANCE_BUYIN) : 0);
+                        sourceBalance = getSourceAmountByRow(sourceRow, selectedReturnSource);
                     }
                     if (markerReturn > sourceBalance) {
-                        var sourceBalanceLabel = selectedReturnSource === 'credit' ? 'Junket Credit Balance' : 'Game Credit Balance';
-                        var sourceBalanceMsg = 'Return amount exceeded the ' + sourceBalanceLabel + '.';
-                        if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Amount', text: sourceBalanceMsg });
-                        else alert(sourceBalanceMsg);
-                        return;
+                        var allowOverageValidate = selectedReturnSource === 'buyin_coin' && getSelectedCoinPayMode() === 'coin_value';
+                        if (!allowOverageValidate) {
+                            var sourceBalanceLabel = selectedReturnSource === 'credit'
+                                ? 'Cash Credit Balance'
+                                : (selectedReturnSource === 'buyin_coin' ? 'Game Credit (Coin) Balance' : 'Game Credit (Cash) Balance');
+                            var sourceBalanceMsg = 'Return amount exceeded the ' + sourceBalanceLabel + '.';
+                            if (window.Swal) Swal.fire({ icon: 'error', title: 'Invalid Amount', text: sourceBalanceMsg });
+                            else alert(sourceBalanceMsg);
+                            return;
+                        }
                     }
                     proceedSubmitFlow();
                 },
@@ -904,16 +1103,20 @@
         function updateAccountsBalanceTable() {
             var $creditTbl = $('#marker-accounts-credit-tbl');
             var $buyinTbl = $('#marker-accounts-buyin-tbl');
+            var $buyinCoinTbl = $('#marker-accounts-buyin-coin-tbl');
             var $totalTbl = $('#marker-accounts-total-tbl');
             if (!$creditTbl.length || !$buyinTbl.length) return;
             destroyBalanceDataTable('#marker-accounts-credit-tbl');
             destroyBalanceDataTable('#marker-accounts-buyin-tbl');
+            if ($buyinCoinTbl.length) destroyBalanceDataTable('#marker-accounts-buyin-coin-tbl');
             if ($totalTbl.length) destroyBalanceDataTable('#marker-accounts-total-tbl');
             var $creditTbody = $creditTbl.find('tbody');
             var $buyinTbody = $buyinTbl.find('tbody');
+            var $buyinCoinTbody = $buyinCoinTbl.length ? $buyinCoinTbl.find('tbody') : $();
             var $totalTbody = $totalTbl.length ? $totalTbl.find('tbody') : $();
             $creditTbody.empty();
             $buyinTbody.empty();
+            if ($buyinCoinTbody.length) $buyinCoinTbody.empty();
             if ($totalTbody.length) $totalTbody.empty();
             $.ajax({
                 url: '/marker_data_breakdown',
@@ -921,20 +1124,27 @@
                 success: function (data) {
                     var list = Array.isArray(data) ? data : [];
                     var creditRows = [];
-                    var buyinRows = [];
+                    var buyinCashRows = [];
+                    var buyinCoinRows = [];
                     var totalRows = [];
                     var totalCredit = 0;
                     var totalBuyin = 0;
+                    var totalBuyinCash = 0;
+                    var totalBuyinCoin = 0;
                     var grandTotal = 0;
                     list.forEach(function (row) {
                         var name = (row.AGENT_CODE || '') + ' (' + (row.AGENT_NAME || '') + ')';
                         var credit = row.BALANCE_CREDIT != null ? Number(row.BALANCE_CREDIT) : 0;
-                        var buyin = row.BALANCE_BUYIN != null ? Number(row.BALANCE_BUYIN) : 0;
+                        var buyinCash = row.BALANCE_BUYIN_CASH != null ? Number(row.BALANCE_BUYIN_CASH) : (row.BALANCE_BUYIN != null ? Number(row.BALANCE_BUYIN) : 0);
+                        var buyinCoin = row.BALANCE_BUYIN_COIN != null ? Number(row.BALANCE_BUYIN_COIN) : 0;
+                        var buyin = buyinCash + buyinCoin;
                         var accountTotal = row.TOTAL_AMOUNT != null ? Number(row.TOTAL_AMOUNT) : (credit + buyin);
                         if (credit !== 0) { creditRows.push({ name: name, amount: credit }); totalCredit += credit; }
-                        if (buyin !== 0) { buyinRows.push({ name: name, amount: buyin }); totalBuyin += buyin; }
+                        if (buyinCash !== 0) { buyinCashRows.push({ name: name, amount: buyinCash }); totalBuyinCash += buyinCash; }
+                        if (buyinCoin !== 0) { buyinCoinRows.push({ name: name, amount: buyinCoin }); totalBuyinCoin += buyinCoin; }
+                        totalBuyin = totalBuyinCash + totalBuyinCoin;
                         if (accountTotal !== 0) {
-                            totalRows.push({ name: name, credit: credit, buyin: buyin, total: accountTotal });
+                            totalRows.push({ name: name, credit: credit, buyin: buyin, buyinCash: buyinCash, buyinCoin: buyinCoin, total: accountTotal });
                             grandTotal += accountTotal;
                         }
                     });
@@ -950,30 +1160,44 @@
                     } else {
                         $creditTbl.find('tfoot').hide();
                     }
-                    buyinRows.forEach(function (r) {
+                    buyinCashRows.forEach(function (r) {
                         $buyinTbody.append('<tr><td>' + r.name + '</td><td class="text-end marker-balance-col-amount">' + formatMarkerHistoryAmount(r.amount) + '</td></tr>');
                     });
-                    if (buyinRows.length > 0) {
+                    if (buyinCashRows.length > 0) {
                         $buyinTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
-                        $buyinTbl.find('tfoot th').last().addClass('fw-semibold text-end marker-balance-col-amount').text(formatMarkerHistoryAmount(totalBuyin));
+                        $buyinTbl.find('tfoot th').last().addClass('fw-semibold text-end marker-balance-col-amount').text(formatMarkerHistoryAmount(totalBuyinCash));
                         $buyinTbl.find('tfoot').show();
                     } else {
                         $buyinTbl.find('tfoot').hide();
+                    }
+                    if ($buyinCoinTbl.length) {
+                        buyinCoinRows.forEach(function (r) {
+                            $buyinCoinTbody.append('<tr><td>' + r.name + '</td><td class="text-end marker-balance-col-amount">' + formatMarkerHistoryAmount(r.amount) + '</td></tr>');
+                        });
+                        if (buyinCoinRows.length > 0) {
+                            $buyinCoinTbl.find('tfoot th').first().addClass('fw-semibold').text(totalLabel);
+                            $buyinCoinTbl.find('tfoot th').last().addClass('fw-semibold text-end marker-balance-col-amount').text(formatMarkerHistoryAmount(totalBuyinCoin));
+                            $buyinCoinTbl.find('tfoot').show();
+                        } else {
+                            $buyinCoinTbl.find('tfoot').hide();
+                        }
                     }
                     if ($totalTbl.length) {
                         totalRows.forEach(function (r) {
                             $totalTbody.append(
                                 '<tr><td class="marker-total-col-account">' + r.name + '</td>' +
                                 '<td class="text-end marker-balance-col-amount marker-total-col-junket">' + formatMarkerHistoryAmount(r.credit) + '</td>' +
-                                '<td class="text-end marker-balance-col-amount marker-total-col-game">' + formatMarkerHistoryAmount(r.buyin) + '</td>' +
+                                '<td class="text-end marker-balance-col-amount marker-total-col-game">' + formatMarkerHistoryAmount(r.buyinCash) + '</td>' +
+                                '<td class="text-end marker-balance-col-amount marker-total-col-game-coin">' + formatMarkerHistoryAmount(r.buyinCoin) + '</td>' +
                                 '<td class="text-end marker-balance-col-amount marker-total-col-sum">' + formatMarkerHistoryAmount(r.total) + '</td></tr>'
                             );
                         });
                         if (totalRows.length > 0) {
                             $totalTbl.find('tfoot th').eq(0).addClass('fw-semibold').text(totalLabel);
                             $totalTbl.find('tfoot th').eq(1).addClass('fw-semibold text-end marker-balance-col-amount marker-total-col-junket').text(formatMarkerHistoryAmount(totalCredit));
-                            $totalTbl.find('tfoot th').eq(2).addClass('fw-semibold text-end marker-balance-col-amount marker-total-col-game').text(formatMarkerHistoryAmount(totalBuyin));
-                            $totalTbl.find('tfoot th').eq(3).addClass('fw-semibold text-end marker-balance-col-amount marker-total-col-sum').text(formatMarkerHistoryAmount(grandTotal));
+                            $totalTbl.find('tfoot th').eq(2).addClass('fw-semibold text-end marker-balance-col-amount marker-total-col-game').text(formatMarkerHistoryAmount(totalBuyinCash));
+                            $totalTbl.find('tfoot th').eq(3).addClass('fw-semibold text-end marker-balance-col-amount marker-total-col-game-coin').text(formatMarkerHistoryAmount(totalBuyinCoin));
+                            $totalTbl.find('tfoot th').eq(4).addClass('fw-semibold text-end marker-balance-col-amount marker-total-col-sum').text(formatMarkerHistoryAmount(grandTotal));
                             $totalTbl.find('tfoot').show();
                         } else {
                             $totalTbl.find('tfoot').hide();
@@ -981,16 +1205,27 @@
                     }
                     $('#txtTotalJunketCredit').val(formatMarkerHistoryAmount(totalCredit));
                     $('#txtTotalGameCredit').val(formatMarkerHistoryAmount(totalBuyin));
+                    if ($('#txtTotalGameCreditCash').length) {
+                        $('#txtTotalGameCreditCash').val(formatMarkerHistoryAmount(totalBuyinCash));
+                    }
+                    if ($('#txtTotalGameCreditCoin').length) {
+                        $('#txtTotalGameCreditCoin').val(formatMarkerHistoryAmount(totalBuyinCoin));
+                    }
                     if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
                 },
                 error: function () {
                     $creditTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
                     $buyinTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
+                    if ($buyinCoinTbody.length) {
+                        $buyinCoinTbody.append('<tr><td class="text-danger text-center">Error loading data</td><td class="text-center">—</td></tr>');
+                    }
                     if ($totalTbody.length) {
-                        $totalTbody.append('<tr><td class="text-danger text-center" colspan="4">Error loading data</td></tr>');
+                        $totalTbody.append('<tr><td class="text-danger text-center" colspan="5">Error loading data</td></tr>');
                     }
                     $('#txtTotalJunketCredit').val('0');
                     $('#txtTotalGameCredit').val('0');
+                    $('#txtTotalGameCreditCash').val('0');
+                    $('#txtTotalGameCreditCoin').val('0');
                     if (typeof $.fn.DataTable !== 'undefined') initBalanceDataTables();
                 }
             });
@@ -1010,6 +1245,7 @@
             };
             var creditLang = Object.assign({}, baseLang, { emptyTable: 'No accounts with credit.' });
             var buyinLang = Object.assign({}, baseLang, { emptyTable: 'No accounts with credit.' });
+            var buyinCoinLang = Object.assign({}, baseLang, { emptyTable: 'No accounts with coin credit.' });
             var dtOpts = {
                 pageLength: 10,
                 lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
@@ -1025,16 +1261,20 @@
             };
             $('#marker-accounts-credit-tbl').DataTable(Object.assign({}, dtOpts, { language: creditLang }));
             $('#marker-accounts-buyin-tbl').DataTable(Object.assign({}, dtOpts, { language: buyinLang }));
+            if ($('#marker-accounts-buyin-coin-tbl').length) {
+                $('#marker-accounts-buyin-coin-tbl').DataTable(Object.assign({}, dtOpts, { language: buyinCoinLang }));
+            }
             if ($('#marker-accounts-total-tbl').length && !$.fn.DataTable.isDataTable('#marker-accounts-total-tbl')) {
                 var totalLang = Object.assign({}, baseLang, { emptyTable: 'No accounts with credit.' });
                 var totalDtOpts = Object.assign({}, dtOpts, {
-                    order: [[3, 'desc']],
+                    order: [[4, 'desc']],
                     language: totalLang,
                     columnDefs: [
                         { targets: 0, className: 'marker-total-col-account' },
                         { targets: 1, className: 'text-end marker-balance-col-amount marker-total-col-junket' },
                         { targets: 2, className: 'text-end marker-balance-col-amount marker-total-col-game' },
-                        { targets: 3, className: 'text-end marker-balance-col-amount marker-total-col-sum' }
+                        { targets: 3, className: 'text-end marker-balance-col-amount marker-total-col-game-coin' },
+                        { targets: 4, className: 'text-end marker-balance-col-amount marker-total-col-sum' }
                     ]
                 });
                 $('#marker-accounts-total-tbl').DataTable(totalDtOpts);
@@ -1044,6 +1284,7 @@
         function getMarkerTabPanelSelector(tab) {
             if (tab === 'marker-history') return '#marker-history-wrapper';
             if (tab === 'total') return '#marker-accounts-total-wrapper';
+            if (tab === 'buyin_coin') return '#marker-accounts-buyin-coin-wrapper';
             return '#marker-accounts-' + tab + '-wrapper';
         }
 
