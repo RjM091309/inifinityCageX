@@ -6,6 +6,7 @@ const {
   classifyTelegramError
 } = require('./telegramSendLog');
 const { getEnabledChatIds } = require('./telegramChatIds');
+const { getCurrentBalance, resolveGuestAccountByTelegramId } = require('./accountBalance');
 
 let guestBotInstance; // GUEST bot instance
 let employeeBotInstance; // EMPLOYEE bot instance
@@ -635,8 +636,8 @@ function setupBotErrorHandlers(bot, botType) {
       error.code === 'ECONNRESET';
     
     if (isNetworkError) {
-      console.warn(`⚠️ Network issue detected for ${botType} bot (slow/unstable internet):`, errorMsg);
-      console.log('🔄 Bot will automatically retry. If this persists, check your internet connection.');
+      console.warn(`⚠️ [${formatTelegramLogTime()}] Network issue detected for ${botType} bot (slow/unstable internet):`, errorMsg);
+      console.log(`🔄 [${formatTelegramLogTime()}] Bot will automatically retry. If this persists, check your internet connection.`);
       // The bot will automatically retry, no need to restart manually
     } else {
       console.error(`❌ Fatal polling error for ${botType} bot:`, errorMsg);
@@ -689,53 +690,26 @@ async function startGuestBot() {
 
   // Check balance functionality - uses GUEST bot only
   async function sendBalanceToUser(telegramId) {
-    const connection = await pool.getConnection();
     try {
-      const [accountResults] = await connection.query(`
-        SELECT agent.AGENT_CODE, agent.NAME, account.IDNo AS ACCOUNT_ID
-        FROM agent
-        JOIN account ON account.AGENT_ID = agent.IDNo
-        WHERE agent.TELEGRAM_ID = ?
-        LIMIT 1
-      `, [telegramId]);
+      const account = await resolveGuestAccountByTelegramId(telegramId);
 
-      if (accountResults.length === 0) {
+      if (!account) {
         bot.sendMessage(telegramId, '❌ No account linked.');
         return;
       }
 
-      const { AGENT_CODE, NAME, ACCOUNT_ID } = accountResults[0];
-
-      const [ledgerResults] = await connection.query(`
-        SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
-        FROM account_ledger
-        JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
-        WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3)
-        AND account_ledger.ACCOUNT_ID = ?
-      `, [ACCOUNT_ID]);
-
-      let deposit = 0, withdraw = 0, markerRedeem = 0, iouReturn = 0;
-      ledgerResults.forEach(row => {
-        const amt = parseFloat(row.AMOUNT) || 0;
-        if (row.TRANSACTION === 'DEPOSIT') deposit += amt;
-        if (row.TRANSACTION === 'WITHDRAW') withdraw += amt;
-        if (row.TRANSACTION === 'MARKER REDEEM') markerRedeem += amt;
-        if (row.TRANSACTION === 'IOU RETURN DEPOSIT') iouReturn += amt;
-      });
-
-      const balance = deposit + markerRedeem - withdraw - iouReturn;
+      const { AGENT_CODE, NAME, ACCOUNT_ID } = account;
+      const balance = await getCurrentBalance(ACCOUNT_ID);
+      const balanceFormatted = balance.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
       const date_now = new Date().toLocaleDateString();
       const time_now = new Date().toLocaleTimeString();
 
-      const msg = `Infinity Cage\n\n* 잔고 확인  *\n\n계정: ${AGENT_CODE} - ${NAME}\n잔고: ${balance.toLocaleString()}\n\n날짜: ${date_now}\n시간: ${time_now}`;
+      const msg = `Infinity Cage\n\n* 잔고 확인 *\n\n계정: ${AGENT_CODE} - ${NAME}\n잔고: ${balanceFormatted}\n\n날짜: ${date_now}\n시간: ${time_now}`;
       bot.sendMessage(telegramId, msg);
-
     } catch (err) {
       console.error('❌ Error:', err);
       bot.sendMessage(telegramId, '❌ Error getting balance.');
-    } finally {
-      connection.release();
     }
   }
 

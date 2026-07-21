@@ -7,6 +7,7 @@ const { sendTelegramMessage, sendTelegramToAdditionalChats, sendTelegramToManage
 const { guestPortalTransactionLogPreview, balanceCheckTelegramLogPreview } = require('../utils/telegramSendLog');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
+const { getCurrentBalance } = require('../utils/accountBalance');
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
@@ -42,30 +43,7 @@ const getTransactionName = async (transactionId) => {
 };
 
 // Compute balance from ledger (shared) — excludes Credit/IOU (IOU CASH / CREDIT CASH)
-const getCurrentBalance = async (accountId) => {
-	const balanceQuery = `
-		SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
-		FROM account_ledger
-		JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
-		WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3) AND account_ledger.ACCOUNT_ID = ? AND account_ledger.ACTIVE = 1
-	`;
-	const [rows] = await pool.query(balanceQuery, [accountId]);
-
-	let deposit_amount = 0;
-	let withdraw_amount = 0;
-	let marker_redeem_amount = 0;
-	let marker_return_deposit = 0;
-
-	rows.forEach((row) => {
-		const amount = parseFloat(row.AMOUNT) || 0;
-		if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
-		if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
-		if (row.TRANSACTION === 'MARKER REDEEM') marker_redeem_amount += amount;
-		if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
-	});
-
-	return deposit_amount + marker_redeem_amount - withdraw_amount - marker_return_deposit;
-};
+// getCurrentBalance imported from ../utils/accountBalance
 
 const getLedgerCashBalanceDelta = (transactionName, amount) => {
 	const amt = parseFloat(amount) || 0;
@@ -1886,28 +1864,7 @@ router.post('/check_balance/:accountId', async (req, res) => {
 		const { AGENT_CODE, NAME } = results[0];
 		const TELEGRAM_ID = getAgentTelegramChatId(results[0]);
 
-		// Calculate balance from ledger entries (excludes Credit/IOU)
-		const [ledgerResults] = await pool.query(`
-			SELECT transaction_type.TRANSACTION, account_ledger.AMOUNT
-			FROM account_ledger
-			JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
-			WHERE account_ledger.TRANSACTION_TYPE IN (2, 5, 3) AND account_ledger.ACCOUNT_ID = ? AND account_ledger.ACTIVE = 1
-		`, [accountId]);
-
-		let deposit_amount = 0;
-		let withdraw_amount = 0;
-		let marker_redeem_amount = 0;
-		let marker_return_deposit = 0;
-
-		ledgerResults.forEach(row => {
-			const amount = parseFloat(row.AMOUNT) || 0;
-			if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
-			if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
-			if (row.TRANSACTION === 'MARKER REDEEM') marker_redeem_amount += amount;
-			if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
-		});
-
-		const currentBalance = deposit_amount + marker_redeem_amount - withdraw_amount - marker_return_deposit;
+		const currentBalance = await getCurrentBalance(accountId);
 		const balanceFormatted = currentBalance.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 		let date_now = new Date().toLocaleDateString();
