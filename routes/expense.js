@@ -5,6 +5,16 @@ const { checkSession, sessions } = require('./auth');
 const multer = require('multer');
 const { sendTelegramToEmployees } = require('../utils/telegram');
 const { junketExpenseTelegramLogPreview } = require('../utils/telegramSendLog');
+const {
+	EXPENSE_CATEGORY_PARENT_JOIN,
+	EXPENSE_ROW_CATEGORY_FIELDS,
+	RETURN_MONEY_CATEGORY_FIELDS,
+	ensureExpenseCategoryParentIdColumn,
+	buildExpenseCategoryTree
+} = require('../utils/expenseCategoryHierarchy');
+const { canAddExpenseCategory } = require('../utils/permissions');
+
+ensureExpenseCategoryParentIdColumn(pool).catch(() => {});
 // I-setup ang multer para sa multiple file uploads (para sa receipts)
 const receiptStorage = multer.diskStorage({
 	destination: 'ReceiptUpload/',
@@ -77,12 +87,11 @@ router.get("/house_expense", checkSession, async function (req, res) {
 
 		let expenseCategoryCatalog = [];
 		try {
+			await ensureExpenseCategoryParentIdColumn(pool);
 			const [catRows] = await pool.execute(
-				'SELECT CATEGORY FROM expense_category WHERE ACTIVE = 1 ORDER BY CATEGORY ASC'
+				'SELECT IDNo, CATEGORY, PARENT_ID, TYPE, ACTIVE FROM expense_category WHERE ACTIVE = 1 ORDER BY CATEGORY ASC'
 			);
-			expenseCategoryCatalog = (catRows || [])
-				.map((r) => (r.CATEGORY != null ? String(r.CATEGORY).trim() : ''))
-				.filter(Boolean);
+			expenseCategoryCatalog = buildExpenseCategoryTree(catRows);
 		} catch (e) {
 			expenseCategoryCatalog = [];
 		}
@@ -117,7 +126,14 @@ router.get("/expense_category", checkSession, function (req, res) {
 // GET EXPENSE CATEGORY
 router.get('/expense_category_data', async (req, res) => {
 	try {
-		const [result] = await pool.execute('SELECT * FROM expense_category WHERE ACTIVE = 1 ORDER BY CATEGORY ASC');
+		await ensureExpenseCategoryParentIdColumn(pool);
+		const [result] = await pool.execute(
+			`SELECT ec.*, parent.CATEGORY AS PARENT_CATEGORY
+			 FROM expense_category ec
+			 LEFT JOIN expense_category parent ON parent.IDNo = ec.PARENT_ID AND parent.ACTIVE = 1
+			 WHERE ec.ACTIVE = 1
+			 ORDER BY COALESCE(ec.PARENT_ID, ec.IDNo), (ec.PARENT_ID IS NOT NULL), ec.CATEGORY ASC`
+		);
 		res.json(result);
 	} catch (error) {
 		console.error('Error fetching data:', error);
@@ -128,35 +144,100 @@ router.get('/expense_category_data', async (req, res) => {
 
 // ADD EXPENSE CATEGORY
 router.post('/add_expense_category', async (req, res) => {
-	const { txtCategory, txtType } = req.body;
-	const date_now = new Date();
+	const wantsJson =
+		req.xhr ||
+		(req.headers.accept && String(req.headers.accept).includes('application/json'));
 
-	const categoryType = parseInt(txtType, 10);
-	const normalizedType = categoryType === 2 ? 2 : 1;
-	const query = `INSERT INTO expense_category(CATEGORY, TYPE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?)`;
+	if (!canAddExpenseCategory(req.session?.permissions)) {
+		if (wantsJson) {
+			return res.status(403).json({ success: false, message: 'Only Expense Handler can add categories' });
+		}
+		return res.status(403).send('Only Expense Handler can add categories');
+	}
+
+	const { txtCategory, txtParentId } = req.body;
+	const date_now = new Date();
+	const categoryName = txtCategory != null ? String(txtCategory).trim() : '';
+	if (!categoryName) {
+		return res.status(400).send('Category name is required');
+	}
+
+	let parentId = null;
+	if (txtParentId != null && String(txtParentId).trim() !== '') {
+		parentId = parseInt(txtParentId, 10);
+		if (!parentId || Number.isNaN(parentId)) {
+			return res.status(400).send('Invalid parent category');
+		}
+		try {
+			await ensureExpenseCategoryParentIdColumn(pool);
+			const [parentRows] = await pool.execute(
+				'SELECT IDNo FROM expense_category WHERE IDNo = ? AND ACTIVE = 1 AND (PARENT_ID IS NULL OR PARENT_ID = 0) LIMIT 1',
+				[parentId]
+			);
+			if (!parentRows.length) {
+				return res.status(400).send('Parent category must be a main category');
+			}
+		} catch (err) {
+			console.error('Error validating parent category:', err);
+			return res.status(500).send('Error validating parent category');
+		}
+	}
+
+	const query = `INSERT INTO expense_category(CATEGORY, PARENT_ID, TYPE, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?)`;
 
 	try {
-		await pool.execute(query, [txtCategory, normalizedType, req.session.user_id, date_now]);
+		const [result] = await pool.execute(query, [categoryName, parentId, 1, req.session.user_id, date_now]);
+		if (wantsJson) {
+			return res.json({
+				success: true,
+				id: result.insertId,
+				category: categoryName,
+				parentId: parentId
+			});
+		}
 		res.redirect('/expense_category');
 	} catch (err) {
 		console.error('Error inserting Expense Category:', err);
+		if (wantsJson) {
+			return res.status(500).json({ success: false, message: 'Error inserting Expense Category' });
+		}
 		res.status(500).send('Error inserting Expense Category');
 	}
 });
 
 // EDIT EXPENSE CATEGORY
 router.put('/expense_category/:id', async (req, res) => {
+	if (!canAddExpenseCategory(req.session?.permissions)) {
+		return res.status(403).send('Only Expense Handler can edit categories');
+	}
+
 	const id = parseInt(req.params.id);
-	const { txtCategory, txtType } = req.body;
+	const { txtCategory, txtParentId } = req.body;
 	const date_now = new Date();
+	const categoryName = txtCategory != null ? String(txtCategory).trim() : '';
+	if (!categoryName) {
+		return res.status(400).send('Category name is required');
+	}
 
-	const categoryType = parseInt(txtType, 10);
-	const normalizedType = categoryType === 2 ? 2 : 1;
+	let parentId = null;
+	if (txtParentId != null && String(txtParentId).trim() !== '') {
+		parentId = parseInt(txtParentId, 10);
+		if (!parentId || Number.isNaN(parentId) || parentId === id) {
+			return res.status(400).send('Invalid parent category');
+		}
+		const [parentRows] = await pool.execute(
+			'SELECT IDNo FROM expense_category WHERE IDNo = ? AND ACTIVE = 1 AND (PARENT_ID IS NULL OR PARENT_ID = 0) LIMIT 1',
+			[parentId]
+		);
+		if (!parentRows.length) {
+			return res.status(400).send('Parent category must be a main category');
+		}
+	}
 
-	const query = `UPDATE expense_category SET CATEGORY = ?, TYPE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
+	const query = `UPDATE expense_category SET CATEGORY = ?, PARENT_ID = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
 
 	try {
-		await pool.execute(query, [txtCategory, normalizedType, req.session.user_id, date_now, id]);
+		await pool.execute(query, [categoryName, parentId, req.session.user_id, date_now, id]);
 		res.send('Expense category updated successfully');
 	} catch (err) {
 		console.error('Error updating Expense category:', err);
@@ -166,13 +247,18 @@ router.put('/expense_category/:id', async (req, res) => {
 
 // DELETE EXPENSE CATEGORY
 router.put('/expense_category/remove/:id', async (req, res) => {
+	if (!canAddExpenseCategory(req.session?.permissions)) {
+		return res.status(403).send('Only Expense Handler can delete categories');
+	}
+
 	const id = parseInt(req.params.id);
 	const date_now = new Date();
 
-	const query = `UPDATE expense_category SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?`;
-
 	try {
-		await pool.execute(query, [0, req.session.user_id, date_now, id]);
+		await pool.execute(
+			`UPDATE expense_category SET ACTIVE = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ? OR PARENT_ID = ?`,
+			[0, req.session.user_id, date_now, id, id]
+		);
 		res.send('Expense category updated successfully');
 	} catch (err) {
 		console.error('Error deleting Expense category:', err);
@@ -346,13 +432,11 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						e.RESET,
 						(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 						e.IDNo AS expense_id,
-						ec.IDNo AS expense_category_id,
-						ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
-						ec.TYPE AS expense_type,
+						${EXPENSE_ROW_CATEGORY_FIELDS},
 						u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
 						'expense' COLLATE utf8mb4_unicode_ci AS record_type
 					FROM junket_house_expense e
-					JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+					${EXPENSE_CATEGORY_PARENT_JOIN}
 					JOIN user_info u ON u.IDNo = e.ENCODED_BY
 					WHERE e.ACTIVE = 1
 						AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
@@ -375,9 +459,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 						NULL AS RESET,
 						0 AS EDIT_LOG_COUNT,
 						rm.IDNo AS expense_id,
-						NULL AS expense_category_id,
-						'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
-						0 AS expense_type,
+						${RETURN_MONEY_CATEGORY_FIELDS},
 						COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
 						'return_money' COLLATE utf8mb4_unicode_ci AS record_type
 					FROM junket_return_money rm
@@ -422,13 +504,11 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.RESET,
 							(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 							e.IDNo AS expense_id,
-							ec.IDNo AS expense_category_id,
-							ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
-							ec.TYPE AS expense_type,
+							${EXPENSE_ROW_CATEGORY_FIELDS},
 							u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
 							'expense' COLLATE utf8mb4_unicode_ci AS record_type
 						FROM junket_house_expense e
-						JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+						${EXPENSE_CATEGORY_PARENT_JOIN}
 						JOIN user_info u ON u.IDNo = e.ENCODED_BY
 						JOIN expense_daily_settlement_items edsi ON edsi.EXPENSE_ID = e.IDNo AND edsi.EXPENSE_TYPE = 'expense'
 						JOIN expense_daily_settlement eds ON edsi.DAILY_SETTLEMENT_ID = eds.IDNo AND eds.ACTIVE = 1
@@ -453,9 +533,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							NULL AS RESET,
 							0 AS EDIT_LOG_COUNT,
 							rm.IDNo AS expense_id,
-							NULL AS expense_category_id,
-							'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
-							0 AS expense_type,
+							${RETURN_MONEY_CATEGORY_FIELDS},
 							COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
 							'return_money' COLLATE utf8mb4_unicode_ci AS record_type
 						FROM junket_return_money rm
@@ -518,13 +596,11 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							e.RESET,
 							(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 							e.IDNo AS expense_id,
-							ec.IDNo AS expense_category_id,
-							ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
-							ec.TYPE AS expense_type,
+							${EXPENSE_ROW_CATEGORY_FIELDS},
 							u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
 							'expense' COLLATE utf8mb4_unicode_ci AS record_type
 						FROM junket_house_expense e
-						JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+						${EXPENSE_CATEGORY_PARENT_JOIN}
 						JOIN user_info u ON u.IDNo = e.ENCODED_BY
 						WHERE e.ACTIVE = 1
 							AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
@@ -547,9 +623,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 							NULL AS RESET,
 							0 AS EDIT_LOG_COUNT,
 							rm.IDNo AS expense_id,
-							NULL AS expense_category_id,
-							'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
-							0 AS expense_type,
+							${RETURN_MONEY_CATEGORY_FIELDS},
 							COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
 							'return_money' COLLATE utf8mb4_unicode_ci AS record_type
 						FROM junket_return_money rm
@@ -635,13 +709,11 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				e.RESET,
 				(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 				e.IDNo AS expense_id,
-				ec.IDNo AS expense_category_id,
-				ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
-				ec.TYPE AS expense_type,
+				${EXPENSE_ROW_CATEGORY_FIELDS},
 				u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
 				'expense' COLLATE utf8mb4_unicode_ci AS record_type
 			FROM junket_house_expense e
-			JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+			${EXPENSE_CATEGORY_PARENT_JOIN}
 			JOIN user_info u ON u.IDNo = e.ENCODED_BY
 			JOIN expense_daily_settlement_items edsi ON edsi.EXPENSE_ID = e.IDNo AND edsi.EXPENSE_TYPE = 'expense'
 			JOIN expense_daily_settlement eds ON edsi.DAILY_SETTLEMENT_ID = eds.IDNo AND eds.ACTIVE = 1
@@ -667,9 +739,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				NULL AS RESET,
 				0 AS EDIT_LOG_COUNT,
 				rm.IDNo AS expense_id,
-				NULL AS expense_category_id,
-				'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
-				0 AS expense_type,
+				${RETURN_MONEY_CATEGORY_FIELDS},
 				COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
 				'return_money' COLLATE utf8mb4_unicode_ci AS record_type
 			FROM junket_return_money rm
@@ -702,13 +772,11 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				e.RESET,
 				(SELECT COUNT(*) FROM junket_house_expense_edit_log el WHERE el.EXPENSE_ID = e.IDNo) AS EDIT_LOG_COUNT,
 				e.IDNo AS expense_id,
-				ec.IDNo AS expense_category_id,
-				ec.CATEGORY COLLATE utf8mb4_unicode_ci AS expense_category,
-				ec.TYPE AS expense_type,
+				${EXPENSE_ROW_CATEGORY_FIELDS},
 				u.FIRSTNAME COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
 				'expense' COLLATE utf8mb4_unicode_ci AS record_type
 			FROM junket_house_expense e
-			JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+			${EXPENSE_CATEGORY_PARENT_JOIN}
 			JOIN user_info u ON u.IDNo = e.ENCODED_BY
 			WHERE e.ACTIVE = 1
 				AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
@@ -732,9 +800,7 @@ router.get('/junket_house_expense_data', async (req, res) => {
 				NULL AS RESET,
 				0 AS EDIT_LOG_COUNT,
 				rm.IDNo AS expense_id,
-				NULL AS expense_category_id,
-				'Return Money' COLLATE utf8mb4_unicode_ci AS expense_category,
-				0 AS expense_type,
+				${RETURN_MONEY_CATEGORY_FIELDS},
 				COALESCE(u2.FIRSTNAME, CONCAT('User ID: ', rm.ENCODED_BY)) COLLATE utf8mb4_unicode_ci AS FIRSTNAME,
 				'return_money' COLLATE utf8mb4_unicode_ci AS record_type
 			FROM junket_return_money rm

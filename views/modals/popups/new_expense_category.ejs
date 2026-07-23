@@ -12,25 +12,40 @@
 
 
             <div class="modal-body">
-                <form action="/add_expense_category" method="post">
+                <form action="/add_expense_category" method="post" id="form-new-expense-category">
                     <div class="block-content">
                         <div class="row mb-2">
                             <div class="col-sm-12">
-                                <input type="text" class="form-control" name="txtCategory" placeholder="<%= __('modal_new_expense_category.category_placeholder') %>">
+                                <label class="form-label small text-muted mb-1">Level</label>
+                                <div class="d-flex gap-3">
+                                    <label class="mb-0">
+                                        <input type="radio" name="categoryLevel" value="main" checked class="js-new-cat-level">
+                                        Main category
+                                    </label>
+                                    <label class="mb-0">
+                                        <input type="radio" name="categoryLevel" value="sub" class="js-new-cat-level">
+                                        Sub category
+                                    </label>
+                                </div>
                             </div>
-                        </div>                    
+                        </div>
+                        <div class="row mb-2 d-none" id="new-expense-cat-parent-wrap">
+                            <div class="col-sm-12">
+                                <label class="form-label small text-muted mb-1">Main category</label>
+                                <select class="form-select" name="txtParentId" id="new-expense-cat-parent">
+                                    <option value="">-- Select main category --</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="row mb-2">
                             <div class="col-sm-12">
-                                <select class="form-select" name="txtType" id="txtCategoryType" required>
-                                    <option value="" disabled selected>Select Type</option>
-                                    <option value="1">Goods / Consumables</option>
-                                    <option value="2">Non-goods / Services</option>
-                                </select>
+                                <label class="form-label small text-muted mb-1">Name</label>
+                                <input type="text" class="form-control" name="txtCategory" required placeholder="<%= __('modal_new_expense_category.category_placeholder') %>">
                             </div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="submit" class="btn btn-sm btn-primary" data-bs-dismiss="modal"><%= __('modal_new_expense_category.save') %></button>
+                        <button type="submit" class="btn btn-sm btn-primary"><%= __('modal_new_expense_category.save') %></button>
                         <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('modal_new_expense_category.close') %></button>
                     </div>
                 </form>

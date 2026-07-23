@@ -26,6 +26,7 @@ startTelegramBot(); // run once when server starts
 })();
 
 const compression = require('compression');
+const { blockViewOnlyWrites } = require('./utils/permissions');
 const app = express();
 app.use(
   compression({
@@ -156,6 +157,7 @@ app.use((req, res, next) => {
 
 app.use(passport.initialize());
 app.use(passport.session());
+app.use(blockViewOnlyWrites);
 
 // Set the view engine and routes
 app.set('port', process.env.PORT || 4004);

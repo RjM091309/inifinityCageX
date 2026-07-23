@@ -17,7 +17,7 @@
 									<a href="/dashboard" ><span class="fa fa-home"></span></a>
 									<a href="/expense_category"class="active"><%= __('expense_category.expense_category') %></a>
 								</div></h3>
-								<button type="button" class="btn btn-primary" onclick="addExpenseCategory()">
+								<button type="button" class="btn btn-primary" id="btn-expense-category-add" onclick="addExpenseCategory()">
 									<i class="fa fa-plus" aria-hidden="true"></i> <%= __('expense_category.new_category') %>
 								</button>
 
@@ -31,7 +31,8 @@
 									<thead>
 									<tr>
 										<th class="d-none d-sm-table-cell"><%= __('expense_category.category') %></th>
-										<th class="d-none d-sm-table-cell"><%= __('expense_category.type') %></th>
+										<th class="d-none d-sm-table-cell">Level</th>
+										<th class="d-none d-sm-table-cell">Parent</th>
 										<th class="d-none d-sm-table-cell" style="width: 150px;"><%= __('expense_category.status') %></th>
 										<th class="d-none d-sm-table-cell" style="width: 100px;"><%= __('expense_category.action') %></th>
 									</tr>
@@ -61,10 +62,7 @@
 							previous: "<%= __('expense_category.previous') %>",
 							next: "<%= __('expense_category.next') %>",
 							active: "<%= __('expense_category.active') %>",
-							inactive: "<%= __('expense_category.inactive') %>",
-							type: "<%= __('expense_category.type') %>",
-							goods_label: "<%= __('expense_category.goods') %>",
-							non_goods_label: "<%= __('expense_category.non_goods') %>"
+							inactive: "<%= __('expense_category.inactive') %>"
 						};
 					</script>
 
@@ -197,10 +195,6 @@
 							}
 							#expense-category-tbl th:nth-child(1),
 							#expense-category-tbl td:nth-child(1) {
-								width: 30%;
-							}
-							#expense-category-tbl th:nth-child(2),
-							#expense-category-tbl td:nth-child(2) {
-								width: 30%;
+								width: 50%;
 							}
 						</style>

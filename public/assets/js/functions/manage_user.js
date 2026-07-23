@@ -264,6 +264,11 @@ function get_user_role_edit(id) {
 		success: function (response) {
 			var selectOptionsEdit = $('.edit_user_role');
 			selectOptionsEdit.empty();
+			selectOptionsEdit.append($('<option>', {
+				value: -1,
+				text: 'Expense Handler',
+				selected: Number(id) === -1
+			}));
 			response.forEach(function (option) {
 				var selected = false;
 				if (option.IDNo == id) {

@@ -1,7 +1,10 @@
 /**
- * Reusable permission logic: when permission === 2 (view only):
- * - Modals CAN be opened (viewer can view content). All modals live in views/modals.
- * - Inside any .modal: Submit, Save, Edit and Delete buttons are disabled.
+ * Reusable permission logic:
+ * - permission === 2 (view only): no add/edit/delete on any page
+ * - permission === -1 (expense handler): view-only everywhere except expense pages
+ *
+ * Modals CAN be opened (viewer can view content). All modals live in views/modals.
+ * Inside any .modal: Submit, Save, Edit and Delete buttons are disabled when view-only.
  *
  * Use data-view-only-disable on triggers only if another page needs to block opening.
  * Use disableForViewOnly(selector) for custom elements to disable when view-only.
@@ -10,10 +13,12 @@
     'use strict';
 
     var VIEW_ONLY = 2;
+    var EXPENSE_HANDLER = -1;
     var DEFAULT_ROLE_SELECTOR = '#user-role';
     var DATA_ATTR = 'data-permissions';
     var DISABLE_ATTR = 'data-view-only-disable';
     var DISABLED_CLASS = 'view-only-disabled';
+    var EXPENSE_PATHS = ['/house_expense', '/expense_category'];
 
     function getPermissions(roleSelector) {
         var el = document.querySelector(roleSelector || DEFAULT_ROLE_SELECTOR);
@@ -24,9 +29,23 @@
         return isNaN(num) ? null : num;
     }
 
+    function isExpensePage() {
+        var path = window.location.pathname || '';
+        for (var i = 0; i < EXPENSE_PATHS.length; i++) {
+            if (path.indexOf(EXPENSE_PATHS[i]) !== -1) return true;
+        }
+        return false;
+    }
+
+    function isExpenseHandler(roleSelector) {
+        return getPermissions(roleSelector) === EXPENSE_HANDLER;
+    }
+
     function isViewOnly(roleSelector) {
         var p = getPermissions(roleSelector);
-        return p === VIEW_ONLY;
+        if (p === VIEW_ONLY) return true;
+        if (p === EXPENSE_HANDLER && !isExpensePage()) return true;
+        return false;
     }
 
     function disableElement(el) {
@@ -60,7 +79,7 @@
     }
 
     /**
-     * Disable Submit/Save, Edit and Delete buttons inside .modal when permission === 2.
+     * Disable Submit/Save, Edit and Delete buttons inside .modal when view-only.
      * @param {string} [roleSelector] - optional override for #user-role
      * @param {Element} [modalEl] - if provided, only disable inside this modal
      */
@@ -116,7 +135,7 @@
             disableElement(balanceCheckList[b]);
         }
 
-        // Explicit Save button IDs (house expense, return money, etc.) – ensure disabled when permission = 2
+        // Explicit Save button IDs (house expense, return money, etc.) – ensure disabled when view-only
         var saveButtonIds = [
             'btn-save-new-expense',
             'btn-save-edit-expense',
@@ -130,7 +149,7 @@
     }
 
     /**
-     * Disable all elements matching selector when permission === 2 (view only).
+     * Disable all elements matching selector when view-only.
      */
     function disableForViewOnly(selector, roleSelector) {
         if (!isViewOnly(roleSelector)) return;
@@ -191,7 +210,10 @@
 
     window.PermissionViewOnly = {
         VIEW_ONLY: VIEW_ONLY,
+        EXPENSE_HANDLER: EXPENSE_HANDLER,
         getPermissions: getPermissions,
+        isExpensePage: isExpensePage,
+        isExpenseHandler: isExpenseHandler,
         isViewOnly: isViewOnly,
         disableForViewOnly: disableForViewOnly,
         disableModalSubmitAndDelete: disableModalSubmitAndDelete,

@@ -8,18 +8,536 @@ window.houseExpenseBreakdownState = {
     sortDir: 'desc'
 };
 
-/** Main category explorer + graph (date range only for graph race). */
+/** Main category explorer + graph (shared by settlement date and date range). */
 window.houseExpenseExplorerState = {
-    mainCategory: null
+    mainCategory: null,
+    subCategory: null
 };
+
+var HOUSE_EXPENSE_RETURN_MONEY_LABEL = 'Return Money';
+
+var HOUSE_EXPENSE_MODAL_SELECTORS = [
+    '#modal-house-expense-quick-category',
+    '#modal-new-house-expense',
+    '#modal-edit-house-expense',
+    '#modal-new-return-money',
+    '#modal-edit-return-money',
+    '#modal-expense-breakdown-details',
+    '#modal-house-expense-edit-history'
+];
+
+function mountHouseExpenseModals() {
+    HOUSE_EXPENSE_MODAL_SELECTORS.forEach(function (selector) {
+        var el = document.querySelector(selector);
+        if (el && el.parentElement !== document.body) {
+            document.body.appendChild(el);
+        }
+    });
+}
+
+function showBootstrapModal($modal, options) {
+    if (!$modal || !$modal.length) return null;
+    options = options || {};
+    $modal.appendTo('body');
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        var instance = bootstrap.Modal.getOrCreateInstance($modal[0], {
+            backdrop: options.backdrop != null ? options.backdrop : 'static',
+            keyboard: options.keyboard != null ? options.keyboard : false
+        });
+        instance.show();
+        return instance;
+    }
+    if ($.fn.modal) {
+        $modal.modal('show');
+    }
+    return null;
+}
+
+function hideBootstrapModal($modal) {
+    if (!$modal || !$modal.length) return;
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        var instance = bootstrap.Modal.getInstance($modal[0]);
+        if (instance) {
+            instance.hide();
+            return;
+        }
+    }
+    if ($.fn.modal) {
+        $modal.modal('hide');
+    }
+}
+
+window.houseExpenseCategoryTree = [];
+window.houseExpenseCategoryFlat = [];
+
+function buildHouseExpenseCategoryTreeFromFlat(rows) {
+    var list = rows || [];
+    if (list.length && list[0] && list[0].children && !list[0].PARENT_ID && list[0].IDNo) {
+        return list.slice();
+    }
+    var mains = [];
+    var subsByParent = {};
+    list.forEach(function (row) {
+        if (!row || row.IDNo == null) return;
+        var pid = row.PARENT_ID != null ? Number(row.PARENT_ID) : null;
+        if (pid && !Number.isNaN(pid)) {
+            if (!subsByParent[pid]) subsByParent[pid] = [];
+            subsByParent[pid].push(row);
+        } else {
+            mains.push({
+                IDNo: row.IDNo,
+                CATEGORY: row.CATEGORY,
+                PARENT_ID: null,
+                children: []
+            });
+        }
+    });
+    mains.sort(function (a, b) {
+        return String(a.CATEGORY).localeCompare(String(b.CATEGORY), undefined, { sensitivity: 'base' });
+    });
+    mains.forEach(function (main) {
+        main.children = (subsByParent[main.IDNo] || []).sort(function (a, b) {
+            return String(a.CATEGORY).localeCompare(String(b.CATEGORY), undefined, { sensitivity: 'base' });
+        });
+    });
+    return mains;
+}
+
+function flattenHouseExpenseCategoryTree(tree) {
+    var flat = [];
+    (tree || []).forEach(function (main) {
+        if (!main || main.IDNo == null) return;
+        flat.push({ IDNo: main.IDNo, CATEGORY: main.CATEGORY, PARENT_ID: null });
+        (main.children || []).forEach(function (sub) {
+            if (!sub || sub.IDNo == null) return;
+            flat.push({ IDNo: sub.IDNo, CATEGORY: sub.CATEGORY, PARENT_ID: main.IDNo });
+        });
+    });
+    return flat;
+}
+
+function getHouseExpenseCategoryTree() {
+    if (window.houseExpenseCategoryTree && window.houseExpenseCategoryTree.length) {
+        return window.houseExpenseCategoryTree;
+    }
+    var catalog = window.houseExpenseCategoryCatalog || [];
+    if (catalog.length && catalog[0] && typeof catalog[0] === 'object') {
+        return buildHouseExpenseCategoryTreeFromFlat(catalog);
+    }
+    return [];
+}
+
+function cacheHouseExpenseCategoryData(rows) {
+    window.houseExpenseCategoryFlat = rows || [];
+    window.houseExpenseCategoryTree = buildHouseExpenseCategoryTreeFromFlat(rows);
+}
+
+function getHouseExpenseMainCategoryIdByName(mainName) {
+    if (!mainName || isHouseExpenseReturnMoneyMain(mainName)) return null;
+    var tree = getHouseExpenseCategoryTree();
+    var main = tree.find(function (m) {
+        return String(m.CATEGORY || '').trim() === String(mainName).trim();
+    });
+    return main ? main.IDNo : null;
+}
+
+function canManageHouseExpenseCategories() {
+    return !!(window.PermissionViewOnly && window.PermissionViewOnly.isExpenseHandler());
+}
+
+function syncHouseExpenseExplorerStateAfterCategoryRename(categoryId, newName) {
+    var st = window.houseExpenseExplorerState;
+    if (!st) return;
+
+    var flat = window.houseExpenseCategoryFlat || [];
+    var row = flat.find(function (r) {
+        return Number(r.IDNo) === Number(categoryId);
+    });
+    if (!row) return;
+
+    var oldName = String(row.CATEGORY || '').trim();
+    newName = String(newName || '').trim();
+    if (!oldName || !newName || oldName === newName) return;
+
+    var isSub = row.PARENT_ID != null && Number(row.PARENT_ID) > 0;
+    if (isSub) {
+        if (String(st.subCategory || '').trim() === oldName) {
+            st.subCategory = newName;
+        }
+    } else if (String(st.mainCategory || '').trim() === oldName) {
+        st.mainCategory = newName;
+    }
+}
+
+function syncHouseExpenseExplorerStateAfterCategoryDelete(categoryId) {
+    var st = window.houseExpenseExplorerState;
+    if (!st) return;
+
+    var flat = window.houseExpenseCategoryFlat || [];
+    var row = flat.find(function (r) {
+        return Number(r.IDNo) === Number(categoryId);
+    });
+    if (!row) return;
+
+    var name = String(row.CATEGORY || '').trim();
+    var isSub = row.PARENT_ID != null && Number(row.PARENT_ID) > 0;
+    if (isSub) {
+        if (String(st.subCategory || '').trim() === name) {
+            st.subCategory = null;
+        }
+    } else if (String(st.mainCategory || '').trim() === name) {
+        st.mainCategory = null;
+        st.subCategory = null;
+    }
+}
+
+function refreshHouseExpenseAfterCategoryCatalogChange(options) {
+    options = options && typeof options === 'object' ? options : {};
+    expense_category(
+        null,
+        function () {
+            if (typeof window.reloadData === 'function') {
+                window.reloadData({ preserveExplorerState: !!options.preserveExplorerState });
+            } else if (window.houseExpenseLastRows && $('#expense-main-cat-list').length) {
+                refreshHouseExpenseExplorerOnly();
+            }
+        },
+        { skipExplorerRefresh: true }
+    );
+}
+
+function buildHouseExpenseCategoryActionsHtml(categoryId) {
+    if (!categoryId || !canManageHouseExpenseCategories()) return '';
+    return (
+        '<div class="expense-cat-actions">' +
+        '<button type="button" class="expense-cat-action-btn expense-cat-action-btn-edit js-house-expense-cat-edit" data-category-id="' +
+        attrEncode(String(categoryId)) +
+        '" title="Edit" aria-label="Edit category">' +
+        '<i class="fa fa-pencil-alt" aria-hidden="true"></i></button>' +
+        '<button type="button" class="expense-cat-action-btn expense-cat-action-btn-delete js-house-expense-cat-delete" data-category-id="' +
+        attrEncode(String(categoryId)) +
+        '" title="Delete" aria-label="Delete category">' +
+        '<i class="fa fa-trash-alt" aria-hidden="true"></i></button>' +
+        '</div>'
+    );
+}
+
+function buildHouseExpenseCategoryMetaHtml(count, categoryId) {
+    var actions = buildHouseExpenseCategoryActionsHtml(categoryId);
+    return (
+        '<div class="expense-cat-item-meta' +
+        (actions ? ' expense-cat-item-meta--actions' : '') +
+        '">' +
+        '<span class="expense-cat-count">' +
+        count +
+        '</span>' +
+        actions +
+        '</div>'
+    );
+}
+
+function isHouseExpenseReturnMoneyMain(mainName) {
+    return String(mainName || '').trim() === HOUSE_EXPENSE_RETURN_MONEY_LABEL;
+}
+
+function sumHouseExpenseReturnMoneyRows(rows) {
+    var sum = 0;
+    (rows || []).forEach(function (r) {
+        if (r && r.record_type === 'return_money') sum += Number(r.AMOUNT) || 0;
+    });
+    return sum;
+}
+
+function countHouseExpenseReturnMoneyRows(rows) {
+    var count = 0;
+    (rows || []).forEach(function (r) {
+        if (r && r.record_type === 'return_money') count += 1;
+    });
+    return count;
+}
+
+function syncHouseExpenseCategoryAddButtons() {
+    var $mainBtn = $('#btn-house-expense-add-main-cat');
+    var $subBtn = $('#btn-house-expense-add-sub-cat');
+    var $returnBtn = $('#btn-house-expense-return-money');
+    var $newExpenseBtn = $('#btn-house-expense-new-expense');
+    if (!$mainBtn.length && !$subBtn.length && !$returnBtn.length && !$newExpenseBtn.length) return;
+
+    var isViewOnly =
+        window.PermissionViewOnly &&
+        window.PermissionViewOnly.isViewOnly &&
+        window.PermissionViewOnly.isViewOnly();
+    var canAddCategory =
+        window.PermissionViewOnly &&
+        window.PermissionViewOnly.isExpenseHandler &&
+        window.PermissionViewOnly.isExpenseHandler();
+    var st = window.houseExpenseExplorerState || {};
+    var hasMain = !!(st.mainCategory && getHouseExpenseMainCategoryIdByName(st.mainCategory));
+    var showNewExpense = !!(st.mainCategory && !isHouseExpenseReturnMoneyMain(st.mainCategory));
+
+    if ($mainBtn.length) {
+        $mainBtn.toggleClass('d-none', !canAddCategory);
+        $mainBtn.prop('disabled', !canAddCategory || !!isViewOnly);
+        $mainBtn.toggleClass('is-disabled', !canAddCategory || !!isViewOnly);
+    }
+    if ($subBtn.length) {
+        $subBtn.toggleClass('d-none', !canAddCategory);
+        $subBtn.prop('disabled', !canAddCategory || !!isViewOnly || !hasMain);
+        $subBtn.toggleClass('is-disabled', !canAddCategory || !!isViewOnly || !hasMain);
+    }
+    if ($returnBtn.length) {
+        var showReturnMoney = isHouseExpenseReturnMoneyMain(st.mainCategory);
+        $returnBtn.toggleClass('d-none', !showReturnMoney);
+        $returnBtn.prop('disabled', !!isViewOnly);
+    }
+    if ($newExpenseBtn.length) {
+        $newExpenseBtn.toggleClass('d-none', !showNewExpense);
+        $newExpenseBtn.prop('disabled', !!isViewOnly);
+    }
+}
+
+function openHouseExpenseQuickCategoryModal(level) {
+    var st = window.houseExpenseExplorerState || {};
+    var $modal = $('#modal-house-expense-quick-category');
+    if (!$modal.length) return;
+
+    var $title = $('#modal-house-expense-quick-category-title');
+    var $level = $('#house-expense-quick-cat-level');
+    var $parentId = $('#house-expense-quick-cat-parent-id');
+    var $parentWrap = $('#house-expense-quick-cat-parent-wrap');
+    var $parentName = $('#house-expense-quick-cat-parent-name');
+    var $name = $('#house-expense-quick-cat-name');
+    var $editId = $('#house-expense-quick-cat-id');
+
+    $name.val('').removeClass('is-invalid');
+    if ($editId.length) $editId.val('');
+
+    if (level === 'sub') {
+        var mainId = getHouseExpenseMainCategoryIdByName(st.mainCategory);
+        if (!mainId) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Select main category',
+                    text: 'Please select a main category first.'
+                });
+            }
+            return;
+        }
+        $level.val('sub');
+        $parentId.val(String(mainId));
+        $parentName.text(st.mainCategory);
+        $parentWrap.removeClass('d-none');
+        $title.text('Add Sub Category');
+    } else {
+        $level.val('main');
+        $parentId.val('');
+        $parentWrap.addClass('d-none');
+        $title.text('Add Main Category');
+    }
+
+    showBootstrapModal($modal);
+    setTimeout(function () {
+        $name.trigger('focus');
+    }, 300);
+}
+
+function openHouseExpenseEditCategoryModal(categoryId) {
+    if (!canManageHouseExpenseCategories() || !categoryId) return;
+
+    var flat = window.houseExpenseCategoryFlat || [];
+    var row = flat.find(function (r) {
+        return Number(r.IDNo) === Number(categoryId);
+    });
+    if (!row) return;
+
+    var $modal = $('#modal-house-expense-quick-category');
+    if (!$modal.length) return;
+
+    var isSub = row.PARENT_ID != null && Number(row.PARENT_ID) > 0;
+    var $title = $('#modal-house-expense-quick-category-title');
+    var $level = $('#house-expense-quick-cat-level');
+    var $parentId = $('#house-expense-quick-cat-parent-id');
+    var $parentWrap = $('#house-expense-quick-cat-parent-wrap');
+    var $parentName = $('#house-expense-quick-cat-parent-name');
+    var $name = $('#house-expense-quick-cat-name');
+    var $editId = $('#house-expense-quick-cat-id');
+
+    if ($editId.length) $editId.val(String(categoryId));
+    $level.val(isSub ? 'sub' : 'main');
+    $name.val(row.CATEGORY || '').removeClass('is-invalid');
+
+    if (isSub) {
+        var parentRow = flat.find(function (r) {
+            return Number(r.IDNo) === Number(row.PARENT_ID);
+        });
+        $parentId.val(String(row.PARENT_ID));
+        $parentName.text(parentRow ? parentRow.CATEGORY : '');
+        $parentWrap.removeClass('d-none');
+        $title.text('Edit Sub Category');
+    } else {
+        $parentId.val('');
+        $parentWrap.addClass('d-none');
+        $title.text('Edit Main Category');
+    }
+
+    showBootstrapModal($modal);
+    setTimeout(function () {
+        $name.trigger('focus');
+    }, 300);
+}
+
+function archiveHouseExpenseCategory(categoryId) {
+    if (!canManageHouseExpenseCategories() || !categoryId) return;
+
+    Swal.fire({
+        title: 'Are you sure you want to delete this?',
+        text: 'Deleting a main category will also archive its sub categories.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes'
+    }).then(function (result) {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: '/expense_category/remove/' + categoryId,
+            type: 'PUT',
+            success: function () {
+                syncHouseExpenseExplorerStateAfterCategoryDelete(categoryId);
+                refreshHouseExpenseAfterCategoryCatalogChange({ preserveExplorerState: true });
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Category deleted',
+                        timer: 1400,
+                        showConfirmButton: false
+                    });
+                }
+            },
+            error: function (xhr) {
+                var msg = xhr.responseText || 'Could not delete category.';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                }
+            }
+        });
+    });
+}
+
+function initHouseExpenseCategoryCatalogFromPage() {
+    var catalog = window.houseExpenseCategoryCatalog || [];
+    if (!catalog.length) return;
+    if (catalog[0] && catalog[0].children) {
+        window.houseExpenseCategoryTree = catalog;
+        window.houseExpenseCategoryFlat = flattenHouseExpenseCategoryTree(catalog);
+    } else if (catalog[0] && catalog[0].IDNo) {
+        cacheHouseExpenseCategoryData(catalog);
+    }
+}
+
+function populateHouseExpenseMainCategorySelect($select, selectedMainId) {
+    if (!$select || !$select.length) return;
+    $select.empty();
+    $select.append($('<option>', { value: '', text: '' }));
+    getHouseExpenseCategoryTree().forEach(function (main) {
+        $select.append(
+            $('<option>', {
+                value: main.IDNo,
+                text: main.CATEGORY,
+                selected: selectedMainId != null && Number(selectedMainId) === Number(main.IDNo)
+            })
+        );
+    });
+}
+
+function refreshHouseExpenseSubCategorySelect(mainId, selectedSubId, $subSelect, $wrap) {
+    if (!$subSelect || !$subSelect.length) return;
+    var tree = getHouseExpenseCategoryTree();
+    var main = tree.find(function (m) {
+        return Number(m.IDNo) === Number(mainId);
+    });
+    var subs = main && main.children ? main.children : [];
+    $subSelect.empty();
+    $subSelect.append($('<option>', { value: '', text: '' }));
+    if (!mainId || subs.length === 0) {
+        if ($wrap && $wrap.length) $wrap.addClass('d-none');
+        $subSelect.prop('required', false);
+        return;
+    }
+    if ($wrap && $wrap.length) $wrap.removeClass('d-none');
+    $subSelect.prop('required', true);
+    subs.forEach(function (sub) {
+        $subSelect.append(
+            $('<option>', {
+                value: sub.IDNo,
+                text: sub.CATEGORY,
+                selected: selectedSubId != null && Number(selectedSubId) === Number(sub.IDNo)
+            })
+        );
+    });
+}
+
+function resolveHouseExpenseCategoryId(mainId, subId) {
+    if (!mainId) return '';
+    var tree = getHouseExpenseCategoryTree();
+    var main = tree.find(function (m) {
+        return Number(m.IDNo) === Number(mainId);
+    });
+    if (!main) return '';
+    if (main.children && main.children.length) {
+        return subId || '';
+    }
+    return String(mainId);
+}
+
+function syncHouseExpenseCategoryHiddenField(mainSelector, subSelector, hiddenSelector) {
+    var mainId = $(mainSelector).val();
+    var subId = $(subSelector).val();
+    var resolved = resolveHouseExpenseCategoryId(mainId, subId);
+    $(hiddenSelector).val(resolved);
+    return resolved;
+}
+
+function applyHouseExpenseExplorerToNewExpenseForm() {
+    var st = window.houseExpenseExplorerState || {};
+    if (!st.mainCategory || isHouseExpenseReturnMoneyMain(st.mainCategory)) return;
+
+    var mainId = getHouseExpenseMainCategoryIdByName(st.mainCategory);
+    if (!mainId) return;
+
+    var $mainSelect = $('#expense-main-category-select');
+    var $subSelect = $('#expense-sub-category-select');
+    var selectedSubId = null;
+
+    if (st.subCategory) {
+        var tree = getHouseExpenseCategoryTree();
+        var mainNode = tree.find(function (m) {
+            return Number(m.IDNo) === Number(mainId);
+        });
+        if (mainNode && mainNode.children) {
+            var subNode = mainNode.children.find(function (s) {
+                return String(s.CATEGORY || '').trim() === String(st.subCategory).trim();
+            });
+            if (subNode) selectedSubId = subNode.IDNo;
+        }
+    }
+
+    $mainSelect.val(String(mainId));
+    refreshHouseExpenseSubCategorySelect(mainId, selectedSubId, $subSelect, $('#house-expense-sub-category-wrap'));
+    if (selectedSubId) {
+        $subSelect.val(String(selectedSubId));
+    }
+
+    syncHouseExpenseCategoryHiddenField(
+        '#expense-main-category-select',
+        '#expense-sub-category-select',
+        '#house-expense-category-id'
+    );
+}
 
 function getHouseExpenseFilterMode() {
     return $('input[name="filter-mode"]:checked').val() || 'settlement';
-}
-
-function hasHouseExpenseDateRangeComplete() {
-    var el = document.getElementById('daterange-picker');
-    return !!(el && el._flatpickr && el._flatpickr.selectedDates && el._flatpickr.selectedDates.length === 2);
 }
 
 function houseExpenseEscapeRegex(s) {
@@ -54,11 +572,22 @@ function applyHouseExpenseExplorerDataTableFilter() {
     if (!$.fn.DataTable.isDataTable('#expense-tbl')) return;
     var dt = $('#expense-tbl').DataTable();
     var st = window.houseExpenseExplorerState || {};
-    dt.column(0).search(
-        st.mainCategory ? '^' + houseExpenseEscapeRegex(st.mainCategory) + '$' : '',
-        true,
-        false
-    );
+    var pattern = '';
+    if (st.subCategory && st.mainCategory) {
+        pattern =
+            '^' +
+            houseExpenseEscapeRegex(st.mainCategory) +
+            ' › ' +
+            houseExpenseEscapeRegex(st.subCategory) +
+            '$';
+    } else if (st.mainCategory) {
+        if (isHouseExpenseReturnMoneyMain(st.mainCategory)) {
+            pattern = '^' + houseExpenseEscapeRegex(HOUSE_EXPENSE_RETURN_MONEY_LABEL) + '$';
+        } else {
+            pattern = '^' + houseExpenseEscapeRegex(st.mainCategory) + '( › |$)';
+        }
+    }
+    dt.column(0).search(pattern, true, false);
     dt.draw();
 }
 
@@ -253,8 +782,7 @@ window.showHouseExpenseEditHistory = function (expenseId) {
             }
             var $modal = $('#modal-house-expense-edit-history');
             if ($modal.length) {
-                $modal.appendTo('body');
-                $modal.modal('show');
+                showBootstrapModal($modal);
             }
         })
         .fail(function () {
@@ -266,13 +794,17 @@ window.showHouseExpenseEditHistory = function (expenseId) {
         });
 };
 
-/** Updates expense, return money, and net (expense − return) footer amounts. */
+/** Updates expense, return money, and net KPI card amounts. */
 function setHouseExpenseFooterTotals(totalExpense, totalReturnMoney) {
     var te = Number(totalExpense) || 0;
     var tr = Number(totalReturnMoney) || 0;
-    $('#TOTAL_EXPENSE_AMOUNT').text(formatHouseExpensePeso(te));
-    $('#TOTAL_RETURN_MONEY_AMOUNT').text(formatHouseExpensePeso(tr));
-    $('#TOTAL_NET_EXPENSES_AMOUNT').text(formatHouseExpensePeso(te - tr));
+    var dateLabel = getHouseExpenseGrandDateLabel();
+    $('#expense-kpi-grand-amount').text(formatHouseExpensePeso(te));
+    $('#expense-kpi-return-amount').text(formatHouseExpensePeso(tr));
+    $('#expense-kpi-net-amount').text(formatHouseExpensePeso(te - tr));
+    $('#expense-kpi-grand-range').text(dateLabel);
+    $('#expense-kpi-return-range').text(dateLabel);
+    $('#expense-kpi-net-range').text(dateLabel);
 }
 
 function renderHouseExpenseGraphRaceBarsHtml(entries, opts) {
@@ -284,7 +816,10 @@ function renderHouseExpenseGraphRaceBarsHtml(entries, opts) {
     }
     return entries
         .map(function (entry, rowIdx) {
-            var pal = houseExpenseAnalyticsSolidAtRow(rowIdx);
+            var pal =
+                entry.name === HOUSE_EXPENSE_RETURN_MONEY_LABEL
+                    ? houseExpenseAnalyticsReturnMoneySolid()
+                    : houseExpenseAnalyticsSolidAtRow(rowIdx);
             // Bar width = share of grand total (same as the % label), not vs. largest category
             var shareOfTotal = pctBase > 0 ? (entry.amount / pctBase) * 100 : 0;
             var barPct = Math.min(100, Math.max(0, shareOfTotal));
@@ -334,50 +869,21 @@ function renderHouseExpenseGraphRaceBarsHtml(entries, opts) {
         .join('');
 }
 
-function renderHouseExpenseGraphReturnMoneyRowHtml(amount) {
-    var a = Number(amount) || 0;
-    return (
-        '<div class="expense-graph-race-return js-expense-graph-cat-open" data-category="Return Money" title="View return money entries">' +
-        '<div class="expense-graph-race-return-inner">' +
-        '<span class="expense-graph-race-return-icon" aria-hidden="true"><i class="fa fa-undo"></i></span>' +
-        '<div class="expense-graph-race-return-body">' +
-        '<div class="expense-graph-race-return-head">' +
-        '<span class="expense-graph-race-return-label">Return money</span>' +
-        '<span class="expense-graph-race-return-amt">' +
-        formatHouseExpensePeso(a) +
-        '</span>' +
-        '</div>' +
-        '</div>' +
-        '</div>' +
-        '</div>'
-    );
-}
-
 function renderHouseExpenseGraphRaceBodyFromState(data, totalExpense, totalReturnMoney) {
-    var mode = getHouseExpenseFilterMode();
     var $body = $('#expense-graph-race-body');
     var $sub = $('#expense-graph-subtitle');
     if (!$body.length) return;
-
-    if (mode !== 'daterange') {
-        $body.empty();
-        if ($sub.length) $sub.text('By category');
-        return;
-    }
 
     var te = Number(totalExpense) || 0;
     var tr = Number(totalReturnMoney) || 0;
     var expenseRows = (data || []).filter(function (row) {
         return row && row.record_type !== 'return_money';
     });
+    var returnMoneyCount = countHouseExpenseReturnMoneyRows(data);
 
-    if (expenseRows.length === 0) {
+    if (expenseRows.length === 0 && returnMoneyCount === 0) {
         if ($sub.length) $sub.text('By category');
-        if (tr > 0) {
-            $body.html(renderHouseExpenseGraphReturnMoneyRowHtml(tr));
-        } else {
-            $body.html('<div class="text-muted small py-2">No expense data yet.</div>');
-        }
+        $body.html('<div class="text-muted small py-2">No expense data yet.</div>');
         return;
     }
 
@@ -386,9 +892,12 @@ function renderHouseExpenseGraphRaceBodyFromState(data, totalExpense, totalRetur
     var byCategory = {};
     expenseRows.forEach(function (row) {
         var amount = Number(row.AMOUNT) || 0;
-        var category = row.expense_category || 'Uncategorized';
+        var category = row.expense_main_category || row.expense_category || 'Uncategorized';
         byCategory[category] = (byCategory[category] || 0) + amount;
     });
+    if (returnMoneyCount > 0) {
+        byCategory[HOUSE_EXPENSE_RETURN_MONEY_LABEL] = tr;
+    }
     var categoryEntries = Object.keys(byCategory)
         .map(function (key) {
             return { name: key, amount: byCategory[key] };
@@ -398,103 +907,222 @@ function renderHouseExpenseGraphRaceBodyFromState(data, totalExpense, totalRetur
         })
         .slice(0, 8);
 
-    var percentageBase = te > 0 ? te : 0;
+    var percentageBase = te + tr > 0 ? te + tr : 0;
     var mainHtml = renderHouseExpenseGraphRaceBarsHtml(categoryEntries, {
         percentBase: percentageBase,
         clickableCategory: true
     });
-    $body.html(mainHtml + renderHouseExpenseGraphReturnMoneyRowHtml(tr));
+    $body.html(mainHtml);
 }
 
 function renderHouseExpenseCategoryLists(data) {
     var st = window.houseExpenseExplorerState || {};
-    var expenseRows = (data || []).filter(function (r) {
-        return r && r.record_type !== 'return_money';
+    var allRows = (data || []).filter(function (r) {
+        return r;
     });
+    var expenseRows = allRows.filter(function (r) {
+        return r.record_type !== 'return_money';
+    });
+    var returnMoneyCount = countHouseExpenseReturnMoneyRows(allRows);
 
     var byMain = {};
+    var bySub = {};
     expenseRows.forEach(function (r) {
-        var m = String(r.expense_category || 'Uncategorized').trim() || 'Uncategorized';
-        if (!byMain[m]) byMain[m] = { count: 0, sum: 0 };
-        byMain[m].count += 1;
-        byMain[m].sum += Number(r.AMOUNT) || 0;
+        var main = String(r.expense_main_category || r.expense_category || 'Uncategorized').trim() || 'Uncategorized';
+        var sub = r.expense_sub_category != null ? String(r.expense_sub_category).trim() : '';
+        if (!byMain[main]) byMain[main] = { count: 0, sum: 0 };
+        byMain[main].count += 1;
+        byMain[main].sum += Number(r.AMOUNT) || 0;
+        if (sub) {
+            var subKey = main + '\u0000' + sub;
+            if (!bySub[subKey]) bySub[subKey] = { count: 0, sum: 0, main: main, sub: sub };
+            bySub[subKey].count += 1;
+            bySub[subKey].sum += Number(r.AMOUNT) || 0;
+        }
     });
+    byMain[HOUSE_EXPENSE_RETURN_MONEY_LABEL] = {
+        count: returnMoneyCount,
+        sum: sumHouseExpenseReturnMoneyRows(allRows)
+    };
 
-    var dbCatalog = (window.houseExpenseCategoryCatalog || []).slice().filter(Boolean);
-    dbCatalog.sort(function (a, b) {
-        return String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
-    });
-
-    var inDb = {};
-    dbCatalog.forEach(function (k) {
-        inDb[k] = true;
-    });
-
-    var extras = Object.keys(byMain)
-        .filter(function (k) {
-            return !inDb[k];
-        })
-        .sort(function (a, b) {
-            return byMain[b].sum - byMain[a].sum;
-        });
-
-    var mainKeys = dbCatalog.concat(extras);
-
-    if (mainKeys.length === 0) {
-        $('#expense-main-cat-list').html('<div class="text-muted small p-2">No categories</div>');
-        return;
-    }
-
+    var tree = getHouseExpenseCategoryTree();
     var mainHtml = [];
     mainHtml.push(
         '<div class="expense-cat-item js-expense-main-cat' +
-            (!st.mainCategory ? ' is-active' : '') +
+            (!st.mainCategory && !st.subCategory ? ' is-active' : '') +
             '" data-main="">' +
             '<span class="expense-cat-name">All categories</span>' +
             '<span class="expense-cat-count">' +
-            expenseRows.length +
+            allRows.length +
             '</span>' +
             '</div>'
     );
-    mainKeys.forEach(function (k) {
-        var active = st.mainCategory === k ? ' is-active' : '';
-        var row = byMain[k];
-        var cnt = row ? row.count : 0;
+
+    function pushMainCategoryItem(mainName, count, categoryId) {
+        var id = categoryId != null ? categoryId : getHouseExpenseMainCategoryIdByName(mainName);
+        var actionsHtml = buildHouseExpenseCategoryActionsHtml(id);
+        var activeMain = st.mainCategory === mainName ? ' is-active' : '';
         mainHtml.push(
             '<div class="expense-cat-item js-expense-main-cat' +
-                active +
+                activeMain +
+                (actionsHtml ? ' expense-cat-item--has-actions' : '') +
                 '" data-main="' +
-                attrEncode(k) +
+                attrEncode(mainName) +
+                '" data-category-id="' +
+                attrEncode(id || '') +
                 '">' +
                 '<span class="expense-cat-name" title="' +
-                attrEncode(k) +
+                attrEncode(mainName) +
                 '">' +
-                houseExpenseHtmlEscape(k) +
+                houseExpenseHtmlEscape(mainName) +
                 '</span>' +
-                '<span class="expense-cat-count">' +
-                cnt +
+                buildHouseExpenseCategoryMetaHtml(count, id) +
+                '</div>'
+        );
+    }
+
+    if (tree.length === 0) {
+        Object.keys(byMain)
+            .filter(function (name) {
+                return name !== HOUSE_EXPENSE_RETURN_MONEY_LABEL;
+            })
+            .sort(function (a, b) {
+                return (byMain[b].sum || 0) - (byMain[a].sum || 0);
+            })
+            .forEach(function (mainName) {
+                var row = byMain[mainName];
+                pushMainCategoryItem(mainName, row ? row.count : 0);
+            });
+    } else {
+        tree.forEach(function (main) {
+            var mainName = String(main.CATEGORY || '').trim();
+            var row = byMain[mainName];
+            pushMainCategoryItem(mainName, row ? row.count : 0, main.IDNo);
+        });
+    }
+
+    pushMainCategoryItem(HOUSE_EXPENSE_RETURN_MONEY_LABEL, returnMoneyCount);
+
+    if (mainHtml.length <= 1 && allRows.length === 0) {
+        $('#expense-main-cat-list').html('<div class="text-muted small p-2">No categories</div>');
+    } else {
+        $('#expense-main-cat-list').html(mainHtml.join(''));
+    }
+
+    renderHouseExpenseSubCategoryList(tree, byMain, bySub, st);
+    syncHouseExpenseCategoryAddButtons();
+}
+
+function renderHouseExpenseSubCategoryList(tree, byMain, bySub, st) {
+    st = st || window.houseExpenseExplorerState || {};
+    bySub = bySub || {};
+    var $subList = $('#expense-sub-cat-list');
+    if (!$subList.length) return;
+
+    if (!st.mainCategory) {
+        $subList.html('<div class="expense-cat-empty-hint">Select a main category</div>');
+        return;
+    }
+
+    var mainName = String(st.mainCategory).trim();
+    if (isHouseExpenseReturnMoneyMain(mainName)) {
+        $subList.html('<div class="expense-cat-empty-hint">No sub categories for this main</div>');
+        return;
+    }
+
+    var mainTotal = byMain[mainName] ? byMain[mainName].count : 0;
+    var mainNode = (tree || []).find(function (m) {
+        return String(m.CATEGORY || '').trim() === mainName;
+    });
+    var subs = mainNode && mainNode.children ? mainNode.children : [];
+
+    if (!subs.length) {
+        $subList.html('<div class="expense-cat-empty-hint">No sub categories for this main</div>');
+        return;
+    }
+
+    var subHtml = [];
+    subHtml.push(
+        '<div class="expense-cat-item js-expense-sub-cat' +
+            (!st.subCategory ? ' is-active' : '') +
+            '" data-main="' +
+            attrEncode(mainName) +
+            '" data-sub="">' +
+            '<span class="expense-cat-name">All</span>' +
+            '<span class="expense-cat-count">' +
+            mainTotal +
+            '</span>' +
+            '</div>'
+    );
+
+    subs.forEach(function (sub) {
+        var subName = String(sub.CATEGORY || '').trim();
+        var subKey = mainName + '\u0000' + subName;
+        var subRow = bySub[subKey];
+        var subCnt = subRow ? subRow.count : 0;
+        var activeSub = st.subCategory === subName ? ' is-active' : '';
+        var actionsHtml = buildHouseExpenseCategoryActionsHtml(sub.IDNo);
+        subHtml.push(
+            '<div class="expense-cat-item js-expense-sub-cat' +
+                activeSub +
+                (actionsHtml ? ' expense-cat-item--has-actions' : '') +
+                '" data-main="' +
+                attrEncode(mainName) +
+                '" data-sub="' +
+                attrEncode(subName) +
+                '" data-category-id="' +
+                attrEncode(sub.IDNo || '') +
+                '">' +
+                '<span class="expense-cat-name" title="' +
+                attrEncode(subName) +
+                '">' +
+                houseExpenseHtmlEscape(subName) +
                 '</span>' +
+                buildHouseExpenseCategoryMetaHtml(subCnt, sub.IDNo) +
                 '</div>'
         );
     });
-    $('#expense-main-cat-list').html(mainHtml.join(''));
+
+    $subList.html(subHtml.join(''));
 }
 
 function refreshHouseExpenseDashboard(data, totalExpense, totalReturnMoney) {
     var te = Number(totalExpense) || 0;
+    var tr = Number(totalReturnMoney) || 0;
     var st = window.houseExpenseExplorerState || {};
 
-    $('#expense-kpi-grand-amount').text(formatHouseExpensePeso(te));
-    $('#expense-kpi-grand-range').text(getHouseExpenseGrandDateLabel());
+    setHouseExpenseFooterTotals(te, tr);
 
-    var selected = houseExpenseSumExpenseRows(data, function (r) {
-        if (st.mainCategory && String(r.expense_category || '').trim() !== st.mainCategory) return false;
-        return true;
-    });
+    var selected;
+    if (!st.mainCategory && !st.subCategory) {
+        selected = te + tr;
+    } else if (isHouseExpenseReturnMoneyMain(st.mainCategory)) {
+        selected = sumHouseExpenseReturnMoneyRows(data);
+    } else {
+        selected = houseExpenseSumExpenseRows(data, function (r) {
+            var main = String(r.expense_main_category || r.expense_category || '').trim();
+            var sub = r.expense_sub_category != null ? String(r.expense_sub_category).trim() : '';
+            if (st.subCategory) {
+                return main === st.mainCategory && sub === st.subCategory;
+            }
+            if (st.mainCategory) {
+                return main === st.mainCategory;
+            }
+            return true;
+        });
+    }
 
     $('#expense-kpi-selected-amount').text(formatHouseExpensePeso(selected));
 
-    var pctGrand = te > 0 ? (selected / te) * 100 : null;
+    var pctBase;
+    if (!st.mainCategory && !st.subCategory) {
+        pctBase = te + tr;
+    } else if (isHouseExpenseReturnMoneyMain(st.mainCategory)) {
+        pctBase = tr;
+    } else {
+        pctBase = te;
+    }
+    var pctGrand = pctBase > 0 ? (selected / pctBase) * 100 : null;
     $('#expense-kpi-pct-grand').text(formatHouseExpenseKpiPercentOfGrand(pctGrand));
 
     renderHouseExpenseCategoryLists(data);
@@ -506,41 +1134,20 @@ function renderHouseExpenseAnalytics(data, totalExpense, totalReturnMoney) {
     refreshHouseExpenseDashboard(data, totalExpense, totalReturnMoney);
 }
 
-function toggleHouseExpenseBreakdownPanel(mode) {
-    mode = mode || getHouseExpenseFilterMode();
-    var isRange = mode === 'daterange';
-    var rangeReady = isRange && hasHouseExpenseDateRangeComplete();
+function toggleHouseExpenseBreakdownPanel() {
     var $g = $('#expense-graph-race-column');
     var $stack = $('#expense-kpi-stack-col');
     var $dash = $('#house-expense-dashboard');
-    var $catCol = $('.expense-explorer-cat-col');
+    var $catCol = $('.expense-explorer-side-col');
     var $tableHead = $('.expense-table-panel-head');
     if (!$g.length) return;
-    if (rangeReady) {
-        if ($dash.length) $dash.removeClass('d-none');
-        $catCol.removeClass('d-none');
-        if ($tableHead.length) $tableHead.removeClass('d-none');
-        $g.removeClass('d-none').addClass('d-flex align-items-stretch');
-        if ($stack.length) {
-            $stack.removeClass('col-12').addClass('col-lg-5 col-xl-4');
-        }
-        $('#expense-kpi-col-grand, #expense-kpi-col-selected').removeClass('col-md-6');
-    } else {
-        if ($dash.length) $dash.addClass('d-none');
-        $catCol.addClass('d-none');
-        if ($tableHead.length) $tableHead.addClass('d-none');
-        $g.addClass('d-none').removeClass('d-flex align-items-stretch');
-        if ($stack.length) {
-            $stack.removeClass('col-lg-5 col-xl-4').addClass('col-12');
-        }
-        $('#expense-kpi-col-grand, #expense-kpi-col-selected').addClass('col-md-6');
-        $('#expense-graph-race-body').empty();
-        $('#expense-graph-subtitle').text('By category');
-        window.houseExpenseExplorerState = window.houseExpenseExplorerState || {};
-        window.houseExpenseExplorerState.mainCategory = null;
-        if (typeof applyHouseExpenseExplorerDataTableFilter === 'function') {
-            applyHouseExpenseExplorerDataTableFilter();
-        }
+
+    if ($dash.length) $dash.removeClass('d-none');
+    $catCol.removeClass('d-none');
+    if ($tableHead.length) $tableHead.removeClass('d-none');
+    $g.removeClass('d-none').addClass('d-flex align-items-stretch');
+    if ($stack.length) {
+        $stack.removeClass('col-12').addClass('col-lg-4');
     }
 }
 
@@ -550,7 +1157,7 @@ function showExpenseBreakdownModalByCategory(categoryName) {
 
     var rows = (window.houseExpenseLastRows || []).filter(function (row) {
         if (!row) return false;
-        if (category === 'Return Money') {
+        if (category === HOUSE_EXPENSE_RETURN_MONEY_LABEL) {
             return row.record_type === 'return_money';
         }
         return row.record_type !== 'return_money' && String(row.expense_category || '').trim() === category;
@@ -559,7 +1166,7 @@ function showExpenseBreakdownModalByCategory(categoryName) {
     $('#breakdown-modal-category-name').text(category);
 
     if (rows.length === 0) {
-        $('#breakdown-modal-tbody').html('<tr><td colspan="5" class="text-center text-muted py-3">No entries found.</td></tr>');
+        $('#breakdown-modal-tbody').html('<tr><td colspan="4" class="text-center text-muted py-3">No entries found.</td></tr>');
         $('#breakdown-modal-grand-total').text(formatHouseExpenseNumber(0));
     } else {
         window.houseExpenseBreakdownState.rows = rows.slice();
@@ -570,8 +1177,7 @@ function showExpenseBreakdownModalByCategory(categoryName) {
 
     var $breakdownModal = $('#modal-expense-breakdown-details');
     if ($breakdownModal.length) {
-        $breakdownModal.appendTo('body');
-        $breakdownModal.modal('show');
+        showBootstrapModal($breakdownModal);
     }
 }
 
@@ -580,7 +1186,6 @@ function getBreakdownSortValue(row, key) {
     if (key === 'amount') return Number(row.AMOUNT) || 0;
     if (key === 'description') return String(row.RECEIPT_NO || '').toLowerCase();
     if (key === 'in_charge') return String(row.OIC || row.DESCRIPTION || '').toLowerCase();
-    if (key === 'encoded_by') return String(row.FIRSTNAME || '').toLowerCase();
     if (key === 'date_time') return new Date(row.ENCODED_DT || 0).getTime();
     return '';
 }
@@ -614,13 +1219,12 @@ function renderExpenseBreakdownModalRows() {
                 '<td>' + houseExpenseHtmlEscape(descriptionText) + '</td>' +
                 '<td>' + houseExpenseHtmlEscape(inChargeText) + '</td>' +
                 '<td class="fw-semibold text-end">' + formatHouseExpenseNumber(amount) + '</td>' +
-                '<td>' + houseExpenseHtmlEscape(row.FIRSTNAME || '-') + '</td>' +
                 '<td>' + houseExpenseHtmlEscape(displayDate) + '</td>' +
             '</tr>'
         );
     }).join('');
 
-    $('#breakdown-modal-tbody').html(html || '<tr><td colspan="5" class="text-center text-muted py-3">No entries found.</td></tr>');
+    $('#breakdown-modal-tbody').html(html || '<tr><td colspan="4" class="text-center text-muted py-3">No entries found.</td></tr>');
     $('#breakdown-modal-grand-total').text(formatHouseExpenseNumber(total));
 
     $('#breakdown-modal-head-table thead th.sortable-col').each(function () {
@@ -635,8 +1239,10 @@ function renderExpenseBreakdownModalRows() {
 }
 
 $(document).ready(function () {
+    mountHouseExpenseModals();
+
     function clearExpenseTableDisplay() {
-        window.houseExpenseExplorerState = { mainCategory: null };
+        window.houseExpenseExplorerState = { mainCategory: null, subCategory: null };
         if ($.fn.DataTable.isDataTable('#expense-tbl')) {
             var dt = $('#expense-tbl').DataTable();
             dt.clear();
@@ -650,31 +1256,20 @@ $(document).ready(function () {
 
         // 1. Initialize DataTable (date range picker removed - using settlement date picker instead)
         if ($.fn.DataTable.isDataTable('#expense-tbl')) {
-            var $shell = $('#house-expense-filter-shell');
-            if ($shell.length && $('#expense-tbl_wrapper').length) {
-                $shell.insertBefore('#expense-tbl_wrapper');
-            }
             $('#expense-tbl').DataTable().destroy();
         }
 
         const goodsTypeLabel = window.houseExpenseTranslations?.type_goods || 'Goods / Consumables';
         const nonGoodsTypeLabel = window.houseExpenseTranslations?.type_non_goods || 'Non-goods / Services';
         var dataTable = $('#expense-tbl').DataTable({
-            "dom": '<"house-expense-dt-toolbar d-flex flex-wrap align-items-end justify-content-between gap-3 mb-2"<"d-flex flex-wrap align-items-end gap-3 flex-grow-1 min-w-0"<"flex-shrink-0 align-self-end"l><"house-expense-filter-mount flex-grow-1 min-w-0"div>><"flex-shrink-0 align-self-end ms-md-auto house-expense-dt-search"f>>' +
+            "dom": '<"house-expense-dt-toolbar d-flex flex-wrap align-items-end justify-content-between gap-3 mb-2"<"flex-shrink-0 align-self-end"l><"flex-shrink-0 align-self-end ms-md-auto house-expense-dt-search"f>>' +
                 'rt<"row mt-2"<"col-12 d-flex justify-content-end"p>>',
-            "order": [[5, 'desc']],
+            "order": [[4, 'desc']],
             "pageLength": 100,
             "lengthMenu": [[100, 50, 25, 10, -1], [100, 50, 25, 10, "All"]],
-            "initComplete": function () {
-                var $mount = $('#expense-tbl_wrapper .house-expense-filter-mount');
-                var $filter = $('#house-expense-filter-shell');
-                if ($mount.length && $filter.length) {
-                    $mount.append($filter);
-                }
-            },
             "columnDefs": [
                 {
-                    "targets": 5,
+                    "targets": 4,
                     "render": function (data, type, row) {
                         // Check if this is a "no data" row - return empty string
                         if (!data || data === '' || (row && Array.isArray(row) && row.length > 0 && (row[0] === (window.houseExpenseTranslations?.no_data_found || 'No data found')))) {
@@ -705,7 +1300,9 @@ $(document).ready(function () {
         });
 
         // 2. reloadData function - Supports both settlement date and date range modes
-        function reloadData() {
+        function reloadData(options) {
+            options = options && typeof options === 'object' ? options : {};
+            var preserveExplorerState = !!options.preserveExplorerState;
             var filterMode = $('input[name="filter-mode"]:checked').val() || 'settlement';
             var requestData = {};
             var requestMode = filterMode;
@@ -748,7 +1345,9 @@ $(document).ready(function () {
                         // Ignore stale response from previous mode
                         return;
                     }
-                    window.houseExpenseExplorerState = { mainCategory: null };
+                    if (!preserveExplorerState) {
+                        window.houseExpenseExplorerState = { mainCategory: null, subCategory: null };
+                    }
                     dataTable.clear();
                     var total_expense = 0;
                     var total_return_money = 0;
@@ -757,7 +1356,7 @@ $(document).ready(function () {
                         // Add centered "No data found" message
                         const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
                         var tbody = dataTable.table().body();
-                        $(tbody).html('<tr><td colspan="7" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
+                        $(tbody).html('<tr><td colspan="6" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
                         setHouseExpenseFooterTotals(0, 0);
                         renderHouseExpenseAnalytics([], 0, 0);
                         window.houseExpenseLastRows = [];
@@ -792,7 +1391,8 @@ $(document).ready(function () {
                         const editBtnClassReadonly =
                             logCount > 0 ? 'btn btn-sm btn-alt-success' : 'btn btn-sm btn-alt-secondary';
                         let btn = '';
-                        if (permissions !== 2) {
+                        const isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly();
+                        if (!isViewOnly) {
                             btn = `
                                 <div class="house-expense-actions">
                                     <button type="button" class="btn btn-sm btn-alt-secondary"
@@ -877,7 +1477,6 @@ $(document).ready(function () {
                         row.record_type === 'return_money' ? (row.DESCRIPTION || '-') : (row.RECEIPT_NO || '-'),
                         row.record_type === 'return_money' ? '-' : (row.DESCRIPTION || '-'),
                         amountDisplay,
-                        row.FIRSTNAME || 'N/A',
                         formattedDate,
                         btn
                     ]).draw();
@@ -901,6 +1500,8 @@ $(document).ready(function () {
     }
 
     // 3. Initialize DataTable
+    initHouseExpenseCategoryCatalogFromPage();
+    syncHouseExpenseCategoryAddButtons();
     initializeExpenseTable();
 
     // ======================= EXPENSE SETTLEMENT FUNCTIONALITY ==================
@@ -911,7 +1512,7 @@ $(document).ready(function () {
         if (mode === 'settlement') {
             $('#settlement-date-wrapper').show();
             $('#daterange-wrapper').hide();
-            toggleHouseExpenseBreakdownPanel(mode);
+            toggleHouseExpenseBreakdownPanel();
             if (typeof window.reloadData === 'function') {
                 window.reloadData();
             }
@@ -923,7 +1524,7 @@ $(document).ready(function () {
                 daterangePickerEl._flatpickr.clear();
             }
             clearExpenseTableDisplay();
-            toggleHouseExpenseBreakdownPanel(mode);
+            toggleHouseExpenseBreakdownPanel();
         }
     });
 
@@ -994,7 +1595,7 @@ $(document).ready(function () {
             },
             onChange: function(selectedDates, dateStr, instance) {
                 if (getHouseExpenseFilterMode() === 'daterange') {
-                    toggleHouseExpenseBreakdownPanel('daterange');
+                    toggleHouseExpenseBreakdownPanel();
                     if (selectedDates.length === 2) {
                         if (typeof window.reloadData === 'function') {
                             window.reloadData();
@@ -1267,7 +1868,7 @@ $(document).ready(function () {
                             clearExpenseTableDisplay();
                             return;
                         }
-                        window.houseExpenseExplorerState = { mainCategory: null };
+                        window.houseExpenseExplorerState = { mainCategory: null, subCategory: null };
                         var dataTable = $('#expense-tbl').DataTable();
                         dataTable.clear();
                         var total_expense = 0;
@@ -1276,7 +1877,7 @@ $(document).ready(function () {
                         if (data.length === 0) {
                             const noDataText = window.houseExpenseTranslations?.no_data_found || 'No data found';
                             var tbody = dataTable.table().body();
-                            $(tbody).html('<tr><td colspan="7" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
+                            $(tbody).html('<tr><td colspan="6" class="text-center" style="padding: 20px;">' + noDataText + '</td></tr>');
                             setHouseExpenseFooterTotals(0, 0);
                             renderHouseExpenseAnalytics([], 0, 0);
                             window.houseExpenseLastRows = [];
@@ -1316,7 +1917,8 @@ $(document).ready(function () {
                             const editBtnClassReadonly =
                                 logCount > 0 ? 'btn btn-sm btn-alt-success' : 'btn btn-sm btn-alt-secondary';
                             let btn = '';
-                            if (permissions !== 2) {
+                            const isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly();
+                            if (!isViewOnly) {
                                 btn = `
                                     <div class="house-expense-actions">
                                         <button type="button" class="btn btn-sm btn-alt-secondary"
@@ -1399,7 +2001,6 @@ $(document).ready(function () {
                                 row.record_type === 'return_money' ? (row.DESCRIPTION || '-') : (row.RECEIPT_NO || '-'),
                                 row.record_type === 'return_money' ? '-' : (row.DESCRIPTION || '-'),
                                 amountDisplay,
-                                row.FIRSTNAME || 'N/A',
                                 formattedDate,
                                 btn
                             ]).draw();
@@ -1532,10 +2133,113 @@ $(document).ready(function () {
         showExpenseBreakdownModalByCategory(categoryName);
     });
 
-    $(document).on('click', '.js-expense-main-cat', function () {
+    $(document).on('click', '.js-expense-main-cat', function (e) {
+        if ($(e.target).closest('.expense-cat-actions').length) return;
         var raw = $(this).attr('data-main');
         window.houseExpenseExplorerState.mainCategory = raw ? raw : null;
+        window.houseExpenseExplorerState.subCategory = null;
         refreshHouseExpenseExplorerOnly();
+    });
+
+    $(document).on('click', '.js-expense-sub-cat', function (e) {
+        if ($(e.target).closest('.expense-cat-actions').length) return;
+        e.stopPropagation();
+        window.houseExpenseExplorerState.mainCategory = $(this).attr('data-main') || null;
+        var rawSub = $(this).attr('data-sub');
+        window.houseExpenseExplorerState.subCategory = rawSub ? rawSub : null;
+        refreshHouseExpenseExplorerOnly();
+    });
+
+    $(document).on('click', '.js-house-expense-cat-edit', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openHouseExpenseEditCategoryModal($(this).attr('data-category-id'));
+    });
+
+    $(document).on('click', '.js-house-expense-cat-delete', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        archiveHouseExpenseCategory($(this).attr('data-category-id'));
+    });
+
+    $(document).on('click', '#btn-house-expense-add-main-cat', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!window.PermissionViewOnly || !window.PermissionViewOnly.isExpenseHandler()) return;
+        openHouseExpenseQuickCategoryModal('main');
+    });
+
+    $(document).on('click', '#btn-house-expense-add-sub-cat', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!window.PermissionViewOnly || !window.PermissionViewOnly.isExpenseHandler()) return;
+        if ($(this).prop('disabled')) return;
+        openHouseExpenseQuickCategoryModal('sub');
+    });
+
+    $('#form-house-expense-quick-category').on('submit', function (e) {
+        e.preventDefault();
+        if (!window.PermissionViewOnly || !window.PermissionViewOnly.isExpenseHandler()) return;
+        var $form = $(this);
+        var name = String($('#house-expense-quick-cat-name').val() || '').trim();
+        if (!name) {
+            $('#house-expense-quick-cat-name').addClass('is-invalid');
+            return;
+        }
+        $('#house-expense-quick-cat-name').removeClass('is-invalid');
+
+        var level = $('#house-expense-quick-cat-level').val();
+        var payload = { txtCategory: name };
+        if (level === 'sub') {
+            payload.txtParentId = $('#house-expense-quick-cat-parent-id').val();
+            if (!payload.txtParentId) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Please select a main category first.'
+                    });
+                }
+                return;
+            }
+        }
+
+        var editId = String($('#house-expense-quick-cat-id').val() || '').trim();
+        var isEdit = !!editId;
+        var $btn = $('#btn-house-expense-quick-cat-save');
+        var originalHtml = $btn.html();
+        $btn.prop('disabled', true).html('Saving...');
+
+        $.ajax({
+            url: isEdit ? '/expense_category/' + editId : '/add_expense_category',
+            method: isEdit ? 'PUT' : 'POST',
+            data: payload,
+            headers: { Accept: 'application/json' },
+            success: function () {
+                hideBootstrapModal($('#modal-house-expense-quick-category'));
+                if (isEdit) {
+                    syncHouseExpenseExplorerStateAfterCategoryRename(editId, name);
+                }
+                refreshHouseExpenseAfterCategoryCatalogChange({ preserveExplorerState: true });
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: isEdit ? 'Category updated' : 'Category saved',
+                        timer: 1400,
+                        showConfirmButton: false
+                    });
+                }
+            },
+            error: function (xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) || xhr.responseText || 'Could not save category.';
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Error', text: msg });
+                }
+            },
+            complete: function () {
+                $btn.prop('disabled', false).html(originalHtml);
+            }
+        });
     });
 
     $(document).on('click', '#breakdown-modal-head-table thead th.sortable-col', function () {
@@ -1588,6 +2292,20 @@ $(document).ready(function () {
     $('#edit_junket_house_expense').submit(function (event) {
         event.preventDefault();
 
+        var resolvedCategory = syncHouseExpenseCategoryHiddenField(
+            '#expense-edit-main-category-select',
+            '#expense-edit-sub-category-select',
+            '#house-expense-edit-category-id'
+        );
+        if (!$('#expense-edit-main-category-select').val() || !resolvedCategory) {
+            Swal.fire({
+                icon: 'error',
+                title: window.houseExpenseTranslations?.error || 'Error!',
+                text: 'Please select a valid category.'
+            });
+            return false;
+        }
+
         const $btn = $('#btn-save-edit-expense');
         const originalHtml = $btn.html();
 
@@ -1614,7 +2332,7 @@ $(document).ready(function () {
                     allowOutsideClick: false
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        $('#modal-edit-house-expense').modal('hide');
+                        hideBootstrapModal($('#modal-edit-house-expense'));
                         window.location.reload(); // 🔁 Full page refresh after confirm
                     }
                 });
@@ -1637,19 +2355,16 @@ $(document).ready(function () {
 
 
 function addHouseExpense() {
-    $('#modal-new-house-expense').modal('show');
-
-    expense_category();
+    showBootstrapModal($('#modal-new-house-expense'));
     get_agent();
 }
 
 function returnMoney() {
-    $('#modal-new-return-money').modal('show');
+    showBootstrapModal($('#modal-new-return-money'));
 }
 
 function edit_expense(id, category_id, receipt_no, datetimeval, description, amount, oic) {
-    $('#modal-edit-house-expense').modal('show');
-    $('#txtCategory').val(category_id);
+    showBootstrapModal($('#modal-edit-house-expense'));
     $('#txtReceiptNo').val(receipt_no);
 
     // ✅ Sanitize and format datetime properly
@@ -1671,7 +2386,6 @@ function edit_expense(id, category_id, receipt_no, datetimeval, description, amo
     expense_id = id;
 
     edit_expense_category(category_id);
-    // edit_get_agent(oic);
 }
 
 
@@ -1715,7 +2429,7 @@ function archive_expense(id) {
 }
 
 function edit_return_money(id, description, amount) {
-    $('#modal-edit-return-money').modal('show');
+    showBootstrapModal($('#modal-edit-return-money'));
     $('#txtReturnMoneyDescription').val(description);
     
     // Format amount with commas
@@ -1799,7 +2513,7 @@ $(document).ready(function() {
                     allowOutsideClick: false
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        $('#modal-edit-return-money').modal('hide');
+                        hideBootstrapModal($('#modal-edit-return-money'));
                         window.location.reload();
                     }
                 });
@@ -1820,40 +2534,65 @@ $(document).ready(function() {
     });
 });
 
-function expense_category() {
+function expense_category(selectedCategoryId, done, options) {
+    options = options && typeof options === 'object' ? options : {};
     $.ajax({
         url: '/expense_category_data',
         method: 'GET',
         success: function (response) {
-            window.houseExpenseCategoryCatalog = (response || [])
-                .map(function (o) {
-                    return o.CATEGORY != null ? String(o.CATEGORY).trim() : '';
-                })
-                .filter(Boolean)
-                .sort(function (a, b) {
-                    return String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
-                });
-            if (window.houseExpenseLastRows && $('#expense-main-cat-list').length) {
+            cacheHouseExpenseCategoryData(response || []);
+            window.houseExpenseCategoryTree = buildHouseExpenseCategoryTreeFromFlat(response || []);
+            window.houseExpenseCategoryCatalog = window.houseExpenseCategoryTree;
+            if (
+                !options.skipExplorerRefresh &&
+                window.houseExpenseLastRows &&
+                $('#expense-main-cat-list').length
+            ) {
                 refreshHouseExpenseExplorerOnly();
             }
-            var selectOptions = $('#expense-category-select');
-            if (!selectOptions.length) return;
-            selectOptions.empty();
-            selectOptions.append($('<option>', {
-                value: '',
-                text: window.houseExpenseTranslations?.select_expense_category || '--SELECT EXPENSE CATEGORY--'
-            }));
-            response.forEach(function (option) {
-                selectOptions.append($('<option>', {
-                    value: option.IDNo,
-                    text: option.CATEGORY
-                }));
-            });
+
+            populateHouseExpenseMainCategorySelect($('#expense-main-category-select'));
+            populateHouseExpenseMainCategorySelect($('#expense-edit-main-category-select'));
+            refreshHouseExpenseSubCategorySelect(null, null, $('#expense-sub-category-select'), $('#house-expense-sub-category-wrap'));
+            refreshHouseExpenseSubCategorySelect(null, null, $('#expense-edit-sub-category-select'), $('#house-expense-edit-sub-category-wrap'));
+
+            if (selectedCategoryId) {
+                setHouseExpenseCategoryPickersFromId(selectedCategoryId);
+            }
+
+            if (typeof done === 'function') done();
         },
-        error: function (xhr, status, error) {
-            // Error fetching options
+        error: function () {
+            if (typeof done === 'function') done();
         }
     });
+}
+
+function setHouseExpenseCategoryPickersFromId(categoryId) {
+    var flat = window.houseExpenseCategoryFlat || [];
+    var row = flat.find(function (r) {
+        return Number(r.IDNo) === Number(categoryId);
+    });
+    if (!row) return;
+
+    var isSub = row.PARENT_ID != null && Number(row.PARENT_ID) > 0;
+    if (isSub) {
+        $('#expense-edit-main-category-select').val(String(row.PARENT_ID));
+        refreshHouseExpenseSubCategorySelect(row.PARENT_ID, row.IDNo, $('#expense-edit-sub-category-select'), $('#house-expense-edit-sub-category-wrap'));
+        $('#expense-edit-sub-category-select').val(String(row.IDNo));
+    } else {
+        $('#expense-edit-main-category-select').val(String(row.IDNo));
+        refreshHouseExpenseSubCategorySelect(row.IDNo, null, $('#expense-edit-sub-category-select'), $('#house-expense-edit-sub-category-wrap'));
+    }
+    syncHouseExpenseCategoryHiddenField(
+        '#expense-edit-main-category-select',
+        '#expense-edit-sub-category-select',
+        '#house-expense-edit-category-id'
+    );
+}
+
+function edit_expense_category(id) {
+    expense_category(id);
 }
 
 function get_agent() {
@@ -1880,37 +2619,6 @@ function get_agent() {
     });
 }
 
-function edit_expense_category(id) {
-    $.ajax({
-        url: '/expense_category_data',
-        method: 'GET',
-        success: function (response) {
-            var selectOptions = $('.txtCategory');
-            selectOptions.empty();
-            selectOptions.append($('<option>', {
-                selected: false,
-                value: '',
-                text: window.houseExpenseTranslations?.select_expense_category || '--SELECT EXPENSE CATEGORY--',
-                disabled: true // Disable the default option
-            }));
-            response.forEach(function (option) {
-                var selected = false;
-                if (option.IDNo == id) {
-                    selected = true;
-                }
-                selectOptions.append($('<option>', {
-                    selected: selected,
-                    value: option.IDNo,
-                    text: option.CATEGORY
-                }));
-            });
-        },
-        error: function (xhr, status, error) {
-            // Error fetching options
-        }
-    });
-}
-
 $(document).ready(function () {
     $("input[data-type='number']").keyup(function (event) {
         // skip for arrow keys
@@ -1923,10 +2631,50 @@ $(document).ready(function () {
         $this.val(num2);
     });
 
+    $(document).on('change', '#expense-main-category-select', function () {
+        refreshHouseExpenseSubCategorySelect(
+            $(this).val(),
+            null,
+            $('#expense-sub-category-select'),
+            $('#house-expense-sub-category-wrap')
+        );
+        syncHouseExpenseCategoryHiddenField(
+            '#expense-main-category-select',
+            '#expense-sub-category-select',
+            '#house-expense-category-id'
+        );
+    });
+    $(document).on('change', '#expense-sub-category-select', function () {
+        syncHouseExpenseCategoryHiddenField(
+            '#expense-main-category-select',
+            '#expense-sub-category-select',
+            '#house-expense-category-id'
+        );
+    });
+    $(document).on('change', '#expense-edit-main-category-select', function () {
+        refreshHouseExpenseSubCategorySelect(
+            $(this).val(),
+            null,
+            $('#expense-edit-sub-category-select'),
+            $('#house-expense-edit-sub-category-wrap')
+        );
+        syncHouseExpenseCategoryHiddenField(
+            '#expense-edit-main-category-select',
+            '#expense-edit-sub-category-select',
+            '#house-expense-edit-category-id'
+        );
+    });
+    $(document).on('change', '#expense-edit-sub-category-select', function () {
+        syncHouseExpenseCategoryHiddenField(
+            '#expense-edit-main-category-select',
+            '#expense-edit-sub-category-select',
+            '#house-expense-edit-category-id'
+        );
+    });
+
     // New house expense modal: bind only when jQuery and DOM are ready (fixes "$ is not defined")
     var isSubmittingNewExpense = false;
     $('#modal-new-house-expense').on('shown.bs.modal', function () {
-        expense_category();
         isSubmittingNewExpense = false;
         var $btn = $('#btn-save-new-expense');
         var originalText = $btn.data('original-text') || $btn.html();
@@ -1934,6 +2682,9 @@ $(document).ready(function () {
         if (!isViewOnly) $btn.prop('disabled', false).html(originalText);
         var $form = $('#add_junket_house_expense');
         if ($form.length) $form[0].reset();
+        expense_category(null, function () {
+            applyHouseExpenseExplorerToNewExpenseForm();
+        });
     });
     $('#modal-new-house-expense').on('hidden.bs.modal', function () {
         isSubmittingNewExpense = false;
@@ -1945,6 +2696,23 @@ $(document).ready(function () {
     $('#add_junket_house_expense').on('submit', function (event) {
         event.preventDefault();
         if (isSubmittingNewExpense) return false;
+        var resolvedCategory = syncHouseExpenseCategoryHiddenField(
+            '#expense-main-category-select',
+            '#expense-sub-category-select',
+            '#house-expense-category-id'
+        );
+        if (!$('#expense-main-category-select').val()) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Inserting Error', text: 'Please select a main category.' });
+            }
+            return false;
+        }
+        if (!resolvedCategory) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'error', title: 'Inserting Error', text: 'Please select a sub category.' });
+            }
+            return false;
+        }
         var isValid = true;
         $(this).find(':input[required]').each(function () {
             if ($(this).val() === '') {
@@ -1976,12 +2744,12 @@ $(document).ready(function () {
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({ icon: 'success', title: 'Added successfully', confirmButtonText: 'OK', showConfirmButton: true }).then(function () {
                         if (typeof reloadData === 'function') reloadData();
-                        $('#modal-new-house-expense').modal('hide');
+                        hideBootstrapModal($('#modal-new-house-expense'));
                         window.location.reload();
                     });
                 } else {
                     if (typeof reloadData === 'function') reloadData();
-                    $('#modal-new-house-expense').modal('hide');
+                    hideBootstrapModal($('#modal-new-house-expense'));
                     window.location.reload();
                 }
             },
@@ -2059,12 +2827,12 @@ $(document).ready(function () {
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({ icon: 'success', title: 'Added successfully', confirmButtonText: 'OK', showConfirmButton: true }).then(function () {
                         if (typeof reloadData === 'function') reloadData();
-                        $('#modal-new-return-money').modal('hide');
+                        hideBootstrapModal($('#modal-new-return-money'));
                         window.location.reload();
                     });
                 } else {
                     if (typeof reloadData === 'function') reloadData();
-                    $('#modal-new-return-money').modal('hide');
+                    hideBootstrapModal($('#modal-new-return-money'));
                     window.location.reload();
                 }
             },
@@ -2081,7 +2849,7 @@ $(document).ready(function () {
         return false;
     });
 
-    var HOUSE_EXPENSE_EXPORT_COL_INDEXES = [0, 1, 2, 3, 5]; // Exclude ENCODED BY (index 4)
+    var HOUSE_EXPENSE_EXPORT_COL_INDEXES = [0, 1, 2, 3, 4];
     var HOUSE_EXPENSE_EXPORT_NUM_COLS = HOUSE_EXPENSE_EXPORT_COL_INDEXES.length;
     var HOUSE_EXPENSE_EXPORT_COL_MIN_WIDTHS = [14, 18, 14, 12, 20];
     var HOUSE_EXPENSE_EXPORT_COL_MAX_WIDTHS = [30, 56, 24, 18, 26];
@@ -2174,7 +2942,7 @@ $(document).ready(function () {
         var noDataMsg = (window.houseExpenseTranslations && window.houseExpenseTranslations.no_data_found) || 'No data found';
         dt.rows({ search: 'applied' }).every(function () {
             var data = this.data();
-            if (!data || data.length < 6) return;
+            if (!data || data.length < 5) return;
             var firstText = $('<div>').html(data[0]).text().trim();
             if (firstText === noDataMsg) return;
             var cells = [];

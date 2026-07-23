@@ -445,7 +445,10 @@ router.get('/users', async (req, res) => {
 	try {
 		const query = `
 			SELECT *, 
-				COALESCE(user_role.ROLE, 'Super Admin') AS role, 
+				COALESCE(
+					user_role.ROLE,
+					CASE user_info.PERMISSIONS WHEN -1 THEN 'Expense Handler' ELSE 'Super Admin' END
+				) AS role, 
 				user_info.IDNo AS user_id 
 			FROM user_info 
 			LEFT JOIN user_role ON user_role.IDno = user_info.PERMISSIONS 

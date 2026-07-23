@@ -122,12 +122,12 @@ function renderPage(data, page = 1, perPage = 30) {
   const end = start + perPage;
   const currentPageData = data.slice(start, end);
 
-  const permissions = parseInt($('#user-role').data('permissions'));
+  const isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly();
 
   currentPageData.forEach(function(row) {
     let btn = '';
 
-    if (permissions !== 2) {
+    if (!isViewOnly) {
       btn = `
         <div class="btn-group">
           <button type="button" onclick="edit_agency(${row.IDNo}, '${row.AGENCY}','${row.REMARKS}')"

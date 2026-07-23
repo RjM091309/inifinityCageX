@@ -307,7 +307,7 @@
 $(document).ready(function() {
   // 1) Permissions
   const permissions = parseInt($('#user-role').data('permissions')) || 0;
-  if (permissions === 2) {
+  if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
     $('#add_junket_total_chips button[type="submit"]').prop('disabled', true);
   }
 

@@ -345,7 +345,7 @@
 		"archive_expense": "Archive Expense",
 		"type": "Type",
 		"date": "Date",
-		"name": "NAME",
+		"name": "CATEGORY",
 		"type_goods": "Goods / Consumables",
 		"type_non_goods": "Non-goods / Services",
 		"export": "Export",

@@ -344,6 +344,21 @@ aside.sidebar .sidebar-footer {
                       <span class="mini-icon">-</span>
                   </a>
               </li>
+              <% const isExpenseHandler = typeof permissions !== 'undefined' && Number(permissions) === -1; %>
+              <% if (isExpenseHandler) { %>
+            <li class="nav-item">
+              <a class="nav-link" href="/expense_category">
+                  <i class="icon">
+                    <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
+                        <g>
+                        <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
+                        </g>
+                    </svg> 
+                  </i>
+                  <span class="item-name"><%= __('sidebar.expense_category') %></span>
+              </a>
+          </li>
+              <% } else { %>
               <li class="nav-item">
                   <a class="nav-link" href="/manage_users">
                       <i class="icon">
@@ -368,18 +383,6 @@ aside.sidebar .sidebar-footer {
                     <span class="item-name"><%= __('sidebar.user_role') %></span>
                 </a>
             </li>
-            <li class="nav-item">
-              <a class="nav-link" href="/expense_category">
-                  <i class="icon">
-                    <svg class="icon-10" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 24 24" fill="currentColor">
-                        <g>
-                        <circle cx="12" cy="12" r="8" fill="currentColor"></circle>
-                        </g>
-                    </svg> 
-                  </i>
-                  <span class="item-name"><%= __('sidebar.expense_category') %></span>
-              </a>
-          </li>
           <li class="nav-item">
             <a class="nav-link" href="/telegramAPI">
                 <i class="icon">
@@ -416,6 +419,7 @@ aside.sidebar .sidebar-footer {
               <span class="item-name"><%= __('sidebar.activity_log') %></span>
           </a>
       </li>
+      <% } %>
       <% if (typeof permissions !== 'undefined' && permissions === 0) { %>
       <li class="nav-item">
         <a class="nav-link <%= currentPage === 'net_profit' ? 'active bg-gradient-primary' : '' %>" href="/net_profit">

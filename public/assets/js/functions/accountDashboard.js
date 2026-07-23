@@ -116,12 +116,13 @@ $(document).ready(function () {
                 const balanceRows = [];
                 const allRows = [];
                 const permissions = parseInt($('#user-role').data('permissions'));
+                const isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly();
 
                 (accounts || []).forEach(row => {
                     const totalAmount = Number(row.total_balance ?? row.total_ledger_amount ?? 0);
                     totalAmountAll += totalAmount;
 
-                    const account_no = permissions !== 2
+                    const account_no = !isViewOnly
                         ? `<a href="#" onclick="account_details(${row.account_id}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code}</a>`
                         : `<span>${row.agent_code}</span>`;
 

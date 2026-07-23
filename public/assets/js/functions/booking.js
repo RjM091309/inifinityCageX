@@ -115,9 +115,9 @@ function addBooking() {
             }
   
             // Button options depende sa user permissions
-            const permissions = parseInt($('#user-role').data('permissions'));
+            const isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly();
             var btn = '';
-            if (permissions !== 2) {
+            if (!isViewOnly) {
               btn = `<center>
                         <div class="btn-group booking-action-group" role="group" aria-label="Booking actions">
                           <button type="button" class="btn btn-sm btn-primary booking-action-btn" title="${window.bookingTranslations?.check_in || 'Check-In'}" onclick="checkIn(${row.IDNo})">

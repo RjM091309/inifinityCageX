@@ -1045,8 +1045,8 @@
 
     function applyPermissions(disableSaveExport, submitBtnSelector, exportBtnSelector) {
         if (!disableSaveExport) return;
-        var perms = parseInt($('#user-role').data('permissions'), 10);
-        if (perms === 2) {
+        var isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly();
+        if (isViewOnly) {
             $(submitBtnSelector || '#submit_marker_settlement').prop('disabled', true);
             $(exportBtnSelector || '#export-excel').prop('disabled', true);
         }

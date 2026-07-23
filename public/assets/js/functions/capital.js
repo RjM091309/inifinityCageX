@@ -103,9 +103,9 @@ function reloadData() {
 
                 // Show delete button ONLY for Cash Balance rows (and if permissions allow)
                 let btn = '';
-                const permissions = parseInt($('#user-role').data('permissions'));
+                const isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly();
                 if (isCashBalance) {
-                    if (permissions !== 2) {
+                    if (!isViewOnly) {
                         btn = `<button type="button" onclick="archive_capital(${row.IDNo})" class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
                                         data-bs-toggle="tooltip" aria-label="Archive" data-bs-original-title="Archive">
                                         <i class="fa fa-trash-alt"></i>
@@ -1540,8 +1540,8 @@ function fetchTotalJunketExpense() {
 
 
 function getActionButton(id) {
-    const permissions = parseInt($('#user-role').data('permissions'));
-    if (permissions !== 2) {
+    const isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly();
+    if (!isViewOnly) {
         return `<button type="button" onclick="archive_capital(${id})" 
                 class="btn btn-sm btn-alt-danger js-bs-tooltip-enabled"
                 data-bs-toggle="tooltip" 

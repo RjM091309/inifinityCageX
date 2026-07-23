@@ -120,6 +120,7 @@ $(document).ready(function () {
 	}
 
 	const permissions = parseInt($('#user-role').data('permissions'));
+	const isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly();
 
 	// Get translations or use defaults
 	const translations = window.translations?.agent || {};
@@ -212,7 +213,7 @@ $(document).ready(function () {
 				data: null,
 				render: function (data, type, row) {
 					if (type !== 'display') return '';
-					return renderAgentActionCell(row, permissions === 2);
+					return renderAgentActionCell(row, isViewOnly);
 				}
 			}
 		],
@@ -248,7 +249,7 @@ $(document).ready(function () {
 	};
 
 	$(document).on('change', '.btn-toggle-agent-telegram', function () {
-		if (permissions === 2) return;
+		if (isViewOnly) return;
 
 		const $toggle = $(this);
 		const agentId = parseInt($toggle.data('agent-id'), 10);

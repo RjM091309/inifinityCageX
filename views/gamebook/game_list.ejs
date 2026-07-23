@@ -1139,7 +1139,7 @@ table.dataTable tbody tr.highlight-row {
 						});
 						const permissions = parseInt($('#user-role').data('permissions'));
 
-						if (permissions === 2) {
+						if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
 							$('.wrap .button').prop('disabled', true);
 						} else {
 							$('.wrap .button').prop('disabled', false);

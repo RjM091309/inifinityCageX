@@ -189,15 +189,12 @@ border-top: 2px solid #dee2e6;
 							</div>
 						</form>
 					</div>
-					</div>
-					
 					<div class="modal-footer">
 						<button type="button" class="btn btn-sm btn-alt-secondary" data-bs-dismiss="modal"><%= __('dashboard_new_capital.close') %></button>
 					</div>
-				
+			</div>
 		</div>
 	</div>
-</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 <script>
@@ -205,8 +202,7 @@ border-top: 2px solid #dee2e6;
 		// Retrieve the permissions value from the data attribute
 		const permissions = parseInt($('#user-role').data('permissions'));
 
-		// Disable the submit button if permissions are 2
-		if (permissions === 2) {
+		if (window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly()) {
 			$('#add_junket_capital button[type="submit"]').prop('disabled', true);
 		}
 

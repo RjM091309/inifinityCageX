@@ -1741,7 +1741,7 @@ pageRouter.put('/user_role/remove/:id', (req, res) => {
 
 //Get Users
 pageRouter.get('/users', (req, res) => {
-	connection.query('SELECT *, COALESCE(user_role.ROLE, \'Super Admin\') AS role, user_info.IDNo AS user_id FROM user_info LEFT JOIN user_role ON user_role.IDno = user_info.PERMISSIONS WHERE user_info.ACTIVE = 1', (error, results, fields) => {
+	connection.query('SELECT *, COALESCE(user_role.ROLE, CASE user_info.PERMISSIONS WHEN -1 THEN \'Expense Handler\' ELSE \'Super Admin\' END) AS role, user_info.IDNo AS user_id FROM user_info LEFT JOIN user_role ON user_role.IDno = user_info.PERMISSIONS WHERE user_info.ACTIVE = 1', (error, results, fields) => {
 		if (error) {
 			console.error('Error fetching data:', error);
 			res.status(500).send('Error fetching data');
@@ -2604,6 +2604,11 @@ pageRouter.put('/credit_status/remove/:id', (req, res) => {
 
 // ADD EXPENSE CATEGORY
 pageRouter.post('/add_expense_category', (req, res) => {
+	const { canAddExpenseCategory } = require('../utils/permissions');
+	if (!canAddExpenseCategory(req.session?.permissions)) {
+		return res.status(403).send('Only Expense Handler can add categories');
+	}
+
 	const {
 		txtCategory
 	} = req.body;

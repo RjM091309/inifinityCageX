@@ -635,23 +635,29 @@ function setupBotErrorHandlers(bot, botType) {
       error.code === 'ETIMEDOUT' ||
       error.code === 'ECONNRESET';
     
+    const ts = formatTelegramLogTime();
+
     if (isNetworkError) {
-      console.warn(`⚠️ [${formatTelegramLogTime()}] Network issue detected for ${botType} bot (slow/unstable internet):`, errorMsg);
-      console.log(`🔄 [${formatTelegramLogTime()}] Bot will automatically retry. If this persists, check your internet connection.`);
+      console.warn(`⚠️ [${ts}] Network issue detected for ${botType} bot (slow/unstable internet):`, errorMsg);
+      console.log(`🔄 [${ts}] Bot will automatically retry. If this persists, check your internet connection.`);
       // The bot will automatically retry, no need to restart manually
     } else {
-      console.error(`❌ Fatal polling error for ${botType} bot:`, errorMsg);
+      console.error(`❌ [${ts}] Fatal polling error for ${botType} bot:`, errorMsg);
       if (/409|Conflict|getUpdates/i.test(errorMsg)) {
         console.error(
-          '   → Parehong GUEST bot token: may isa pang getUpdates polling (duplicate npm run dev, lumang Node, ibang PC, o “Open API” sa BotFather). Isang bot instance lang.',
+          `   → [${ts}] Parehong ${botType} bot token: may isa pang getUpdates polling (duplicate npm run dev, lumang Node, ibang PC, o "Open API" sa BotFather). Isang bot instance lang.`,
         );
+      } else if (/502|Bad Gateway/i.test(errorMsg)) {
+        console.error(`   → [${ts}] Problema sa Telegram servers — pansamantala lang. Hintayin; auto-retry ang bot.`);
+      } else if (/429|Too Many Requests/i.test(errorMsg)) {
+        console.error(`   → [${ts}] Sobrang dami ng request — rate limit. Huwag mag-restart nang paulit-ulit.`);
       }
     }
   });
 
   // Handle general errors
   bot.on('error', (error) => {
-    console.error(`❌ Telegram ${botType} bot error:`, error.message);
+    console.error(`❌ [${formatTelegramLogTime()}] Telegram ${botType} bot error:`, error.message);
   });
 }
 

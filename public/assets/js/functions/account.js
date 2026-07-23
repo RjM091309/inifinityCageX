@@ -198,7 +198,8 @@ $(document).ready(function () {
 						`;
 					}
 
-					const account_no = permissions !== 2
+					const isViewOnly = window.PermissionViewOnly && window.PermissionViewOnly.isViewOnly();
+					const account_no = !isViewOnly
 						? `<a href="#" onclick="account_details(${row.account_id}, '${escapeJsString(row.agent_code)}', '${escapeJsString(row.agent_name)}')">${row.agent_code}</a>`
 						: `<span>${row.agent_code}</span>`;
 

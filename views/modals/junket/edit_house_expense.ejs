@@ -11,12 +11,20 @@
                     <div class="row mb-3">
                         <div class="col-sm-12 form-floating-outline">
                             <label class="form-label"><%= __('modal_edit_house_expense.category_placeholder') %></label>
-                            <select class="select2 form-select txtCategory" id="txtCategory" name="txtCategory" style="width: 100%;"
-                                data-placeholder="">
+                            <select class="select2 form-select" id="expense-edit-main-category-select" style="width: 100%;" required>
                                 <option value=""></option>
                             </select>
                         </div>
                     </div>
+                    <div class="row mb-3 d-none" id="house-expense-edit-sub-category-wrap">
+                        <div class="col-sm-12 form-floating-outline">
+                            <label class="form-label">Sub category</label>
+                            <select class="select2 form-select" id="expense-edit-sub-category-select" style="width: 100%;">
+                                <option value=""></option>
+                            </select>
+                        </div>
+                    </div>
+                    <input type="hidden" name="txtCategory" id="house-expense-edit-category-id" />
                     <div class="row mb-3">
                         <div class="col-sm-12 form-floating-outline">
                             <label class="form-label"><%= __('modal_edit_house_expense.receipt_photo') || 'Receipt Photo' %></label>
