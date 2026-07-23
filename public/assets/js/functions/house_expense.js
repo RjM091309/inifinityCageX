@@ -2364,8 +2364,9 @@ function returnMoney() {
 }
 
 function edit_expense(id, category_id, receipt_no, datetimeval, description, amount, oic) {
-    showBootstrapModal($('#modal-edit-house-expense'));
-    $('#txtReceiptNo').val(receipt_no);
+    var $modal = $('#modal-edit-house-expense');
+    showBootstrapModal($modal);
+    $modal.find('[name="txtReceiptNo"]').val(receipt_no);
 
     // ✅ Sanitize and format datetime properly
     let formattedDate = '';
@@ -2378,9 +2379,9 @@ function edit_expense(id, category_id, receipt_no, datetimeval, description, amo
         }
     }
 
-    $('#txtDateandTime').val(formattedDate);
-    $('#txtDescription').val(description);
-    $('#txtAmount').val(amount);
+    $modal.find('[name="txtDateandTime"]').val(formattedDate);
+    $modal.find('[name="txtDescription"]').val(description);
+    $modal.find('[name="txtAmount"]').val(amount);
     // $('#txtOfficerInCharge').val(oic);
 
     expense_id = id;
