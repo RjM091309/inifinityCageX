@@ -400,26 +400,36 @@ ON
 		INNER JOIN currency_master c ON c.ID = t.EXCHANGE_CURRENCY_ID
 		WHERE t.ACTIVE = 1 AND t.TRANS_TYPE = 1 AND c.CODE = 'PHP'
 	`;
-	// Net MX cash impact for dashboard:
-	// - Pending deposit: include principal cash movement
-	// - Returned deposit: include realized margin only
+	// Net MX cash impact for dashboard (supports partial returns):
+	// - Pending principal (base − returned principal) stays in cash
+	// - Returned principal = SUM(RETURN_AMOUNT − MARGIN_RETURN) per deposit
+	// - Realized margin always included
 	let sqlMxCashNet = `
 		SELECT
 			COALESCE(SUM(
 				CASE
-					WHEN r.ID IS NOT NULL THEN COALESCE(r.MARGIN_RETURN, 0)
-					WHEN in_ccy.CODE = 'PHP' AND ex_ccy.CODE <> 'PHP' THEN COALESCE(d.AMOUNT_IN, 0)
-					WHEN ex_ccy.CODE = 'PHP' AND in_ccy.CODE <> 'PHP' THEN -COALESCE(d.EXCHANGE_AMOUNT, 0)
-					ELSE 0
+					WHEN in_ccy.CODE = 'PHP' AND ex_ccy.CODE <> 'PHP' THEN
+						GREATEST(0, COALESCE(d.AMOUNT_IN, 0) - COALESCE(ret.returned_principal, 0))
+						+ COALESCE(ret.total_margin, 0)
+					WHEN ex_ccy.CODE = 'PHP' AND in_ccy.CODE <> 'PHP' THEN
+						-GREATEST(0, COALESCE(d.EXCHANGE_AMOUNT, 0) - COALESCE(ret.returned_principal, 0))
+						+ COALESCE(ret.total_margin, 0)
+					ELSE
+						COALESCE(ret.total_margin, 0)
 				END
 			), 0) AS MX_CASH_NET
 		FROM money_exchange_transaction d
 		LEFT JOIN currency_master in_ccy ON in_ccy.ID = d.IN_CURRENCY_ID
 		LEFT JOIN currency_master ex_ccy ON ex_ccy.ID = d.EXCHANGE_CURRENCY_ID
-		LEFT JOIN money_exchange_transaction r
-			ON r.SOURCE_DEPOSIT_ID = d.ID
-			AND r.TRANS_TYPE = 2
-			AND r.ACTIVE = 1
+		LEFT JOIN (
+			SELECT
+				SOURCE_DEPOSIT_ID,
+				SUM(GREATEST(0, COALESCE(RETURN_AMOUNT, 0) - COALESCE(MARGIN_RETURN, 0))) AS returned_principal,
+				SUM(COALESCE(MARGIN_RETURN, 0)) AS total_margin
+			FROM money_exchange_transaction
+			WHERE ACTIVE = 1 AND TRANS_TYPE = 2 AND SOURCE_DEPOSIT_ID IS NOT NULL
+			GROUP BY SOURCE_DEPOSIT_ID
+		) ret ON ret.SOURCE_DEPOSIT_ID = d.ID
 		WHERE d.ACTIVE = 1 AND d.TRANS_TYPE = 1
 	`;
 

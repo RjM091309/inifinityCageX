@@ -255,16 +255,28 @@ async function getRealtimeData() {
     pool.execute('SELECT SUM(AMOUNT) AS JUNKET_LOSS FROM junket_loss WHERE ACTIVE=1'),
     pool.execute(`SELECT COALESCE(SUM(
       CASE
-        WHEN r.ID IS NOT NULL THEN COALESCE(r.MARGIN_RETURN, 0)
-        WHEN in_ccy.CODE = 'PHP' AND ex_ccy.CODE <> 'PHP' THEN COALESCE(d.AMOUNT_IN, 0)
-        WHEN ex_ccy.CODE = 'PHP' AND in_ccy.CODE <> 'PHP' THEN -COALESCE(d.EXCHANGE_AMOUNT, 0)
-        ELSE 0
+        WHEN in_ccy.CODE = 'PHP' AND ex_ccy.CODE <> 'PHP' THEN
+          GREATEST(0, COALESCE(d.AMOUNT_IN, 0) - COALESCE(ret.returned_principal, 0))
+          + COALESCE(ret.total_margin, 0)
+        WHEN ex_ccy.CODE = 'PHP' AND in_ccy.CODE <> 'PHP' THEN
+          -GREATEST(0, COALESCE(d.EXCHANGE_AMOUNT, 0) - COALESCE(ret.returned_principal, 0))
+          + COALESCE(ret.total_margin, 0)
+        ELSE
+          COALESCE(ret.total_margin, 0)
       END
     ), 0) AS MX_CASH_NET
     FROM money_exchange_transaction d
     LEFT JOIN currency_master in_ccy ON in_ccy.ID = d.IN_CURRENCY_ID
     LEFT JOIN currency_master ex_ccy ON ex_ccy.ID = d.EXCHANGE_CURRENCY_ID
-    LEFT JOIN money_exchange_transaction r ON r.SOURCE_DEPOSIT_ID = d.ID AND r.TRANS_TYPE = 2 AND r.ACTIVE = 1
+    LEFT JOIN (
+      SELECT
+        SOURCE_DEPOSIT_ID,
+        SUM(GREATEST(0, COALESCE(RETURN_AMOUNT, 0) - COALESCE(MARGIN_RETURN, 0))) AS returned_principal,
+        SUM(COALESCE(MARGIN_RETURN, 0)) AS total_margin
+      FROM money_exchange_transaction
+      WHERE ACTIVE = 1 AND TRANS_TYPE = 2 AND SOURCE_DEPOSIT_ID IS NOT NULL
+      GROUP BY SOURCE_DEPOSIT_ID
+    ) ret ON ret.SOURCE_DEPOSIT_ID = d.ID
     WHERE d.ACTIVE = 1 AND d.TRANS_TYPE = 1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS ACCOUNT_DEDUCT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_ID=2 AND account_ledger.TRANSACTION_DESC NOT IN ('ACCOUNT DETAILS','SERVICES') AND account.ACTIVE=1 AND agent.ACTIVE=1`),
     pool.execute(`SELECT SUM(account_ledger.AMOUNT) AS MARKER_RETURN_DEPOSIT FROM account_ledger JOIN account ON account.IDNo = account_ledger.ACCOUNT_ID JOIN agent ON agent.IDNo = account.AGENT_ID WHERE account_ledger.ACTIVE=1 AND account_ledger.TRANSACTION_TYPE=3 AND account_ledger.TRANSACTION_ID=12 AND account.ACTIVE=1 AND agent.ACTIVE=1`)

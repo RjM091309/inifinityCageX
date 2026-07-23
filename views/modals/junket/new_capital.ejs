@@ -158,10 +158,8 @@ border-top: 2px solid #dee2e6;
 								(+sqlMArkerReturnCash[0].MARKER_RETURN_CASH || 0) +
 								(+sqlReturnMoney[0].RETURN_MONEY || 0) -
 								(+sqlManualBalancing[0].MANUAL_BALANCING || 0) - 
-								(+sqlJunketLoss[0].JUNKET_LOSS || 0) -
-                                (+sqlMxDepositExchangeAmount[0].MX_DEPOSIT_EXCHANGE || 0) +
-                                (+sqlMxReturnAmount[0].MX_RETURN_AMOUNT || 0) +
-                                (+sqlMxMarginReturn[0].MX_MARGIN_RETURN || 0)
+								(+sqlJunketLoss[0].JUNKET_LOSS || 0) +
+								(+sqlMxCashNet[0].MX_CASH_NET || 0)
 							).toLocaleString() %>" id="cashbal" name="txtcashbal"/>
 							
 							<input type="hidden" name="description" id="description" value="Cash-in">

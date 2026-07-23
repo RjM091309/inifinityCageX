@@ -221,7 +221,7 @@
                      (+sqlJunketLoss[0].JUNKET_LOSS || 0);
 
                   // Money Exchange net cash effect:
-                  // pending principal OR realized margin (if already returned)
+                  // remaining pending principal + realized margin (partial returns supported)
                   const mxCashNet = (+sqlMxCashNet[0].MX_CASH_NET || 0);
                   
                   // Cash Balance = Pure Cash In/Out ONLY
