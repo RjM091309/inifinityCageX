@@ -191,6 +191,34 @@ function syncHouseExpenseExplorerStateAfterCategoryDelete(categoryId) {
     }
 }
 
+function selectHouseExpenseExplorerAfterCategoryAdd(level, categoryName, parentId) {
+    var st = window.houseExpenseExplorerState;
+    if (!st) return;
+
+    categoryName = String(categoryName || '').trim();
+    if (!categoryName) return;
+
+    if (level === 'sub') {
+        if (!st.mainCategory && parentId) {
+            var flat = window.houseExpenseCategoryFlat || [];
+            var parentRow = flat.find(function (r) {
+                return Number(r.IDNo) === Number(parentId);
+            });
+            if (parentRow) {
+                st.mainCategory = String(parentRow.CATEGORY || '').trim();
+            } else {
+                var parentName = String($('#house-expense-quick-cat-parent-name').text() || '').trim();
+                if (parentName) st.mainCategory = parentName;
+            }
+        }
+        st.subCategory = categoryName;
+        return;
+    }
+
+    st.mainCategory = categoryName;
+    st.subCategory = null;
+}
+
 function refreshHouseExpenseAfterCategoryCatalogChange(options) {
     options = options && typeof options === 'object' ? options : {};
     expense_category(
@@ -204,6 +232,12 @@ function refreshHouseExpenseAfterCategoryCatalogChange(options) {
         },
         { skipExplorerRefresh: true }
     );
+}
+
+function refreshHouseExpenseAfterMutation() {
+    if (typeof window.reloadData === 'function') {
+        window.reloadData({ preserveExplorerState: true });
+    }
 }
 
 function buildHouseExpenseCategoryActionsHtml(categoryId) {
@@ -2215,10 +2249,16 @@ $(document).ready(function () {
             method: isEdit ? 'PUT' : 'POST',
             data: payload,
             headers: { Accept: 'application/json' },
-            success: function () {
+            success: function (response) {
                 hideBootstrapModal($('#modal-house-expense-quick-category'));
                 if (isEdit) {
                     syncHouseExpenseExplorerStateAfterCategoryRename(editId, name);
+                } else {
+                    var parentId =
+                        level === 'sub'
+                            ? payload.txtParentId || (response && response.parentId)
+                            : null;
+                    selectHouseExpenseExplorerAfterCategoryAdd(level, name, parentId);
                 }
                 refreshHouseExpenseAfterCategoryCatalogChange({ preserveExplorerState: true });
                 if (typeof Swal !== 'undefined') {
@@ -2333,7 +2373,7 @@ $(document).ready(function () {
                 }).then((result) => {
                     if (result.isConfirmed) {
                         hideBootstrapModal($('#modal-edit-house-expense'));
-                        window.location.reload(); // 🔁 Full page refresh after confirm
+                        refreshHouseExpenseAfterMutation();
                     }
                 });
             },
@@ -2412,7 +2452,7 @@ function archive_expense(id) {
                         allowOutsideClick: false
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            window.location.reload();
+                            refreshHouseExpenseAfterMutation();
                         }
                     });
                 },
@@ -2466,7 +2506,7 @@ function archive_return_money(id) {
                         allowOutsideClick: false
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            window.location.reload();
+                            refreshHouseExpenseAfterMutation();
                         }
                     });
                 },
@@ -2515,7 +2555,7 @@ $(document).ready(function() {
                 }).then((result) => {
                     if (result.isConfirmed) {
                         hideBootstrapModal($('#modal-edit-return-money'));
-                        window.location.reload();
+                        refreshHouseExpenseAfterMutation();
                     }
                 });
             },
@@ -2742,16 +2782,16 @@ $(document).ready(function () {
             processData: false,
             contentType: false,
             success: function (response) {
+                isSubmittingNewExpense = false;
+                $submitBtn.prop('disabled', false).html(originalText);
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({ icon: 'success', title: 'Added successfully', confirmButtonText: 'OK', showConfirmButton: true }).then(function () {
-                        if (typeof reloadData === 'function') reloadData();
                         hideBootstrapModal($('#modal-new-house-expense'));
-                        window.location.reload();
+                        refreshHouseExpenseAfterMutation();
                     });
                 } else {
-                    if (typeof reloadData === 'function') reloadData();
                     hideBootstrapModal($('#modal-new-house-expense'));
-                    window.location.reload();
+                    refreshHouseExpenseAfterMutation();
                 }
             },
             error: function (xhr, status, error) {
@@ -2825,16 +2865,16 @@ $(document).ready(function () {
             type: 'POST',
             data: formData,
             success: function (response) {
+                isSubmittingReturnMoney = false;
+                $submitBtn.prop('disabled', false).html(originalText);
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({ icon: 'success', title: 'Added successfully', confirmButtonText: 'OK', showConfirmButton: true }).then(function () {
-                        if (typeof reloadData === 'function') reloadData();
                         hideBootstrapModal($('#modal-new-return-money'));
-                        window.location.reload();
+                        refreshHouseExpenseAfterMutation();
                     });
                 } else {
-                    if (typeof reloadData === 'function') reloadData();
                     hideBootstrapModal($('#modal-new-return-money'));
-                    window.location.reload();
+                    refreshHouseExpenseAfterMutation();
                 }
             },
             error: function (xhr, status, error) {
