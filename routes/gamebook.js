@@ -3520,11 +3520,16 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 				if (depositTotal > 0) splitLinesKo.push(`계좌출금: ${depositTotal.toLocaleString()}`);
 				if (creditTotal > 0) splitLinesKo.push(`크레딧: ${creditTotal.toLocaleString()}`);
 				const splitTextBlockKo = splitLinesKo.join('\n');
+				const splitLinesMgmt = [];
+				if (cashTotal > 0) splitLinesMgmt.push(`현금 Cash : ${cashTotal.toLocaleString()}`);
+				if (depositTotal > 0) splitLinesMgmt.push(`계좌출금 Deposit : ${depositTotal.toLocaleString()}`);
+				if (creditTotal > 0) splitLinesMgmt.push(`크레딧 Credit : ${creditTotal.toLocaleString()}`);
+				const splitTextBlockMgmt = splitLinesMgmt.join('\n');
 				const priorBuyin = parseFloat((txtTotalAmountBuyin || '0').toString().replace(/,/g, '')) || 0;
 				const totalBuyin = priorBuyin + grandTotal;
 				const newTotalBalance = totalBalance - depositTotal;
 				const text = `Infinity Cage\n\n* 추가 바이인 *\n\n계정: ${agentCode} - ${agentName}\n게임 #: ${gameLineKoSplitBuyin}\n${splitTextBlockKo}\n바이인 합계: ${totalBuyin.toLocaleString()}${depositTotal > 0 ? `\n잔고: ${newTotalBalance.toLocaleString()}` : ''}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
-				const managementText = `Infinity Cage\n\n* 추가 바이인 Add Buy-in *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameLineMgmtSplitBuyin}\n바이인 합계 Total Buy-in : ${totalBuyin.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
+				const managementText = `Infinity Cage\n\n* 추가 바이인 Add Buy-in *\n\n계정 Account : ${agentCode} - ${agentName}\n게임 Game #: ${gameLineMgmtSplitBuyin}\n${splitTextBlockMgmt}\n바이인 Buy-in : ${grandTotal.toLocaleString()}\n바이인 합계 Total Buy-in : ${totalBuyin.toLocaleString()}\n\n날짜 Date : ${date_nowTG}\n시간 Time : ${updated_time}`;
 
 				const addBuyinSplitOpts = gamebookTelegramOpts('Add Buy-in', agentCode, agentName, grandTotal, game_id);
 
