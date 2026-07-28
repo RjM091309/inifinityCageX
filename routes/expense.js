@@ -335,10 +335,17 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 			dailySettlementStatus
 		]);
 
-		const [categoryRows] = await pool.execute('SELECT CATEGORY FROM expense_category WHERE IDNo = ? LIMIT 1', [
-			category
-		]);
-		const expenseCategoryName = (categoryRows[0] && categoryRows[0].CATEGORY) ? categoryRows[0].CATEGORY : '-';
+		const [categoryRows] = await pool.execute(
+			`SELECT ec.CATEGORY, parent.CATEGORY AS PARENT_CATEGORY
+			 FROM expense_category ec
+			 LEFT JOIN expense_category parent ON parent.IDNo = ec.PARENT_ID AND parent.ACTIVE = 1
+			 WHERE ec.IDNo = ? LIMIT 1`,
+			[category]
+		);
+		const selectedCategory = categoryRows[0] || {};
+		const expenseCategoryName = selectedCategory.CATEGORY || '-';
+		const expenseMainCategoryName = selectedCategory.PARENT_CATEGORY || expenseCategoryName;
+		const expenseSubCategoryName = selectedCategory.PARENT_CATEGORY ? expenseCategoryName : 'N/A';
 
 		const cashTransactionQuery = `
 			INSERT INTO cash_transaction (TRANSACTION_ID, AGENT_ID, AMOUNT, CATEGORY, TYPE, REMARKS, ENCODED_BY, ENCODED_DT)
@@ -375,9 +382,10 @@ router.post('/add_junket_house_expense', uploadReceiptImg.single('photo'), async
 
 		// Create Telegram message
 		const telegramMessage = `Infinity Cage\n\n* Junket Expense *\n\n` +
-			`Category: ${expenseCategoryName}\n` +
-			`Receipt No: ${receiptNo || 'N/A'}\n` +
-			`Description: ${description || 'N/A'}\n` +
+			`Main Category: ${expenseMainCategoryName}\n` +
+			`Sub Category: ${expenseSubCategoryName}\n` +
+			`Description: ${receiptNo || 'N/A'}\n` +
+			`In-Charge: ${description || 'N/A'}\n` +
 			`Amount: ₱${amount.toLocaleString()}\n\n` +
 			`Encoded By: ${encodedByName}\n` +
 			`Date: ${dateFormatted}\n` +
@@ -960,10 +968,17 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 				[id, req.session.user_id, date_now, changesText]
 			);
 		}
-		const [categoryRows] = await pool.execute('SELECT CATEGORY FROM expense_category WHERE IDNo = ? LIMIT 1', [
-			txtCategory
-		]);
-		const expenseCategoryName = (categoryRows[0] && categoryRows[0].CATEGORY) ? categoryRows[0].CATEGORY : '-';
+		const [categoryRows] = await pool.execute(
+			`SELECT ec.CATEGORY, parent.CATEGORY AS PARENT_CATEGORY
+			 FROM expense_category ec
+			 LEFT JOIN expense_category parent ON parent.IDNo = ec.PARENT_ID AND parent.ACTIVE = 1
+			 WHERE ec.IDNo = ? LIMIT 1`,
+			[txtCategory]
+		);
+		const selectedCategory = categoryRows[0] || {};
+		const expenseCategoryName = selectedCategory.CATEGORY || '-';
+		const expenseMainCategoryName = selectedCategory.PARENT_CATEGORY || expenseCategoryName;
+		const expenseSubCategoryName = selectedCategory.PARENT_CATEGORY ? expenseCategoryName : 'N/A';
 
 		const cashTransactionUpdateQuery = `
 			UPDATE cash_transaction
@@ -972,10 +987,8 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 		`;
 		await pool.execute(cashTransactionUpdateQuery, [editXAmount.toString(), 'Expenses', expenseCategoryName, req.session.user_id, date_now, id]);
 
-		// Telegram to Management: expense edited with details
+		// Telegram to EMPLOYEE bot: expense edited with details
 		try {
-			const [typeRow] = await pool.execute('SELECT TYPE FROM expense_category WHERE IDNo = ? LIMIT 1', [txtCategory]);
-			const typeLabel = (typeRow[0] && typeRow[0].TYPE === 2) ? 'Non-goods / Services' : 'Goods / Services';
 			const [userRows] = await pool.execute('SELECT FIRSTNAME FROM user_info WHERE IDNo = ? LIMIT 1', [req.session.user_id]);
 			const editedByName = userRows.length > 0 ? (userRows[0].FIRSTNAME || 'Unknown') : 'Unknown';
 			const dateFormatted = date_now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit' });
@@ -983,14 +996,15 @@ router.put('/junket_house_expense/:id', uploadReceiptImg.single('photo'), async 
 			const beforeAmountLabel = oldAmount !== null ? `Before Amount: ₱${oldAmount.toLocaleString()}\n` : '';
 			const editMsg =
 				'Infinity Cage\n\n✏️ * Junket Expense (EDIT) *\n\n' +
-				`Name: ${expenseCategoryName}\n` +
-				`Type: ${typeLabel}\n` +
-				`Receipt #: ${txtReceiptNo || 'N/A'}\n` +
-				`Description: ${txtDescription || 'N/A'}\n` +
+				`Main Category: ${expenseMainCategoryName}\n` +
+				`Sub Category: ${expenseSubCategoryName}\n` +
+				`Description: ${txtReceiptNo || 'N/A'}\n` +
+				`In-Charge: ${txtDescription || 'N/A'}\n` +
 				beforeAmountLabel +
-				`New Amount: ₱${Number(editXAmount).toLocaleString()}\n` +
+				`New Amount: ₱${Number(editXAmount).toLocaleString()}\n\n` +
 				`Edited By: ${editedByName}\n` +
-				`Date & Time: ${dateFormatted} ${timeFormatted}`;
+				`Date: ${dateFormatted}\n` +
+				`Time: ${timeFormatted}`;
 			await sendTelegramToEmployees(editMsg, {
 				logPreview: junketExpenseTelegramLogPreview('edit'),
 				logMeta: {
@@ -1017,15 +1031,18 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 
 		// Fetch expense details before delete for Telegram
 		const [expRows] = await pool.execute(
-			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.AMOUNT, e.ENCODED_BY, ec.CATEGORY, ec.TYPE
+			`SELECT e.CATEGORY_ID, e.RECEIPT_NO, e.DATE_TIME, e.DESCRIPTION, e.AMOUNT, e.ENCODED_BY,
+				ec.CATEGORY, parent.CATEGORY AS PARENT_CATEGORY
 			 FROM junket_house_expense e
 			 LEFT JOIN expense_category ec ON ec.IDNo = e.CATEGORY_ID
+			 LEFT JOIN expense_category parent ON parent.IDNo = ec.PARENT_ID AND parent.ACTIVE = 1
 			 WHERE e.IDNo = ? LIMIT 1`,
 			[id]
 		);
 		const exp = expRows[0];
 		const categoryName = exp ? (exp.CATEGORY || 'N/A') : 'N/A';
-		const typeLabel = exp && exp.TYPE === 2 ? 'Non-goods / Services' : 'Goods / Services';
+		const mainCategoryName = exp ? (exp.PARENT_CATEGORY || categoryName) : 'N/A';
+		const subCategoryName = exp && exp.PARENT_CATEGORY ? categoryName : 'N/A';
 		const receiptNo = exp ? (exp.RECEIPT_NO || 'N/A') : 'N/A';
 		const desc = exp ? (exp.DESCRIPTION || 'N/A') : 'N/A';
 		const amount = exp ? Number(exp.AMOUNT) : 0;
@@ -1054,18 +1071,18 @@ router.put('/junket_house_expense/remove/:id', async (req, res) => {
 			[req.session.user_id, date_now, id, 'Expenses']
 		);
 
-		// Telegram to Management: expense deleted with details
+		// Telegram to EMPLOYEE bot: expense deleted with details
 		try {
 			const deleteMsg =
 				'Infinity Cage\n\n🗑️ * Junket Expense (DELETED) *\n\n' +
-				`Name: ${categoryName}\n` +
-				`Type: ${typeLabel}\n` +
-				`Receipt #: ${receiptNo}\n` +
-				`Description: ${desc}\n` +
-				`Amount: ₱${amount.toLocaleString()}\n` +
-				`Encoded By: ${encodedByName}\n` +
-				`Date & Time: ${deleteDateTimeStr}\n` +
-				`Deleted By: ${editedByName}`;
+				`Main Category: ${mainCategoryName}\n` +
+				`Sub Category: ${subCategoryName}\n` +
+				`Description: ${receiptNo}\n` +
+				`In-Charge: ${desc}\n` +
+				`Amount: ₱${amount.toLocaleString()}\n\n` +
+				`Deleted By: ${encodedByName}\n` +
+				`Date: ${deleteDateFormatted}\n` +
+				`Time: ${deleteTimeFormatted}`;
 			await sendTelegramToEmployees(deleteMsg, {
 				logPreview: junketExpenseTelegramLogPreview('delete'),
 				logMeta: {
