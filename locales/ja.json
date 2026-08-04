@@ -911,8 +911,8 @@
 		"action": "Action",
 		"tab_all": "すべて",
 		"tab_credit": "キャッシュクレジット",
-		"tab_buyin_cash": "Game Credit (Cash)",
-		"tab_buyin_coin": "Game Credit (Coin)",
+		"tab_buyin_cash": "Game Credit",
+		"tab_buyin_coin": "Game Credit (Pending)",
 		"coin_value_peso": "Coin Value",
 		"coin_settle": "Coin",
 		"coin_mode_settle": "Settle Coin Value",
@@ -1253,6 +1253,7 @@
 		"service_deleted": "サービス記録が削除されました。",
 		"delete_failed": "削除失敗",
 		"failed_to_delete": "サービス記録の削除に失敗しました。",
-		"export": "エクスポート"
+		"export": "エクスポート",
+		"select_date_range": "日付範囲を選択"
 	}
 }

@@ -911,8 +911,8 @@
 		"action": "Action",
 		"tab_all": "全部",
 		"tab_credit": "现金信用",
-		"tab_buyin_cash": "Game Credit (Cash)",
-		"tab_buyin_coin": "Game Credit (Coin)",
+		"tab_buyin_cash": "Game Credit",
+		"tab_buyin_coin": "Game Credit (Pending)",
 		"coin_value_peso": "Coin Value",
 		"coin_settle": "Coin",
 		"coin_mode_settle": "Settle Coin Value",
@@ -1253,6 +1253,7 @@
 		"service_deleted": "服务记录已删除。",
 		"delete_failed": "删除失败",
 		"failed_to_delete": "删除服务记录失败。",
-		"export": "导出"
+		"export": "导出",
+		"select_date_range": "选择日期范围"
 	}
 }

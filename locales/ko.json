@@ -911,8 +911,8 @@
 		"action": "Action",
 		"tab_all": "전체",
 		"tab_credit": "캐시 크레딧",
-		"tab_buyin_cash": "Game Credit (Cash)",
-		"tab_buyin_coin": "Game Credit (Coin)",
+		"tab_buyin_cash": "Game Credit",
+		"tab_buyin_coin": "Game Credit (Pending)",
 		"coin_value_peso": "Coin Value",
 		"coin_settle": "Coin",
 		"coin_mode_settle": "Settle Coin Value",
@@ -1253,6 +1253,7 @@
 		"service_deleted": "서비스 기록이 삭제되었습니다.",
 		"delete_failed": "삭제 실패",
 		"failed_to_delete": "서비스 기록 삭제에 실패했습니다.",
-		"export": "내보내기"
+		"export": "내보내기",
+		"select_date_range": "날짜 범위 선택"
 	}
 }

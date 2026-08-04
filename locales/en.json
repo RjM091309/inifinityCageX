@@ -929,8 +929,8 @@
 		"tab_total_credit": "Total Credit",
 		"tab_credit": "Cash Credit",
 		"tab_buyin": "Game Credit",
-		"tab_buyin_cash": "Game Credit (Cash)",
-		"tab_buyin_coin": "Game Credit (Coin)",
+		"tab_buyin_cash": "Game Credit",
+		"tab_buyin_coin": "Game Credit (Pending)",
 		"coin_settle": "Coin",
 		"coin_value_peso": "Coin Value (₱)",
 		"coin_mode_settle": "Settle Coin Value",
@@ -1264,6 +1264,7 @@
 		"service_deleted": "Service record has been deleted.",
 		"delete_failed": "Delete Failed",
 		"failed_to_delete": "Failed to delete service record.",
-		"export": "Export"
+		"export": "Export",
+		"select_date_range": "Select Date Range"
 	}
 }
