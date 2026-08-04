@@ -284,33 +284,63 @@ $(document).ready(function () {
 	});
 
 	$('#add_new_agent').on('submit', function(event) {
-		event.preventDefault(); // Prevent default form submission
-	
-		var formData = new FormData(this); // FormData for file upload
-		var $btn = $('#submit-new-agent-btn'); // Reference to the button
-	
-		// Show spinner loading
+		event.preventDefault();
+
+		var formData = new FormData(this);
+		var $btn = $('#submit-new-agent-btn');
+		var $form = $(this);
+		var savedAgencyLine = Number(formData.get('txtAgencyLine') || $('#txtAgencyLine').val() || 0);
+		var onAgencyPage = $('#agency-grid').length > 0;
+
 		$btn.prop('disabled', true).html(`
 			<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
 			Loading...
 		`);
-	
+
 		$.ajax({
 			url: '/add_agent',
 			type: 'POST',
 			data: formData,
 			processData: false,
 			contentType: false,
+			dataType: 'json',
+			headers: { Accept: 'application/json' },
 			success: function(response) {
+				window.__suppressLedgerReopen = true;
+
+				var m = document.getElementById('modal-new-agent');
+				var Modal = typeof bootstrap !== 'undefined' ? bootstrap.Modal : (typeof Bootstrap !== 'undefined' ? Bootstrap.Modal : null);
+				if (m) {
+					if (Modal) {
+						var inst = Modal.getInstance(m) || Modal.getOrCreateInstance(m);
+						inst.hide();
+					} else {
+						$(m).modal('hide');
+					}
+				}
+
+				$form[0].reset();
+
+				var newAgentId = response && response.agent_id ? parseInt(response.agent_id, 10) : null;
+				var agentCode = formData.get('txtAgenctCode') || (response && response.agent_code) || '';
+				var agentName = formData.get('txtName') || (response && response.agent_name) || '';
+
+				if (onAgencyPage) {
+					$(document).trigger('guest:created', [{
+						agencyId: savedAgencyLine,
+						agentId: newAgentId,
+						agentCode: agentCode,
+						agentName: agentName
+					}]);
+				} else if (typeof window.reloadAgentTable === 'function') {
+					window.reloadAgentTable();
+				}
+
 				Swal.fire({
 					title: 'Success!',
-					text: response.message,
+					text: (response && response.message) ? response.message : 'Agent added successfully.',
 					icon: 'success',
 					confirmButtonText: 'OK'
-				}).then((result) => {
-					if (result.isConfirmed) {
-						window.location.href = '/agency'; // Redirect
-					}
 				});
 			},
 			error: function(xhr) {
@@ -323,7 +353,6 @@ $(document).ready(function () {
 				});
 			},
 			complete: function() {
-				// Reset button on complete
 				$btn.prop('disabled', false).html('Save');
 			}
 		});
@@ -349,13 +378,25 @@ $(document).ready(function () {
 			processData: false,
 			contentType: false,
 			success: function (response) {
+				const onAgencyPage = $('#agency-grid').length > 0;
+				const editedAgentId = agent_id;
+				$('#modal-edit-agent').modal('hide');
+				if (onAgencyPage && typeof window.refreshAgencyPageAfterAgentEdit === 'function') {
+					window.refreshAgencyPageAfterAgentEdit(editedAgentId, {
+						agent_code: $('#txtAgent_code').val(),
+						agent_name: $('#agentName').val(),
+						agent_contact: $('#contact').val(),
+						agent_telegram: $('#telegram').val(),
+						agent_remarks: $('#remarks').val()
+					});
+				}
 				Swal.fire({
 					title: 'Updated Successfully!',
 					text: 'The agent details have been updated.',
 					icon: 'success',
 					confirmButtonText: 'OK'
 				}).then((result) => {
-					if (result.isConfirmed) {
+					if (!onAgencyPage && result.isConfirmed) {
 						window.location.href = '/agent';
 					}
 				});
@@ -378,6 +419,7 @@ $(document).ready(function () {
 	
 	// Function when clicking 'Add Guest'
 	function addAgent() {
+		window.__returnToLedgerOnClose = true;
 		$('#modal-account-ledger').modal('hide');
 		$('#modal-new-agent').modal('show');
 	}
@@ -385,15 +427,33 @@ $(document).ready(function () {
 	// Make globally accessible if needed
 	window.addAgent = addAgent;
 
-	// Auto re-open ledger modal when closing new-agent modal
-	$('#modal-new-agent').on('hidden.bs.modal', function () {
-		$('#modal-account-ledger').modal('show');
+	$('#modal-new-agent').on('show.bs.modal', function () {
+		// Reopen Records only when New Agent was launched from Records modal.
+		window.__returnToLedgerOnClose = $('#modal-account-ledger').hasClass('show');
 	});
 
-		// Auto re-open ledger modal when closing new-agent modal
-		$('#modal-edit-agent').on('hidden.bs.modal', function () {
+	$('#modal-new-agent').on('hidden.bs.modal', function () {
+		if (window.__suppressLedgerReopen) {
+			window.__suppressLedgerReopen = false;
+			window.__returnToLedgerOnClose = false;
+			return;
+		}
+		if (window.__returnToLedgerOnClose) {
 			$('#modal-account-ledger').modal('show');
-		});
+		}
+		window.__returnToLedgerOnClose = false;
+	});
+
+	$('#modal-edit-agent').on('hidden.bs.modal', function () {
+		if (window.__suppressLedgerReopen) {
+			window.__suppressLedgerReopen = false;
+			return;
+		}
+		if (window.__returnToLedgerOnEditClose) {
+			$('#modal-account-ledger').modal('show');
+		}
+		window.__returnToLedgerOnEditClose = false;
+	});
 
 
 });
@@ -401,6 +461,7 @@ $(document).ready(function () {
 
 
 function edit_agent(id, agent_code, agentName, contact, telegram, remarks) {
+	window.__returnToLedgerOnEditClose = $('#modal-account-ledger').hasClass('show');
 	$('#modal-edit-agent').modal('show');
 	$('#modal-account-ledger').modal('hide');
 	$('#txtAgent_code').val(agent_code);

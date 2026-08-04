@@ -29,26 +29,8 @@
         </div>
         <form id="add_game_list">
         <div class="modal-body">
-            <h6 class="counter d-none" id="availableNN">₱  <%- ( (+sqlNNChipsBuyin[0].NNChipsBuyin || 0) -
-                (+sqlNNChipsCashout[0].NNChipsCashout || 0) -
-                 (+sqlAccountNNChips[0].TOTAL_NN || 0) +
-                 (+sqlTotalCashOutRolling[0].TOTAL_CASHOUT || 0) -
-                 (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0)   +
-                (+sqlNNChipsRolling[0].NNChipsRolling || 0) -
-                (+sqlCCChipsRolling[0].CCChipsRolling || 0) + (+sqlNNBuyin[0].NNBuyin
-                 || 0) - (+sqlNNReturn[0].NNReturn || 0) -
-                 (+sqlRollerNNSubtract[0].ROLLER_NN_SUBTRACT || 0) +
-                 (+sqlRollerNNAdd[0].ROLLER_NN_ADD || 0) ).toLocaleString() %></h6>
-            <h6 id="availableCC" class="counter d-none">₱<%- ( (+sqlCCChipsBuyin[0].CCChipsBuyin || 0) -
-                (+sqlCCChipsCashout[0].CCChipsCashout || 0) +
-                 (+sqlTotalRealRolling[0].TOTAL_REAL_ROLLING || 0) +
-                 (+sqlCCChipsRolling[0].CCChipsRolling || 0) -
-                 (+sqlNNChipsRolling[0].NNChipsRolling || 0) +
-                 (+sqlAccountCCChipsReturn[0].CC_CHIPS_RETURN || 0) -
-                 (+sqlCCChipsBuyinGame[0].TOTAL_CC || 0) + (+sqlCCBuyin[0].CCBuyin ||
-                 0) - (+sqlCCReturn[0].CCReturn || 0) -
-                 (+sqlRollerCCSubtract[0].ROLLER_CC_SUBTRACT || 0) +
-                 (+sqlRollerCCAdd[0].ROLLER_CC_ADD || 0) ).toLocaleString() %></h6>
+            <h6 class="counter d-none" id="availableNN" data-balance="0">₱ 0</h6>
+            <h6 id="availableCC" class="counter d-none" data-balance="0">₱ 0</h6>
              
           
                 <!-- Total Balance Display -->
@@ -76,8 +58,14 @@
               </div>
 
               <div class="row mb-3">
-                  <div class="col-sm-12">
+                  <div class="col-sm-6">
+                      <input type="hidden" id="txtGuestId" name="txtGuestId" value="">
                       <select class="js-select2 form-select" id="txtTrans" name="txtAccountCode" style="width: 100%;" data-placeholder="<%= __('modal_new_game_list.choose_account_placeholder') %>" required>
+                      </select>
+                  </div>
+                  <div class="col-sm-6">
+                      <select class="js-select2 form-select" id="txtGuestGame" style="width: 100%;" data-placeholder="<%= __('modal_new_game_list.select_guest_optional') %>" disabled>
+                          <option value="">--SELECT LEVEL 3 (GUEST)--</option>
                       </select>
                   </div>
               </div>
@@ -235,6 +223,34 @@
 
 <script>
 
+window.refreshNewGameAvailableChips = function () {
+    if (typeof jQuery === 'undefined') return;
+    return jQuery.ajax({
+        url: '/game_list_available_chips',
+        method: 'GET',
+        success: function (payload) {
+            var nn = Number(payload && payload.availableNN) || 0;
+            var cc = Number(payload && payload.availableCC) || 0;
+            jQuery('#availableNN')
+                .attr('data-balance', String(nn))
+                .text('₱ ' + nn.toLocaleString('en-US'));
+            jQuery('#availableCC')
+                .attr('data-balance', String(cc))
+                .text('₱ ' + cc.toLocaleString('en-US'));
+        },
+        error: function () {
+            console.warn('Failed to load available chips for New Game modal.');
+        }
+    });
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof jQuery === 'undefined') return;
+    jQuery('#modal-new-game-list').on('show.bs.modal', function () {
+        window.refreshNewGameAvailableChips();
+    });
+});
+
 document.addEventListener("DOMContentLoaded", function () {
     const txtNN = document.getElementById("txtNN");
     const txtRollerNN = document.getElementById("txtRollerNN");
@@ -242,7 +258,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function getAvailableChips() {
         if (!availableNN) return 0;
-        const raw = availableNN.innerText.replace(/[^0-9.-]+/g, ''); // Remove ₱ and commas
+        const dataBal = availableNN.getAttribute('data-balance');
+        if (dataBal != null && String(dataBal).trim() !== '') {
+            const parsed = parseFloat(String(dataBal).replace(/,/g, ''));
+            if (Number.isFinite(parsed)) return parsed;
+        }
+        const raw = availableNN.innerText.replace(/[^0-9.-]+/g, '');
         return parseFloat(raw) || 0;
     }
 
@@ -381,7 +402,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function getAvailableCCChips() {
         if (!availableCC) return 0;
-        const raw = availableCC.innerText.replace(/[^0-9.-]+/g, ''); // Remove ₱ and commas
+        const dataBal = availableCC.getAttribute('data-balance');
+        if (dataBal != null && String(dataBal).trim() !== '') {
+            const parsed = parseFloat(String(dataBal).replace(/,/g, ''));
+            if (Number.isFinite(parsed)) return parsed;
+        }
+        const raw = availableCC.innerText.replace(/[^0-9.-]+/g, '');
         return parseFloat(raw) || 0;
     }
 

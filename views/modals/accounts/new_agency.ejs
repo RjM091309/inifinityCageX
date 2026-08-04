@@ -12,11 +12,11 @@
 
 			
 			<div class="modal-body">
-			<form action="/add_agency" method="post">
+			<form id="add_new_agency" action="/add_agency" method="post">
 				<div class="block-content">
 					<div class="row mb-2">
 						<div class="col-sm-12">
-							<input type="text" class="form-control" name="txtAgency" placeholder="<%= __('modal_new_agency.agency_name_placeholder') %>">
+							<input type="text" class="form-control" name="txtAgency" id="txtNewAgencyName" placeholder="<%= __('modal_new_agency.agency_name_placeholder') %>" required maxlength="150" autocomplete="off">
 						</div>
 					</div>
 				</div>

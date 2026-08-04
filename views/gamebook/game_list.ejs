@@ -104,6 +104,9 @@
 											<th class="d-none d-sm-table-cell text-center">
 												<%= __('gamelist.acct_no') %>
 											</th>
+											<th class="d-none d-sm-table-cell text-center col-guest">
+												<%= __('gamelist.guest') %>
+											</th>
 											<th class="d-none d-sm-table-cell text-center">
 												<%= __('gamelist.buyin') %>
 											</th>
@@ -144,7 +147,7 @@
 										</tbody>
 										<tfoot>
 											<tr>
-											<th colspan="4">
+											<th colspan="5">
 												<%= __('gamelist.grand_total') %>
 											</th>
 											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
@@ -601,6 +604,33 @@ body.open-pool-select-mode .game-list-select-all-slot {
 	cursor: pointer;
 }
 
+/* Guest — single line, expand to fit full name */
+#game_list-tbl th.col-guest,
+#game_list-tbl td.col-guest {
+	width: 1% !important;
+	min-width: max-content;
+	max-width: none !important;
+	box-sizing: border-box;
+	white-space: nowrap !important;
+	overflow: visible;
+	vertical-align: middle;
+}
+
+#game_list-tbl td.col-guest .game-list-cell-truncate,
+#game_list-tbl td.col-guest .game-list-guest-link {
+	display: inline;
+	max-width: none;
+	overflow: visible;
+	text-overflow: unset;
+	white-space: nowrap !important;
+}
+
+#game_list-tbl td.col-guest .js-assign-game-guest {
+	font-size: inherit;
+	line-height: inherit;
+	vertical-align: baseline;
+}
+
 /* Footer total row */
 #game_list-tbl tfoot th {
     padding: 12px;
@@ -982,69 +1012,7 @@ table.dataTable tbody tr.highlight-row {
 					</script>
 					<script>
 						$(document).ready(function () {
-							function initializeDataTable() {
-								if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
-									$('#game_list-tbl').DataTable().destroy();
-								}
-
-								const translations = window.gamelistTranslations || {};
-								$('#game_list-tbl').DataTable({
-									"ajax": {
-										"url": "/game_list_data",
-										"dataSrc": function (json) {
-											console.log("Data received from server:", json);
-											return json.data || []; // Default to empty array if no data
-										}
-									},
-									"columns": [
-										{ "data": "game_start_date" },
-										{ "data": "game_type" },
-										{ "data": "game_no" },
-										{ "data": "acct_no" },
-										{ "data": "buy_in" },
-										{ "data": "chips_return" },
-										{ "data": "real_rolling" },
-										{ "data": "total_rolling" },
-										{ "data": "roller_chips" },
-										{ "data": "game_rate" },
-										{ "data": "commission" },
-										{ "data": "win_loss" },
-										{ 
-											"data": "game_type1",
-											"render": function(data, type, row) {
-												if (type === 'display' || type === 'type') {
-													const translations = window.gamelistTranslations || {};
-													if (!data) return '';
-													const sourceUpper = data.toUpperCase();
-													if (sourceUpper === 'CASH') return translations.cash || 'CASH';
-													if (sourceUpper === 'DEPOSIT') return translations.deposit || 'DEPOSIT';
-													if (sourceUpper === 'MARKER') return translations.marker || 'MARKER';
-													return data;
-												}
-												return data;
-											}
-										},
-										{ "data": "game_end_date_time" },
-										{ "data": "history" }
-									],
-									"language": {
-										"search": translations.search || "Search:",
-										"info": translations.showing_entries || "Showing _START_ to _END_ of _TOTAL_ entries",
-										"paginate": {
-											"previous": translations.previous || "Previous",
-											"next": translations.next || "Next"
-										}
-									},
-									"drawCallback": function () {
-										calculateTotal();
-										var hasAccountSearch = ($('#input-account-search').val() || '').trim().length > 0;
-										$('#game_list-tbl').toggleClass('account-search-only', !!hasAccountSearch);
-									}
-								});
-							}
-
-
-							initializeDataTable();
+							// DataTable is initialized in game_list.js (do not re-init here — breaks column count)
 
 							// Set default "From" date to the 1st day of the current month
 							var currentDate = new Date();
@@ -1157,6 +1125,9 @@ table.dataTable tbody tr.highlight-row {
 												<%- include ('../modals/game_book/settlement') %>
 													<%- include ('../modals/game_book/merge_settlement') %>
 													<%- include ('../modals/game_book/game_services') %>
+													<%- include ('../modals/game_book/assign_game_guest') %>
+													<%- include ('../modals/accounts/add_guest') %>
+													<%- include ('../modals/accounts/edit_guest') %>
 														<%- include ('../modals/accounts/account_details') %>
 														<%- include ('../modals/accounts/transfer_account') %>
 														<%- include ('../partials/permission_view_only_script') %>
@@ -1170,7 +1141,7 @@ table.dataTable tbody tr.highlight-row {
 
 
 												<script>
-													$('.js-select2').select2({
+													$('.js-select2').not('#txtTrans, #txtGuestGame').select2({
 														placeholder: 'Select an option',
 														dropdownParent: '#modal-new-game-list',
 													});

@@ -1,0 +1,270 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+  <%- include('../partials/sidebar') %>
+
+    <%- include('../partials/topbar') %>
+
+        <div class="container-fluid content-inner mt-4">
+          <div class="row">
+            <div class="col-sm-12">
+              <div class="card">
+                <div id="user-role" data-permissions="<%= permissions %>"></div>
+                 <div class="card-header d-flex justify-content-between align-items-center">
+					<h3 class="card-title"><div class="breadcrumb1 flat">
+						<a href="/dashboard"><span class="fa fa-home"></span></a>
+						<a href="#"><%= __('guest_page.accounts') %></a>
+						<a href="/guest" class="active"><%= __('guest_page.guests') %></a>
+					</div></h3>
+                     <% if (permissions !== 2) { %>
+                     <button type="button" class="btn btn-sm btn-primary" id="btn-guest-page-add">
+                       <i class="fa fa-plus me-1"></i> <%= __('guest_page.new_guest') %>
+                     </button>
+                     <% } %>
+                 </div>
+
+                <div class="card-body">
+                  <table id="guest-tbl" class="table nowrap small-text" style="width:100%">
+                    <thead>
+                      <tr>
+                        <th><%= __('guest_page.name') %></th>
+                        <th><%= __('guest_page.membership_no') %></th>
+                        <th><%= __('guest_page.level1') %></th>
+                        <th><%= __('guest_page.level2') %></th>
+                        <th><%= __('guest_page.telegram_chat_id') %></th>
+                        <th><%= __('guest_page.remarks') %></th>
+                        <th><%= __('guest_page.win_loss') %></th>
+                        <th><%= __('guest_page.rolling') %></th>
+                        <th><%= __('guest_page.commission') %></th>
+                        <th><%= __('guest_page.action') %></th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <style>
+#guest-tbl {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+}
+#guest-tbl thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    text-align: left;
+    border: none;
+    white-space: nowrap;
+}
+#guest-tbl tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+}
+#guest-tbl td {
+    padding: 10px 15px;
+    vertical-align: middle;
+}
+#guest-tbl tbody tr:hover {
+    background-color: #f8f9fa;
+}
+.card-body {
+  overflow-x: auto;
+}
+.guest-action-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+.guest-action-toggle-slot {
+  width: 2.9rem;
+  flex: 0 0 2.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.notify-toggle-switch.form-check-input {
+  width: 2.15rem;
+  height: 1.1rem;
+  min-height: 1.1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.notify-toggle-switch.form-check-input:not(:checked) {
+  background-color: #dee2e6;
+  border: 1px solid #adb5bd;
+  --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%2364748b'/%3e%3c/svg%3e");
+}
+.notify-toggle-switch.form-check-input:checked {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+.notify-toggle-switch.form-check-input:focus {
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+.notify-toggle-switch.form-check-input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+        </style>
+
+      <%- include('../partials/footer') %>
+      <%- include('../modals/accounts/add_guest') %>
+      <%- include('../modals/accounts/account_details') %>
+      <%- include('../modals/accounts/game_history') %>
+      <%- include('../modals/game_book/new_game_list') %>
+
+      <div class="modal fade" id="modal-edit-guest-table" tabindex="-1" aria-labelledby="modal-edit-guest-table-label" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header bg-primary">
+              <h5 class="modal-title text-white" id="modal-edit-guest-table-label">Edit Level 3 (Guest)</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="edit_guest_form">
+              <div class="modal-body">
+                <input type="hidden" id="edit_guest_id" name="txtGuestId">
+                <div class="mb-0">
+                  <label for="edit_guest_name_input" class="form-label">Level 3 (Guest) Name</label>
+                  <input type="text" class="form-control" id="edit_guest_name_input" name="txtGuestName" required maxlength="150">
+                </div>
+                <div class="mt-2 mb-0">
+                  <label for="edit_guest_membership_input" class="form-label">Membership No</label>
+                  <input type="text" class="form-control" id="edit_guest_membership_input" name="txtMembershipNo" inputmode="numeric" autocomplete="off">
+                </div>
+                <div class="mt-2 mb-0">
+                  <label for="edit_guest_telegram_input" class="form-label">Telegram Chat ID</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="edit_guest_telegram_input" name="txtTelegram" inputmode="numeric" autocomplete="off">
+                    <span class="input-group-text" data-bs-toggle="tooltip" data-bs-placement="top" title="Visit @raw_data_bot on Telegram to get your Chat ID. Then copy and paste the Chat ID here." style="cursor: pointer;">
+                      <i class="fa-solid fa-circle-question"></i>
+                    </span>
+                  </div>
+                </div>
+                <div class="mt-2 mb-0">
+                  <label for="edit_guest_remarks_input" class="form-label">Remarks</label>
+                  <textarea class="form-control" id="edit_guest_remarks_input" name="txtRemarks" rows="2" maxlength="500"></textarea>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary btn-sm me-auto" id="btn-open-transfer-from-edit-guest">Change Level 1</button>
+                <button type="submit" class="btn btn-primary btn-sm" id="btn-update-guest-table">Update</button>
+                <button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal fade" id="modal-transfer-guest-table" tabindex="-1" aria-labelledby="modal-transfer-guest-table-label" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header bg-primary">
+              <h5 class="modal-title text-white" id="modal-transfer-guest-table-label">Change Level 1 for Level 3 (Guest)</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="transfer_guest_form">
+              <div class="modal-body">
+                <input type="hidden" id="transfer_guest_id" name="txtGuestId">
+                <div class="mb-2">
+                  <label class="form-label">Level 3 (Guest)</label>
+                  <input type="text" class="form-control" id="transfer_guest_display" readonly disabled>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label">Current Level 1</label>
+                  <input type="text" class="form-control" id="transfer_guest_current_line" readonly disabled>
+                </div>
+                <div class="mt-2 mb-2">
+                  <label for="transfer_guest_agency_id" class="form-label">Transfer To Level 1</label>
+                  <select class="form-select" id="transfer_guest_agency_id" required>
+                    <option value="">Select Level 1</option>
+                  </select>
+                </div>
+                <div class="mb-0">
+                  <label for="transfer_guest_agent_id" class="form-label">Transfer To Level 2 (Agent)</label>
+                  <select class="form-select" id="transfer_guest_agent_id" name="targetAgentId" required disabled>
+                    <option value="">Select Level 2 (Agent)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-primary btn-sm" id="btn-transfer-guest-table">Transfer</button>
+                <button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal fade" id="modal-guest-page-add" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header bg-primary">
+              <h5 class="modal-title text-white"><%= __('guest_page.new_guest') %></h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="guest_page_add_form">
+              <div class="modal-body">
+                <div class="mb-2">
+                  <label for="guest_page_agency_id" class="form-label"><%= __('guest_page.level1') %></label>
+                  <select class="form-select" id="guest_page_agency_id" required>
+                    <option value="">Select Level 1</option>
+                  </select>
+                </div>
+                <div class="mb-2">
+                  <label for="guest_page_agent_id" class="form-label"><%= __('guest_page.level2') %></label>
+                  <select class="form-select" id="guest_page_agent_id" name="txtAgentId" required disabled>
+                    <option value="">Select Level 2 (Agent)</option>
+                  </select>
+                </div>
+                <div class="mb-0">
+                  <label for="guest_page_name_input" class="form-label">Level 3 (Guest) Name</label>
+                  <input type="text" class="form-control" id="guest_page_name_input" name="txtGuestName" required maxlength="150">
+                </div>
+                <div class="mt-2 mb-0">
+                  <label for="guest_page_membership_input" class="form-label">Membership No</label>
+                  <input type="text" class="form-control" id="guest_page_membership_input" name="txtMembershipNo" inputmode="numeric" autocomplete="off">
+                </div>
+                <div class="mt-2 mb-0">
+                  <label for="guest_page_telegram_input" class="form-label">Telegram Chat ID</label>
+                  <input type="text" class="form-control" id="guest_page_telegram_input" name="txtTelegram" inputmode="numeric" autocomplete="off">
+                </div>
+                <div class="mt-2 mb-0">
+                  <label for="guest_page_remarks_input" class="form-label">Remarks</label>
+                  <textarea class="form-control" id="guest_page_remarks_input" name="txtRemarks" rows="2" maxlength="500"></textarea>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-primary btn-sm" id="btn-guest-page-save">Save</button>
+                <button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <%- include('../partials/permission_view_only_script') %>
+      <script>
+        window.translations = {
+          guest_page: {
+            search: "<%= __('guest_page.search') %>",
+            showing_entries: "<%= __('guest_page.showing_entries') %>",
+            previous: "<%= __('guest_page.previous') %>",
+            next: "<%= __('guest_page.next') %>",
+            success: "<%= __('telegram_api.success') %>",
+            ok: "<%= __('telegram_api.ok') %>",
+            error_title: "<%= __('telegram_api.error_title') %>",
+            failed_to_update: "<%= __('telegram_api.failed_to_update') %>",
+            chat_id_enabled: "<%= __('telegram_api.chat_id_enabled') %>",
+            chat_id_disabled: "<%= __('telegram_api.chat_id_disabled') %>",
+            toggle_notifications: "<%= __('telegram_api.toggle_notifications') %>"
+          }
+        };
+      </script>
+      <script src="/assets/js/functions/guest.js"></script>
+      <script src="/assets/js/functions/account.js"></script>
+      <script src="/assets/js/functions/game_list.js"></script>

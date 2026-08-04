@@ -11,6 +11,7 @@ const { getCurrentBalance } = require('../utils/accountBalance');
 
 const multer = require('multer');
 const ExcelJS = require('exceljs');
+const { registerAgencyLineRoutes } = require('../utils/agencyLinePage');
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -409,19 +410,19 @@ const sendGameCashoutOriginalResend = async (ledger, telegramErrors, previewOut 
 	let text = '';
 	let managementText = '';
 	if (hasCashLeg && hasDepositLeg) {
-		text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n\n현금: ${cashTotal.toLocaleString()}\n계좌입금: ${depositTotal.toLocaleString()}\n총 캐시아웃: ${totalAmount.toLocaleString()}\n잔고: ${balanceAfter.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`;
+		text = `Infinity Cage\n\n* 중도 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n\n현금: ${cashTotal.toLocaleString()}\n계좌입금: ${depositTotal.toLocaleString()}\n총 캐시아웃: ${totalAmount.toLocaleString()}\n잔고: ${balanceAfter.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`;
 		managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}\n총 캐시아웃 Total Cash-out : ${totalAmount.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
 	} else if (Number(ledger.TRANSACTION_TYPE) === 2) {
 		const displayAmount = depositTotal || totalAmount;
-		text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n캐시아웃: ${displayAmount.toLocaleString()} - 계좌입금\n잔고: ${balanceAfter.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`;
+		text = `Infinity Cage\n\n* 중도 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n캐시아웃: ${displayAmount.toLocaleString()} - 계좌입금\n잔고: ${balanceAfter.toLocaleString()}\n\n날짜: ${date}\n시간: ${time}`;
 		managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}\n캐시아웃 Cash-out : ${totalAmount.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
 	} else if (Number(ledger.TRANSACTION_TYPE) === 1) {
 		const displayAmount = cashTotal || totalAmount;
-		text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n캐시아웃: ${displayAmount.toLocaleString()} - 현금\n\n날짜: ${date}\n시간: ${time}`;
+		text = `Infinity Cage\n\n* 중도 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n캐시아웃: ${displayAmount.toLocaleString()} - 현금\n\n날짜: ${date}\n시간: ${time}`;
 		managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}\n캐시아웃 Cash-out : ${totalAmount.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
 	} else if (Number(ledger.TRANSACTION_TYPE) === 4) {
 		const displayAmount = creditTotal || totalAmount;
-		text = `Infinity Cage\n\n* 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n캐시아웃: ${displayAmount.toLocaleString()} - 크레딧\n\n날짜: ${date}\n시간: ${time}`;
+		text = `Infinity Cage\n\n* 중도 캐시아웃 *\n\n계정: ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 #: ${gameLineKo}\n캐시아웃: ${displayAmount.toLocaleString()} - 크레딧\n\n날짜: ${date}\n시간: ${time}`;
 		managementText = `Infinity Cage\n\n* 캐시아웃 Cash-out *\n\n계정 Account : ${ledger.AGENT_CODE} - ${ledger.NAME}\n게임 Game #: ${gameLineMgmt}\n캐시아웃 Cash-out : ${totalAmount.toLocaleString()}\n\n날짜 Date : ${date}\n시간 Time : ${time}`;
 	}
 
@@ -797,6 +798,17 @@ router.get("/agent", checkSession, function (req, res) {
 
 });
 
+router.get("/guest", checkSession, function (req, res) {
+
+	const permissions = req.session.permissions;
+
+	res.render("accounts/guest", {
+		...sessions(req, 'guest'),
+		permissions: permissions
+	});
+
+});
+
 router.get("/account_ledger", checkSession, function (req, res) {
 
 	const permissions = req.session.permissions;
@@ -811,15 +823,33 @@ router.get("/account_ledger", checkSession, function (req, res) {
 // ADD AGENCY
 router.post('/add_agency', async (req, res) => {
 	try {
-		const { txtAgency } = req.body;
+		const txtAgency = String(req.body.txtAgency || '').trim();
+		if (!txtAgency) {
+			return res.status(400).json({ error: 'LINE name is required.' });
+		}
 		const date_now = new Date();
 
 		const query = `INSERT INTO agency (AGENCY, ENCODED_BY, ENCODED_DT, ACTIVE) VALUES (?, ?, ?, ?)`;
-		await pool.execute(query, [txtAgency, req.session.user_id, date_now, 1]);
+		const [result] = await pool.execute(query, [txtAgency, req.session.user_id, date_now, 1]);
+		const agency_id = result.insertId;
+
+		const wantsJson = req.xhr || req.headers['x-requested-with'] === 'XMLHttpRequest'
+			|| (req.headers.accept && req.headers.accept.includes('application/json'));
+		if (wantsJson) {
+			return res.status(200).json({
+				success: true,
+				agency_id,
+				agency_name: txtAgency,
+				message: 'Agency added successfully.'
+			});
+		}
 
 		res.redirect('/agency');
 	} catch (err) {
 		console.error('Error inserting agency:', err);
+		if (req.xhr || req.headers['x-requested-with'] === 'XMLHttpRequest') {
+			return res.status(500).json({ error: 'Error inserting agency' });
+		}
 		res.status(500).send('Error inserting agency');
 	}
 });
@@ -827,7 +857,41 @@ router.post('/add_agency', async (req, res) => {
 // GET AGENCY DATA
 router.get('/agency_data', async (req, res) => {
 	try {
-		const query = `SELECT * FROM agency WHERE ACTIVE = 1 ORDER BY AGENCY ASC`;
+		const ledgerTotalsSubquery = `
+			SELECT
+				al.ACCOUNT_ID,
+				SUM(
+					CASE
+						WHEN tt.TRANSACTION IN ('DEPOSIT', 'MARKER REDEEM') THEN al.AMOUNT
+						WHEN tt.TRANSACTION IN ('WITHDRAW', 'IOU RETURN DEPOSIT') THEN -al.AMOUNT
+						ELSE 0
+					END
+				) AS total_balance
+			FROM account_ledger al
+			LEFT JOIN transaction_type tt ON tt.IDNo = al.TRANSACTION_ID
+			WHERE al.ACTIVE = 1
+			  AND al.TRANSACTION_TYPE IN (2, 3, 5)
+			GROUP BY al.ACCOUNT_ID
+		`;
+
+		const query = `
+			SELECT
+				a.*,
+				COALESCE(bal.total_balance, 0) AS total_balance
+			FROM agency a
+			LEFT JOIN (
+				SELECT
+					ag.AGENCY AS agency_id,
+					SUM(COALESCE(led.total_balance, 0)) AS total_balance
+				FROM agent ag
+				INNER JOIN account acc ON acc.AGENT_ID = ag.IDNo AND acc.ACTIVE = 1
+				LEFT JOIN (${ledgerTotalsSubquery}) AS led ON led.ACCOUNT_ID = acc.IDNo
+				WHERE ag.ACTIVE = 1
+				GROUP BY ag.AGENCY
+			) AS bal ON bal.agency_id = a.IDNo
+			WHERE a.ACTIVE = 1
+			ORDER BY a.AGENCY ASC
+		`;
 		const [results] = await pool.execute(query);
 
 		res.json(results);
@@ -931,12 +995,23 @@ router.post('/add_agent', uploadPassportImg.fields([{ name: 'photo', maxCount: 1
 		}
 
 		const isApiRequest = req.headers['x-api-key'] || req.headers['content-type']?.includes('multipart/form-data') && !req.session?.user_id;
-		if (isApiRequest && !req.session?.user_id) {
-		  return res.status(200).json({ success: true, agent_id });
+		const wantsJson = req.xhr || req.headers['x-requested-with'] === 'XMLHttpRequest'
+			|| (req.headers.accept && req.headers.accept.includes('application/json'));
+		if (wantsJson || (isApiRequest && !req.session?.user_id)) {
+		  return res.status(200).json({
+			success: true,
+			agent_id,
+			agent_code: txtAgenctCode ?? '',
+			agent_name: txtName ?? '',
+			message: 'Agent added successfully.'
+		  });
 		}
 		res.redirect('/agent');
 	} catch (err) {
 		console.error('Error adding agent:', err);
+		if (req.xhr || req.headers['x-requested-with'] === 'XMLHttpRequest') {
+			return res.status(500).json({ error: 'Error adding agent' });
+		}
 		res.status(500).send('Error adding agent');
 	}
 });
@@ -2247,11 +2322,14 @@ router.get('/account_details_data_deposit/:id', async (req, res) => {
 	  const { startDate, endDate } = req.query;
   
 	  let query = `
-		SELECT *, 
+		SELECT account_ledger.*, 
+		  transaction_type.TRANSACTION,
 		  account_ledger.IDNo AS account_details_id, 
-		  account_ledger.ENCODED_DT AS encoded_date 
+		  account_ledger.ENCODED_DT AS encoded_date,
+		  NULLIF(TRIM(guest.NAME), '') AS guest_name
 		FROM account_ledger 
 		JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
+		LEFT JOIN guest ON guest.IDNo = account_ledger.GUEST_ID
 		WHERE account_ledger.ACTIVE = 1 
 		  AND account_ledger.TRANSACTION_TYPE IN (2, 5, 3) 
 		  AND account_ledger.ACCOUNT_ID = ?
@@ -2301,8 +2379,10 @@ router.get('/account_credit_balance/:id', async (req, res) => {
 router.get('/account_game_history/:id', async (req, res) => {
 	try {
 		const id = parseInt(req.params.id);
+		const guestId = parseInt(req.query.guestId, 10);
+		const hasGuestFilter = Number.isInteger(guestId) && guestId > 0;
 		
-		// First, get all games for this account
+		// First, get all games for this account (optionally filtered by guest)
 		const gameQuery = `
 			SELECT 
 				game_list.*,
@@ -2311,16 +2391,20 @@ router.get('/account_game_history/:id', async (req, res) => {
 				account.IDNo AS account_no,
 				agent.AGENT_CODE AS agent_code,
 				agent.NAME AS agent_name,
+				COALESCE(NULLIF(TRIM(guest.NAME), ''), '-') AS guest_name,
 				game_list.ENCODED_DT AS game_date_start,
 				game_list.GAME_ENDED AS game_date_end
 			FROM game_list
 			JOIN account ON game_list.ACCOUNT_ID = account.IDNo
 			JOIN agent ON agent.IDNo = account.AGENT_ID
+			LEFT JOIN guest ON guest.IDNo = game_list.GUEST_ID
 			WHERE game_list.ACCOUNT_ID = ?
+			  ${hasGuestFilter ? 'AND game_list.GUEST_ID = ?' : ''}
 			  AND game_list.ACTIVE != 0
 			ORDER BY game_list.ENCODED_DT DESC
 		`;
-		const [games] = await pool.execute(gameQuery, [id]);
+		const queryParams = hasGuestFilter ? [id, guestId] : [id];
+		const [games] = await pool.execute(gameQuery, queryParams);
 		
 		// For each game, calculate totals using the same logic as game_list.js
 		const gamesWithTotals = await Promise.all(games.map(async (game) => {
@@ -2655,6 +2739,8 @@ router.get('/export', async (req, res) => {
 	}
 });
 
+
+registerAgencyLineRoutes(router, pool, checkSession);
 
 // Export the router
 module.exports = router; 

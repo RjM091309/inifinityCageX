@@ -39,4 +39,51 @@ function applyCommaThousandsToNumericCells(ws, opts) {
 	});
 }
 
-module.exports = { applyCommaThousandsToNumericCells };
+function excelDisplayWidth(value) {
+	return Array.from(String(value == null ? '' : value).replace(/\r?\n/g, ' ')).reduce((sum, ch) => {
+		return sum + (ch.charCodeAt(0) > 255 ? 2 : 1);
+	}, 0);
+}
+
+function excelCellDisplayText(cell) {
+	const v = cell.value;
+	if (v == null) return '';
+	if (typeof v === 'object' && v.formula) return '';
+	if (typeof v === 'number' && Number.isFinite(v)) {
+		const r = Math.round(v * 1e6) / 1e6;
+		if (Math.abs(r - Math.round(r)) < 1e-9) {
+			return Math.round(r).toLocaleString('en-US');
+		}
+		return r.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+	}
+	return String(v).replace(/\r?\n/g, ' ');
+}
+
+function autoFitExcelWorksheetColumns(ws, opts) {
+	opts = opts || {};
+	const minWidth = opts.minWidth != null ? opts.minWidth : 8;
+	const maxWidth = opts.maxWidth != null ? opts.maxWidth : 80;
+	const padding = opts.padding != null ? opts.padding : 4;
+	const boldExtra = opts.boldExtra != null ? opts.boldExtra : 1;
+	const startRow = opts.startRow != null ? opts.startRow : 1;
+	const endRow = opts.endRow != null ? opts.endRow : ws.rowCount;
+
+	const colMax = new Map();
+	for (let rowNumber = startRow; rowNumber <= endRow; rowNumber++) {
+		const row = ws.getRow(rowNumber);
+		if (!row) continue;
+		row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+			const text = excelCellDisplayText(cell);
+			if (!text) return;
+			let w = excelDisplayWidth(text);
+			if (cell.font && cell.font.bold) w += boldExtra;
+			colMax.set(colNumber, Math.max(colMax.get(colNumber) || 0, w));
+		});
+	}
+
+	colMax.forEach((maxLen, colNumber) => {
+		ws.getColumn(colNumber).width = Math.min(maxWidth, Math.max(minWidth, maxLen + padding));
+	});
+}
+
+module.exports = { applyCommaThousandsToNumericCells, numberFormatForValue, autoFitExcelWorksheetColumns };
