@@ -267,30 +267,16 @@
 					<div class="modal-dialog modal-dialog-centered">
 						<div class="modal-content">
 							<div class="modal-header bg-primary">
-								<h5 class="modal-title text-white" id="modal-transfer-guest-table-label">Change Level 1 for Level 3 (Guest)</h5>
+								<h5 class="modal-title text-white" id="modal-transfer-guest-table-label">Transfer Level 3 (Guest)</h5>
 								<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
 							</div>
 							<form id="transfer_guest_form">
 								<div class="modal-body">
 									<input type="hidden" id="transfer_guest_id" name="txtGuestId">
-									<div class="mb-2">
-										<label class="form-label">Level 3 (Guest)</label>
-										<input type="text" class="form-control" id="transfer_guest_display" readonly disabled>
-									</div>
-									<div class="mb-2">
-										<label class="form-label">Current Level 1</label>
-										<input type="text" class="form-control" id="transfer_guest_current_line" readonly disabled>
-									</div>
-									<div class="mt-2 mb-2">
-										<label for="transfer_guest_agency_id" class="form-label">Transfer To Level 1</label>
-										<select class="form-select" id="transfer_guest_agency_id" required>
-											<option value="">Select Level 1</option>
-										</select>
-									</div>
 									<div class="mb-0">
-										<label for="transfer_guest_agent_id" class="form-label">Transfer To Level 2 (Agent)</label>
-										<select class="form-select" id="transfer_guest_agent_id" name="targetAgentId" required disabled>
-											<option value="">Select Level 2 (Agent)</option>
+										<label for="transfer_guest_agent_id" class="form-label">Transfer To 2</label>
+										<select class="js-transfer-guest-select2 form-select" id="transfer_guest_agent_id" name="targetAgentId" style="width: 100%;" data-placeholder="Select 2" required>
+											<option value="">Select 2</option>
 										</select>
 									</div>
 								</div>
@@ -1008,6 +994,42 @@ button.panel-title-sortable:focus .panel-title-sort-indicator {
 
 .agency-page .agency-line-stats .agency-stat-card {
   border-color: var(--agency-border);
+}
+
+.select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 6px);
+}
+
+.select2-container .select2-search--inline .select2-search__field {
+  margin-top: 0;
+  margin: 0.25rem 0.25rem 0.25rem 0;
+  height: 1.375rem;
+  line-height: 1.375rem;
+}
+
+.select2-container--default .select2-selection--single {
+  border-color: #eee;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  display: flex;
+  align-items: center;
+  padding-left: 0.75rem;
+  height: calc(1.5em + 0.75rem + 6px);
+  line-height: 1.5;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: calc(1.5em + 0.75rem + 6px);
+}
+
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+  color: #8A92A6;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
 }
 
 </style>

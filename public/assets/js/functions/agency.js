@@ -15,7 +15,6 @@ let currentAllAgentRows = [];
 let allAgentsSearchLoaded = false;
 let allAgentsSearchLoading = false;
 let allAgentsSearchLoadCallbacks = [];
-let transferGuestCurrentAgentId = null;
 let transferAgentGuestsSourceId = null;
 let agencyLineSortDir = 'asc';
 let agencyLineCurrentPage = 1;
@@ -789,11 +788,6 @@ $(document).ready(function() {
     });
   });
 
-  $('#transfer_guest_agency_id').on('change', function () {
-    const agencyId = parseInt($(this).val(), 10);
-    loadTransferAgentOptions($('#transfer_guest_agent_id'), agencyId, transferGuestCurrentAgentId);
-  });
-
   $('#transfer_agent_to_agency_id').on('change', function () {
     const agencyId = parseInt($(this).val(), 10);
     loadTransferAgentOptions($('#transfer_agent_to_agent_id'), agencyId, transferAgentGuestsSourceId);
@@ -826,7 +820,7 @@ $(document).ready(function() {
       Swal.fire({
         icon: 'warning',
         title: 'Selection required',
-        text: 'Select a target agency and agent.',
+        text: 'Select a target agent.',
         confirmButtonText: 'OK'
       });
       return;
@@ -2260,6 +2254,53 @@ function populateTransferAgencySelect($agencySelect, selectedAgencyId, done) {
   });
 }
 
+function initTransferGuestAgentSelect2($agentSelect) {
+  if (typeof $agentSelect.select2 !== 'function') return;
+  if ($agentSelect.data('select2')) {
+    try { $agentSelect.select2('destroy'); } catch (e) {}
+  }
+  $agentSelect.select2({
+    placeholder: 'Select 2',
+    allowClear: false,
+    dropdownParent: $('#modal-transfer-guest-table')
+  });
+}
+
+function loadAllTransferAgentOptions($agentSelect, currentAgentId) {
+  if ($agentSelect.data('select2')) {
+    try { $agentSelect.select2('destroy'); } catch (e) {}
+  }
+  $agentSelect.prop('disabled', true).html('<option value="">Loading...</option>');
+
+  $.ajax({
+    url: '/agent_data',
+    method: 'GET',
+    success: function (rows) {
+      const agents = (rows || []).filter(function (row) {
+        return String(row.agent_id) !== String(currentAgentId);
+      });
+      if (!agents.length) {
+        $agentSelect.html('<option value="">No agents available</option>').prop('disabled', true);
+        initTransferGuestAgentSelect2($agentSelect);
+        return;
+      }
+      let html = '<option value="">Select 2</option>';
+      agents.forEach(function (agent) {
+        const code = String(agent.agent_code || '').trim().toUpperCase();
+        const name = String(agent.NAME || agent.agent_name || '').trim().toUpperCase();
+        const label = code && name ? (code + ' - ' + name) : (code || name || '');
+        html += '<option value="' + agent.agent_id + '">' + label + '</option>';
+      });
+      $agentSelect.html(html).prop('disabled', false);
+      initTransferGuestAgentSelect2($agentSelect);
+    },
+    error: function () {
+      $agentSelect.html('<option value="">Failed to load agent list</option>').prop('disabled', true);
+      initTransferGuestAgentSelect2($agentSelect);
+    }
+  });
+}
+
 function loadTransferAgentOptions($agentSelect, agencyId, currentAgentId) {
   $agentSelect.prop('disabled', true).html('<option value="">Loading...</option>');
 
@@ -2327,24 +2368,9 @@ function openTransferGuestModal(guestId) {
     return;
   }
 
-  const membershipNo = String(target.membership_no || target.MEMBERSHIP_NO || '').trim();
-  const guestName = String(target.guest_name || target.NAME || '').trim().toUpperCase();
-  const displayGuest = membershipNo ? (membershipNo + '-' + guestName) : guestName;
-  transferGuestCurrentAgentId = target.agent_id || null;
-
   $('#transfer_guest_id').val(target.guest_id || '');
-  $('#transfer_guest_display').val(displayGuest);
-  $('#transfer_guest_current_line').val(
-    buildGuestLineLabel(target.agency_name, target.agent_code, target.agent_name)
-  );
-  populateTransferAgencySelect($('#transfer_guest_agency_id'), target.agency_id || '', function () {
-    loadTransferAgentOptions(
-      $('#transfer_guest_agent_id'),
-      parseInt(target.agency_id, 10) || null,
-      transferGuestCurrentAgentId
-    );
-    $('#modal-transfer-guest-table').modal('show');
-  });
+  loadAllTransferAgentOptions($('#transfer_guest_agent_id'), target.agent_id || null);
+  $('#modal-transfer-guest-table').modal('show');
 }
 
 function openTransferAgentGuestsModal(agentId) {

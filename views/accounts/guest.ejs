@@ -115,7 +115,6 @@
       <%- include('../partials/footer') %>
       <%- include('../modals/accounts/add_guest') %>
       <%- include('../modals/accounts/account_details') %>
-      <%- include('../modals/accounts/game_history') %>
       <%- include('../modals/game_book/new_game_list') %>
 
       <div class="modal fade" id="modal-edit-guest-table" tabindex="-1" aria-labelledby="modal-edit-guest-table-label" aria-hidden="true">
@@ -164,30 +163,16 @@
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content">
             <div class="modal-header bg-primary">
-              <h5 class="modal-title text-white" id="modal-transfer-guest-table-label">Change Level 1 for Level 3 (Guest)</h5>
+              <h5 class="modal-title text-white" id="modal-transfer-guest-table-label">Transfer Level 3 (Guest)</h5>
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="transfer_guest_form">
               <div class="modal-body">
                 <input type="hidden" id="transfer_guest_id" name="txtGuestId">
-                <div class="mb-2">
-                  <label class="form-label">Level 3 (Guest)</label>
-                  <input type="text" class="form-control" id="transfer_guest_display" readonly disabled>
-                </div>
-                <div class="mb-2">
-                  <label class="form-label">Current Level 1</label>
-                  <input type="text" class="form-control" id="transfer_guest_current_line" readonly disabled>
-                </div>
-                <div class="mt-2 mb-2">
-                  <label for="transfer_guest_agency_id" class="form-label">Transfer To Level 1</label>
-                  <select class="form-select" id="transfer_guest_agency_id" required>
-                    <option value="">Select Level 1</option>
-                  </select>
-                </div>
                 <div class="mb-0">
-                  <label for="transfer_guest_agent_id" class="form-label">Transfer To Level 2 (Agent)</label>
-                  <select class="form-select" id="transfer_guest_agent_id" name="targetAgentId" required disabled>
-                    <option value="">Select Level 2 (Agent)</option>
+                  <label for="transfer_guest_agent_id" class="form-label">Transfer To 2</label>
+                  <select class="js-transfer-guest-select2 form-select" id="transfer_guest_agent_id" name="targetAgentId" style="width: 100%;" data-placeholder="Select 2" required>
+                    <option value="">Select 2</option>
                   </select>
                 </div>
               </div>

@@ -2382,8 +2382,28 @@ router.get('/account_game_history/:id', async (req, res) => {
 		const guestId = parseInt(req.query.guestId, 10);
 		const hasGuestFilter = Number.isInteger(guestId) && guestId > 0;
 		
-		// First, get all games for this account (optionally filtered by guest)
-		const gameQuery = `
+		// When guestId is provided, fetch all games for that guest across accounts (transfers).
+		const gameQuery = hasGuestFilter
+			? `
+			SELECT 
+				game_list.*,
+				game_list.IDNo AS game_list_id,
+				game_list.ACTIVE AS game_status,
+				account.IDNo AS account_no,
+				agent.AGENT_CODE AS agent_code,
+				agent.NAME AS agent_name,
+				COALESCE(NULLIF(TRIM(guest.NAME), ''), '-') AS guest_name,
+				game_list.ENCODED_DT AS game_date_start,
+				game_list.GAME_ENDED AS game_date_end
+			FROM game_list
+			JOIN account ON game_list.ACCOUNT_ID = account.IDNo
+			JOIN agent ON agent.IDNo = account.AGENT_ID
+			LEFT JOIN guest ON guest.IDNo = game_list.GUEST_ID
+			WHERE game_list.GUEST_ID = ?
+			  AND game_list.ACTIVE != 0
+			ORDER BY game_list.ENCODED_DT DESC
+		`
+			: `
 			SELECT 
 				game_list.*,
 				game_list.IDNo AS game_list_id,
@@ -2399,11 +2419,10 @@ router.get('/account_game_history/:id', async (req, res) => {
 			JOIN agent ON agent.IDNo = account.AGENT_ID
 			LEFT JOIN guest ON guest.IDNo = game_list.GUEST_ID
 			WHERE game_list.ACCOUNT_ID = ?
-			  ${hasGuestFilter ? 'AND game_list.GUEST_ID = ?' : ''}
 			  AND game_list.ACTIVE != 0
 			ORDER BY game_list.ENCODED_DT DESC
 		`;
-		const queryParams = hasGuestFilter ? [id, guestId] : [id];
+		const queryParams = hasGuestFilter ? [guestId] : [id];
 		const [games] = await pool.execute(gameQuery, queryParams);
 		
 		// For each game, calculate totals using the same logic as game_list.js

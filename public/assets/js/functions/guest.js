@@ -4,8 +4,6 @@ const HIERARCHY_LEVEL_3_LABEL = 'Level 3 (Guest)';
 
 let guestPageRows = [];
 let guestPageAgencies = [];
-let transferGuestCurrentAgentId = null;
-const telegramUsernameCache = {};
 
 function escapeHtml(s) {
 	const div = document.createElement('div');
@@ -82,36 +80,6 @@ function renderGuestTelegramToggle(row, readOnly) {
 	);
 }
 
-function fetchTelegramUsername(chatId, userType) {
-	if (!chatId || chatId === '' || chatId === null) {
-		return Promise.resolve(null);
-	}
-
-	if (telegramUsernameCache[chatId]) {
-		return Promise.resolve(telegramUsernameCache[chatId]);
-	}
-
-	return new Promise(function (resolve) {
-		$.ajax({
-			url: '/telegramAPI/chat-info/' + (userType || 'GUEST') + '/' + encodeURIComponent(chatId),
-			method: 'GET',
-			success: function (data) {
-				if (data && data.chat && data.chat.username) {
-					telegramUsernameCache[chatId] = data.chat.username;
-					resolve(data.chat.username);
-				} else {
-					telegramUsernameCache[chatId] = null;
-					resolve(null);
-				}
-			},
-			error: function () {
-				telegramUsernameCache[chatId] = null;
-				resolve(null);
-			}
-		});
-	});
-}
-
 function promptManagerPasswordThen(actionText, onConfirmed) {
 	Swal.fire({
 		icon: 'warning',
@@ -177,6 +145,53 @@ function populateAgencySelect($select, selectedId) {
 	if (selectedId) {
 		$select.val(String(selectedId));
 	}
+}
+
+function initTransferGuestAgentSelect2($agentSelect) {
+	if (typeof $agentSelect.select2 !== 'function') return;
+	if ($agentSelect.data('select2')) {
+		try { $agentSelect.select2('destroy'); } catch (e) {}
+	}
+	$agentSelect.select2({
+		placeholder: 'Select 2',
+		allowClear: false,
+		dropdownParent: $('#modal-transfer-guest-table')
+	});
+}
+
+function loadAllTransferAgentOptions($agentSelect, currentAgentId) {
+	if ($agentSelect.data('select2')) {
+		try { $agentSelect.select2('destroy'); } catch (e) {}
+	}
+	$agentSelect.prop('disabled', true).html('<option value="">Loading...</option>');
+
+	$.ajax({
+		url: '/agent_data',
+		method: 'GET',
+		success: function (rows) {
+			const agents = (rows || []).filter(function (row) {
+				return String(row.agent_id) !== String(currentAgentId);
+			});
+			if (!agents.length) {
+				$agentSelect.html('<option value="">No agents available</option>').prop('disabled', true);
+				initTransferGuestAgentSelect2($agentSelect);
+				return;
+			}
+			let html = '<option value="">Select 2</option>';
+			agents.forEach(function (agent) {
+				const code = String(agent.agent_code || '').trim().toUpperCase();
+				const name = String(agent.NAME || agent.agent_name || '').trim().toUpperCase();
+				const label = code && name ? (code + ' - ' + name) : (code || name || '');
+				html += '<option value="' + agent.agent_id + '">' + escapeHtml(label) + '</option>';
+			});
+			$agentSelect.html(html).prop('disabled', false);
+			initTransferGuestAgentSelect2($agentSelect);
+		},
+		error: function () {
+			$agentSelect.html('<option value="">Failed to load agent list</option>').prop('disabled', true);
+			initTransferGuestAgentSelect2($agentSelect);
+		}
+	});
 }
 
 function loadTransferAgentOptions($agentSelect, agencyId, selectedAgentId) {
@@ -324,22 +339,8 @@ function openTransferGuestModal(guestId) {
 		return;
 	}
 
-	const membershipNo = String(target.membership_no || '').trim();
-	const guestName = String(target.guest_name || '').trim().toUpperCase();
-	const displayGuest = membershipNo ? (membershipNo + '-' + guestName) : guestName;
-	transferGuestCurrentAgentId = target.agent_id || null;
-
 	$('#transfer_guest_id').val(target.guest_id || '');
-	$('#transfer_guest_display').val(displayGuest);
-	$('#transfer_guest_current_line').val(
-		buildGuestLineLabel(target.agency_name, target.agent_code, target.agent_name)
-	);
-	populateAgencySelect($('#transfer_guest_agency_id'), target.agency_id || '');
-	loadTransferAgentOptions(
-		$('#transfer_guest_agent_id'),
-		parseInt(target.agency_id, 10) || null,
-		transferGuestCurrentAgentId
-	);
+	loadAllTransferAgentOptions($('#transfer_guest_agent_id'), target.agent_id || null);
 	$('#modal-transfer-guest-table').modal('show');
 }
 
@@ -793,11 +794,6 @@ $(document).ready(function () {
 		openTransferGuestModal(guestId);
 	});
 
-	$('#transfer_guest_agency_id').on('change', function () {
-		const agencyId = parseInt($(this).val(), 10);
-		loadTransferAgentOptions($('#transfer_guest_agent_id'), agencyId, null);
-	});
-
 	$('#transfer_guest_form').on('submit', function (e) {
 		e.preventDefault();
 		const guestId = parseInt($('#transfer_guest_id').val(), 10);
@@ -808,7 +804,7 @@ $(document).ready(function () {
 			Swal.fire({
 				icon: 'warning',
 				title: 'Selection required',
-				text: 'Select a target agency and agent.',
+				text: 'Select a target agent.',
 				confirmButtonText: 'OK'
 			});
 			return;
