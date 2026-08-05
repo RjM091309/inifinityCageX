@@ -1297,10 +1297,10 @@ $(document).ready(function () {
         const nonGoodsTypeLabel = window.houseExpenseTranslations?.type_non_goods || 'Non-goods / Services';
         var dataTable = $('#expense-tbl').DataTable({
             "dom": '<"house-expense-dt-toolbar d-flex flex-wrap align-items-end justify-content-between gap-3 mb-2"<"flex-shrink-0 align-self-end"l><"flex-shrink-0 align-self-end ms-md-auto house-expense-dt-search"f>>' +
-                'rt<"row mt-2"<"col-12 d-flex justify-content-end"p>>',
+                'r<"house-expense-table-scroll-wrap"t><"row mt-2"<"col-12 d-flex justify-content-end"p>>',
             "order": [[4, 'desc']],
-            "pageLength": 100,
-            "lengthMenu": [[100, 50, 25, 10, -1], [100, 50, 25, 10, "All"]],
+            "pageLength": 15,
+            "lengthMenu": [[15, 25, 50, 100, -1], [15, 25, 50, 100, "All"]],
             "columnDefs": [
                 {
                     "targets": 4,
@@ -1515,7 +1515,7 @@ $(document).ready(function () {
                         btn
                     ]).draw();
                     });
-                    
+
                     setHouseExpenseFooterTotals(total_expense, total_return_money);
                     renderHouseExpenseAnalytics(data, total_expense, total_return_money);
                     window.houseExpenseLastRows = data;

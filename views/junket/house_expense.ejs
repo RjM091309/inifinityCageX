@@ -436,12 +436,14 @@
                 box-shadow: 0 0 0 0.2rem rgba(59, 89, 237, 0.25);
             }
             .card-body {
-  overflow-x: auto;
-}
+                overflow-x: visible;
+            }
            #expense-tbl {
     width: 100%;
+    min-width: 980px;
     font-size: 13px;
     border-collapse: collapse;
+    table-layout: auto;
 }
 
 /* Header styles */
@@ -776,7 +778,7 @@
             /* Keep action column in single line (no two-line wrap) */
             #expense-tbl th:last-child,
             #expense-tbl td:last-child {
-                min-width: 145px;
+                min-width: 210px;
                 white-space: nowrap;
                 text-align: center !important;
             }
@@ -1106,6 +1108,38 @@
             }
             .expense-table-panel-body {
                 padding: 0.65rem 0.85rem 0.85rem;
+                overflow: visible;
+            }
+            #expense-tbl_wrapper {
+                min-width: 0;
+                width: 100%;
+            }
+            #expense-tbl_wrapper .house-expense-table-scroll-wrap {
+                overflow-x: auto;
+                overflow-y: visible;
+                -webkit-overflow-scrolling: touch;
+                margin-bottom: 0.35rem;
+                padding-bottom: 0.15rem;
+                scrollbar-width: auto;
+                scrollbar-color: #64748b #e2e8f0;
+            }
+            #expense-tbl_wrapper .house-expense-table-scroll-wrap::-webkit-scrollbar {
+                height: 14px;
+            }
+            #expense-tbl_wrapper .house-expense-table-scroll-wrap::-webkit-scrollbar-track {
+                background: #e2e8f0;
+                border-radius: 999px;
+            }
+            #expense-tbl_wrapper .house-expense-table-scroll-wrap::-webkit-scrollbar-thumb {
+                background: #64748b;
+                border-radius: 999px;
+                border: 3px solid #e2e8f0;
+            }
+            #expense-tbl_wrapper .house-expense-table-scroll-wrap::-webkit-scrollbar-thumb:hover {
+                background: #475569;
+            }
+            #expense-tbl_wrapper .dataTables_paginate {
+                margin-top: 0.15rem;
             }
             .expense-dash-kpi {
                 border-radius: 14px;
