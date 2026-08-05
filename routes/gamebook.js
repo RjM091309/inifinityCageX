@@ -1235,6 +1235,147 @@ router.delete('/game_services/:id', checkSession, async (req, res) => {
 	}
 });
 
+function computeGameListRowTotalsFromRecords(records) {
+	let total_buy_in = 0;
+	let total_cash_out = 0;
+	let total_rolling = 0;
+	let total_nn_init = 0;
+	let total_cc_init = 0;
+	let total_nn = 0;
+	let total_cc = 0;
+	let total_cash_out_nn = 0;
+	let total_cash_out_cc = 0;
+	let total_rolling_nn = 0;
+	let total_rolling_cc = 0;
+	let total_rolling_real = 0;
+	let total_rolling_nn_real = 0;
+	let total_rolling_cc_real = 0;
+	let total_roller_nn = 0;
+	let total_roller_cc = 0;
+	let total_roller_return_cc = 0;
+	let hasMarkerBuyIn = false;
+
+	for (const res of records || []) {
+		const cageType = Number(res.CAGE_TYPE);
+		const transaction = parseInt(res.TRANSACTION, 10);
+
+		if (cageType === 1 && transaction === 3) {
+			hasMarkerBuyIn = true;
+		}
+		if (cageType === 1 && (total_nn_init !== 0 || total_cc_init !== 0)) {
+			total_buy_in += Number(res.AMOUNT) || 0;
+			total_nn += Number(res.NN_CHIPS) || 0;
+			total_cc += Number(res.CC_CHIPS) || 0;
+		}
+		if (total_nn_init === 0 && total_cc_init === 0 && cageType === 1) {
+			total_nn_init += Number(res.NN_CHIPS) || 0;
+			total_cc_init += Number(res.CC_CHIPS) || 0;
+		}
+		if (cageType === 2) {
+			total_cash_out += Number(res.AMOUNT) || 0;
+			total_cash_out_nn += Number(res.NN_CHIPS) || 0;
+			total_cash_out_cc += Number(res.CC_CHIPS) || 0;
+		}
+		if (cageType === 3) {
+			total_rolling += Number(res.AMOUNT) || 0;
+			total_rolling_nn += Number(res.NN_CHIPS) || 0;
+			total_rolling_cc += Number(res.CC_CHIPS) || 0;
+		}
+		if (cageType === 4) {
+			total_rolling_real += Number(res.AMOUNT) || 0;
+			total_rolling_nn_real += Number(res.NN_CHIPS) || 0;
+			total_rolling_cc_real += Number(res.CC_CHIPS) || 0;
+		}
+		if (cageType === 5) {
+			const rollerTransaction = parseInt(res.ROLLER_TRANSACTION, 10) || 1;
+			if (rollerTransaction === 1) {
+				total_roller_nn += Number(res.ROLLER_NN_CHIPS) || 0;
+				total_roller_cc += Number(res.ROLLER_CC_CHIPS) || 0;
+			} else if (rollerTransaction === 2) {
+				total_roller_nn -= Number(res.ROLLER_NN_CHIPS) || 0;
+				total_roller_cc -= Number(res.ROLLER_CC_CHIPS) || 0;
+				total_roller_return_cc += Number(res.ROLLER_CC_CHIPS) || 0;
+			}
+		}
+	}
+
+	const total_initial = total_nn_init + total_cc_init;
+	const total_buy_in_chips = total_nn + total_cc;
+	const total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
+	const totalRollingCCWithReturns = total_roller_return_cc;
+	const total_rolling_chips =
+		total_rolling_nn +
+		totalRollingCCWithReturns +
+		total_rolling +
+		total_rolling_real +
+		total_rolling_nn_real +
+		total_rolling_cc_real -
+		total_cash_out_nn;
+	const total_rolling_real_chips =
+		total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
+	const total_roller_chips = total_roller_nn + total_roller_cc;
+	const total_amount = total_buy_in_chips + total_initial;
+	const WinLoss = total_amount - total_cash_out_chips;
+
+	return {
+		hasMarkerBuyIn,
+		total_initial,
+		total_buy_in_chips,
+		total_cash_out_chips,
+		total_rolling_chips,
+		total_rolling_real_chips,
+		total_roller_chips,
+		total_amount,
+		WinLoss
+	};
+}
+
+async function fetchGameRecordsGroupedByGameIds(gameIds) {
+	const grouped = {};
+	if (!gameIds || gameIds.length === 0) {
+		return grouped;
+	}
+
+	const CHUNK_SIZE = 500;
+	for (let i = 0; i < gameIds.length; i += CHUNK_SIZE) {
+		const chunk = gameIds.slice(i, i + CHUNK_SIZE);
+		const placeholders = chunk.map(() => '?').join(',');
+		const query = `SELECT GAME_ID, AMOUNT, NN_CHIPS, CC_CHIPS, ROLLER_NN_CHIPS, ROLLER_CC_CHIPS, ROLLER_TRANSACTION, CAGE_TYPE, TRANSACTION
+		               FROM game_record
+		               WHERE ACTIVE != 0 AND GAME_ID IN (${placeholders})
+		               ORDER BY GAME_ID ASC, IDNo ASC`;
+		const [rows] = await pool.execute(query, chunk);
+		for (const record of rows) {
+			const gameId = record.GAME_ID;
+			if (!grouped[gameId]) {
+				grouped[gameId] = [];
+			}
+			grouped[gameId].push(record);
+		}
+	}
+
+	return grouped;
+}
+
+async function attachRecordTotalsToGameListRows(rows) {
+	if (!rows || rows.length === 0) {
+		return rows;
+	}
+
+	const gameIds = rows.map((row) => row.game_list_id).filter((id) => id != null);
+	const grouped = await fetchGameRecordsGroupedByGameIds(gameIds);
+	for (const row of rows) {
+		const recs = grouped[row.game_list_id] || [];
+		row.record_totals = computeGameListRowTotalsFromRecords(recs);
+	}
+	return rows;
+}
+
+async function respondGameListRows(res, rows) {
+	await attachRecordTotalsToGameListRows(rows);
+	return res.json(rows);
+}
+
 // GET GAME LIST
 router.get('/game_list_data', async (req, res) => {
     let { start, end, id, date, fromDate, toDate } = req.query;
@@ -1307,7 +1448,7 @@ router.get('/game_list_data', async (req, res) => {
                 rows.forEach(row => { row.is_pending = 0; });
             }
             
-            return res.json(rows);
+            return await respondGameListRows(res, rows);
         } catch (error) {
             console.error('Error fetching data by ID:', error);
             return res.status(500).json({ error: 'Error fetching data' });
@@ -1340,7 +1481,7 @@ router.get('/game_list_data', async (req, res) => {
             rows.forEach((row) => {
                 row.is_pending = 0;
             });
-            return res.json(rows);
+            return await respondGameListRows(res, rows);
         } catch (error) {
             console.error('[Game List Backend] Error fetching data by settlement date range:', error);
             return res.status(500).json({ error: 'Error fetching data' });
@@ -1367,7 +1508,7 @@ router.get('/game_list_data', async (req, res) => {
             // Date range mode doesn't use pending settlement state
             rows.forEach(row => { row.is_pending = 0; });
             
-            return res.json(rows);
+            return await respondGameListRows(res, rows);
         } catch (error) {
             console.error('[Game List Backend] Error fetching data by date range:', error);
             return res.status(500).json({ error: 'Error fetching data' });
@@ -1405,7 +1546,7 @@ router.get('/game_list_data', async (req, res) => {
                     rows.forEach(row => { row.is_pending = 0; });
                 }
                 
-                return res.json(rows);
+                return await respondGameListRows(res, rows);
             }
             const isValidDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d);
             if (isValidDate(date)) {
@@ -1461,7 +1602,7 @@ router.get('/game_list_data', async (req, res) => {
                         `;
                         const [rows] = await pool.execute(query, [date]);
                         rows.forEach(row => { row.is_pending = 0; });
-                        return res.json(rows);
+                        return await respondGameListRows(res, rows);
                     }
                     return res.json([]);
                 }
@@ -1473,7 +1614,7 @@ router.get('/game_list_data', async (req, res) => {
                 if (date === todayServer) {
                     const [rows] = await pool.execute(openPoolSql);
                     await attachOpenPoolPendingFlags(rows);
-                    return res.json(rows);
+                    return await respondGameListRows(res, rows);
                 }
                 return res.json([]);
             }
@@ -1535,7 +1676,7 @@ router.get('/game_list_data', async (req, res) => {
             });
         }
         
-        res.json(rows);
+        return await respondGameListRows(res, rows);
     } catch (error) {
         console.error('Error fetching data:', error);
         return res.status(500).json({ error: 'Error fetching data' });
@@ -1813,6 +1954,34 @@ router.post('/game_list/daily_settlement/release', async (req, res) => {
         }
         console.error('Error releasing games from daily settlement:', err);
         res.status(500).json({ error: 'Error releasing games from daily settlement' });
+    }
+});
+
+// GET GAME RECORDS FOR MULTIPLE GAMES (bulk — one query instead of N per-row requests)
+router.post('/game_list/records/bulk', async (req, res) => {
+    const rawIds = req.body && req.body.gameIds;
+    if (!Array.isArray(rawIds) || rawIds.length === 0) {
+        return res.json({});
+    }
+
+    const gameIds = rawIds
+        .map((id) => parseInt(id, 10))
+        .filter((id) => !isNaN(id) && id > 0);
+
+    if (gameIds.length === 0) {
+        return res.json({});
+    }
+
+    try {
+        const grouped = await fetchGameRecordsGroupedByGameIds(gameIds);
+        const totalsByGame = {};
+        for (const gameId of gameIds) {
+            totalsByGame[gameId] = computeGameListRowTotalsFromRecords(grouped[gameId] || []);
+        }
+        res.json(totalsByGame);
+    } catch (error) {
+        console.error('Error fetching bulk game records:', error);
+        res.status(500).json({ error: 'Error fetching data' });
     }
 });
 

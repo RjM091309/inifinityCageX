@@ -326,6 +326,128 @@ function computeGameRollingAndRollerTotalsFromRecords(rows) {
 	};
 }
 
+function computeGameListRowTotalsFromRecords(records, commissionType, commissionPercentage) {
+	var total_buy_in = 0;
+	var total_cash_out = 0;
+	var total_rolling = 0;
+	var total_nn_init = 0;
+	var total_cc_init = 0;
+	var total_nn = 0;
+	var total_cc = 0;
+	var total_cash_out_nn = 0;
+	var total_cash_out_cc = 0;
+	var total_rolling_nn = 0;
+	var total_rolling_cc = 0;
+	var total_rolling_real = 0;
+	var total_rolling_nn_real = 0;
+	var total_rolling_cc_real = 0;
+	var total_roller_nn = 0;
+	var total_roller_cc = 0;
+	var total_roller_return_cc = 0;
+	var hasMarkerBuyIn = false;
+
+	(records || []).forEach(function (res) {
+		if (res.CAGE_TYPE == 1 && parseInt(res.TRANSACTION, 10) === 3) {
+			hasMarkerBuyIn = true;
+		}
+		if (res.CAGE_TYPE == 1 && (total_nn_init != 0 || total_cc_init != 0)) {
+			total_buy_in = total_buy_in + res.AMOUNT;
+			total_nn = total_nn + res.NN_CHIPS;
+			total_cc = total_cc + res.CC_CHIPS;
+		}
+		if ((total_nn_init == 0 && total_cc_init == 0) && res.CAGE_TYPE == 1) {
+			total_nn_init = total_nn_init + res.NN_CHIPS;
+			total_cc_init = total_cc_init + res.CC_CHIPS;
+		}
+		if (res.CAGE_TYPE == 2) {
+			total_cash_out = total_cash_out + res.AMOUNT;
+			total_cash_out_nn = total_cash_out_nn + res.NN_CHIPS;
+			total_cash_out_cc = total_cash_out_cc + res.CC_CHIPS;
+		}
+		if (res.CAGE_TYPE == 3) {
+			total_rolling = total_rolling + res.AMOUNT;
+			total_rolling_nn = total_rolling_nn + res.NN_CHIPS;
+			total_rolling_cc = total_rolling_cc + res.CC_CHIPS;
+		}
+		if (res.CAGE_TYPE == 4) {
+			total_rolling_real = total_rolling_real + res.AMOUNT;
+			total_rolling_nn_real = total_rolling_nn_real + res.NN_CHIPS;
+			total_rolling_cc_real = total_rolling_cc_real + res.CC_CHIPS;
+		}
+		if (res.CAGE_TYPE == 5) {
+			var rollerTransaction = res.ROLLER_TRANSACTION || 1;
+			if (rollerTransaction == 1) {
+				total_roller_nn = total_roller_nn + (res.ROLLER_NN_CHIPS || 0);
+				total_roller_cc = total_roller_cc + (res.ROLLER_CC_CHIPS || 0);
+			} else if (rollerTransaction == 2) {
+				total_roller_nn = total_roller_nn - (res.ROLLER_NN_CHIPS || 0);
+				total_roller_cc = total_roller_cc - (res.ROLLER_CC_CHIPS || 0);
+				total_roller_return_cc += (res.ROLLER_CC_CHIPS || 0);
+			}
+		}
+	});
+
+	var total_initial = total_nn_init + total_cc_init;
+	var total_buy_in_chips = total_nn + total_cc;
+	var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
+	var totalRollingCCWithReturns = total_roller_return_cc;
+	var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
+	var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
+	var total_roller_chips = total_roller_nn + total_roller_cc;
+	var total_amount = total_buy_in_chips + total_initial;
+	var winloss = parseFloat(total_amount - total_cash_out_chips).toLocaleString();
+	var WinLoss = total_amount - total_cash_out_chips;
+	var net = 0;
+	if (commissionType == 1 || commissionType == 3) {
+		net = Math.round((total_rolling_chips * commissionPercentage) / 100);
+	} else if (commissionType == 2) {
+		net = Math.round((WinLoss * commissionPercentage) / 100);
+	}
+
+	return {
+		hasMarkerBuyIn: hasMarkerBuyIn,
+		total_initial: total_initial,
+		total_buy_in_chips: total_buy_in_chips,
+		total_cash_out_chips: total_cash_out_chips,
+		total_rolling_chips: total_rolling_chips,
+		total_rolling_real_chips: total_rolling_real_chips,
+		total_roller_chips: total_roller_chips,
+		total_amount: total_amount,
+		winloss: winloss,
+		WinLoss: WinLoss,
+		net: net
+	};
+}
+
+function gameListMarkerBuyinInlineStyle(hasMarker) {
+	return hasMarker ? 'background-color:#FDEAEA !important;color:#C44545 !important;' : '';
+}
+
+function resolveGameListRowTotals(row, recordTotals) {
+	var src = recordTotals || {};
+	var total_rolling_chips = Number(src.total_rolling_chips) || 0;
+	var WinLoss = Number(src.WinLoss) || 0;
+	var net = 0;
+	if (row.COMMISSION_TYPE == 1 || row.COMMISSION_TYPE == 3) {
+		net = Math.round((total_rolling_chips * row.COMMISSION_PERCENTAGE) / 100);
+	} else if (row.COMMISSION_TYPE == 2) {
+		net = Math.round((WinLoss * row.COMMISSION_PERCENTAGE) / 100);
+	}
+	return {
+		hasMarkerBuyIn: !!src.hasMarkerBuyIn,
+		total_initial: Number(src.total_initial) || 0,
+		total_buy_in_chips: Number(src.total_buy_in_chips) || 0,
+		total_cash_out_chips: Number(src.total_cash_out_chips) || 0,
+		total_rolling_chips: total_rolling_chips,
+		total_rolling_real_chips: Number(src.total_rolling_real_chips) || 0,
+		total_roller_chips: Number(src.total_roller_chips) || 0,
+		total_amount: Number(src.total_amount) || 0,
+		WinLoss: WinLoss,
+		net: net,
+		winloss: WinLoss.toLocaleString()
+	};
+}
+
 function validateRollingAgainstRollerChips(rows, ccAmount) {
 	var totals = computeGameRollingAndRollerTotalsFromRecords(rows);
 	if (ccAmount > totals.total_roller_chips) {
@@ -1315,6 +1437,7 @@ $(document).ready(function () {
 
 	var dataTable = $('#game_list-tbl').DataTable({
 		responsive: false,
+		deferRender: true,
 		paging: true,
 		lengthChange: true,
 		searching: true,
@@ -1645,6 +1768,12 @@ $(document).ready(function () {
 		$('#game_list-tbl tfoot #GRAND_WIN_LOSS').text(grandWinLoss.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
 	};
 
+    var gameListReloadGeneration = 0;
+
+    function isGameListReloadStale(gen) {
+        return gen !== gameListReloadGeneration;
+    }
+
     function clearGameListDisplay() {
         window._gameListGrandTotals = null;
         dataTable.clear();
@@ -1653,6 +1782,8 @@ $(document).ready(function () {
     }
 
     function reloadData() {
+        gameListReloadGeneration++;
+        var currentReloadGen = gameListReloadGeneration;
 		// Build params; if highlightId exists, pass it to bypass date filtering on backend
 		const params = {};
 		if (highlightId) {
@@ -1708,6 +1839,7 @@ $(document).ready(function () {
             method: 'GET',
             data: params,
             success: function (data) {
+                if (isGameListReloadStale(currentReloadGen)) return;
                 window.lastSettlementRows = Array.isArray(data) ? data : [];
                 dataTable.clear();
 
@@ -1840,36 +1972,44 @@ $(document).ready(function () {
                     pushFullRangeGrandTotalsFromAccumulators();
                 }
 
-                data.forEach(function (row) {
+                function onGameListRecordsBatchComplete() {
+                    if (isGameListReloadStale(currentReloadGen)) return;
+                    if (!hasAccountSearch) {
+                        dataTable.draw();
+                    }
+                }
 
+                var isSettlementModeUi = ($('input[name="filter-mode"]:checked').val() || 'settlement') === 'settlement';
+                var wrapperTodayEl = document.querySelector('#settlement-date-wrapper .input-group');
+                var dataTodayYmd =
+                    (wrapperTodayEl && wrapperTodayEl.getAttribute('data-today')) ||
+                    (function () {
+                        var n = new Date();
+                        return (
+                            n.getFullYear() +
+                            '-' +
+                            String(n.getMonth() + 1).padStart(2, '0') +
+                            '-' +
+                            String(n.getDate()).padStart(2, '0')
+                        );
+                    })();
+                var selectedYmd = String(window.selectedSettlementDate || '').slice(0, 10);
+                var isTodaySettledView =
+                    !window.selectedSettlementRangeMultiDay &&
+                    /^\d{4}-\d{2}-\d{2}$/.test(selectedYmd) &&
+                    selectedYmd === String(dataTodayYmd).slice(0, 10);
+                var canOpenPoolSelect =
+                    isSettlementModeUi &&
+                    !window.selectedSettlementRangeMultiDay &&
+                    window.selectedSettlementSubView === 'settled' &&
+                    isTodaySettledView &&
+                    window.isOpenPoolSelectionMode;
+
+                var tableRowsBatch = [];
+
+                data.forEach(function (row) {
 // 					let isHighlighted = highlightId && parseInt(highlightId) === row.game_list_id;
 // let rowClass = isHighlighted ? 'highlight-row' : '';
-
-                    var isSettlementModeUi = ($('input[name="filter-mode"]:checked').val() || 'settlement') === 'settlement';
-                    var wrapperTodayEl = document.querySelector('#settlement-date-wrapper .input-group');
-                    var dataTodayYmd =
-                        (wrapperTodayEl && wrapperTodayEl.getAttribute('data-today')) ||
-                        (function () {
-                            var n = new Date();
-                            return (
-                                n.getFullYear() +
-                                '-' +
-                                String(n.getMonth() + 1).padStart(2, '0') +
-                                '-' +
-                                String(n.getDate()).padStart(2, '0')
-                            );
-                        })();
-                    var selectedYmd = String(window.selectedSettlementDate || '').slice(0, 10);
-                    var isTodaySettledView =
-                        !window.selectedSettlementRangeMultiDay &&
-                        /^\d{4}-\d{2}-\d{2}$/.test(selectedYmd) &&
-                        selectedYmd === String(dataTodayYmd).slice(0, 10);
-                    var canOpenPoolSelect =
-                        isSettlementModeUi &&
-                        !window.selectedSettlementRangeMultiDay &&
-                        window.selectedSettlementSubView === 'settled' &&
-                        isTodaySettledView &&
-                        window.isOpenPoolSelectionMode;
 
                     var btn = `<div class="btn-group">
                         <button type="button" onclick="viewRecord(${row.game_list_id})" class="btn btn-sm btn-info-subtle action-btn-square js-bs-tooltip-enabled"
@@ -1914,119 +2054,19 @@ $(document).ready(function () {
 
                     var dateFormat = moment(row.GAME_DATE).format('MMMM DD, YYYY');
 
-                    $.ajax({
-                        url: '/game_list/' + row.game_list_id + '/record',
-                        method: 'GET',
-                        success: function (response) {
-                            var total_buy_in = 0;
-                            var total_cash_out = 0;
-                            var total_rolling = 0;
-                            var initial_buy_in = 0;
+                    var resolvedTotals = resolveGameListRowTotals(row, row.record_totals);
+                    var hasMarkerBuyIn = resolvedTotals.hasMarkerBuyIn;
+                    var total_initial = resolvedTotals.total_initial;
+                    var total_buy_in_chips = resolvedTotals.total_buy_in_chips;
+                    var total_cash_out_chips = resolvedTotals.total_cash_out_chips;
+                    var total_rolling_chips = resolvedTotals.total_rolling_chips;
+                    var total_rolling_real_chips = resolvedTotals.total_rolling_real_chips;
+                    var total_roller_chips = resolvedTotals.total_roller_chips;
+                    var total_amount = resolvedTotals.total_amount;
+                    var winloss = resolvedTotals.winloss;
+                    var WinLoss = resolvedTotals.WinLoss;
+                    var net = resolvedTotals.net;
 
-                            var total_nn_init = 0;
-                            var total_cc_init = 0;
-                            var total_nn = 0;
-                            var total_cc = 0;
-                            var total_cash_out_nn = 0;
-                            var total_cash_out_cc = 0;
-                            var total_rolling_nn = 0;
-                            var total_rolling_cc = 0;
-
-					var total_rolling_real = 0;
-					var total_rolling_nn_real = 0;
-					var total_rolling_cc_real = 0;
-					var total_roller_nn = 0;
-					var total_roller_cc = 0;
-					var total_roller_return_cc = 0;
-                            var total_roller_return_cc = 0;
-                            var hasMarkerBuyIn = false;
-
-                            response.forEach(function (res) {
-                                if (res.CAGE_TYPE == 1 && parseInt(res.TRANSACTION, 10) === 3) {
-                                    hasMarkerBuyIn = true;
-                                }
-                                if (res.CAGE_TYPE == 1 && (total_nn_init != 0 || total_cc_init != 0)) {
-                                    total_buy_in = total_buy_in + res.AMOUNT;
-                                    total_nn = total_nn + res.NN_CHIPS;
-                                    total_cc = total_cc + res.CC_CHIPS;
-                                }
-
-                                if ((total_nn_init == 0 && total_cc_init == 0) && res.CAGE_TYPE == 1) {
-                                    initial_buy_in = res.AMOUNT;
-                                    total_nn_init = total_nn_init + res.NN_CHIPS;
-                                    total_cc_init = total_cc_init + res.CC_CHIPS;
-                                }
-
-                                if (res.CAGE_TYPE == 2) {
-                                    total_cash_out = total_cash_out + res.AMOUNT;
-                                    total_cash_out_nn = total_cash_out_nn + res.NN_CHIPS;
-                                    total_cash_out_cc = total_cash_out_cc + res.CC_CHIPS;
-                                }
-
-                                if (res.CAGE_TYPE == 3) {
-                                    total_rolling = total_rolling + res.AMOUNT;
-                                    total_rolling_nn = total_rolling_nn + res.NN_CHIPS;
-                                    total_rolling_cc = total_rolling_cc + res.CC_CHIPS;
-                                }
-
-                                if (res.CAGE_TYPE == 4) {
-                                    total_rolling_real = total_rolling_real + res.AMOUNT;
-                                    total_rolling_nn_real = total_rolling_nn_real + res.NN_CHIPS;
-                                    total_rolling_cc_real = total_rolling_cc_real + res.CC_CHIPS;
-                                }
-                                
-                                if (res.CAGE_TYPE == 5) {
-                                    // ROLLER CHIPS - tracked separately (do NOT affect total rolling)
-                                    // Use ROLLER_NN_CHIPS and ROLLER_CC_CHIPS columns
-                                    // ROLLER_TRANSACTION: 1 = ADD (add), 2 = RETURN (subtract)
-                                    var rollerTransaction = res.ROLLER_TRANSACTION || 1; // Default to ADD if null
-                                    if (rollerTransaction == 1) {
-                                        total_roller_nn = total_roller_nn + (res.ROLLER_NN_CHIPS || 0);
-                                        total_roller_cc = total_roller_cc + (res.ROLLER_CC_CHIPS || 0);
-                                    } else if (rollerTransaction == 2) {
-                                        total_roller_nn = total_roller_nn - (res.ROLLER_NN_CHIPS || 0);
-                                        total_roller_cc = total_roller_cc - (res.ROLLER_CC_CHIPS || 0);
-                                        total_roller_return_cc += (res.ROLLER_CC_CHIPS || 0);
-                                    }
-                                }
-                            });
-	
-							var total_initial = total_nn_init + total_cc_init;
-							var total_buy_in_chips = total_nn + total_cc;
-							var total_cash_out_chips = total_cash_out_nn + total_cash_out_cc;
-							
-                            // TOTAL ROLLING: exclude roller chip movements (ADD/RETURN)
-                            // CASHOUT NN subtracts from rolling (player cashes out NN chips, removed from play)
-                            // CC chips don't affect rolling (CC chips are winnings from dealer, not played chips)
-                            // Note: CC chips from CAGE_TYPE == 3 (TOTAL ROLLING) should NOT be included
-                            // Note: Buy-in amounts are NOT included here - they are separate from rolling transactions
-							var totalRollingCCWithReturns = total_roller_return_cc;  // Only include roller return CC, exclude CC from CAGE_TYPE == 3
-                            var total_rolling_chips = total_rolling_nn + totalRollingCCWithReturns + total_rolling + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn;
-	
-							var total_rolling_real_chips = total_rolling_real + total_rolling_nn_real + total_rolling_cc_real + total_roller_return_cc;
-							var total_roller_chips = total_roller_nn + total_roller_cc;
-	
-							var gross = total_buy_in - total_cash_out;
-	
-							var total_amount = total_buy_in_chips + total_initial;
-	
-					
-	
-							var winloss = parseFloat(total_amount - total_cash_out_chips).toLocaleString();
-							
-							var WinLoss = total_amount - total_cash_out_chips;
-							
-							
-							 // Calculate net and format as an integer (multiply first, then divide to avoid float precision e.g. 4317000*1.45% -> 62597 not 62596)
-							 var net = 0;
-							 if (row.COMMISSION_TYPE == 1 || row.COMMISSION_TYPE == 3) {
-								 // If COMMISSION_TYPE is 1 or 3, compute net using total rolling chips
-								 net = Math.round((total_rolling_chips * row.COMMISSION_PERCENTAGE) / 100);
-							 } else if (row.COMMISSION_TYPE == 2) {
-								 // If COMMISSION_TYPE is 2, compute net using winloss
-								 net = Math.round((WinLoss * row.COMMISSION_PERCENTAGE) / 100);
-							 }
-	
 							// Add to grand totals
 							totalInitialBuyIn += total_initial;
 							totalAdditionalBuyIn += total_buy_in_chips;
@@ -2070,7 +2110,7 @@ $(document).ready(function () {
 							var roller_chips_td = '';
 							var isInitialBuyinMarker = hasMarkerBuyIn;
 							var buyinAmountDisplay = parseFloat(total_amount).toLocaleString();
-							var buyinInlineStyle = '';
+							var buyinInlineStyle = gameListMarkerBuyinInlineStyle(isInitialBuyinMarker);
 							var buyinStaticDisplay = buyinAmountDisplay;
 	
 							if (row.game_status == 2) {
@@ -2140,7 +2180,7 @@ $(document).ready(function () {
                                 }
 
                                 var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-                                let rowNode = dataTable.row.add([
+                                tableRowsBatch.push([
                                     gameStartCellOg,
                                     buildGameTypeCell(row),
                                     buildCutoffGameIdCell(row),
@@ -2157,18 +2197,7 @@ $(document).ready(function () {
                                     translateGameSource(row.INITIAL_MOP),
                                     status,
                                     actionButtons
-                                ]).draw().node();
-								if (isInitialBuyinMarker) {
-									var $buyinCellOnGame = $(rowNode).find('td').eq(5);
-									var buyinCellOnGameEl = $buyinCellOnGame.get(0);
-									if (buyinCellOnGameEl) {
-										buyinCellOnGameEl.style.setProperty('background-color', '#FDEAEA', 'important');
-										buyinCellOnGameEl.style.setProperty('color', '#C44545', 'important');
-									}
-									$buyinCellOnGame.find('a, button, span').each(function () {
-										this.style.setProperty('color', '#C44545', 'important');
-									});
-								}
+                                ]);
 								
 								// pending-game highlight removed
 								
@@ -2274,7 +2303,7 @@ $(document).ready(function () {
 								}
 								var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
 
-								let rowNode = dataTable.row.add([
+								tableRowsBatch.push([
 									gameStartCell,
 									buildGameTypeCell(row),
 									buildCutoffGameIdCell(row),
@@ -2291,18 +2320,7 @@ $(document).ready(function () {
 									translateGameSource(row.INITIAL_MOP),
 									status,
 									actionButtons
-								]).draw().node();
-								if (isInitialBuyinMarker) {
-									var $buyinCellPending = $(rowNode).find('td').eq(5);
-									var buyinCellPendingEl = $buyinCellPending.get(0);
-									if (buyinCellPendingEl) {
-										buyinCellPendingEl.style.setProperty('background-color', '#FDEAEA', 'important');
-										buyinCellPendingEl.style.setProperty('color', '#C44545', 'important');
-									}
-									$buyinCellPending.find('a, button, span').each(function () {
-										this.style.setProperty('color', '#C44545', 'important');
-									});
-								}
+								]);
 								
 								// pending-game highlight removed
 								
@@ -2395,31 +2413,19 @@ $(document).ready(function () {
 							   actionButtons += `<div class="btn-group" role="group"><button type="button" onclick="delete_game_list(${row.game_list_id})" class="btn btn-sm btn-warning-subtle action-btn-square js-bs-tooltip-enabled" data-bs-toggle="tooltip" aria-label="Delete" data-bs-original-title="Delete Game"><i class="fa fa-trash-alt"></i></button></div>`;
 						   }
 						   var acct_no_link = `<a href="#" onclick="account_details(${row.ACCOUNT_ID}, '${row.agent_code}', '${row.agent_name}')">${row.agent_code} (${row.agent_name})</a>`;
-						   let rowNode = dataTable.row.add([gameStartCell, buildGameTypeCell(row), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]).draw().node();
-						   if (isInitialBuyinMarker) {
-							   var $buyinCellEndGame = $(rowNode).find('td').eq(5);
-							   var buyinCellEndGameEl = $buyinCellEndGame.get(0);
-							   if (buyinCellEndGameEl) {
-								   buyinCellEndGameEl.style.setProperty('background-color', '#FDEAEA', 'important');
-								   buyinCellEndGameEl.style.setProperty('color', '#C44545', 'important');
-							   }
-							   $buyinCellEndGame.find('a, button, span').each(function () {
-								   this.style.setProperty('color', '#C44545', 'important');
-							   });
-						   }
+						   tableRowsBatch.push([gameStartCell, buildGameTypeCell(row), buildCutoffGameIdCell(row), acct_no_link, buildGameGuestCell(row), buyin_td, cashout_td, rolling_td, parseFloat(total_rolling_chips).toLocaleString(), roller_chips_td, buildGameRateCell(row, userPermissions, isSettled), formattedNet, winloss, translateGameSource(row.INITIAL_MOP), status, actionButtons]);
 						   
 						   // pending-game highlight removed
 							}
 
-							completeFullRangeGrandRow();
-
-						},
-						error: function (xhr, status, error) {
-                            console.error('Error fetching options:', error);
-                            completeFullRangeGrandRow();
-                        }
-                    });
+                    completeFullRangeGrandRow();
                 });
+
+                if (tableRowsBatch.length) {
+                    dataTable.rows.add(tableRowsBatch);
+                }
+
+                onGameListRecordsBatchComplete();
             },
             error: function (xhr, status, error) {
                 console.error('Error fetching data:', error);

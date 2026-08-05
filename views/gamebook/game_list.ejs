@@ -1012,86 +1012,6 @@ table.dataTable tbody tr.highlight-row {
 					</script>
 					<script>
 						$(document).ready(function () {
-							// DataTable is initialized in game_list.js (do not re-init here — breaks column count)
-
-							// Set default "From" date to the 1st day of the current month
-							var currentDate = new Date();
-							var firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-							var today = new Date();
-
-							// Function to format the date as "dd mmm yyyy" (e.g., 01 Sept 2024)
-							var formatDate = function (date) {
-								var day = ("0" + date.getDate()).slice(-2); // Add leading zero for day
-								var monthNames = ["Jan,", "Feb,", "Mar,", "Apr,", "May,", "Jun,", "Jul,", "Aug,", "Sep,", "Oct,", "Nov,", "Dec,"];
-								var month = monthNames[date.getMonth()]; // Get the month abbreviation
-								var year = date.getFullYear(); // Get the full year
-								return day + ' ' + month + ' ' + year; // Return the formatted date as "dd mmm yyyy"
-							};
-
-							// Set default values to date inputs
-							$('#from-date').val(formatDate(firstDayOfMonth));
-							$('#to-date').val(formatDate(today));
-
-							// Custom filtering function which will filter data based on the "From" and "To" dates
-							$.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-								function parseGameStartCellDate(rawCell) {
-									var text = $('<div>').html(rawCell || '').text().trim();
-									if (!text) return new Date('Invalid Date');
-									// Expected display: "May 07, 15:28" (year inferred from current year)
-									var withYear = text + ', ' + new Date().getFullYear();
-									var d = new Date(withYear);
-									return d;
-								}
-
-								// Get the values from the "From" and "To" date inputs
-								var minDate = $('#from-date').val() ? new Date($('#from-date').val()) : null;
-								var maxDate = $('#to-date').val() ? new Date($('#to-date').val()) : null;
-
-								// Get the game start date from the table data (Column index for "GAME START")
-								var gameStartDate = parseGameStartCellDate(data[0]); // GAME START column (index 0)
-
-								// Get the game end date from the table data (Column index for "GAME END DATE & TIME")
-								var gameEndDate = parseGameStartCellDate(data[0]); // Preserved existing filter behavior
-
-								// Strip the time portion of the date by setting time to midnight (for date-only comparison)
-								if (minDate !== null) {
-									minDate.setHours(0, 0, 0, 0); // Set minDate to midnight
-								}
-								if (maxDate !== null) {
-									maxDate.setHours(23, 59, 59, 999); // Set maxDate to the end of the day
-								}
-								gameStartDate.setHours(0, 0, 0, 0); // Strip the time portion of the gameStartDate
-								gameEndDate.setHours(0, 0, 0, 0); // Strip the time portion of the gameEndDate
-
-								// Apply the date filtering logic for both GAME START and GAME END DATE
-								if ((minDate === null && maxDate === null) || // No date filtering
-									(minDate === null && (gameStartDate <= maxDate || gameEndDate <= maxDate)) || // Only max date is provided
-									(minDate <= gameStartDate && maxDate === null) || // Only min date is provided
-									(minDate <= gameStartDate && gameStartDate <= maxDate) || // Both dates are within range (GAME START)
-									(minDate <= gameEndDate && gameEndDate <= maxDate)) { // Both dates are within range (GAME END)
-									return true; // If within range or no date filter, include the row
-								}
-								return false; // Exclude the row if it doesn't match the filter
-							});
-
-							// Account Search is handled in game_list.js: when value is entered, table shows one row per account with totals (not each game)
-
-							// Re-draw the DataTable whenever the date inputs change
-							$('#from-date, #to-date').change(function () {
-								$('#game_list-tbl').DataTable().draw();
-							});
-
-							// Re-draw when Account Search input changes
-							$(document).on('keyup input', '#input-account-search', function () {
-								if ($.fn.DataTable.isDataTable('#game_list-tbl')) {
-									$('#game_list-tbl').DataTable().draw();
-								}
-							});
-
-							// Trigger the initial draw to apply the default date filtering on page load
-							$('#game_list-tbl').DataTable().draw();
-
-
 							function calculateTotal() {
 								if (typeof window.calculateGameListGrandTotalsFromTable === 'function') {
 									window.calculateGameListGrandTotalsFromTable();
@@ -1101,7 +1021,6 @@ table.dataTable tbody tr.highlight-row {
 
 							// Attach events to recalculate totals on search and draw
 							$('#game_list-tbl').on('search.dt draw.dt', function () {
-								// console.log("Search or draw event triggered");
 								calculateTotal();
 							});
 						});
