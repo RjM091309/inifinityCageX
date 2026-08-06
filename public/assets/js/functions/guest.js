@@ -147,6 +147,22 @@ function populateAgencySelect($select, selectedId) {
 	}
 }
 
+function compareGuestPageAgents(a, b) {
+	const codeA = String(a.agent_code || '').trim();
+	const codeB = String(b.agent_code || '').trim();
+	const byCode = codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+	if (byCode !== 0) return byCode;
+	return String(a.agent_name || a.NAME || '').trim().localeCompare(
+		String(b.agent_name || b.NAME || '').trim(),
+		undefined,
+		{ sensitivity: 'base' }
+	);
+}
+
+function sortGuestPageAgents(agents) {
+	return (agents || []).slice().sort(compareGuestPageAgents);
+}
+
 function destroyGuestPageSelect2($select) {
 	if (!$select || !$select.length || typeof $select.select2 !== 'function') return;
 	if ($select.data('select2')) {
@@ -187,9 +203,9 @@ function loadAllTransferAgentOptions($agentSelect, currentAgentId) {
 		url: '/agent_data',
 		method: 'GET',
 		success: function (rows) {
-			const agents = (rows || []).filter(function (row) {
+			const agents = sortGuestPageAgents((rows || []).filter(function (row) {
 				return String(row.agent_id) !== String(currentAgentId);
-			});
+			}));
 			if (!agents.length) {
 				$agentSelect.html('<option value="">No agents available</option>').prop('disabled', true);
 				initTransferGuestAgentSelect2($agentSelect);
@@ -236,7 +252,7 @@ function loadTransferAgentOptions($agentSelect, agencyId, selectedAgentId) {
 		url: '/account_data?agencyId=' + encodeURIComponent(agencyId),
 		method: 'GET',
 		success: function (rows) {
-			const agents = rows || [];
+			const agents = sortGuestPageAgents(rows || []);
 			if (!agents.length) {
 				$agentSelect.html('<option value="">No ' + HIERARCHY_LEVEL_2_LABEL + ' under this ' + HIERARCHY_LEVEL_1_LABEL + '</option>').prop('disabled', true);
 				if (isGuestPageSelect) {
