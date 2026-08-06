@@ -147,6 +147,24 @@ function populateAgencySelect($select, selectedId) {
 	}
 }
 
+function destroyGuestPageSelect2($select) {
+	if (!$select || !$select.length || typeof $select.select2 !== 'function') return;
+	if ($select.data('select2')) {
+		try { $select.select2('destroy'); } catch (e) {}
+	}
+}
+
+function initGuestPageSelect2($select, placeholder) {
+	if (!$select || !$select.length || typeof $select.select2 !== 'function') return;
+	destroyGuestPageSelect2($select);
+	$select.select2({
+		placeholder: placeholder || $select.data('placeholder') || 'Select an option',
+		allowClear: false,
+		width: '100%',
+		dropdownParent: $('#modal-guest-page-add')
+	});
+}
+
 function initTransferGuestAgentSelect2($agentSelect) {
 	if (typeof $agentSelect.select2 !== 'function') return;
 	if ($agentSelect.data('select2')) {
@@ -195,9 +213,23 @@ function loadAllTransferAgentOptions($agentSelect, currentAgentId) {
 }
 
 function loadTransferAgentOptions($agentSelect, agencyId, selectedAgentId) {
+	const isGuestPageSelect = $agentSelect.hasClass('js-guest-page-select2');
+	const placeholder = 'Select ' + HIERARCHY_LEVEL_2_LABEL;
+
+	if (isGuestPageSelect) {
+		destroyGuestPageSelect2($agentSelect);
+	}
+
 	if (!agencyId) {
-		$agentSelect.html('<option value="">Select ' + HIERARCHY_LEVEL_2_LABEL + '</option>').prop('disabled', true);
+		$agentSelect.html('<option value="">' + placeholder + '</option>').prop('disabled', true);
+		if (isGuestPageSelect) {
+			initGuestPageSelect2($agentSelect, placeholder);
+		}
 		return;
+	}
+
+	if (isGuestPageSelect) {
+		$agentSelect.prop('disabled', true).html('<option value="">Loading...</option>');
 	}
 
 	$.ajax({
@@ -207,9 +239,12 @@ function loadTransferAgentOptions($agentSelect, agencyId, selectedAgentId) {
 			const agents = rows || [];
 			if (!agents.length) {
 				$agentSelect.html('<option value="">No ' + HIERARCHY_LEVEL_2_LABEL + ' under this ' + HIERARCHY_LEVEL_1_LABEL + '</option>').prop('disabled', true);
+				if (isGuestPageSelect) {
+					initGuestPageSelect2($agentSelect, placeholder);
+				}
 				return;
 			}
-			let html = '<option value="">Select ' + HIERARCHY_LEVEL_2_LABEL + '</option>';
+			let html = '<option value="">' + placeholder + '</option>';
 			agents.forEach(function (agent) {
 				const id = agent.agent_id;
 				const code = String(agent.agent_code || '').trim().toUpperCase();
@@ -221,9 +256,15 @@ function loadTransferAgentOptions($agentSelect, agencyId, selectedAgentId) {
 			if (selectedAgentId) {
 				$agentSelect.val(String(selectedAgentId));
 			}
+			if (isGuestPageSelect) {
+				initGuestPageSelect2($agentSelect, placeholder);
+			}
 		},
 		error: function () {
 			$agentSelect.html('<option value="">Failed to load agent list</option>').prop('disabled', true);
+			if (isGuestPageSelect) {
+				initGuestPageSelect2($agentSelect, placeholder);
+			}
 		}
 	});
 }
@@ -476,6 +517,7 @@ function renderGuestActionCell(row, readOnly) {
 
 	if (!readOnly) {
 		html += '<button type="button" class="btn btn-link p-0 me-1" title="Edit" onclick="openEditGuestModal(' + guestId + ')"><i class="fa fa-pen"></i></button>';
+		html += '<button type="button" class="btn btn-link p-0 me-1" title="Transfer" onclick="openTransferGuestModal(' + guestId + ')"><i class="fa fa-exchange-alt"></i></button>';
 	}
 
 	if (permissions === 0) {
@@ -683,9 +725,15 @@ $(document).ready(function () {
 	loadGuestPageAgencies();
 
 	$('#btn-guest-page-add').on('click', function () {
+		const $agencySelect = $('#guest_page_agency_id');
+		const $agentSelect = $('#guest_page_agent_id');
 		$('#guest_page_add_form')[0].reset();
-		populateAgencySelect($('#guest_page_agency_id'), '');
-		$('#guest_page_agent_id').html('<option value="">Select ' + HIERARCHY_LEVEL_2_LABEL + '</option>').prop('disabled', true);
+		destroyGuestPageSelect2($agencySelect);
+		destroyGuestPageSelect2($agentSelect);
+		populateAgencySelect($agencySelect, '');
+		$agentSelect.html('<option value="">Select ' + HIERARCHY_LEVEL_2_LABEL + '</option>').prop('disabled', true);
+		initGuestPageSelect2($agencySelect, 'Select ' + HIERARCHY_LEVEL_1_LABEL);
+		initGuestPageSelect2($agentSelect, 'Select ' + HIERARCHY_LEVEL_2_LABEL);
 		$('#modal-guest-page-add').modal('show');
 	});
 
