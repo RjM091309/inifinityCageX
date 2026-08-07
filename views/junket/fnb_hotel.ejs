@@ -52,9 +52,13 @@
 					</div>
 				</div>
 				<div class="card-body">
-					<div class="row mt-4">
+					<div class="row mt-2">
 						<div class="col-12">
-							
+							<div id="fnb-hotel-date-filter-source" class="d-none">
+								<div class="fnb-hotel-date-filter-wrap">
+									<input type="text" id="fnb-hotel-daterange" class="input-daterange input-group" placeholder="<%= __('fnb_hotel.select_date_range') %>" autocomplete="off" />
+								</div>
+							</div>
 							<div class="table-responsive">
 								<table id="fnb-hotel-table" class="table  nowrap small-text" style="width:100%">
 									<thead>
@@ -147,6 +151,66 @@
 </div>
 
 <style>
+.fnb-hotel-date-filter-wrap {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	width: fit-content;
+	margin: 0 0 0 12px;
+	vertical-align: middle;
+}
+
+#fnb-hotel-table_wrapper .dataTables_length {
+	display: inline-flex;
+	align-items: center;
+	margin-bottom: 0;
+}
+
+#fnb-hotel-table_wrapper > .row:first-child > div:first-child {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.fnb-hotel-date-filter-wrap .input-daterange {
+	width: auto;
+	margin: 0;
+	font-size: 12px;
+	border: 1px solid #dbe2f3;
+	border-radius: 8px;
+	background: #fff;
+	padding: 8px 12px;
+	min-height: 36px;
+	line-height: 1.4;
+	color: #344054;
+	white-space: nowrap;
+	text-align: center;
+}
+
+.fnb-hotel-date-filter-wrap .flatpickr-alt-input {
+	width: auto !important;
+	min-width: 0 !important;
+	max-width: none !important;
+	margin: 0;
+	font-size: 12px;
+	border: 1px solid #dbe2f3 !important;
+	border-radius: 8px;
+	background: #fff !important;
+	padding: 8px 12px;
+	min-height: 36px;
+	line-height: 1.4;
+	color: #344054;
+	box-shadow: none !important;
+	cursor: pointer;
+	white-space: nowrap;
+	text-align: center !important;
+}
+
+.fnb-hotel-date-filter-wrap .flatpickr-input[readonly] {
+	cursor: pointer;
+}
+
 	/* Base table styles */
 #fnb-hotel-table {
     width: 100%;

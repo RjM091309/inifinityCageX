@@ -6,8 +6,8 @@
                 <div class="guest-portal-title-wrap text-center" id="staticBackdropLiveLabel">
                     <img
                         class="guest-portal-logo"
-                        src="/assets/images/qwe1-removebg-preview.png"
-                        alt="Guest Portal"
+                        src="/assets/images/portal.png"
+                        alt="Agent Portal"
                         decoding="async"
                     >
                 </div>
@@ -163,6 +163,7 @@
                                     <thead>
                                         <tr>
                                             <th class="text-center" style="width: 160px;"><%= __('modal_account_details.date') %></th>
+                                            <th class="text-center" style="width: 140px;"><%= __('modal_account_details.guest') %></th>
                                             <th class="text-center" style="width: 220px;"><%= __('modal_account_details.transaction') %></th>
                                             <th class="text-center" style="width: 130px;"><%= __('modal_account_details.amount') %></th>
                                             <th class="text-center" style="width: 140px;"><%= __('modal_account_details.balance_after') %></th>
@@ -380,6 +381,19 @@
     padding-top: 0.8rem;
     padding-bottom: 0.8rem;
 }
+body.guest-portal-child-open #modal-account-details.guest-portal-parent-hidden {
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+body.guest-portal-child-open #modal-game-history.show,
+body.guest-portal-child-open #modal-credit-details.show,
+body.guest-portal-child-open #modal-passport-details.show,
+body.guest-portal-child-open #modal-change-photo.show {
+    z-index: 1065 !important;
+}
+body.guest-portal-child-open .modal-backdrop.show {
+    z-index: 1050 !important;
+}
 #modal-account-details .guest-portal-header {
     padding-top: 0.55rem;
     padding-bottom: 0.55rem;
@@ -514,13 +528,16 @@
 #modal-account-details #accountDetails tbody tr:hover td {
     background-color: #f0f6ff !important;
 }
-#modal-account-details #accountDetails tbody td:nth-child(3),
+#modal-account-details #accountDetails tbody td:nth-child(2) {
+    text-align: center !important;
+}
 #modal-account-details #accountDetails tbody td:nth-child(4),
+#modal-account-details #accountDetails tbody td:nth-child(5),
 #modal-credit-details #credit-details-table tbody td:nth-child(2) {
     text-align: right !important;
     font-variant-numeric: tabular-nums;
 }
-#modal-account-details #accountDetails tbody td:nth-child(5) {
+#modal-account-details #accountDetails tbody td:nth-child(6) {
     text-align: left !important;
 }
 #modal-account-details #accountDetails_wrapper .dataTables_scrollHead thead th {
@@ -880,6 +897,9 @@
                 return;
             }
             var Modal = typeof bootstrap !== 'undefined' ? bootstrap.Modal : (typeof Bootstrap !== 'undefined' ? Bootstrap.Modal : null);
+            if (typeof window.prepareGuestPortalChildModal === 'function') {
+                window.prepareGuestPortalChildModal($(modalPassportDetails));
+            }
             if (Modal) Modal.getOrCreateInstance(modalPassportDetails).show();
             else $(modalPassportDetails).modal('show');
             document.getElementById('passport-details-loading').classList.remove('d-none');
@@ -942,6 +962,9 @@
     if (btnOpenChangePhoto && modalChangePhoto) {
         btnOpenChangePhoto.addEventListener('click', function () {
             var Modal = typeof bootstrap !== 'undefined' ? bootstrap.Modal : (typeof Bootstrap !== 'undefined' ? Bootstrap.Modal : null);
+            if (typeof window.prepareGuestPortalChildModal === 'function') {
+                window.prepareGuestPortalChildModal($(modalChangePhoto));
+            }
             if (Modal) {
                 Modal.getOrCreateInstance(modalChangePhoto).show();
             } else {

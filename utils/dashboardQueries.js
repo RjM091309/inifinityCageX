@@ -180,6 +180,54 @@ async function computeNnChipsBalance() {
   );
 }
 
+/** Same formula as views/dashboard.ejs ccChipsBalance */
+async function computeCcChipsBalance() {
+  const [
+    ccBuyin,
+    ccCashout,
+    realRolling,
+    ccRolling,
+    nnRolling,
+    accountCcReturn,
+    ccBuyinGame,
+    ccBuyinChips,
+    ccReturn,
+    rollerSub,
+    rollerAdd,
+    monthlyRows
+  ] = await Promise.all([
+    getCCChipsBuyin(),
+    getCCChipsCashout(),
+    getTotalRealRolling(),
+    getCCChipsRolling(),
+    getNNChipsRolling(),
+    getAccountCCChipsReturn(),
+    getCCChipsBuyinGame(),
+    getCCBuyin(),
+    getCCReturn(),
+    getRollerCCSubtract(),
+    getRollerCCAdd(),
+    pool.execute(
+      'SELECT SUM(CC_CHIPS) AS CCChipsMonthlySettle FROM junket_total_chips WHERE ACTIVE=1 AND TRANSACTION_ID=4 AND RESET=0'
+    ).then(([r]) => r)
+  ]);
+
+  return (
+    rowNum(ccBuyin, 'CCChipsBuyin') -
+    rowNum(ccCashout, 'CCChipsCashout') +
+    rowNum(realRolling, 'TOTAL_REAL_ROLLING') +
+    rowNum(ccRolling, 'CCChipsRolling') -
+    rowNum(nnRolling, 'NNChipsRolling') +
+    rowNum(accountCcReturn, 'CC_CHIPS_RETURN') -
+    rowNum(ccBuyinGame, 'TOTAL_CC') +
+    rowNum(ccBuyinChips, 'CCBuyin') -
+    rowNum(ccReturn, 'CCReturn') -
+    rowNum(rollerSub, 'ROLLER_CC_SUBTRACT') +
+    rowNum(rollerAdd, 'ROLLER_CC_ADD') -
+    rowNum(monthlyRows, 'CCChipsMonthlySettle')
+  );
+}
+
 module.exports = {
   getNNChipsBuyin,
   getNNChipsCashout,
@@ -200,5 +248,6 @@ module.exports = {
   getCCChipsBuyinGame,
   getCCBuyin,
   getCCReturn,
-  computeNnChipsBalance
+  computeNnChipsBalance,
+  computeCcChipsBalance
 };

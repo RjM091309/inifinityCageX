@@ -1,5 +1,9 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config(); // Load .env variables
+const { ensureGuestSchema } = require('../utils/ensureGuestSchema');
+const { ensureGuestMembershipSchema } = require('../utils/ensureGuestMembershipSchema');
+const { ensureAgencyLineIndexes } = require('../utils/ensureAgencyLineIndexes');
+const { ensureAssetManagementSchema } = require('../utils/ensureAssetManagementSchema');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -19,6 +23,10 @@ const pool = mysql.createPool({
 		const connection = await pool.getConnection();
 		console.log(`✅ Connected to MySQL at ${process.env.DB_HOST}:${process.env.DB_PORT} - DB: ${process.env.DB_NAME}`);
 		connection.release();
+		await ensureGuestSchema(pool);
+		await ensureGuestMembershipSchema(pool);
+		await ensureAgencyLineIndexes(pool);
+		await ensureAssetManagementSchema(pool);
 	} catch (err) {
 		console.error('❌ MySQL connection failed:', err.message);
 	}

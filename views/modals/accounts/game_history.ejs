@@ -10,28 +10,29 @@
       </div>
       <div class="modal-body">
         <div class="table-responsive">
-          <table class="table nowrap small-text" style="width:100%" id="game-history-tbl">
+          <table class="table small-text" style="width:100%" id="game-history-tbl">
             <thead class="table-light">
               <tr>
-                <th class="text-center" style="width: 150px;">GAME START</th>
-                <th class="text-center" style="width: 100px;">TYPE</th>
-                <th class="text-center" style="width: 80px;">GAME #</th>
-                <th class="text-center col-buyin" style="width: 100px;">BUY-IN</th>
-                <th class="text-center" style="width: 100px;">CASH-OUT</th>
-                <th class="text-center" style="width: 100px;">ROLLING</th>
-                <th class="text-center col-total-rolling" style="width: 120px;">TOTAL ROLLING</th>
-                <th class="text-center" style="width: 120px;">GAME RATE</th>
-                <th class="text-center" style="width: 100px;">COMMISSION</th>
-                <th class="text-center col-winloss" style="width: 100px;">WIN/LOSS</th>
-                <th class="text-center" style="width: 100px;">GAME SOURCE</th>
-                <th class="text-center" style="width: 150px;">GAME END</th>
+                <th class="text-center">GAME START</th>
+                <th class="text-center col-account">Account</th>
+                <th class="text-center">TYPE</th>
+                <th class="text-center">GAME #</th>
+                <th class="text-center col-buyin">BUY-IN</th>
+                <th class="text-center">CASH-OUT</th>
+                <th class="text-center">ROLLING</th>
+                <th class="text-center col-total-rolling">TOTAL ROLLING</th>
+                <th class="text-center">GAME RATE</th>
+                <th class="text-center">COMMISSION</th>
+                <th class="text-center col-winloss">WIN/LOSS</th>
+                <th class="text-center">GAME SOURCE</th>
+                <th class="text-center">GAME END</th>
               </tr>
             </thead>
             <tbody>
             </tbody>
             <tfoot class="game-history-tfoot-total">
               <tr id="game-history-totals-row">
-                <td class="text-center" colspan="3">TOTAL</td>
+                <td class="text-center" colspan="4">TOTAL</td>
                 <td class="text-center" id="gh-total-buyin">0</td>
                 <td class="text-center" id="gh-total-cashout">0</td>
                 <td class="text-center" id="gh-total-rolling">0</td>
@@ -76,14 +77,66 @@
 #modal-game-history .modal-body {
     flex: 1 1 auto;
     overflow-y: auto;
+    overflow-x: hidden;
     max-height: 680px;
     padding: 1rem;
 }
 
 #modal-game-history .table-responsive {
     max-height: 600px;
+    overflow-x: hidden;
     overflow-y: auto;
 }
+
+#modal-game-history .dataTables_wrapper {
+    overflow-x: hidden;
+}
+
+#game-history-tbl {
+    table-layout: fixed;
+    width: 100% !important;
+    font-size: 11px;
+}
+
+#game-history-tbl th,
+#game-history-tbl td {
+    padding: 6px 4px !important;
+    white-space: normal;
+    word-break: break-word;
+    vertical-align: middle;
+}
+
+#game-history-tbl thead th {
+    font-size: 10px;
+    line-height: 1.2;
+}
+
+#game-history-tbl th:nth-child(1),
+#game-history-tbl td:nth-child(1) { width: 9%; }
+#game-history-tbl th:nth-child(2),
+#game-history-tbl td:nth-child(2) { width: 7%; }
+#game-history-tbl th:nth-child(3),
+#game-history-tbl td:nth-child(3) { width: 5%; }
+#game-history-tbl th:nth-child(4),
+#game-history-tbl td:nth-child(4) { width: 5%; }
+#game-history-tbl th:nth-child(5),
+#game-history-tbl td:nth-child(5) { width: 7%; }
+#game-history-tbl th:nth-child(6),
+#game-history-tbl td:nth-child(6) { width: 7%; }
+#game-history-tbl th:nth-child(7),
+#game-history-tbl td:nth-child(7) { width: 7%; }
+#game-history-tbl th:nth-child(8),
+#game-history-tbl td:nth-child(8) { width: 8%; }
+#game-history-tbl th:nth-child(9),
+#game-history-tbl td:nth-child(9) { width: 8%; }
+#game-history-tbl th:nth-child(10),
+#game-history-tbl td:nth-child(10) { width: 7%; }
+#game-history-tbl th:nth-child(11),
+#game-history-tbl td:nth-child(11) { width: 7%; }
+#game-history-tbl th:nth-child(12),
+#game-history-tbl td:nth-child(12) { width: 7%; }
+#game-history-tbl th:nth-child(13),
+#game-history-tbl td:nth-child(13) { width: 9%; }
 
 /* Commission badge styles */
 .commission-badge {
@@ -112,6 +165,12 @@
     background-color: #e8f5e9;
     color: #2e7d32;
     border: 1px solid #a5d6a7;
+}
+
+#game-history-tbl th.col-account,
+#game-history-tbl td.col-account {
+    box-sizing: border-box;
+    text-align: center !important;
 }
 
 /* BUY-IN: default = normal table cell; marker buy-in only (CAGE_TYPE=1 & TRANSACTION=3) */
@@ -151,6 +210,9 @@
 
 <script>
 (function() {
+    if (window.__gameHistoryModuleInitialized) return;
+    window.__gameHistoryModuleInitialized = true;
+
     let gameHistoryModal = null;
     let gameHistoryDataTable = null;
 
@@ -158,17 +220,22 @@
         if (!val) return '';
         if (typeof moment !== 'undefined') {
             const m = moment.utc(val).utcOffset(8);
-            if (m.isValid()) return m.format('MMMM DD, HH:mm');
+            if (m.isValid()) return m.format('MMM DD, HH:mm');
         }
         const d = new Date(val);
         return isNaN(d.getTime())
             ? ''
-            : d.toLocaleString('en-US', { month: 'long', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+            : d.toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
     };
 
     const formatAmount = (val) => {
         const num = Number(val || 0);
         return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    };
+
+    const formatGameRate = (val) => {
+        const num = Number(val || 0);
+        return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) + '%';
     };
 
     function updateGameHistoryTotals(rows) {
@@ -218,36 +285,39 @@
         return source;
     };
 
-    async function loadGameHistoryRows(accountId) {
+    const formatAccountLabel = (row) => {
+        const code = String(row.agent_code || '').trim().toUpperCase();
+        const name = String(row.agent_name || '').trim().toUpperCase();
+        if (code && name) return code + ' - ' + name;
+        return code || name || '-';
+    };
+
+    async function loadGameHistoryRows(accountId, guestId) {
         try {
-            const res = await fetch(`/account_game_history/${accountId}`);
+            const url = guestId
+                ? `/account_game_history/${accountId}?guestId=${encodeURIComponent(guestId)}`
+                : `/account_game_history/${accountId}`;
+            const res = await fetch(url);
             const rows = await res.json();
             const dataRows = rows || [];
 
             if (gameHistoryDataTable) {
-                gameHistoryDataTable.clear().rows.add(dataRows).draw();
-                updateGameHistoryTotals(dataRows);
-                return;
+                gameHistoryDataTable.destroy();
+                gameHistoryDataTable = null;
+                $('#game-history-tbl tbody').empty();
             }
 
             gameHistoryDataTable = $('#game-history-tbl').DataTable({
                 data: dataRows,
                 order: [[0, 'desc']],
                 pageLength: 10,
-                autoWidth: false,
+                autoWidth: true,
+                scrollX: false,
                 columnDefs: [
-                    { width: "150px", targets: 0 },  // GAME START
-                    { width: "100px", targets: 1 },  // TYPE
-                    { width: "80px", targets: 2 },   // GAME #
-                    { width: "100px", targets: 3 },  // BUY-IN
-                    { width: "100px", targets: 4 },  // CASH-OUT
-                    { width: "100px", targets: 5 },  // ROLLING
-                    { width: "120px", targets: 6 },  // TOTAL ROLLING
-                    { width: "120px", targets: 7 },  // GAME RATE
-                    { width: "100px", targets: 8 },  // COMMISSION
-                    { width: "100px", targets: 9 },  // WIN/LOSS
-                    { width: "100px", targets: 10 }, // GAME SOURCE
-                    { width: "150px", targets: 11 }  // GAME END
+                    { className: 'col-account', targets: 1 },
+                    { className: 'col-buyin', targets: 4 },
+                    { className: 'col-total-rolling', targets: 7 },
+                    { className: 'col-winloss', targets: 10 }
                 ],
                 language: {
                     search: "Search:",
@@ -268,6 +338,13 @@
                                 return isNaN(t) ? 0 : t;
                             }
                             return formatDate(data);
+                        }
+                    },
+                    {
+                        data: null,
+                        className: 'text-center col-account',
+                        render: function (_data, _type, row) {
+                            return formatAccountLabel(row);
                         }
                     },
                     {
@@ -319,7 +396,7 @@
                             } else if (row.COMMISSION_TYPE == 3) {
                                 badge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
                             }
-                            return `${row.COMMISSION_PERCENTAGE || 0}% ${badge}`;
+                            return `${formatGameRate(row.COMMISSION_PERCENTAGE)} ${badge}`;
                         }
                     },
                     {
@@ -352,10 +429,10 @@
                                 return '<span class="badge bg-warning-subtle text-warning" style="font-size:10px !important;">PENDING</span>';
                             } else if (row.GAME_ENDED) {
                                 if (typeof moment !== 'undefined') {
-                                    return moment.utc(row.GAME_ENDED).utcOffset(8).format('MMMM DD, HH:mm');
+                                    return moment.utc(row.GAME_ENDED).utcOffset(8).format('MMM DD, HH:mm');
                                 }
                                 const d = new Date(row.GAME_ENDED);
-                                return d.toLocaleString('en-US', { month: 'long', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+                                return d.toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
                             }
                             return '-';
                         }
@@ -384,8 +461,17 @@
         return gameHistoryModal;
     }
 
+    function adjustGameHistoryTable() {
+        if (!gameHistoryDataTable) return;
+        gameHistoryDataTable.columns.adjust();
+        if (gameHistoryDataTable.responsive && typeof gameHistoryDataTable.responsive.recalc === 'function') {
+            gameHistoryDataTable.responsive.recalc();
+        }
+        gameHistoryDataTable.draw(false);
+    }
+
     // Make function globally accessible
-    window.game_history = async function(accountId) {
+    window.game_history = async function(accountId, guestId) {
         if (!accountId) {
             // Try to get account ID from the modal
             accountId = document.getElementById('account_id')?.value || 
@@ -398,11 +484,31 @@
         }
 
         const modal = getGameHistoryModal();
-        if (modal) {
-            await loadGameHistoryRows(accountId);
-            modal.show();
-        } else {
+        if (!modal) {
             console.error('Game history modal not initialized');
+            return;
+        }
+
+        const $modalEl = $('#modal-game-history');
+        if (typeof window.prepareGuestPortalChildModal === 'function') {
+            window.prepareGuestPortalChildModal($modalEl);
+        }
+
+        const onShown = function() {
+            $modalEl.off('shown.bs.modal', onShown);
+            adjustGameHistoryTable();
+        };
+        $modalEl.on('shown.bs.modal', onShown);
+
+        try {
+            await loadGameHistoryRows(accountId, guestId);
+            modal.show();
+            if ($modalEl.hasClass('show')) {
+                adjustGameHistoryTable();
+            }
+        } catch (err) {
+            $modalEl.off('shown.bs.modal', onShown);
+            throw err;
         }
     };
 })();

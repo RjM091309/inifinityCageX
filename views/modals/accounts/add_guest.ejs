@@ -1,0 +1,104 @@
+<style>
+body.modal-open #modal-add-guest-table.show {
+	z-index: 1065;
+}
+body.modal-open .modal-backdrop.show ~ .modal-backdrop.show {
+	z-index: 1060;
+}
+.swal2-container {
+	z-index: 1080 !important;
+}
+</style>
+<div class="modal fade" id="modal-add-guest-table" tabindex="-1" aria-labelledby="modal-add-guest-table-label" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header bg-primary">
+				<h5 class="modal-title text-white" id="modal-add-guest-table-label">Add Level 3 (Guest)</h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<form id="add_guest_form">
+				<div class="modal-body">
+					<input type="hidden" id="guest_agent_id" name="txtAgentId">
+					<div class="mb-2 text-muted small">
+						Level 2 (Agent): <strong id="guest_agent_display">-</strong>
+					</div>
+					<div class="mb-0">
+						<label for="guest_name_input" class="form-label">Level 3 (Guest) Name</label>
+						<input type="text" class="form-control" id="guest_name_input" name="txtGuestName" required maxlength="150">
+					</div>
+					<div class="mt-2 mb-0">
+						<label for="guest_membership_input" class="form-label">Membership No</label>
+						<input type="text" class="form-control" id="guest_membership_input" name="txtMembershipNo" inputmode="numeric" autocomplete="off">
+					</div>
+					<div class="mt-2 mb-0">
+						<label for="guest_telegram_input" class="form-label">Telegram Chat ID</label>
+						<div class="input-group">
+							<input type="text" class="form-control" id="guest_telegram_input" name="txtTelegram" inputmode="numeric" autocomplete="off">
+							<span class="input-group-text" data-bs-toggle="tooltip" data-bs-placement="top" title="Visit @raw_data_bot on Telegram to get your Chat ID. Then copy and paste the Chat ID here." style="cursor: pointer;">
+								<i class="fa-solid fa-circle-question"></i>
+							</span>
+						</div>
+					</div>
+					<div class="mt-2 mb-0">
+						<label for="guest_remarks_input" class="form-label">Remarks</label>
+						<textarea class="form-control" id="guest_remarks_input" name="txtRemarks" rows="2" maxlength="500"></textarea>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="submit" class="btn btn-primary btn-sm" id="btn-save-guest-table">Save</button>
+					<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+<script>
+(function () {
+	function normalizeMembershipInput(el) {
+		if (!el) return;
+		el.value = String(el.value || '').replace(/\D/g, '');
+	}
+
+	window.validateGuestMembershipNo = function (value) {
+		var v = String(value || '').trim();
+		if (!v) return '';
+		if (!/^\d+$/.test(v)) {
+			return 'Membership No must contain digits only.';
+		}
+		return '';
+	};
+
+	document.addEventListener('input', function (e) {
+		if (e.target && (e.target.id === 'guest_membership_input' || e.target.id === 'edit_guest_membership_input')) {
+			normalizeMembershipInput(e.target);
+		}
+		if (e.target && (e.target.id === 'guest_telegram_input' || e.target.id === 'edit_guest_telegram_input')) {
+			e.target.value = String(e.target.value || '').replace(/\D/g, '');
+		}
+	});
+
+	function initGuestModalTooltips(modalEl) {
+		if (!modalEl) return;
+		var tooltipTriggerList = [].slice.call(modalEl.querySelectorAll('[data-bs-toggle="tooltip"]'));
+		tooltipTriggerList.forEach(function (el) {
+			if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+				new bootstrap.Tooltip(el);
+			}
+		});
+	}
+
+	var addGuestModal = document.getElementById('modal-add-guest-table');
+	if (addGuestModal) {
+		addGuestModal.addEventListener('shown.bs.modal', function () {
+			initGuestModalTooltips(addGuestModal);
+		});
+	}
+
+	var editGuestModal = document.getElementById('modal-edit-guest-table');
+	if (editGuestModal) {
+		editGuestModal.addEventListener('shown.bs.modal', function () {
+			initGuestModalTooltips(editGuestModal);
+		});
+	}
+})();
+</script>

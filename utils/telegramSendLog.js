@@ -108,7 +108,7 @@ function markerReturnTelegramLogPreview(optTransType, optReturnSource) {
   }
   if (src === 'buyin_coin') {
     if (isCoinValue) return 'Game Credit Return Thru Coin';
-    return isDeposit ? 'Game Credit (Coin) Return Thru Deposit' : 'Game Credit (Coin) Return Thru Cash';
+    return isDeposit ? 'Game Credit (Pending) Return Thru Deposit' : 'Game Credit (Pending) Return Thru Cash';
   }
   if (src === 'buyin') {
     return isDeposit ? 'Game Credit Return Thru Deposit' : 'Game Credit Return Thru Cash';

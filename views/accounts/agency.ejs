@@ -8,78 +8,205 @@
 			</head>
 
 			<body>
-				<div class="container-fluid content-inner mt-4">
+				<div class="container-fluid content-inner py-0">
 					<div class="row">
 						<div class="col-sm-12">
 							<div class="card">
 								<div id="user-role" data-permissions="<%= permissions %>"></div>
-								<!-- Dynamic Table Responsive -->
 								<div class="card-header d-flex justify-content-between align-items-center">
 									<h3 class="card-title"><div class="breadcrumb1 flat">
 										<a href="/dashboard" ><span class="fa fa-home"></span></a>
 										
-										<a href="/agency"class="active"><%= __('agency.agents') %></a>
+										<a href="/agency"class="active">Level 1</a>
 									</div></h3>
-
-									
-									  
-
-									<div class="d-flex align-items-center gap-2">
-										<button class="btn btn-secondary d-none" id="bulkEditBtn">
-										  <i class="fa fa-pen"></i> <%= __('agency.edit') %>
-										</button>
-										<button class="btn btn-danger d-none" id="bulkDeleteBtn">
-										  <i class="fa fa-trash"></i> <%= __('agency.delete') %>
-										</button>
-										<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal-new-agency">
-										  <i class="fa fa-plus"></i> <%= __('agency.new_agent') %>
-										</button>
-									  </div>
-									  
 								</div>
-								
-							  <!-- Card Body: Grid Container -->
-							  <div class="card-body ">
-								<div class="row mb-3 align-items-center">
-									<div class="col-md-auto mb-2 mb-md-0">
-									  <div class="form-check">
-										<input class="form-check-input" type="checkbox" id="selectAllAgents">
-										<label class="form-check-label" for="selectAllAgents"><%= __('agency.select_all') %></label>
-									  </div>
+								<div class="card-body agency-page">
+									<div class="d-none mb-3" id="selection-summary-row">
+										<span class="selection-summary-chip me-2" id="selected-line-chip">
+											<strong>Level 1:</strong> <span id="selected-line-name">-</span>
+										</span>
+										<span class="selection-summary-chip" id="selected-agent-chip">
+											<strong>Level 2 (Agent):</strong> <span id="selected-agent-name">-</span>
+										</span>
 									</div>
-									
-									<div class="col-md-auto ms-auto">
-										<div class="input-group search-group position-relative" style="max-width: 250px;">
-										  <span class="input-group-text bg-white rounded-0">
-											<i class="fa fa-search"></i>
-										  </span>
-										  <input type="text" id="agentSearch" class="form-control rounded-0 shadow-none pe-4" placeholder="Search agent...">
-										  
-										  <!-- Clear button -->
-										  <button id="clearSearchBtn" type="button"
-											class="btn position-absolute end-0 top-50 translate-middle-y me-2 p-0 border-0 bg-transparent d-none"
-											style="z-index: 5;">
-											<i class="fa fa-times text-muted small"></i>
-										  </button>
+									<div class="row g-3 mb-4 agency-line-stats" id="line-stat-row">
+										<div class="col-6 col-lg" id="line-stat-card-scope">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label" id="line-stat-scope-label">Total Level 1</div>
+												<div class="agency-stat-value" id="line-stat-scope-value">—</div>
+											</div>
 										</div>
-									  </div>
-									  
-									  
-									  
-									  
-									  
-								  </div>
-								  
-								  
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Balance</div>
+												<div class="agency-stat-value" id="line-stat-total-balance">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Credit</div>
+												<div class="agency-stat-value" id="line-stat-total-credit">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Winloss</div>
+												<div class="agency-stat-value" id="line-stat-total-winloss">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Rolling</div>
+												<div class="agency-stat-value" id="line-stat-total-rolling">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Commission</div>
+												<div class="agency-stat-value" id="line-stat-total-commission">—</div>
+											</div>
+										</div>
+									</div>
+									<div class="row g-3 mb-3 agency-line-stats d-none" id="agent-stat-row">
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Level 3 (Guest)</div>
+												<div class="agency-stat-value" id="agent-stat-total-guest">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Games</div>
+												<div class="agency-stat-value" id="agent-stat-total-games">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Rolling</div>
+												<div class="agency-stat-value" id="agent-stat-total-rolling">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Winloss</div>
+												<div class="agency-stat-value" id="agent-stat-total-winloss">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Commission</div>
+												<div class="agency-stat-value" id="agent-stat-total-commission">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Balance</div>
+												<div class="agency-stat-value" id="agent-stat-total-balance">—</div>
+											</div>
+										</div>
+										<div class="col-6 col-lg">
+											<div class="agency-stat-card h-100">
+												<div class="agency-stat-label">Total Credit</div>
+												<div class="agency-stat-value" id="agent-stat-total-credit">—</div>
+											</div>
+										</div>
+									</div>
+									<div class="row g-3 agency-panels">
+										<div class="col-12 col-xl-2-5">
+											<div class="panel-box h-100">
+												<div class="panel-header d-flex align-items-center justify-content-between">
+													<button type="button" class="panel-title panel-title-sortable" id="btn-sort-line-panel" title="Click to sort" aria-label="Sort Level 1 list">
+														Level 1 <span class="panel-title-sort-indicator" aria-hidden="true">▲</span>
+													</button>
+													<div class="d-flex align-items-center gap-1">
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted d-none" id="btn-line-panel-export" title="Download Excel" aria-label="Download Excel" hidden>
+															<i class="fa fa-download" aria-hidden="true"></i>
+														</button>
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-primary bg-gradient-primary" id="btn-line-panel-add" data-bs-toggle="modal" data-bs-target="#modal-new-agency">
+															<i class="fa fa-plus"></i>
+														</button>
+													</div>
+												</div>
+												<div class="panel-body">
+													<div id="agency-grid" class="agency-line-list"></div>
+												</div>
+											</div>
+										</div>
 
-								<div id="agency-grid" class="row">
-									
-								  <!-- Dito ida-dynamically append ang mga “card” ng bawat Agent -->
+										<div class="col-12 col-xl-2-5">
+											<div class="panel-box h-100">
+												<div class="panel-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+													<button type="button" class="panel-title panel-title-sortable" id="btn-sort-agent-panel" title="Click to sort" aria-label="Sort Level 2 (Agent) list">
+														Level 2 (Agent) <span class="panel-title-sort-indicator" aria-hidden="true">▲</span>
+													</button>
+													<div class="d-flex align-items-center gap-1 ms-auto">
+														<div class="agency-guest-search-wrap agency-agent-search-wrap">
+															<i class="fa fa-search agency-guest-search-icon" aria-hidden="true"></i>
+															<input
+																type="search"
+																class="form-control form-control-sm agency-guest-search-input"
+																id="agent-panel-search"
+																name="agency-agent-panel-search"
+																placeholder="Search"
+																autocomplete="off"
+																data-lpignore="true"
+																data-1p-ignore="true">
+														</div>
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted" id="btn-agent-panel-transfer" title="Transfer Level 1">
+															<i class="fa fa-exchange-alt"></i>
+														</button>
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-muted d-none" id="btn-agent-panel-export" title="Download Excel" aria-label="Download Excel" hidden>
+															<i class="fa fa-download" aria-hidden="true"></i>
+														</button>
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-primary bg-gradient-primary" id="btn-agent-panel-add-guest" data-bs-toggle="modal" data-bs-target="#modal-new-agent" title="Add Level 2 (Agent)">
+															<i class="fa fa-plus"></i>
+														</button>
+													</div>
+												</div>
+												<div class="panel-body" id="agent-panel-body">
+													<div class="panel-empty-state" id="agent-panel-empty">
+														Search Level 2 (Agent) or select a Level 1 to load list.
+													</div>
+													<div id="agent-list" class="panel-list d-none"></div>
+												</div>
+											</div>
+										</div>
+
+										<div class="col-12 col-xl-7">
+											<div class="panel-box h-100">
+												<div class="panel-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+													<div class="panel-title">Level 3 (Guest)</div>
+													<div class="d-flex align-items-center gap-2 ms-auto">
+														<div class="agency-guest-search-wrap">
+															<i class="fa fa-search agency-guest-search-icon" aria-hidden="true"></i>
+															<input
+																type="search"
+																class="form-control form-control-sm agency-guest-search-input"
+																id="guest-panel-search"
+																name="agency-guest-panel-search"
+																placeholder="Search"
+																autocomplete="off"
+																data-lpignore="true"
+																data-1p-ignore="true">
+														</div>
+														<button type="button" class="btn btn-sm agency-toolbar-btn agency-toolbar-btn-primary bg-gradient-primary" id="btn-guest-panel-add">
+															<i class="fa fa-plus"></i>
+														</button>
+													</div>
+												</div>
+												<div class="panel-body" id="guest-panel-body">
+													<div class="panel-empty-state" id="guest-panel-empty">
+														Open a Level 1 to view Level 3 (Guest) records.
+													</div>
+													<div id="guest-list" class="panel-list d-none"></div>
+												</div>
+											</div>
+										</div>
+									</div>
+									<nav id="pagination-container" class="mt-3 d-flex justify-content-center">
+										<ul class="pagination flex-wrap"></ul>
+									</nav>
 								</div>
-								<nav  id="pagination-container" class="mt-4 d-flex justify-content-center">
-									<ul class="pagination  flex-wrap "></ul>
-								  </nav>
-							  </div>
 							</div>
 						</div>
 					</div>
@@ -93,90 +220,817 @@
 				<%- include ('../modals/accounts/transfer_account'); %>
 				<%- include ('../modals/accounts/new_agent') %>
 				<%- include ('../modals/accounts/edit_agent') %>
+				<%- include ('../modals/accounts/add_guest') %>
+				<%- include ('../modals/game_book/new_game_list') %>
+				<div class="modal fade" id="modal-edit-guest-table" tabindex="-1" aria-labelledby="modal-edit-guest-table-label" aria-hidden="true">
+					<div class="modal-dialog modal-dialog-centered">
+						<div class="modal-content">
+							<div class="modal-header bg-primary">
+								<h5 class="modal-title text-white" id="modal-edit-guest-table-label">Edit Level 3 (Guest)</h5>
+								<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+							</div>
+							<form id="edit_guest_form">
+								<div class="modal-body">
+									<input type="hidden" id="edit_guest_id" name="txtGuestId">
+									<div class="mb-0">
+										<label for="edit_guest_name_input" class="form-label">Level 3 (Guest) Name</label>
+										<input type="text" class="form-control" id="edit_guest_name_input" name="txtGuestName" required maxlength="150">
+									</div>
+									<div class="mt-2 mb-0">
+										<label for="edit_guest_membership_input" class="form-label">Membership No</label>
+										<input type="text" class="form-control" id="edit_guest_membership_input" name="txtMembershipNo" inputmode="numeric" autocomplete="off">
+									</div>
+									<div class="mt-2 mb-0">
+										<label for="edit_guest_telegram_input" class="form-label">Telegram Chat ID</label>
+										<div class="input-group">
+											<input type="text" class="form-control" id="edit_guest_telegram_input" name="txtTelegram" inputmode="numeric" autocomplete="off">
+											<span class="input-group-text" data-bs-toggle="tooltip" data-bs-placement="top" title="Visit @raw_data_bot on Telegram to get your Chat ID. Then copy and paste the Chat ID here." style="cursor: pointer;">
+												<i class="fa-solid fa-circle-question"></i>
+											</span>
+										</div>
+									</div>
+									<div class="mt-2 mb-0">
+										<label for="edit_guest_remarks_input" class="form-label">Remarks</label>
+										<textarea class="form-control" id="edit_guest_remarks_input" name="txtRemarks" rows="2" maxlength="500"></textarea>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button type="button" class="btn btn-outline-primary btn-sm me-auto" id="btn-open-transfer-from-edit-guest">Change Level 1</button>
+									<button type="submit" class="btn btn-primary btn-sm" id="btn-update-guest-table">Update</button>
+									<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+				<div class="modal fade" id="modal-transfer-guest-table" tabindex="-1" aria-labelledby="modal-transfer-guest-table-label" aria-hidden="true">
+					<div class="modal-dialog modal-dialog-centered">
+						<div class="modal-content">
+							<div class="modal-header bg-primary">
+								<h5 class="modal-title text-white" id="modal-transfer-guest-table-label">Transfer Level 3 (Guest)</h5>
+								<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+							</div>
+							<form id="transfer_guest_form">
+								<div class="modal-body">
+									<input type="hidden" id="transfer_guest_id" name="txtGuestId">
+									<div class="mb-0">
+										<label for="transfer_guest_agent_id" class="form-label">Transfer To 2</label>
+										<select class="js-transfer-guest-select2 form-select" id="transfer_guest_agent_id" name="targetAgentId" style="width: 100%;" data-placeholder="Select 2" required>
+											<option value="">Select 2</option>
+										</select>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button type="submit" class="btn btn-primary btn-sm" id="btn-transfer-guest-table">Transfer</button>
+									<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+				<div class="modal fade" id="modal-transfer-agent-guests" tabindex="-1" aria-labelledby="modal-transfer-agent-guests-label" aria-hidden="true">
+					<div class="modal-dialog modal-dialog-centered">
+						<div class="modal-content">
+							<div class="modal-header bg-primary">
+								<h5 class="modal-title text-white" id="modal-transfer-agent-guests-label">Transfer Level 3 (Guest)</h5>
+								<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+							</div>
+							<form id="transfer_agent_guests_form">
+								<div class="modal-body">
+									<input type="hidden" id="transfer_agent_source_id" name="sourceAgentId">
+									<div class="mb-2">
+										<label class="form-label">From Level 2 (Agent)</label>
+										<input type="text" class="form-control" id="transfer_agent_from_display" readonly disabled>
+									</div>
+									<div class="mb-3">
+										<div class="d-flex align-items-center justify-content-between mb-1">
+											<label class="form-label mb-0">Level 3 (Guest) to transfer <span class="text-muted" id="transfer_agent_guest_count">(0 selected)</span></label>
+											<label class="small mb-0 d-flex align-items-center gap-1">
+												<input type="checkbox" id="transfer_agent_guest_select_all" class="form-check-input m-0">
+												Select all
+											</label>
+										</div>
+										<div id="transfer_agent_guest_list" class="border rounded px-2 py-2" style="max-height: 180px; overflow-y: auto; background: #f8fafc;">
+											<div class="text-muted small">Loading guests...</div>
+										</div>
+									</div>
+									<div class="mt-2 mb-2">
+										<label for="transfer_agent_to_agency_id" class="form-label">Transfer To Level 1</label>
+										<select class="form-select" id="transfer_agent_to_agency_id" required>
+											<option value="">Select Level 1</option>
+										</select>
+									</div>
+									<div class="mb-0">
+										<label for="transfer_agent_to_agent_id" class="form-label">Transfer To Level 2 (Agent)</label>
+										<select class="form-select" id="transfer_agent_to_agent_id" name="targetAgentId" required disabled>
+											<option value="">Select Level 2 (Agent)</option>
+										</select>
+									</div>
+								</div>
+								<div class="modal-footer">
+									<button type="submit" class="btn btn-primary btn-sm" id="btn-transfer-agent-guests">Transfer</button>
+									<button type="button" class="btn btn-alt-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
 				<%- include ('../partials/permission_view_only_script') %>
 					<%- include ('../partials/footer'); -%>
 						<!-- <script src="assets/js/datatables/agency_tables_datatables.min.js"></script> -->
 						<script src="/assets/js/functions/agency.js"></script>
 						<script src="/assets/js/functions/account.js"></script>
 						<script src="/assets/js/functions/agent.js"></script>
+						<script src="/assets/js/functions/game_list.js"></script>
 
 <style>
 
 
 
-/* Kapag naka-check, gagamit ng .icon-primary:
-   - Ito lang ang magpapalit ng "color" (hindi background) */
-.icon-primary {
-  color: var(--bs-primary); /* o #0d6efd, etc. */
-}
-
-
-
-
-#clearSearchBtn:hover i {
-  
-  cursor: pointer;
-}
-
-
-
-
-.search-group {
-  border: 1px solid #eee;
-  border-radius: 6px;
-  overflow: hidden;
-  display: flex;
-}
-
-.search-group:focus-within {
- 
-  border-color: #2f5bea;
-}
-
-.search-group .input-group-text,
-.search-group .form-control {
-  border: none !important;
-  box-shadow: none !important;
-}
-
-	 #bulkEditBtn, #bulkDeleteBtn {
-  transition: all 0.2s ease;
-}
-
 .agency-card {
-  background: #eee;
-  border-radius: 12px;
-  box-shadow: 3px 3px 12px #d1d9e6, -3px -3px 12px #ffffff;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  transition: none;
   position: relative;
 }
 
+.agency-card:hover {
+  transform: none;
+  box-shadow: none;
+}
 
+.agency-card.is-selected {
+  background: #f3f7ff;
+}
 
-.agency-card .form-check-input {
-  width: 18px;
-  height: 18px;
+.agency-card.is-search-match {
+  background: #eef3ff;
+}
+
+.agency-card.is-search-dim {
+  opacity: 0.35;
+}
+
+.panel-list-item.is-search-match {
+  background: #eef3ff;
+}
+
+.panel-list-item.is-search-dim {
+  opacity: 0.35;
+}
+
+.panel-list-agency-hint {
+  display: block;
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 1px;
+  letter-spacing: 0.2px;
+}
+
+.agency-list-item {
+  border: 0;
+  border-bottom: 1px solid #edf0f7;
+  border-radius: 0;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  position: relative;
+  margin-bottom: 0;
+  background: transparent;
+  padding: 6px 8px;
+}
+
+#agency-grid,
+.agency-line-list {
+  border-top: 1px solid #edf0f7;
+  margin: 0;
+}
+
+.agency-panels .panel-box {
+  background: #fff;
+  border: 1px solid #edf0f7;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.panel-header {
+  border-bottom: 1px solid #edf0f7;
+  padding: 10px 12px;
+}
+
+.panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: #1f2937;
+}
+
+button.panel-title-sortable {
+  border: 0;
+  background: transparent;
+  padding: 0;
   cursor: pointer;
-  
+  text-align: left;
+}
+
+button.panel-title-sortable:hover,
+button.panel-title-sortable:focus {
+  color: #2f5bea;
+  outline: none;
+}
+
+.panel-title-sort-indicator {
+  font-size: 10px;
+  margin-left: 4px;
+  color: #6c757d;
+}
+
+button.panel-title-sortable:hover .panel-title-sort-indicator,
+button.panel-title-sortable:focus .panel-title-sort-indicator {
+  color: #2f5bea;
+}
+
+.panel-body {
+  padding: 0;
+  min-height: 400px;
+}
+
+.panel-empty-state {
+  min-height: 360px;
+  margin: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+  border: 1px dashed #dbe2ef;
+  border-radius: 10px;
+  background: #fafbfd;
+}
+
+.panel-list {
+  border-top: 1px solid #edf0f7;
+  border-bottom: 1px solid #edf0f7;
+}
+
+.panel-list-item {
+  min-height: 34px;
+  border-bottom: 1px solid #edf0f7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+.panel-list-item:last-child {
+  border-bottom: 0;
+}
+
+.agency-guest-table {
+  border: 1px solid #e0e0e0;
+  border-collapse: collapse;
+}
+
+.agency-guest-table thead tr {
+  background-color: #f5f5f5;
+}
+
+.agency-guest-table thead th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #555;
+  font-weight: 600;
+  background: transparent !important;
+  border: none;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 10px 8px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.agency-guest-table tbody td {
+  font-size: 12px;
+  color: #666;
+  border-bottom: 1px solid #eee;
+  padding: 10px 8px;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.agency-guest-table tbody tr:nth-child(even) td {
+  background-color: #f8fafc;
+}
+
+.agency-guest-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.agency-guest-table thead th.agency-guest-col,
+.agency-guest-table tbody td.agency-guest-col,
+.agency-guest-table thead th.agency-guest-membership-col,
+.agency-guest-table tbody td.agency-guest-membership-col {
+  text-align: left;
+}
+
+.agency-guest-table thead th.sortable-col {
+  cursor: pointer;
+  user-select: none;
+}
+
+.agency-guest-table thead th.sortable-col:hover,
+.agency-guest-table thead th.sortable-col.is-sorted {
+  color: #555;
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+.agency-guest-table .sort-indicator {
+  font-size: 10px;
+  margin-left: 4px;
+  color: #555;
+}
+
+.agency-guest-table thead th.sortable-col.is-sorted .sort-indicator {
+  color: #555;
+}
+
+.agency-guest-table tbody td.agency-guest-membership-col {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.agency-guest-search-wrap {
+  position: relative;
+  min-width: 160px;
+  width: 200px;
+  max-width: 42vw;
+}
+
+.agency-guest-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.agency-guest-search-input {
+  padding-left: 30px;
+  border-radius: 6px;
+}
+
+.agency-agent-search-wrap {
+  min-width: 125px;
+  width: 155px;
+  max-width: 40vw;
+}
+
+.agency-guest-line-hint {
+  font-size: 10px;
+  margin-top: 2px;
+  letter-spacing: 0.2px;
+}
+
+.agency-guest-agent-code {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.2px;
+}
+
+.agency-guest-name-row .btn-link {
+  display: inline;
+}
+
+.agency-guest-plus-btn {
+  color: #777 !important;
+  text-decoration: none !important;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.agency-guest-plus-btn:hover,
+.agency-guest-plus-btn:focus {
+  color: #555 !important;
+}
+
+.agency-guest-remarks-link {
+  font: inherit;
+  color: #777 !important;
+  font-weight: inherit !important;
+  text-decoration: none !important;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.agency-guest-remarks-link:hover,
+.agency-guest-remarks-link:focus {
+  color: #555 !important;
+}
+
+.panel-list-label {
+  font-size: 11px;
+  color: #44506a;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.panel-list-agent-link {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: #44506a;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.panel-list-agent-link:hover {
+  color: #2f5bea;
+}
+
+.panel-list-code {
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: 0.02em;
+}
+
+.panel-list-sep {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.panel-list-name {
+  font-weight: 600;
+  color: #44506a;
+}
+
+.panel-list-agent-balance {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  min-width: 50px;
+  padding: 0 4px;
+}
+
+.panel-row-actions {
+  display: flex;
+  align-items: center;
+}
+
+.panel-row-actions .btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0 !important;
+  background: transparent !important;
+  font-size: 11px;
+}
+
+.agency-row-actions .btn {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.agency-row-actions .btn.btn-outline-secondary,
+.panel-row-actions .btn.btn-outline-secondary {
+  color: #0b2f6d !important;
+}
+
+.agency-row-actions .btn.btn-outline-danger,
+.panel-row-actions .btn.btn-outline-danger {
+  color: #dc3545 !important;
+}
+
+.agency-row-actions .btn.btn-outline-primary,
+.panel-row-actions .btn.btn-outline-primary {
+  color: #2f5bea !important;
+}
+
+.agency-row-actions .btn:hover,
+.agency-row-actions .btn:focus,
+.panel-row-actions .btn:hover,
+.panel-row-actions .btn:focus {
+  background: transparent !important;
+  color: inherit !important;
+  box-shadow: none !important;
+}
+
+#btn-agent-panel-transfer,
+#btn-agent-panel-export,
+#btn-agent-panel-add-guest,
+#btn-guest-panel-add,
+#btn-line-panel-export,
+#btn-line-panel-add {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.panel-list-item.is-active {
+  background: #f3f7ff;
+}
+
+.agency-card-body {
+  min-height: auto;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.agency-line-balance {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  min-width: 50px;
+  padding: 0 4px;
+}
+
+.agency-row-actions {
+  position: static;
+  transform: none;
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+}
+
+.agency-row-actions .btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
 }
 
 .agency-name {
   font-weight: 600;
-  font-size: 14px;
-  color: #5a6474;
+  font-size: 11px;
+  color: #44506a;
   text-decoration: none;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.2;
 }
 
 .agency-name:hover {
   color: #2f5bea;
 }
-.swal2-timer-progress-bar {
-  background: #2f5bea !important;
+
+/* fractional xl col (Bootstrap walang col-xl-2.5): LINE + AGENT = 2.5 + 2.5; GUEST = native col-xl-7 */
+@media (min-width: 1200px) {
+  .agency-panels > .col-xl-2-5 {
+    flex: 0 0 auto;
+    width: 20.8333333333%;
+  }
 }
 
+.agency-line-stats .agency-stat-card {
+  background: #fff;
+  border: 1px solid #edf0f7;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
 
+.agency-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
 
+.agency-stat-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
 
+.agency-line-stats-hint {
+  margin-top: -0.25rem;
+}
+
+.selection-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+
+.swal2-timer-progress-bar {
+  background: #46627f !important;
+}
+
+/* Infinity CageX / Hope UI theme */
+.agency-page {
+  --agency-accent: var(--bs-primary);
+  --agency-accent-dark: #2f47b8;
+  --agency-accent-soft: var(--bs-primary-bg-subtle);
+  --agency-text: #666;
+  --agency-text-strong: #1f2937;
+  --agency-muted: #8a92a6;
+  --agency-border: #edf0f7;
+  --agency-danger: #c03221;
+}
+
+.agency-page .agency-card.is-selected,
+.agency-page .agency-card.is-search-match,
+.agency-page .panel-list-item.is-active,
+.agency-page .panel-list-item.is-search-match {
+  background: var(--agency-accent-soft) !important;
+}
+
+.agency-page .agency-card:hover {
+  background: #f5f7ff;
+}
+
+.agency-page .agency-panels .panel-box {
+  border-color: var(--agency-border);
+  box-shadow: 0 1px 2px rgba(58, 87, 232, 0.06);
+}
+
+.agency-page .panel-header {
+  background: var(--bs-primary-bg-subtle);
+  border-bottom-color: var(--agency-border);
+}
+
+.agency-page .panel-title,
+.agency-page button.panel-title-sortable {
+  color: var(--bs-primary);
+  text-transform: uppercase;
+}
+
+.agency-page button.panel-title-sortable:hover,
+.agency-page button.panel-title-sortable:focus {
+  color: var(--agency-accent-dark);
+}
+
+.agency-page button.panel-title-sortable:hover .panel-title-sort-indicator,
+.agency-page button.panel-title-sortable:focus .panel-title-sort-indicator {
+  color: var(--agency-accent-dark);
+}
+
+.agency-page .agency-guest-table thead th {
+  color: var(--bs-primary);
+  border-bottom-color: var(--agency-border);
+  background: var(--bs-primary-bg-subtle) !important;
+}
+
+.agency-page .agency-guest-table tbody tr:hover,
+.agency-page .agency-guest-table tbody tr:hover td {
+  background: #f5f7ff !important;
+}
+
+.agency-page .agency-guest-plus-btn,
+.agency-page .agency-guest-remarks-link,
+.agency-page .panel-list-agent-link:hover,
+.agency-page .agency-name:hover {
+  color: var(--agency-accent) !important;
+}
+
+.agency-page .agency-guest-plus-btn:hover,
+.agency-page .agency-guest-plus-btn:focus,
+.agency-page .agency-guest-remarks-link:hover,
+.agency-page .agency-guest-remarks-link:focus {
+  color: var(--agency-accent-dark) !important;
+}
+
+.agency-page .agency-icon-btn {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--agency-muted) !important;
+}
+
+.agency-page .agency-icon-btn:hover,
+.agency-page .agency-icon-btn:focus {
+  background: var(--agency-accent-soft) !important;
+  color: var(--agency-accent) !important;
+  box-shadow: none !important;
+}
+
+.agency-page .agency-icon-btn-danger {
+  color: #94a3b8 !important;
+}
+
+.agency-page .agency-icon-btn-danger:hover,
+.agency-page .agency-icon-btn-danger:focus {
+  background: #fef2f2 !important;
+  color: var(--agency-danger) !important;
+}
+
+.agency-page .agency-toolbar-btn-muted {
+  background: #fff !important;
+  border: 1px solid var(--agency-border) !important;
+  color: var(--agency-accent) !important;
+}
+
+.agency-page .agency-toolbar-btn-muted:hover,
+.agency-page .agency-toolbar-btn-muted:focus {
+  background: var(--agency-accent-soft) !important;
+  border-color: #b0bcf6 !important;
+  color: var(--agency-accent-dark) !important;
+}
+
+.agency-page .agency-toolbar-btn-primary {
+  border: 0 !important;
+  color: #fff !important;
+}
+
+.agency-page .agency-guest-search-input:focus {
+  border-color: #b0bcf6;
+  box-shadow: 0 0 0 0.15rem rgba(58, 87, 232, 0.15);
+}
+
+.agency-page .selection-summary-chip {
+  background: var(--bs-primary-bg-subtle);
+  border-color: #b0bcf6;
+  color: var(--bs-primary-text-emphasis, #17235d);
+}
+
+.agency-page .agency-line-stats .agency-stat-card {
+  border-color: var(--agency-border);
+}
+
+.select2-container .select2-selection--single {
+  height: calc(1.5em + 0.75rem + 6px);
+}
+
+.select2-container .select2-search--inline .select2-search__field {
+  margin-top: 0;
+  margin: 0.25rem 0.25rem 0.25rem 0;
+  height: 1.375rem;
+  line-height: 1.375rem;
+}
+
+.select2-container--default .select2-selection--single {
+  border-color: #eee;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  display: flex;
+  align-items: center;
+  padding-left: 0.75rem;
+  height: calc(1.5em + 0.75rem + 6px);
+  line-height: 1.5;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: calc(1.5em + 0.75rem + 6px);
+}
+
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+  color: #8A92A6;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+}
 
 </style>
 

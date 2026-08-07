@@ -11,6 +11,92 @@ function escapeJsString(str) {
 		.replace(/\n/g, '\\n');
 }
 
+function ensureModalAppendedToBody($modal) {
+	if ($modal && $modal.length && $modal.parent().length && !$modal.parent().is('body')) {
+		$modal.appendTo('body');
+	}
+}
+
+function syncModalBackdropStack() {
+	var openCount = document.querySelectorAll('.modal.show').length;
+	var backs = document.querySelectorAll('.modal-backdrop');
+
+	if (openCount === 0) {
+		backs.forEach(function (el) {
+			el.remove();
+		});
+		document.body.classList.remove('modal-open');
+		document.body.style.removeProperty('overflow');
+		document.body.style.removeProperty('padding-right');
+		$('body').removeClass('guest-portal-child-open assign-guest-child-open');
+		$('#modal-account-details').removeClass('guest-portal-parent-hidden');
+		$('#modal-assign-game-guest').removeClass('assign-guest-parent-hidden');
+		return;
+	}
+
+	while (backs.length > 1) {
+		backs[backs.length - 1].remove();
+		backs = document.querySelectorAll('.modal-backdrop');
+	}
+
+	if (!document.body.classList.contains('modal-open')) {
+		document.body.classList.add('modal-open');
+	}
+}
+window.syncModalBackdropStack = syncModalBackdropStack;
+
+function isGuestPortalOpen() {
+	var $modal = $('#modal-account-details');
+	return $modal.length && $modal.hasClass('show');
+}
+
+function setGuestPortalChildModalOpen(isOpen) {
+	if (isOpen) {
+		$('body').addClass('guest-portal-child-open');
+		$('#modal-account-details').addClass('guest-portal-parent-hidden');
+	} else {
+		$('body').removeClass('guest-portal-child-open');
+		$('#modal-account-details').removeClass('guest-portal-parent-hidden');
+	}
+}
+
+function bumpGuestPortalChildModalStack($childModal) {
+	var $parentModal = $('#modal-account-details');
+	if (!$childModal || !$childModal.length) {
+		return;
+	}
+	requestAnimationFrame(function () {
+		$parentModal.css('z-index', 1055);
+		$childModal.css('z-index', 1065);
+		var backs = document.querySelectorAll('.modal-backdrop');
+		if (backs.length > 1) {
+			backs[backs.length - 1].remove();
+			backs = document.querySelectorAll('.modal-backdrop');
+		}
+		if (backs.length) {
+			backs[0].style.zIndex = 1050;
+		}
+	});
+}
+
+function resetGuestPortalChildModalStack($childModal) {
+	$('#modal-account-details').css('z-index', '');
+	if ($childModal && $childModal.length) {
+		$childModal.css('z-index', '');
+	}
+	document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+		el.style.zIndex = '';
+	});
+}
+
+function prepareGuestPortalChildModal($modal) {
+	ensureModalAppendedToBody($modal);
+	if (isGuestPortalOpen()) {
+		setGuestPortalChildModalOpen(true);
+	}
+}
+window.prepareGuestPortalChildModal = prepareGuestPortalChildModal;
+
 var totalAmount = 0;
 var accountDetailsDataTable = null;
 var currentAccountDetailsId = null;
@@ -105,6 +191,22 @@ function updateTelegramUsernames() {
 			}
 		}
 	});
+}
+
+var currentLedgerAgencyId = null;
+var selectedTransferAccountIds = {};
+var transferAccountsCache = [];
+
+function compareTransferAccounts(a, b) {
+	var codeA = String(a.agent_code || '').trim();
+	var codeB = String(b.agent_code || '').trim();
+	var byCode = codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+	if (byCode !== 0) return byCode;
+	return String(a.agent_name || '').trim().localeCompare(String(b.agent_name || '').trim(), undefined, { sensitivity: 'base' });
+}
+
+function sortTransferAccounts(accounts) {
+	return accounts.slice().sort(compareTransferAccounts);
 }
 
 $(document).ready(function () {
@@ -256,6 +358,7 @@ $(document).ready(function () {
  // Move openAccountLedgerModal inside ready block
  function openAccountLedgerModal(agencyId) {
 	console.log("Front-end sees Agency ID:", agencyId);
+	currentLedgerAgencyId = agencyId;
 
 	// Set agency name for the modal title
 	get_agency_name(agencyId);
@@ -276,6 +379,187 @@ $(document).ready(function () {
 
     // If you want it callable globally (optional):
     window.openAccountLedgerModal = openAccountLedgerModal;
+
+	function loadTransferAgencyOptions(fromAgencyId) {
+		$('#transfer_to_agency_id').html('<option value="">Loading...</option>');
+		$.ajax({
+			url: '/agency_transfer_options?excludeAgencyId=' + encodeURIComponent(fromAgencyId),
+			method: 'GET',
+			success: function (response) {
+				var options = Array.isArray(response && response.agencies) ? response.agencies : [];
+				var html = '<option value="">Select target line</option>';
+				options.forEach(function (agency) {
+					html += '<option value="' + agency.agency_id + '">' + agency.agency_name + '</option>';
+				});
+				$('#transfer_to_agency_id').html(html);
+			},
+			error: function () {
+				$('#transfer_to_agency_id').html('<option value="">Failed to load agencies</option>');
+			}
+		});
+	}
+
+	function renderTransferAccountList(accounts) {
+		var keyword = String($('#transfer_account_search').val() || '').trim();
+		var html = '';
+		sortTransferAccounts(accounts).forEach(function (account) {
+			var accountId = String(account.account_id);
+			var checked = !!selectedTransferAccountIds[accountId];
+			var accountCode = account.agent_code || '';
+			var accountName = account.agent_name || '';
+			html += '<div class="form-check mb-1 transfer-account-col">' +
+				'<input class="form-check-input transfer-account-item" type="checkbox" id="transfer_account_' + accountId + '" value="' + accountId + '"' + (checked ? ' checked' : '') + '>' +
+				'<label class="form-check-label" for="transfer_account_' + accountId + '">' + accountCode + ' - ' + accountName + '</label>' +
+				'</div>';
+		});
+		$('#transfer-account-list').html(html || '<div class="text-muted">No accounts found.</div>');
+	}
+
+	function applyTransferAccountSearch() {
+		var keyword = String($('#transfer_account_search').val() || '').trim().toLowerCase();
+		$('#transfer_account_search_clear').toggleClass('d-none', keyword === '');
+		var filtered = transferAccountsCache.filter(function (account) {
+			var label = ((account.agent_code || '') + ' ' + (account.agent_name || '')).toLowerCase();
+			return label.includes(keyword);
+		});
+		renderTransferAccountList(filtered);
+	}
+
+	function updateTransferSelectedCount() {
+		var count = Object.keys(selectedTransferAccountIds).filter(function (id) {
+			return !!selectedTransferAccountIds[id];
+		}).length;
+		$('#transfer_selected_count').text(count.toLocaleString('en-US'));
+		return count;
+	}
+
+	function loadTransferAccounts(fromAgencyId) {
+		$('#transfer-account-list').html('<div class="text-muted">Loading accounts...</div>');
+		$('#transfer_select_all_accounts').prop('checked', false);
+		$('#transfer_selected_count').text('0');
+		$.ajax({
+			url: '/account_data?agencyId=' + encodeURIComponent(fromAgencyId),
+			method: 'GET',
+			success: function (accounts) {
+				transferAccountsCache = Array.isArray(accounts) ? accounts : [];
+				applyTransferAccountSearch();
+				updateTransferSelectedCount();
+			},
+			error: function () {
+				$('#transfer-account-list').html('<div class="text-danger">Failed to load accounts.</div>');
+			}
+		});
+	}
+
+	$('#transfer_account_search').off('input').on('input', applyTransferAccountSearch);
+	$('#transfer_account_search_clear').off('click').on('click', function () {
+		$('#transfer_account_search').val('').trigger('input').focus();
+	});
+	$(document).off('change.transferAccountItem', '.transfer-account-item').on('change.transferAccountItem', '.transfer-account-item', function () {
+		selectedTransferAccountIds[String($(this).val())] = $(this).is(':checked');
+		updateTransferSelectedCount();
+	});
+	$('#transfer_select_all_accounts').off('change').on('change', function () {
+		var checked = $(this).is(':checked');
+		$('.transfer-account-item').each(function () {
+			var accountId = String($(this).val());
+			$(this).prop('checked', checked);
+			selectedTransferAccountIds[accountId] = checked;
+		});
+		updateTransferSelectedCount();
+	});
+
+	window.openTransferAgencyModalForAgency = function (agencyId, agencyDisplayName, archiveAgencyIdsAfter) {
+		var ids = Array.isArray(archiveAgencyIdsAfter)
+			? archiveAgencyIdsAfter.map(function (x) { return parseInt(x, 10); }).filter(function (n) { return n > 0; })
+			: [];
+		$('#transfer_archive_agency_ids_after').val(ids.length ? ids.join(',') : '');
+		currentLedgerAgencyId = agencyId;
+		$('#transfer_from_agency_id').val(agencyId);
+		$('#transfer_from_agency_name').text(agencyDisplayName || 'Unknown');
+		$('#transfer_to_agency_id').val('');
+		$('#transfer_account_search').val('');
+		$('#transfer_account_search_clear').addClass('d-none');
+		selectedTransferAccountIds = {};
+		transferAccountsCache = [];
+		loadTransferAgencyOptions(agencyId);
+		loadTransferAccounts(agencyId);
+		$('#modal-transfer-agency').modal('show');
+	};
+
+	$('#transfer-agency-form').off('submit').on('submit', function (event) {
+		event.preventDefault();
+		var fromAgencyId = $('#transfer_from_agency_id').val();
+		var toAgencyId = $('#transfer_to_agency_id').val();
+		var fromAgencyName = String($('#transfer_from_agency_name').text() || 'Unknown').trim();
+		var toAgencyName = String($('#transfer_to_agency_id option:selected').text() || '').trim();
+		var selectedIds = Object.keys(selectedTransferAccountIds).filter(function (id) {
+			return !!selectedTransferAccountIds[id];
+		});
+		if (!toAgencyId) {
+			Swal.fire({ icon: 'warning', title: 'Target agency required', text: 'Please select the LINE to transfer to.', confirmButtonText: 'OK' });
+			return;
+		}
+		if (selectedIds.length === 0) {
+			Swal.fire({ icon: 'warning', title: 'No account selected', text: 'Please select account(s) to transfer.', confirmButtonText: 'OK' });
+			return;
+		}
+
+		var countText = selectedIds.length === 1
+			? '1 account'
+			: selectedIds.length.toLocaleString('en-US') + ' accounts';
+
+		Swal.fire({
+			icon: 'question',
+			title: 'Confirm Transfer',
+			text: 'Transfer ' + countText + ' from "' + fromAgencyName + '" to "' + toAgencyName + '"?',
+			showCancelButton: true,
+			confirmButtonText: 'Transfer',
+			cancelButtonText: 'Cancel',
+			confirmButtonColor: '#3a57e8'
+		}).then(function (result) {
+			if (!result.isConfirmed) return;
+
+			var $submitBtn = $('#btn-submit-transfer-agency');
+			$submitBtn.prop('disabled', true).text('Processing...');
+			$.ajax({
+				url: '/account/transfer-agency',
+				type: 'POST',
+				data: { fromAgencyId: fromAgencyId, toAgencyId: toAgencyId, accountIds: selectedIds },
+				success: function (response) {
+					var message = (response && response.message) ? response.message : 'Accounts transferred successfully.';
+					var rawArchiveIds = String($('#transfer_archive_agency_ids_after').val() || '').trim();
+					$('#transfer_archive_agency_ids_after').val('');
+					var archiveIds = rawArchiveIds
+						? rawArchiveIds.split(',').map(function (x) { return parseInt(x, 10); }).filter(function (n) { return n > 0; })
+						: [];
+					Swal.fire({ icon: 'success', title: 'Transfer completed', text: message, confirmButtonText: 'OK' }).then(function () {
+						$('#modal-transfer-agency').modal('hide');
+						if (archiveIds.length > 0) {
+							Promise.all(archiveIds.map(function (id) {
+								return $.ajax({ url: '/agency/remove/' + id, type: 'PUT' });
+							})).then(function () { window.location.reload(); });
+						} else if (typeof window.refreshAfterAgencyTransfer === 'function') {
+							window.refreshAfterAgencyTransfer();
+						} else if (typeof window.refreshSelectedAgencyPanels === 'function' && currentLedgerAgencyId) {
+							window.refreshSelectedAgencyPanels();
+						} else if (currentLedgerAgencyId && $('#modal-account-ledger').hasClass('show')) {
+							reloadData(currentLedgerAgencyId);
+						}
+					});
+				},
+				error: function (xhr) {
+					var message = xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message)
+						? (xhr.responseJSON.error || xhr.responseJSON.message)
+						: 'Failed to transfer accounts.';
+					Swal.fire({ icon: 'error', title: 'Transfer failed', text: message, confirmButtonText: 'OK' });
+				},
+				complete: function () {
+					$submitBtn.prop('disabled', false).text('Transfer');
+				}
+			});
+		});
+	});
 
 
 });
@@ -423,6 +707,7 @@ $(document).off('click', '#btn-credit').on('click', '#btn-credit', function () {
 	$('#credit-game-balance').text('0');
 	resetCreditTableRows();
 
+	prepareGuestPortalChildModal($('#modal-credit-details'));
 	$('#modal-credit-details').modal('show');
 
 	function formatMarkerAmount(value) {
@@ -800,6 +1085,12 @@ function account_details(account_id_data, agent_code, account_name) {
 				"createdCell": function (cell, cellData, rowData, rowIndex, colIndex) {
 					$(cell).addClass('text-center');
 				}
+			},
+			{
+				"targets": 1,
+				"createdCell": function (cell) {
+					$(cell).addClass('text-center');
+				}
 			}
 		]
 	});
@@ -813,6 +1104,11 @@ function account_details(account_id_data, agent_code, account_name) {
 
 function formatAccountDetailsBalance(val) {
 	return `₱${(parseFloat(val) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+function formatLedgerGuestName(row) {
+	const name = String(row?.guest_name || '').trim();
+	return name ? name : '—';
 }
 
 function renderTelegramResendButton(ledgerId) {
@@ -871,6 +1167,7 @@ function reloadDataDetails() {
 
 								rowsToAdd.push([
 									dateFormat,
+									formatLedgerGuestName(row),
 									transactionCell,
 									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
 									formatAccountDetailsBalance(row.balance_after),
@@ -889,6 +1186,7 @@ function reloadDataDetails() {
 
 								rowsToAdd.push([
 									dateFormat,
+									formatLedgerGuestName(row),
 									transactionCell,
 									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
 									formatAccountDetailsBalance(row.balance_after),
@@ -926,6 +1224,7 @@ function reloadDataDetails() {
 
 						rowsToAdd.push([
 							dateFormat,
+							formatLedgerGuestName(row),
 							transactionCell,
 							`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
 							formatAccountDetailsBalance(row.balance_after),
@@ -1705,4 +2004,32 @@ document.addEventListener('DOMContentLoaded', function () {
 	}
 });
 
+var guestPortalChildModalSelectors = '#modal-game-history, #modal-credit-details, #modal-passport-details, #modal-change-photo';
+
+$(guestPortalChildModalSelectors).on('shown.bs.modal', function () {
+	if ($('body').hasClass('guest-portal-child-open')) {
+		bumpGuestPortalChildModalStack($(this));
+	}
+});
+
+$(guestPortalChildModalSelectors).on('hidden.bs.modal', function () {
+	if (isGuestPortalOpen()) {
+		setGuestPortalChildModalOpen(false);
+		resetGuestPortalChildModalStack($(this));
+	}
+	requestAnimationFrame(function () {
+		syncModalBackdropStack();
+	});
+});
+
+$('#modal-account-details').on('hidden.bs.modal', function () {
+	setGuestPortalChildModalOpen(false);
+	resetGuestPortalChildModalStack($('#modal-game-history'));
+	resetGuestPortalChildModalStack($('#modal-credit-details'));
+	resetGuestPortalChildModalStack($('#modal-passport-details'));
+	resetGuestPortalChildModalStack($('#modal-change-photo'));
+	requestAnimationFrame(function () {
+		syncModalBackdropStack();
+	});
+});
 

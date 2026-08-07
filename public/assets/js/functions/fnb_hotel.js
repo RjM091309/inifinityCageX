@@ -1,6 +1,9 @@
 $(document).ready(function() {
 	let dataTable;
 	let currentFilter = 'all';
+	let dateRangeMin = null;
+	let dateRangeMax = null;
+	let fnbDateFilterRegistered = false;
 	// Export: exclude ENCODED BY + ACTION
 	const FNB_EXPORT_COL_INDEXES = [0, 1, 2, 3, 4, 5, 6, 8];
 	const FNB_EXPORT_DATA_COLS = FNB_EXPORT_COL_INDEXES.length;
@@ -34,11 +37,126 @@ $(document).ready(function() {
 		return { top: edge, left: edge, bottom: edge, right: edge };
 	}
 
+	function fnbSanitizeFilePart(s) {
+		return String(s || '')
+			.replace(/\s+/g, '_')
+			.replace(/[^\w\-]/g, '')
+			.trim();
+	}
+
 	function fnbExportFileName() {
+		const raw = ($('#fnb-hotel-daterange').val() || '').trim();
+		if (raw) return `FnbHotel_${fnbSanitizeFilePart(raw)}.xlsx`;
 		const now = new Date();
 		const pad = (n) => String(n).padStart(2, '0');
 		const ts = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 		return `FnbHotel_${ts}.xlsx`;
+	}
+
+	function getRowEncodedTimestamp(settings, dataIndex) {
+		const rowData = settings.aoData[dataIndex];
+		if (!rowData) return 0;
+
+		const rowNode = rowData.nTr;
+		if (rowNode) {
+			const order = $(rowNode).find('td').eq(8).attr('data-order');
+			if (order) return parseInt(order, 10) || 0;
+		}
+
+		const cell = rowData._aData && rowData._aData[8];
+		if (cell && typeof cell === 'object' && cell['@data-order'] != null) {
+			return parseInt(cell['@data-order'], 10) || 0;
+		}
+
+		return 0;
+	}
+
+	function setDateRangeFromFlatpickr(selectedDates) {
+		if (!selectedDates || selectedDates.length < 1) {
+			dateRangeMin = null;
+			dateRangeMax = null;
+			return;
+		}
+
+		const start = new Date(selectedDates[0]);
+		start.setHours(0, 0, 0, 0);
+		const endDate = selectedDates.length >= 2 ? selectedDates[1] : selectedDates[0];
+		const end = new Date(endDate);
+		end.setHours(23, 59, 59, 999);
+		dateRangeMin = start.getTime();
+		dateRangeMax = end.getTime();
+	}
+
+	function registerDateFilter() {
+		if (fnbDateFilterRegistered) return;
+		fnbDateFilterRegistered = true;
+
+		$.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+			if (settings.nTable.id !== 'fnb-hotel-table') return true;
+			if (dateRangeMin === null && dateRangeMax === null) return true;
+
+			const ts = getRowEncodedTimestamp(settings, dataIndex);
+			if (!ts) return false;
+			if (dateRangeMin !== null && ts < dateRangeMin) return false;
+			if (dateRangeMax !== null && ts > dateRangeMax) return false;
+			return true;
+		});
+	}
+
+	function applyDateFilterDraw() {
+		if (dataTable) dataTable.draw();
+	}
+
+	function mountDateFilterInToolbar() {
+		const $length = $('#fnb-hotel-table_wrapper .dataTables_length');
+		const $wrap = $('.fnb-hotel-date-filter-wrap');
+		if (!$length.length || !$wrap.length || $wrap.data('mounted')) return;
+		$wrap.detach().insertAfter($length);
+		$wrap.data('mounted', true);
+	}
+
+	function resizeFnbDateInput(instance) {
+		if (!instance || !instance.altInput) return;
+		const text = (instance.altInput.value || instance.input.value || '').trim();
+		const ch = Math.max(28, text.length + 1);
+		instance.altInput.style.width = ch + 'ch';
+	}
+
+	let fnbDateFilterBackup = null;
+
+	function setFnbDateInputDisplay(instance, text) {
+		if (!instance) return;
+		if (instance.altInput) {
+			instance.altInput.value = text;
+		} else if (instance.input) {
+			instance.input.value = text;
+		}
+		resizeFnbDateInput(instance);
+	}
+
+	function backupFnbDateFilter(instance) {
+		fnbDateFilterBackup = {
+			display: instance.altInput ? instance.altInput.value : instance.input.value,
+			min: dateRangeMin,
+			max: dateRangeMax,
+			selectedDates: (instance.selectedDates || []).map(function (d) {
+				return new Date(d.getTime());
+			})
+		};
+	}
+
+	function restoreFnbDateFilter(instance) {
+		if (!fnbDateFilterBackup || !instance) return;
+		dateRangeMin = fnbDateFilterBackup.min;
+		dateRangeMax = fnbDateFilterBackup.max;
+		setFnbDateInputDisplay(instance, fnbDateFilterBackup.display);
+		if (fnbDateFilterBackup.selectedDates.length) {
+			instance.setDate(fnbDateFilterBackup.selectedDates, false);
+		} else {
+			instance.clear(false);
+			setFnbDateInputDisplay(instance, fnbDateFilterBackup.display);
+		}
+		applyDateFilterDraw();
 	}
 
 	function parseFnbAmountCell(rawCellText) {
@@ -152,7 +270,7 @@ $(document).ready(function() {
 		const translations = window.fnbHotelTranslations || {};
 
 		dataTable = $('#fnb-hotel-table').DataTable({
-			pageLength: 10,
+			pageLength: 25,
 			lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
 			searching: true,
 			ordering: true,
@@ -189,6 +307,9 @@ $(document).ready(function() {
 					next: translations.next || "Next"
 				},
 				emptyTable: translations.no_data_found || "No data available in table"
+			},
+			initComplete: function () {
+				mountDateFilterInToolbar();
 			}
 		});
 
@@ -340,8 +461,48 @@ $(document).ready(function() {
 	// Expose reload for other scripts (new/edit modals)
 	window.reloadFnbHotelData = reloadData;
 
-	// Initialize DataTable (this will also call reloadData)
+	registerDateFilter();
+	dateRangeMin = moment().startOf('day').valueOf();
+	dateRangeMax = moment().endOf('day').valueOf();
 	initializeDataTable();
+
+	flatpickr('#fnb-hotel-daterange', {
+		mode: 'range',
+		altInput: true,
+		altFormat: 'M d, Y',
+		dateFormat: 'Y-m-d',
+		showMonths: 3,
+		onReady: function (selectedDates, dateStr, instance) {
+			instance.changeMonth(-2, true);
+			if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+				bindFlatpickrMonthNameRangeSelect(instance);
+			}
+			setFnbDateInputDisplay(instance, moment().format('MMM D, Y'));
+		},
+		onOpen: function (selectedDates, dateStr, instance) {
+			backupFnbDateFilter(instance);
+			instance.clear(false);
+			setFnbDateInputDisplay(instance, fnbDateFilterBackup.display);
+
+			const n = new Date();
+			instance.jumpToDate(new Date(n.getFullYear(), n.getMonth() - 2, 1), false);
+			if (typeof bindFlatpickrMonthNameRangeSelect === 'function') {
+				bindFlatpickrMonthNameRangeSelect(instance);
+			}
+		},
+		onClose: function (selectedDates, dateStr, instance) {
+			if (!selectedDates.length) {
+				restoreFnbDateFilter(instance);
+			}
+		},
+		onChange: function (selectedDates, dateStr, instance) {
+			resizeFnbDateInput(instance);
+			if (selectedDates.length >= 1) {
+				setDateRangeFromFlatpickr(selectedDates);
+				applyDateFilterDraw();
+			}
+		}
+	});
 
 	$(document).on('click', '#btn-export-fnb-hotel', function (e) {
 		e.preventDefault();
