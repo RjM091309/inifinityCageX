@@ -89,52 +89,49 @@
 
 										<thead>
 											<tr>
-												<th class="d-none d-sm-table-cell text-center game-start-th">
+												<th class="d-none d-sm-table-cell text-start game-start-th col-game-start">
 													<span class="game-list-select-all-slot">
 														<input type="checkbox" id="game-list-select-all" class="game-list-select-all-cb" />
 													</span>
 													<span class="game-start-th-label"><%= __('gamelist.game_start') %></span>
 												</th>
-												<th class="d-none d-sm-table-cell text-center">
+												<th class="d-none d-sm-table-cell text-start col-type">
 													<%= __('gamelist.type') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-center">
+												<th class="d-none d-sm-table-cell text-start col-game-no">
 													<%= __('gamelist.game#') %>
 												</th>
-											<th class="d-none d-sm-table-cell text-center">
+											<th class="d-none d-sm-table-cell text-start col-acct-no">
 												<%= __('gamelist.acct_no') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-center col-guest">
+											<th class="d-none d-sm-table-cell text-start col-guest">
 												<%= __('gamelist.guest') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-center">
+											<th class="d-none d-sm-table-cell text-end col-buyin">
 												<%= __('gamelist.buyin') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-center">
+											<th class="d-none d-sm-table-cell text-end col-cash-out">
 												<%= __('gamelist.cash_out') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-center">
-												<%= __('gamelist.real_rolling') %>
-											</th>
-											<th class="d-none d-sm-table-cell text-center col-total-rolling" >
+											<th class="d-none d-sm-table-cell text-end col-total-rolling">
 												<%= __('gamelist.total_rolling') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-center">
+											<th class="d-none d-sm-table-cell text-end col-roller-chips">
 												<%= __('gamelist.roller_chips') %>
 											</th>
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.game_rate') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-center">
+												<th class="d-none d-sm-table-cell text-end col-commission">
 													<%= __('gamelist.commission') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-center col-winloss" >
+												<th class="d-none d-sm-table-cell text-end col-winloss">
 													<%= __('gamelist.win_loss') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.game_source') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-center">
+												<th class="d-none d-sm-table-cell text-start col-game-end">
 													<%= __('gamelist.game_end') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
@@ -147,23 +144,21 @@
 										</tbody>
 										<tfoot>
 											<tr>
-											<th colspan="5">
-												<%= __('gamelist.grand_total') %>
-											</th>
-											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
-											<th class="d-none d-sm-table-cell text-center" id="GRAND_CHIPS_RETURN">
-												0.00</th>
-											<th class="d-none d-sm-table-cell text-center" id="GRAND_REAL_ROLLING">0.00</th>
-											<th class="d-none d-sm-table-cell text-center col-total-rolling" id="GRAND_TOTAL_ROLLING">
-												0.00</th>
-											<th class="d-none d-sm-table-cell text-center" id="GRAND_ROLLER_CHIPS">0.00</th>
-											<th></th>
-											<th class="d-none d-sm-table-cell text-center" id="GRAND_COMMISSION">0.00</th>
-											<th class="d-none d-sm-table-cell text-center col-winloss" id="GRAND_WIN_LOSS">0.00
-											</th>
-											<th></th>
-											<th></th>
-											<th></th>
+											<th class="d-none d-sm-table-cell text-start col-game-start"><%= __('gamelist.grand_total') %></th>
+											<th class="d-none d-sm-table-cell col-type"></th>
+											<th class="d-none d-sm-table-cell col-game-no"></th>
+											<th class="d-none d-sm-table-cell col-acct-no"></th>
+											<th class="d-none d-sm-table-cell col-guest"></th>
+											<th class="d-none d-sm-table-cell text-end col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
+											<th class="d-none d-sm-table-cell text-end col-cash-out" id="GRAND_CHIPS_RETURN">0.00</th>
+											<th class="d-none d-sm-table-cell text-end col-total-rolling" id="GRAND_TOTAL_ROLLING">0.00</th>
+											<th class="d-none d-sm-table-cell text-end col-roller-chips" id="GRAND_ROLLER_CHIPS">0.00</th>
+											<th class="d-none d-sm-table-cell"></th>
+											<th class="d-none d-sm-table-cell text-end col-commission" id="GRAND_COMMISSION">0.00</th>
+											<th class="d-none d-sm-table-cell text-end col-winloss" id="GRAND_WIN_LOSS">0.00</th>
+											<th class="d-none d-sm-table-cell"></th>
+											<th class="d-none d-sm-table-cell col-game-end"></th>
+											<th class="d-none d-sm-table-cell"></th>
 											</tr>
 										</tfoot>
 									</table>
@@ -507,11 +502,67 @@ th.col-winloss {
 #game_list-tbl thead th {
     background: #f4f6fa;
     color: #495057;
-    font-weight: 600;
-    padding: 12px 15px;
+    font-weight: 500;
+    padding: 4px 2px;
     text-align: center;
     border: none;
     border-bottom: 2px solid #dee2e6;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+/* DataTables sort — tiny inline triangles, minimal right gutter */
+#game_list-tbl.dataTable thead > tr > th.sorting,
+#game_list-tbl.dataTable thead > tr > th.sorting_asc,
+#game_list-tbl.dataTable thead > tr > th.sorting_desc {
+    position: relative;
+    cursor: pointer;
+    padding-right: 11px !important;
+}
+
+#game_list-tbl.dataTable thead > tr > th.sorting:before,
+#game_list-tbl.dataTable thead > tr > th.sorting:after,
+#game_list-tbl.dataTable thead > tr > th.sorting_asc:before,
+#game_list-tbl.dataTable thead > tr > th.sorting_asc:after,
+#game_list-tbl.dataTable thead > tr > th.sorting_desc:before,
+#game_list-tbl.dataTable thead > tr > th.sorting_desc:after {
+    position: absolute !important;
+    display: block !important;
+    opacity: 0.35;
+    right: 1px;
+    z-index: 1;
+    width: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    font-size: 0;
+    line-height: 0;
+    border: 0 solid transparent;
+}
+
+#game_list-tbl.dataTable thead > tr > th.sorting:before,
+#game_list-tbl.dataTable thead > tr > th.sorting_asc:before,
+#game_list-tbl.dataTable thead > tr > th.sorting_desc:before {
+    bottom: calc(50% + 1px);
+    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;
+    border-bottom: 4px solid #6c757d;
+    content: "";
+}
+
+#game_list-tbl.dataTable thead > tr > th.sorting:after,
+#game_list-tbl.dataTable thead > tr > th.sorting_asc:after,
+#game_list-tbl.dataTable thead > tr > th.sorting_desc:after {
+    top: calc(50% + 1px);
+    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;
+    border-top: 4px solid #6c757d;
+    content: "";
+}
+
+#game_list-tbl.dataTable thead > tr > th.sorting_asc:before,
+#game_list-tbl.dataTable thead > tr > th.sorting_desc:after {
+    opacity: 0.75 !important;
 }
 
 /* Row styles */
@@ -555,6 +606,55 @@ body.merge-settle-mode .merge-settle-checkbox-wrap {
 
 .game-start-th {
 	white-space: nowrap;
+}
+
+#game_list-tbl th.col-game-start,
+#game_list-tbl td.col-game-start,
+#game_list-tbl th.col-type,
+#game_list-tbl td.col-type,
+#game_list-tbl th.col-game-no,
+#game_list-tbl td.col-game-no,
+#game_list-tbl th.col-game-end,
+#game_list-tbl td.col-game-end,
+#game_list-tbl th.col-acct-no,
+#game_list-tbl td.col-acct-no,
+#game_list-tbl th.col-guest,
+#game_list-tbl td.col-guest {
+	text-align: left !important;
+}
+
+#game_list-tbl td.col-buyin,
+#game_list-tbl td.col-cash-out,
+#game_list-tbl td.col-total-rolling,
+#game_list-tbl td.col-roller-chips,
+#game_list-tbl td.col-commission,
+#game_list-tbl td.col-winloss {
+	text-align: right !important;
+}
+
+#game_list-tbl thead th.col-buyin,
+#game_list-tbl thead th.col-cash-out,
+#game_list-tbl thead th.col-total-rolling,
+#game_list-tbl thead th.col-roller-chips,
+#game_list-tbl thead th.col-commission,
+#game_list-tbl thead th.col-winloss {
+	text-align: right !important;
+}
+
+#game_list-tbl td.col-buyin .btn-link,
+#game_list-tbl td.col-cash-out .btn-link,
+#game_list-tbl td.col-total-rolling .btn-link,
+#game_list-tbl td.col-roller-chips .btn-link {
+	display: block;
+	width: 100%;
+	text-align: right;
+	padding-left: 0;
+	padding-right: 0;
+	border: 0;
+}
+
+#game_list-tbl td.col-game-start .d-inline-flex {
+	justify-content: flex-start;
 }
 
 .game-list-select-all-slot {
@@ -633,11 +733,22 @@ body.open-pool-select-mode .game-list-select-all-slot {
 
 /* Footer total row */
 #game_list-tbl tfoot th {
-    padding: 12px;
+    padding: 8px 6px;
     font-weight: 600;
     color: #495057;
     background-color: #f4f6fa;
     border-top: 2px solid #dee2e6;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+#game_list-tbl tfoot th.col-buyin,
+#game_list-tbl tfoot th.col-cash-out,
+#game_list-tbl tfoot th.col-total-rolling,
+#game_list-tbl tfoot th.col-roller-chips,
+#game_list-tbl tfoot th.col-commission,
+#game_list-tbl tfoot th.col-winloss {
+    text-align: right !important;
 }
 
 /* Highlight row animation */

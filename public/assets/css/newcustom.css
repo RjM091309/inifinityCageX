@@ -1,3 +1,17 @@
+/*
+ * Global UI scale: 15% smaller at 100% browser zoom (85%).
+ * Zoom app shell only — loader overlay stays full-screen.
+ */
+ aside.sidebar,
+ .main-content {
+     zoom: 0.90;
+ }
+ 
+ body > .btn-fixed-end.btn-setting,
+ body > .offcanvas.offcanvas-end {
+     zoom: 0.70;
+ }
+ 
 .css-blue1 {
     max-width: 100%;
     font-family: Inter, sans-serif;
@@ -702,6 +716,25 @@ opacity: 0.95;
 .IroSlider {
     border-radius: 0.25rem;
     margin-top: 0.5rem;
+}
+
+/* Pull page content up over the banner header (modal between banner + content breaks + selector) */
+.main-content .iq-banner:not(.hide) ~ .content-inner {
+    margin-top: -3rem !important;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+@media (max-width: 991.98px) {
+    .main-content .iq-banner:not(.hide) ~ .content-inner {
+        margin-top: 1em !important;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .main-content .iq-banner:not(.hide) ~ .content-inner {
+        margin-top: 4em !important;
+    }
 }
 
 /* Custom color picker button styles */

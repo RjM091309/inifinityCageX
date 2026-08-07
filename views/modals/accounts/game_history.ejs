@@ -15,16 +15,16 @@
               <tr>
                 <th class="text-center">GAME START</th>
                 <th class="text-center col-account">Account</th>
+                <th class="text-center col-guest">GUEST</th>
                 <th class="text-center">TYPE</th>
                 <th class="text-center">GAME #</th>
-                <th class="text-center col-buyin">BUY-IN</th>
-                <th class="text-center">CASH-OUT</th>
-                <th class="text-center">ROLLING</th>
-                <th class="text-center col-total-rolling">TOTAL ROLLING</th>
-                <th class="text-center">GAME RATE</th>
-                <th class="text-center">COMMISSION</th>
-                <th class="text-center col-winloss">WIN/LOSS</th>
-                <th class="text-center">GAME SOURCE</th>
+                <th class="text-end col-buyin">BUY-IN</th>
+                <th class="text-end col-cash-out">CASH-OUT</th>
+                <th class="text-end col-total-rolling">ROLLING</th>
+                <th class="text-center">RATE</th>
+                <th class="text-end col-commission">COMMISSION</th>
+                <th class="text-end col-winloss">WIN/LOSS</th>
+                <th class="text-center">SOURCE</th>
                 <th class="text-center">GAME END</th>
               </tr>
             </thead>
@@ -32,14 +32,13 @@
             </tbody>
             <tfoot class="game-history-tfoot-total">
               <tr id="game-history-totals-row">
-                <td class="text-center" colspan="4">TOTAL</td>
-                <td class="text-center" id="gh-total-buyin">0</td>
-                <td class="text-center" id="gh-total-cashout">0</td>
-                <td class="text-center" id="gh-total-rolling">0</td>
-                <td class="text-center" id="gh-total-total-rolling">0</td>
+                <td class="text-center" id="game-history-tfoot-label" colspan="5">TOTAL</td>
+                <td class="text-end col-buyin" id="gh-total-buyin">0</td>
+                <td class="text-end col-cash-out" id="gh-total-cashout">0</td>
+                <td class="text-end col-total-rolling" id="gh-total-total-rolling">0</td>
                 <td class="text-center">—</td>
-                <td class="text-center" id="gh-total-commission">0</td>
-                <td class="text-center" id="gh-total-winloss">0</td>
+                <td class="text-end col-commission" id="gh-total-commission">0</td>
+                <td class="text-end col-winloss" id="gh-total-winloss">0</td>
                 <td class="text-center" colspan="2">—</td>
               </tr>
             </tfoot>
@@ -117,10 +116,12 @@
 #game-history-tbl td:nth-child(2) { width: 7%; }
 #game-history-tbl th:nth-child(3),
 #game-history-tbl td:nth-child(3) { width: 5%; }
+#game-history-tbl th:nth-child(3),
+#game-history-tbl td:nth-child(3) { width: 8%; }
 #game-history-tbl th:nth-child(4),
 #game-history-tbl td:nth-child(4) { width: 5%; }
 #game-history-tbl th:nth-child(5),
-#game-history-tbl td:nth-child(5) { width: 7%; }
+#game-history-tbl td:nth-child(5) { width: 5%; }
 #game-history-tbl th:nth-child(6),
 #game-history-tbl td:nth-child(6) { width: 7%; }
 #game-history-tbl th:nth-child(7),
@@ -171,6 +172,30 @@
 #game-history-tbl td.col-account {
     box-sizing: border-box;
     text-align: center !important;
+}
+
+#game-history-tbl th.col-guest,
+#game-history-tbl td.col-guest {
+    box-sizing: border-box;
+    text-align: center !important;
+}
+
+#game-history-tbl th.col-buyin,
+#game-history-tbl td.col-buyin,
+#game-history-tbl th.col-cash-out,
+#game-history-tbl td.col-cash-out,
+#game-history-tbl th.col-total-rolling,
+#game-history-tbl td.col-total-rolling,
+#game-history-tbl th.col-commission,
+#game-history-tbl td.col-commission,
+#game-history-tbl th.col-winloss,
+#game-history-tbl td.col-winloss,
+#game-history-tbl tfoot #gh-total-buyin,
+#game-history-tbl tfoot #gh-total-cashout,
+#game-history-tbl tfoot #gh-total-total-rolling,
+#game-history-tbl tfoot #gh-total-commission,
+#game-history-tbl tfoot #gh-total-winloss {
+    text-align: right !important;
 }
 
 /* BUY-IN: default = normal table cell; marker buy-in only (CAGE_TYPE=1 & TRANSACTION=3) */
@@ -240,7 +265,7 @@
 
     function updateGameHistoryTotals(rows) {
         if (!rows || !rows.length) {
-            ['gh-total-buyin', 'gh-total-cashout', 'gh-total-rolling', 'gh-total-total-rolling', 'gh-total-commission', 'gh-total-winloss'].forEach(id => {
+            ['gh-total-buyin', 'gh-total-cashout', 'gh-total-total-rolling', 'gh-total-commission', 'gh-total-winloss'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.textContent = '0';
             });
@@ -248,11 +273,10 @@
             if (winlossEl) winlossEl.classList.remove('gh-total-winloss-negative');
             return;
         }
-        let buyIn = 0, cashOut = 0, rolling = 0, totalRolling = 0, commission = 0, winLoss = 0;
+        let buyIn = 0, cashOut = 0, totalRolling = 0, commission = 0, winLoss = 0;
         rows.forEach(r => {
             buyIn += Number(r.BUY_IN) || 0;
             cashOut += Number(r.CASH_OUT) || 0;
-            rolling += Number(r.ROLLING) || 0;
             totalRolling += Number(r.TOTAL_ROLLING) || 0;
             commission += Number(r.COMMISSION) || 0;
             winLoss += Number(r.WIN_LOSS) || 0;
@@ -263,7 +287,6 @@
         };
         set('gh-total-buyin', buyIn);
         set('gh-total-cashout', cashOut);
-        set('gh-total-rolling', rolling);
         set('gh-total-total-rolling', totalRolling);
         set('gh-total-commission', commission);
         set('gh-total-winloss', winLoss);
@@ -292,6 +315,152 @@
         return code || name || '-';
     };
 
+    const formatGuestLabel = (row) => {
+        const name = String(row.guest_name || '').trim();
+        if (!name || name === '-') return '-';
+        return name;
+    };
+
+    function shouldHideGameHistoryGuestColumn(guestId) {
+        const numericGuestId = parseInt(guestId, 10);
+        return Number.isInteger(numericGuestId) && numericGuestId > 0;
+    }
+
+    function setGameHistoryFooterLabelColspan(showGuestColumn) {
+        const footerLabel = document.getElementById('game-history-tfoot-label');
+        if (footerLabel) {
+            footerLabel.colSpan = showGuestColumn ? 5 : 4;
+        }
+    }
+
+    function buildGameHistoryColumns(showGuestColumn) {
+        return [
+            {
+                data: 'game_date_start',
+                className: 'text-center',
+                render: function (data, type) {
+                    if (type === 'sort' || type === 'type') {
+                        const t = Date.parse(data);
+                        return isNaN(t) ? 0 : t;
+                    }
+                    return formatDate(data);
+                }
+            },
+            {
+                data: null,
+                className: 'text-center col-account',
+                render: function (_data, _type, row) {
+                    return formatAccountLabel(row);
+                }
+            },
+            {
+                data: 'guest_name',
+                className: 'text-center col-guest',
+                visible: showGuestColumn,
+                render: function (_data, _type, row) {
+                    return formatGuestLabel(row);
+                }
+            },
+            {
+                data: 'GAME_TYPE',
+                className: 'text-center',
+                render: function (data) { return data || '-'; }
+            },
+            {
+                data: 'game_list_id',
+                className: 'text-center',
+                render: function (data) { return data || ''; }
+            },
+            {
+                data: 'BUY_IN',
+                className: 'text-end col-buyin',
+                createdCell: function (td, _cellData, rowData) {
+                    if (rowData && rowData.HAS_MARKER_BUYIN) {
+                        td.classList.add('col-buyin-marker');
+                    } else {
+                        td.classList.remove('col-buyin-marker');
+                    }
+                },
+                render: function (data) { return formatAmount(data); }
+            },
+            {
+                data: 'CASH_OUT',
+                className: 'text-end col-cash-out',
+                render: function (data) { return formatAmount(data); }
+            },
+            {
+                data: 'TOTAL_ROLLING',
+                className: 'text-end col-total-rolling',
+                render: function (data) { return formatAmount(data); }
+            },
+            {
+                data: null,
+                className: 'text-center',
+                render: function (_data, _type, row) {
+                    let badge = '';
+                    if (row.COMMISSION_TYPE == 1) {
+                        badge = '<span class="badge commission-badge commission-badge-r" title="Rolling Game">R</span>';
+                    } else if (row.COMMISSION_TYPE == 2) {
+                        badge = '<span class="badge commission-badge commission-badge-s" title="Shared Game">S</span>';
+                    } else if (row.COMMISSION_TYPE == 3) {
+                        badge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
+                    }
+                    return `${formatGameRate(row.COMMISSION_PERCENTAGE)} ${badge}`;
+                }
+            },
+            {
+                data: 'COMMISSION',
+                className: 'text-end col-commission',
+                render: function (data) { return formatAmount(data); }
+            },
+            {
+                data: 'WIN_LOSS',
+                className: 'text-end col-winloss',
+                render: function (data) {
+                    const amount = Number(data || 0);
+                    return formatAmount(amount);
+                }
+            },
+            {
+                data: 'INITIAL_MOP',
+                className: 'text-center',
+                render: function (data) {
+                    return translateGameSource(data);
+                }
+            },
+            {
+                data: null,
+                className: 'text-center',
+                render: function (_data, _type, row) {
+                    if (row.game_status == 2) {
+                        return '<span class="badge bg-primary-subtle text-primary" style="font-size:10px !important;">ON GAME</span>';
+                    } else if (row.game_status == 3) {
+                        return '<span class="badge bg-warning-subtle text-warning" style="font-size:10px !important;">PENDING</span>';
+                    } else if (row.GAME_ENDED) {
+                        if (typeof moment !== 'undefined') {
+                            return moment.utc(row.GAME_ENDED).utcOffset(8).format('MMM DD, HH:mm');
+                        }
+                        const d = new Date(row.GAME_ENDED);
+                        return d.toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+                    }
+                    return '-';
+                }
+            }
+        ];
+    }
+
+    function buildGameHistoryColumnDefs() {
+        return [
+            { className: 'col-account', targets: 1 },
+            { className: 'col-guest', targets: 2 },
+            { className: 'col-buyin', targets: 5 },
+            { className: 'col-cash-out', targets: 6 },
+            { className: 'col-total-rolling', targets: 7 },
+            { className: 'col-commission', targets: 9 },
+            { className: 'col-winloss', targets: 10 }
+        ];
+    }
+
     async function loadGameHistoryRows(accountId, guestId) {
         try {
             const url = guestId
@@ -300,6 +469,8 @@
             const res = await fetch(url);
             const rows = await res.json();
             const dataRows = rows || [];
+            const showGuestColumn = !shouldHideGameHistoryGuestColumn(guestId);
+            setGameHistoryFooterLabelColspan(showGuestColumn);
 
             if (gameHistoryDataTable) {
                 gameHistoryDataTable.destroy();
@@ -313,12 +484,7 @@
                 pageLength: 10,
                 autoWidth: true,
                 scrollX: false,
-                columnDefs: [
-                    { className: 'col-account', targets: 1 },
-                    { className: 'col-buyin', targets: 4 },
-                    { className: 'col-total-rolling', targets: 7 },
-                    { className: 'col-winloss', targets: 10 }
-                ],
+                columnDefs: buildGameHistoryColumnDefs(),
                 language: {
                     search: "Search:",
                     info: "Showing _START_ to _END_ of _TOTAL_ entries",
@@ -328,116 +494,7 @@
                     },
                     emptyTable: "No game history available"
                 },
-                columns: [
-                    {
-                        data: 'game_date_start',
-                        className: 'text-center',
-                        render: function (data, type) {
-                            if (type === 'sort' || type === 'type') {
-                                const t = Date.parse(data);
-                                return isNaN(t) ? 0 : t;
-                            }
-                            return formatDate(data);
-                        }
-                    },
-                    {
-                        data: null,
-                        className: 'text-center col-account',
-                        render: function (_data, _type, row) {
-                            return formatAccountLabel(row);
-                        }
-                    },
-                    {
-                        data: 'GAME_TYPE',
-                        className: 'text-center',
-                        render: function (data) { return data || '-'; }
-                    },
-                    {
-                        data: 'game_list_id',
-                        className: 'text-center',
-                        render: function (data) { return data || ''; }
-                    },
-                    {
-                        data: 'BUY_IN',
-                        className: 'text-center col-buyin',
-                        createdCell: function (td, _cellData, rowData) {
-                            if (rowData && rowData.HAS_MARKER_BUYIN) {
-                                td.classList.add('col-buyin-marker');
-                            } else {
-                                td.classList.remove('col-buyin-marker');
-                            }
-                        },
-                        render: function (data) { return formatAmount(data); }
-                    },
-                    {
-                        data: 'CASH_OUT',
-                        className: 'text-center',
-                        render: function (data) { return formatAmount(data); }
-                    },
-                    {
-                        data: 'ROLLING',
-                        className: 'text-center',
-                        render: function (data) { return formatAmount(data); }
-                    },
-                    {
-                        data: 'TOTAL_ROLLING',
-                        className: 'text-center col-total-rolling',
-                        render: function (data) { return formatAmount(data); }
-                    },
-                    {
-                        data: null,
-                        className: 'text-center',
-                        render: function (_data, _type, row) {
-                            let badge = '';
-                            if (row.COMMISSION_TYPE == 1) {
-                                badge = '<span class="badge commission-badge commission-badge-r" title="Rolling Game">R</span>';
-                            } else if (row.COMMISSION_TYPE == 2) {
-                                badge = '<span class="badge commission-badge commission-badge-s" title="Shared Game">S</span>';
-                            } else if (row.COMMISSION_TYPE == 3) {
-                                badge = '<span class="badge commission-badge commission-badge-l" title="Loosing Game">L</span>';
-                            }
-                            return `${formatGameRate(row.COMMISSION_PERCENTAGE)} ${badge}`;
-                        }
-                    },
-                    {
-                        data: 'COMMISSION',
-                        className: 'text-center',
-                        render: function (data) { return formatAmount(data); }
-                    },
-                    {
-                        data: 'WIN_LOSS',
-                        className: 'text-center col-winloss',
-                        render: function (data) {
-                            const amount = Number(data || 0);
-                            return formatAmount(amount);
-                        }
-                    },
-                    {
-                        data: 'INITIAL_MOP',
-                        className: 'text-center',
-                        render: function (data) {
-                            return translateGameSource(data);
-                        }
-                    },
-                    {
-                        data: null,
-                        className: 'text-center',
-                        render: function (_data, _type, row) {
-                            if (row.game_status == 2) {
-                                return '<span class="badge bg-primary-subtle text-primary" style="font-size:10px !important;">ON GAME</span>';
-                            } else if (row.game_status == 3) {
-                                return '<span class="badge bg-warning-subtle text-warning" style="font-size:10px !important;">PENDING</span>';
-                            } else if (row.GAME_ENDED) {
-                                if (typeof moment !== 'undefined') {
-                                    return moment.utc(row.GAME_ENDED).utcOffset(8).format('MMM DD, HH:mm');
-                                }
-                                const d = new Date(row.GAME_ENDED);
-                                return d.toLocaleString('en-US', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
-                            }
-                            return '-';
-                        }
-                    }
-                ]
+                columns: buildGameHistoryColumns(showGuestColumn)
             });
             updateGameHistoryTotals(dataRows);
         } catch (err) {
