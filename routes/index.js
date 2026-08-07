@@ -16,6 +16,7 @@ module.exports = [
     require('./routes.js'), // pageRouter with page routes like /activity_log, /game_list, etc.
     require('./telegramData'),
     require('./fnb_hotel'),
+    require('./asset_management'),
     require('./announcement') // Keep for POST /announcement/create route
 ];
   

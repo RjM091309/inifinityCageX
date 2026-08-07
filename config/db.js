@@ -3,6 +3,7 @@ require('dotenv').config(); // Load .env variables
 const { ensureGuestSchema } = require('../utils/ensureGuestSchema');
 const { ensureGuestMembershipSchema } = require('../utils/ensureGuestMembershipSchema');
 const { ensureAgencyLineIndexes } = require('../utils/ensureAgencyLineIndexes');
+const { ensureAssetManagementSchema } = require('../utils/ensureAssetManagementSchema');
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST,
@@ -25,6 +26,7 @@ const pool = mysql.createPool({
 		await ensureGuestSchema(pool);
 		await ensureGuestMembershipSchema(pool);
 		await ensureAgencyLineIndexes(pool);
+		await ensureAssetManagementSchema(pool);
 	} catch (err) {
 		console.error('❌ MySQL connection failed:', err.message);
 	}

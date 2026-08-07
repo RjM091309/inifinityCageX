@@ -1,0 +1,801 @@
+<%- include('../partials/header') %>
+<%- include('../partials/loader') %>
+<%- include('../partials/sidebar') %>
+<%- include('../partials/topbar') %>
+
+<div class="container-fluid content-inner mt-4">
+  <div class="row">
+    <div class="col-sm-12">
+      <div class="card">
+        <div id="user-role" data-permissions="<%= permissions %>"></div>
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <h3 class="card-title mb-0">
+            <div class="breadcrumb1 flat">
+              <a href="/dashboard"><span class="fa fa-home"></span></a>
+              <a href="#"><%= __('junket_loss.junket') %></a>
+              <a href="/asset_management" class="active"><%= __('asset_management.title') %></a>
+            </div>
+          </h3>
+        </div>
+        <div class="card-body">
+          <div class="am-date-filter-wrap mb-3">
+            <input type="text" id="am-daterange-picker" class="input-daterange input-group" placeholder="<%= __('asset_management.date_range_placeholder') %>" autocomplete="off" />
+          </div>
+          <ul class="nav nav-tabs am-tabs mb-3" id="am-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="tab-summary-btn" data-bs-toggle="tab" data-bs-target="#tab-summary" type="button" role="tab">
+                <%= __('asset_management.tab_balance_sheet') %>
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="tab-assets-btn" data-bs-toggle="tab" data-bs-target="#tab-assets" type="button" role="tab">
+                <%= __('asset_management.tab_assets') %>
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="tab-liabilities-btn" data-bs-toggle="tab" data-bs-target="#tab-liabilities" type="button" role="tab">
+                <%= __('asset_management.tab_liabilities') %>
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="tab-capital-btn" data-bs-toggle="tab" data-bs-target="#tab-capital" type="button" role="tab">
+                <%= __('asset_management.tab_capital') %>
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="tab-income-btn" data-bs-toggle="tab" data-bs-target="#tab-income" type="button" role="tab">
+                <%= __('asset_management.tab_income_statement') %>
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content" id="am-tab-content">
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="tab-summary" role="tabpanel" data-empty-msg="<%= __('asset_management.no_breakdown_data') %>">
+              <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                  <div class="am-summary-card am-summary-assets">
+                    <div class="am-summary-label"><%= __('asset_management.total_assets') %></div>
+                    <div class="am-summary-value" id="summary-total-assets">0</div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="am-summary-card am-summary-liabilities">
+                    <div class="am-summary-label"><%= __('asset_management.summary_liabilities') %></div>
+                    <div class="am-summary-value" id="summary-total-liabilities">0</div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="am-summary-card am-summary-equity">
+                    <div class="am-summary-label"><%= __('asset_management.capital_and_net_income') %></div>
+                    <div class="am-summary-value" id="summary-capital-net-income">0</div>
+                  </div>
+                </div>
+              </div>
+              <div class="row g-3 am-bs-overview-row">
+                <div class="col-lg-4">
+                  <div class="am-bs-panel am-bs-panel-assets">
+                    <div class="am-bs-panel-header">
+                      <i class="fa fa-layer-group me-2"></i><%= __('asset_management.tab_assets') %>
+                    </div>
+                    <div class="table-responsive">
+                      <table class="am-bs-table" id="summary-assets-tbl">
+                        <colgroup>
+                          <col class="am-col-type" />
+                          <col class="am-col-category" />
+                          <col class="am-col-item" />
+                          <col class="am-col-amount" />
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th><%= __('asset_management.asset_type') %></th>
+                            <th><%= __('asset_management.category') %></th>
+                            <th><%= __('asset_management.item') %></th>
+                            <th class="text-end"><%= __('asset_management.amount') %></th>
+                          </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                          <tr>
+                            <th colspan="3" class="text-end"><%= __('asset_management.total') %></th>
+                            <th class="text-end am-amount" id="summary-assets-foot">0</th>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-lg-4">
+                  <div class="am-bs-panel am-bs-panel-liabilities">
+                    <div class="am-bs-panel-header">
+                      <i class="fa fa-balance-scale me-2"></i><%= __('asset_management.tab_liabilities') %>
+                    </div>
+                    <div class="table-responsive">
+                      <table class="am-bs-table" id="summary-liabilities-tbl">
+                        <colgroup>
+                          <col class="am-col-type" />
+                          <col class="am-col-category" />
+                          <col class="am-col-item" />
+                          <col class="am-col-amount" />
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th><%= __('asset_management.liability_type') %></th>
+                            <th><%= __('asset_management.category') %></th>
+                            <th><%= __('asset_management.item') %></th>
+                            <th class="text-end"><%= __('asset_management.amount') %></th>
+                          </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                          <tr>
+                            <th colspan="3" class="text-end"><%= __('asset_management.total') %></th>
+                            <th class="text-end am-amount" id="summary-liabilities-foot">0</th>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-lg-4">
+                  <div class="am-bs-panel am-bs-panel-capital">
+                    <div class="am-bs-panel-header">
+                      <i class="fa fa-coins me-2"></i><%= __('asset_management.capital_and_net_income') %>
+                    </div>
+                    <div class="table-responsive">
+                      <table class="am-bs-table" id="summary-capital-tbl">
+                        <colgroup>
+                          <col class="am-col-item-wide" />
+                          <col class="am-col-amount" />
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th><%= __('asset_management.item') %></th>
+                            <th class="text-end"><%= __('asset_management.amount') %></th>
+                          </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                          <tr>
+                            <th class="text-end"><%= __('asset_management.total') %></th>
+                            <th class="text-end am-amount" id="summary-capital-foot">0</th>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Assets Tab -->
+            <div class="tab-pane fade" id="tab-assets" role="tabpanel">
+              <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn btn-sm btn-primary" id="btn-add-asset">
+                  <i class="fa fa-plus me-1"></i><%= __('asset_management.add_asset') %>
+                </button>
+              </div>
+              <div class="table-responsive">
+                <table id="asset-tbl" class="table nowrap small-text am-dt-table" style="width:100%">
+                  <thead>
+                    <tr>
+                      <th><%= __('asset_management.asset_name') %></th>
+                      <th><%= __('asset_management.asset_type') %></th>
+                      <th><%= __('asset_management.category') %></th>
+                      <th><%= __('asset_management.purchase_date') %></th>
+                      <th><%= __('asset_management.purchase_cost') %></th>
+                      <th><%= __('asset_management.current_value') %></th>
+                      <th><%= __('asset_management.in_charge') %></th>
+                      <th><%= __('asset_management.status') %></th>
+                      <th><%= __('asset_management.action') %></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Liabilities Tab -->
+            <div class="tab-pane fade" id="tab-liabilities" role="tabpanel">
+              <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn btn-sm btn-primary" id="btn-add-liability">
+                  <i class="fa fa-plus me-1"></i><%= __('asset_management.add_liability') %>
+                </button>
+              </div>
+              <div class="table-responsive">
+                <table id="liability-tbl" class="table nowrap small-text am-dt-table" style="width:100%">
+                  <thead>
+                    <tr>
+                      <th><%= __('asset_management.liability_name') %></th>
+                      <th><%= __('asset_management.creditor') %></th>
+                      <th><%= __('asset_management.liability_type') %></th>
+                      <th><%= __('asset_management.category') %></th>
+                      <th><%= __('asset_management.amount') %></th>
+                      <th><%= __('asset_management.amount_paid') %></th>
+                      <th><%= __('asset_management.balance') %></th>
+                      <th><%= __('asset_management.action') %></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Capital Tab -->
+            <div class="tab-pane fade" id="tab-capital" role="tabpanel">
+              <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn btn-sm btn-primary" id="btn-add-capital">
+                  <i class="fa fa-plus me-1"></i><%= __('asset_management.add_capital') %>
+                </button>
+              </div>
+              <div class="table-responsive">
+                <table id="capital-tbl" class="table nowrap small-text am-dt-table" style="width:100%">
+                  <thead>
+                    <tr>
+                      <th><%= __('asset_management.description') %></th>
+                      <th><%= __('asset_management.amount') %></th>
+                      <th><%= __('asset_management.remarks') %></th>
+                      <th><%= __('asset_management.date_time') %></th>
+                      <th><%= __('asset_management.action') %></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Income Statement Tab -->
+            <div class="tab-pane fade" id="tab-income" role="tabpanel">
+              <div class="row g-3 mb-3">
+                <div class="col-md-3 col-sm-6">
+                  <div class="am-summary-card am-summary-sales py-3">
+                    <div class="am-summary-label"><%= __('asset_management.sales') %></div>
+                    <div class="am-summary-value" id="is-sales-total">0</div>
+                  </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <div class="am-summary-card am-summary-cogs py-3">
+                    <div class="am-summary-label"><%= __('asset_management.cost_of_sales') %></div>
+                    <div class="am-summary-value" id="is-cogs-total">0</div>
+                  </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <div class="am-summary-card am-summary-liabilities py-3">
+                    <div class="am-summary-label"><%= __('asset_management.operation_expenses') %></div>
+                    <div class="am-summary-value" id="is-opex-total">0</div>
+                  </div>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                  <div class="am-summary-card am-summary-equity py-3">
+                    <div class="am-summary-label"><%= __('asset_management.net_income') %></div>
+                    <div class="am-summary-value" id="is-net-income">0</div>
+                  </div>
+                </div>
+              </div>
+              <div class="d-flex justify-content-end mb-2">
+                <button type="button" class="btn btn-sm btn-primary" id="btn-add-income-entry">
+                  <i class="fa fa-plus me-1"></i><%= __('asset_management.add_income_entry') %>
+                </button>
+              </div>
+              <div class="table-responsive">
+                <table id="income-tbl" class="table nowrap small-text am-dt-table" style="width:100%">
+                  <thead>
+                    <tr>
+                      <th><%= __('asset_management.entry_type') %></th>
+                      <th><%= __('asset_management.description') %></th>
+                      <th><%= __('asset_management.amount') %></th>
+                      <th><%= __('asset_management.action') %></th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Capital Modal -->
+<div class="modal fade" id="modal-capital" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="capital-modal-title"><%= __('asset_management.add_capital') %></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="capital-form">
+        <div class="modal-body">
+          <input type="hidden" id="capital-id" />
+          <div class="mb-3">
+            <label class="form-label" for="capital-description"><%= __('asset_management.description') %> *</label>
+            <input type="text" class="form-control" id="capital-description" maxlength="200" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="capital-amount"><%= __('asset_management.amount') %> *</label>
+            <input type="text" class="form-control" id="capital-amount" inputmode="decimal" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="capital-remarks"><%= __('asset_management.remarks') %></label>
+            <textarea class="form-control" id="capital-remarks" rows="2" maxlength="500"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary"><%= __('asset_management.save') %></button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('asset_management.close') %></button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Income Entry Modal -->
+<div class="modal fade" id="modal-income-entry" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="income-entry-modal-title"><%= __('asset_management.add_income_entry') %></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="income-entry-form">
+        <div class="modal-body">
+          <input type="hidden" id="income-entry-id" />
+          <input type="hidden" id="income-entry-key" />
+          <div class="mb-3">
+            <label class="form-label" for="income-entry-type"><%= __('asset_management.entry_type') %> *</label>
+            <select class="form-select" id="income-entry-type" required>
+              <option value="sales"><%= __('asset_management.sales') %></option>
+              <option value="cogs"><%= __('asset_management.cost_of_sales') %></option>
+              <option value="opex"><%= __('asset_management.operation_expense') %></option>
+            </select>
+          </div>
+          <div class="mb-3" id="income-entry-desc-wrap">
+            <label class="form-label" for="income-entry-description"><%= __('asset_management.description') %> *</label>
+            <input type="text" class="form-control" id="income-entry-description" maxlength="200" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="income-entry-amount"><%= __('asset_management.amount') %> *</label>
+            <input type="text" class="form-control" id="income-entry-amount" inputmode="decimal" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary"><%= __('asset_management.save') %></button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('asset_management.close') %></button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Asset Modal -->
+<div class="modal fade" id="modal-asset" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="asset-modal-title"><%= __('asset_management.add_asset') %></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="asset-form">
+        <div class="modal-body">
+          <input type="hidden" id="asset-id" />
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="asset-name"><%= __('asset_management.asset_name') %> *</label>
+              <input type="text" class="form-control" id="asset-name" maxlength="200" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="asset-type"><%= __('asset_management.asset_type') %> *</label>
+              <select class="form-select" id="asset-type" required>
+                <option value="Current Asset"><%= __('asset_management.type_current_asset') %></option>
+                <option value="Fixed Asset"><%= __('asset_management.type_fixed_asset') %></option>
+                <option value="Other Asset"><%= __('asset_management.type_other_asset') %></option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="asset-category"><%= __('asset_management.category') %></label>
+              <select class="form-select" id="asset-category">
+                <option value="">—</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="asset-purchase-date"><%= __('asset_management.purchase_date') %></label>
+              <input type="date" class="form-control" id="asset-purchase-date" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="asset-purchase-cost"><%= __('asset_management.purchase_cost') %> *</label>
+              <input type="text" class="form-control" id="asset-purchase-cost" inputmode="decimal" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="asset-current-value"><%= __('asset_management.current_value') %> *</label>
+              <input type="text" class="form-control" id="asset-current-value" inputmode="decimal" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="asset-depreciation"><%= __('asset_management.depreciation_rate') %></label>
+              <input type="number" class="form-control" id="asset-depreciation" step="0.01" min="0" max="100" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="asset-in-charge"><%= __('asset_management.in_charge') %></label>
+              <input type="text" class="form-control" id="asset-in-charge" maxlength="150" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="asset-status"><%= __('asset_management.status') %></label>
+              <select class="form-select" id="asset-status">
+                <option value="Active"><%= __('asset_management.status_active') %></option>
+                <option value="Under Repair"><%= __('asset_management.status_under_repair') %></option>
+                <option value="Disposed"><%= __('asset_management.status_disposed') %></option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="asset-remarks"><%= __('asset_management.remarks') %></label>
+              <textarea class="form-control" id="asset-remarks" rows="2" maxlength="500"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary"><%= __('asset_management.save') %></button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('asset_management.close') %></button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Liability Modal -->
+<div class="modal fade" id="modal-liability" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary">
+        <h5 class="modal-title text-white" id="liability-modal-title"><%= __('asset_management.add_liability') %></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="liability-form">
+        <div class="modal-body">
+          <input type="hidden" id="liability-id" />
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label" for="liability-description"><%= __('asset_management.liability_name') %> *</label>
+              <input type="text" class="form-control" id="liability-description" maxlength="500" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="liability-creditor"><%= __('asset_management.creditor') %></label>
+              <input type="text" class="form-control" id="liability-creditor" maxlength="150" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="liability-type"><%= __('asset_management.liability_type') %> *</label>
+              <select class="form-select" id="liability-type" required>
+                <option value="Current Liability"><%= __('asset_management.type_current_liability') %></option>
+                <option value="Long-term Liability"><%= __('asset_management.type_longterm_liability') %></option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="liability-category"><%= __('asset_management.category') %></label>
+              <select class="form-select" id="liability-category">
+                <option value="">—</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="liability-amount"><%= __('asset_management.amount') %> *</label>
+              <input type="text" class="form-control" id="liability-amount" inputmode="decimal" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="liability-amount-paid"><%= __('asset_management.amount_paid') %></label>
+              <input type="text" class="form-control" id="liability-amount-paid" inputmode="decimal" value="0" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="liability-interest"><%= __('asset_management.interest_rate') %></label>
+              <input type="number" class="form-control" id="liability-interest" step="0.01" min="0" max="100" />
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="liability-remarks"><%= __('asset_management.remarks') %></label>
+              <textarea class="form-control" id="liability-remarks" rows="2" maxlength="500"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary"><%= __('asset_management.save') %></button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= __('asset_management.close') %></button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/permission_view_only_script') %>
+<script>
+  window.translations = window.translations || {};
+  window.translations.asset_management_page = {
+    search: "<%= __('guest_page.search') %>",
+    showing_entries: "<%= __('guest_page.showing_entries') %>",
+    previous: "<%= __('guest_page.previous') %>",
+    next: "<%= __('guest_page.next') %>",
+    empty_table: "<%= __('asset_management.no_breakdown_data') %>"
+  };
+</script>
+<%- include('../partials/footer') %>
+
+<script src="/assets/js/functions/asset_management.js"></script>
+
+<style>
+  .am-date-filter-wrap {
+    display: inline-block;
+    min-width: 240px;
+    max-width: 100%;
+  }
+  .am-date-filter-wrap .input-daterange {
+    width: 100%;
+    margin: 0;
+    font-size: 12px;
+    border: 1px solid #dbe2f3;
+    border-radius: 8px;
+    background: #fff;
+    padding: 8px 12px;
+    line-height: 1.2;
+    color: #344054;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .am-date-filter-wrap .flatpickr-alt-input {
+    width: 100% !important;
+    min-width: 240px !important;
+    margin: 0;
+    font-size: 12px;
+    border: 1px solid #dbe2f3 !important;
+    border-radius: 8px;
+    background: #fff !important;
+    padding: 8px 12px;
+    line-height: 1.2;
+    color: #344054;
+    box-shadow: none !important;
+    cursor: pointer;
+    text-align: center !important;
+    white-space: nowrap;
+  }
+  .am-date-filter-wrap .flatpickr-input[readonly] {
+    cursor: pointer;
+  }
+  .flatpickr-calendar .flatpickr-month .cur-month {
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 0 0.25rem;
+  }
+  .flatpickr-calendar .flatpickr-month .cur-month:hover {
+    background: rgba(13, 110, 253, 0.12);
+  }
+  .am-tabs {
+    border-bottom: 1px solid #dee2e6;
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+  .am-tabs .nav-item {
+    margin-bottom: -1px;
+  }
+  .am-tabs .nav-link {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #8a92a6;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent !important;
+    padding: 0.5rem 1.25rem;
+    cursor: pointer;
+    box-shadow: none !important;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    line-height: 1.5;
+  }
+  .am-tabs .nav-link:hover,
+  .am-tabs .nav-link:focus,
+  .am-tabs .nav-link:focus-visible {
+    color: var(--bs-primary);
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none;
+  }
+  .am-tabs .nav-link.active {
+    color: var(--bs-primary) !important;
+    font-weight: 600;
+    background: transparent !important;
+    border-bottom-color: var(--bs-primary);
+    box-shadow: none !important;
+  }
+  .am-summary-card {
+    border-radius: 8px;
+    padding: 1.25rem;
+    color: #fff;
+    text-align: center;
+  }
+  .am-summary-assets { background: linear-gradient(135deg, #1a6b3c, #2d9f5f); }
+  .am-summary-sales { background: linear-gradient(135deg, #1e40af, #3b82f6); }
+  .am-summary-cogs { background: linear-gradient(135deg, #1a6b3c, #2d9f5f); }
+  .am-summary-liabilities { background: linear-gradient(135deg, #8b1a1a, #c0392b); }
+  .am-summary-equity { background: linear-gradient(135deg, #1a6b3c, #46627f); }
+  .am-summary-label { font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.25rem; }
+  .am-summary-value { font-size: 1.5rem; font-weight: 700; }
+  .am-bs-panel {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #e4e9f0;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    background: #fff;
+    height: 100%;
+  }
+  .am-bs-overview-row > [class*="col-"] {
+    display: flex;
+    flex-direction: column;
+  }
+  .am-bs-overview-row .am-bs-panel {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+  .am-bs-overview-row .am-bs-panel-header {
+    font-size: 0.82rem;
+    padding: 0.7rem 0.5rem;
+    line-height: 1.3;
+  }
+  .am-bs-overview-row .am-bs-table thead th,
+  .am-bs-overview-row .am-bs-table tbody td,
+  .am-bs-overview-row .am-bs-table tfoot th {
+    padding: 8px 10px;
+    font-size: 0.78rem;
+  }
+  .am-bs-overview-row .am-bs-badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
+  }
+  .am-bs-overview-row .am-bs-section-row td {
+    font-size: 0.68rem;
+    padding: 0.35rem 10px !important;
+  }
+  .am-bs-panel-header {
+    padding: 0.85rem 1rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #fff;
+    text-align: center;
+  }
+  .am-bs-panel-assets .am-bs-panel-header {
+    background: linear-gradient(135deg, #1a6b3c, #2d9f5f);
+  }
+  .am-bs-panel-liabilities .am-bs-panel-header {
+    background: linear-gradient(135deg, #8b1a1a, #c0392b);
+  }
+  .am-bs-panel-capital .am-bs-panel-header {
+    background: linear-gradient(135deg, #1a6b3c, #46627f);
+  }
+  .am-bs-table {
+    width: 100%;
+    table-layout: fixed;
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .am-bs-table col.am-col-type { width: 26%; }
+  .am-bs-table col.am-col-category { width: 24%; }
+  .am-bs-table col.am-col-item { width: 28%; }
+  .am-bs-table col.am-col-item-wide { width: 68%; }
+  .am-bs-table col.am-col-amount { width: 22%; }
+  .am-bs-table thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
+    padding: 12px 15px;
+    border: none;
+    border-bottom: 1px solid #e4e9f0;
+    white-space: nowrap;
+  }
+  .am-bs-table tbody td {
+    padding: 10px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+    color: #666;
+    vertical-align: middle;
+    word-break: break-word;
+  }
+  .am-bs-table tbody tr:nth-child(even) td { background: transparent; }
+  .am-bs-table tbody tr:hover td { background-color: #f8f9fa; }
+  .am-bs-table tfoot th {
+    background: #f4f6f9;
+    padding: 12px 15px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #111827;
+    border-top: 2px solid #d1d9e6;
+  }
+  .am-bs-table .am-amount {
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    white-space: nowrap;
+  }
+  .am-bs-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  .am-bs-badge-current { background: #e8f5ee; color: #1a6b3c; }
+  .am-bs-badge-fixed { background: #e8eef8; color: #1e40af; }
+  .am-bs-badge-other { background: #f3f0ff; color: #5b21b6; }
+  .am-bs-badge-capital { background: #e8f5ee; color: #1a6b3c; }
+  .am-bs-badge-income { background: #e8eef8; color: #1e40af; }
+  .am-bs-badge-debt { background: #fdecea; color: #8b1a1a; }
+  .am-bs-section-row td {
+    background: #f8fafc !important;
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.45rem 1rem !important;
+    border-bottom: 1px solid #e4e9f0 !important;
+  }
+  .am-bs-empty td {
+    text-align: center;
+    color: #94a3b8;
+    font-style: italic;
+    padding: 1.5rem 1rem !important;
+    background: #fafbfc !important;
+  }
+  .small-text { font-size: 0.70rem; }
+  .am-dt-table.small-text th,
+  .am-dt-table.small-text td {
+    padding: 10px 15px !important;
+    font-size: 13px !important;
+  }
+  .am-dt-table {
+    width: 100%;
+    font-size: 13px;
+    border-collapse: collapse;
+  }
+  .am-dt-table thead th {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary);
+    font-weight: 500;
+    padding: 12px 15px;
+    text-align: left;
+    border: none;
+    white-space: nowrap;
+  }
+  .am-dt-table tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .am-dt-table td {
+    padding: 10px 15px;
+    vertical-align: middle;
+    color: #666;
+  }
+  .am-dt-table tbody tr:hover {
+    background-color: #f8f9fa;
+  }
+  .am-dt-table th:last-child,
+  .am-dt-table td:last-child {
+    min-width: 110px;
+    white-space: nowrap;
+    text-align: center !important;
+  }
+  .am-actions {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+  }
+  .am-actions .btn {
+    padding: 0.2rem 0.42rem;
+    flex: 0 0 auto;
+  }
+  .am-actions .btn i.fa {
+    font-size: 0.72rem;
+  }
+  .card-body { overflow-x: auto; }
+</style>
