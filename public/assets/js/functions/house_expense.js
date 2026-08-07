@@ -1160,7 +1160,12 @@ function showExpenseBreakdownModalByCategory(categoryName) {
         if (category === HOUSE_EXPENSE_RETURN_MONEY_LABEL) {
             return row.record_type === 'return_money';
         }
-        return row.record_type !== 'return_money' && String(row.expense_category || '').trim() === category;
+        if (row.record_type === 'return_money') return false;
+        // Graph aggregates by main category (e.g. "1.Refuel"); rows store full path
+        // (e.g. "1.Refuel › Gas") in expense_category — match either field.
+        var main = String(row.expense_main_category || '').trim();
+        var full = String(row.expense_category || '').trim();
+        return main === category || full === category;
     });
 
     $('#breakdown-modal-category-name').text(category);
