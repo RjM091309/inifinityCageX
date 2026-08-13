@@ -523,10 +523,12 @@
                 try { $accountSelect.select2('destroy'); } catch (e) {}
             }
             var $parent = typeof dropdownParent === 'string' ? $(dropdownParent) : dropdownParent;
+            if (!$parent || !$parent.length) $parent = $form.length ? $form : $('body');
             $accountSelect.select2({
                 placeholder: selectPlaceholder,
                 allowClear: false,
-                dropdownParent: $parent.length ? $parent : $('body')
+                width: '100%',
+                dropdownParent: $parent
             });
         }
 

@@ -1,16 +1,17 @@
 /*
- * Global UI scale: 15% smaller at 100% browser zoom (85%).
- * Zoom app shell only — loader overlay stays full-screen.
+ * Global UI scale (~90%).
+ * Do NOT put zoom on .main-content — CSS zoom breaks Select2/absolute positioning
+ * on page-level controls (e.g. Credit History account dropdown).
+ * Modals under a zoomed ancestor also mis-measure dropdowns.
  */
- aside.sidebar,
- .main-content {
-     zoom: 0.90;
- }
- 
- body > .btn-fixed-end.btn-setting,
- body > .offcanvas.offcanvas-end {
-     zoom: 0.70;
- }
+aside.sidebar {
+    zoom: 0.90;
+}
+
+body > .btn-fixed-end.btn-setting,
+body > .offcanvas.offcanvas-end {
+    zoom: 0.70;
+}
  
 .css-blue1 {
     max-width: 100%;
@@ -490,8 +491,10 @@ opacity: 0.95;
   transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease-out;
 }
 
+/* Use transform: none when open (same as Bootstrap). translateX(0) still creates a
+   containing block and can mis-position Select2 menus inside the dialog. */
 .modal.show .modal-dialog {
-  transform: translateX(0);
+  transform: none;
   opacity: 1;
 }
 
