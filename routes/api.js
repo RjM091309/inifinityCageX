@@ -8,6 +8,16 @@ const router = express.Router();
 const pool = require('../config/db');
 const argon2 = require('argon2');
 const crypto = require('crypto');
+const {
+  computeNetProfitTotals,
+  computeNetProfitRows,
+  aggregateRowsByMonth,
+} = require('../utils/netProfitCalc');
+const {
+  EXPENSE_CATEGORY_PARENT_JOIN,
+  EXPENSE_ROW_CATEGORY_FIELDS,
+  RETURN_MONEY_CATEGORY_FIELDS,
+} = require('../utils/expenseCategoryHierarchy');
 
 // --- Helper: compute total rolling per game using same formula as game list ---
 // Formula: total_rolling_nn + total_roller_return_cc + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn
@@ -397,6 +407,235 @@ router.get('/realtime', async (req, res) => {
   } catch (err) {
     console.error('Error in GET /api/realtime:', err);
     res.status(500).json({ success: false, error: 'Error fetching realtime data' });
+  }
+});
+
+/**
+ * Fetches house expense + return money rows settled within [fromDate, toDate], plus unsettled
+ * (pending) rows too when toDate is after the most recent settlement on/before toDate — the SAME
+ * inclusion rule as the date-range branch of GET /junket_house_expense_data (routes/expense.js).
+ */
+async function getExpenseRowsForMonth(fromDate, toDate) {
+  let includeUnsettled = false;
+  try {
+    const [lastRows] = await pool.execute(
+      'SELECT MAX(CAST(SETTLEMENT_DATE AS DATE)) AS last_settlement FROM expense_daily_settlement WHERE ACTIVE = 1 AND CAST(SETTLEMENT_DATE AS DATE) <= CAST(? AS DATE)',
+      [toDate]
+    );
+    const last = lastRows[0] && lastRows[0].last_settlement;
+    if (last) {
+      const pad = (n) => String(n).padStart(2, '0');
+      const lastDate =
+        last instanceof Date
+          ? `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`
+          : String(last).slice(0, 10);
+      includeUnsettled = toDate > lastDate;
+    } else {
+      // No settlement on/before toDate: nothing is settled yet, so show unsettled.
+      includeUnsettled = true;
+    }
+  } catch (e) {
+    includeUnsettled = false;
+  }
+
+  let query = `
+    SELECT e.AMOUNT, ${EXPENSE_ROW_CATEGORY_FIELDS}
+    FROM junket_house_expense e
+    ${EXPENSE_CATEGORY_PARENT_JOIN}
+    JOIN expense_daily_settlement_items edsi ON edsi.EXPENSE_ID = e.IDNo AND edsi.EXPENSE_TYPE = 'expense'
+    JOIN expense_daily_settlement eds ON edsi.DAILY_SETTLEMENT_ID = eds.IDNo AND eds.ACTIVE = 1
+    WHERE e.ACTIVE = 1 AND eds.SETTLEMENT_DATE BETWEEN ? AND ?
+
+    UNION ALL
+
+    SELECT rm.AMOUNT, ${RETURN_MONEY_CATEGORY_FIELDS}
+    FROM junket_return_money rm
+    JOIN expense_daily_settlement_items edsi2 ON edsi2.EXPENSE_ID = rm.IDNo AND edsi2.EXPENSE_TYPE = 'return_money'
+    JOIN expense_daily_settlement eds2 ON edsi2.DAILY_SETTLEMENT_ID = eds2.IDNo AND eds2.ACTIVE = 1
+    WHERE rm.ACTIVE = 1 AND eds2.SETTLEMENT_DATE BETWEEN ? AND ?`;
+  const params = [fromDate, toDate, fromDate, toDate];
+
+  if (includeUnsettled) {
+    query += `
+
+    UNION ALL
+
+    SELECT e.AMOUNT, ${EXPENSE_ROW_CATEGORY_FIELDS}
+    FROM junket_house_expense e
+    ${EXPENSE_CATEGORY_PARENT_JOIN}
+    WHERE e.ACTIVE = 1 AND (e.DAILY_SETTLEMENT = 1 OR e.DAILY_SETTLEMENT IS NULL)
+
+    UNION ALL
+
+    SELECT rm.AMOUNT, ${RETURN_MONEY_CATEGORY_FIELDS}
+    FROM junket_return_money rm
+    WHERE rm.ACTIVE = 1 AND (rm.DAILY_SETTLEMENT = 1 OR rm.DAILY_SETTLEMENT IS NULL)`;
+  }
+
+  const [rows] = await pool.execute(query, params);
+  return rows;
+}
+
+/**
+ * Fetches this calendar month's (1st .. today) house expenses + return money, grouped by main
+ * category. Same month-to-date window as GET /junket_house_expense_data (no date params) and
+ * GET /api/dashboard-summary; same category grouping as the "Expense breakdown" panel in
+ * views/junket/house_expense.ejs (public/assets/js/functions/house_expense.js
+ * renderHouseExpenseGraphRaceBodyFromState): group by expense_main_category, percent = amount /
+ * grand total, sorted descending, top 8.
+ */
+async function getExpenseBreakdown() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const fromDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+
+  const rows = await getExpenseRowsForMonth(fromDate, todayStr);
+
+  const byMain = {};
+  let total = 0;
+  rows.forEach((r) => {
+    const amount = toNum(r.AMOUNT);
+    const category = r.expense_main_category || 'Uncategorized';
+    byMain[category] = (byMain[category] || 0) + amount;
+    total += amount;
+  });
+
+  const categories = Object.keys(byMain)
+    .map((name) => ({ name, amount: byMain[name] }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 8)
+    .map((c) => ({ ...c, percent: total > 0 ? (c.amount / total) * 100 : 0 }));
+
+  return { success: true, total, categories, from_date: fromDate, to_date: todayStr };
+}
+
+/**
+ * GET /api/expense_breakdown
+ * This month's (1st .. today) expense totals grouped by main category, with percent of grand
+ * total. No query params required.
+ */
+router.get('/expense_breakdown', async (req, res) => {
+  try {
+    const data = await getExpenseBreakdown();
+    res.json(data);
+  } catch (err) {
+    console.error('Error in GET /api/expense_breakdown:', err);
+    res.status(500).json({ success: false, error: 'Error fetching expense breakdown' });
+  }
+});
+
+// ========== DASHBOARD SUMMARY & MONTHLY STATISTICS (Flutter home screen) ==========
+
+/**
+ * GET /api/dashboard-summary
+ * Single combined snapshot for the Flutter home screen: current-month-to-date Win/Loss, NGR,
+ * Commission (total/game/additional), expenses, and rolling (cage vs casino).
+ *
+ * Win/Loss, Game Commission, Expenses, and NGR come from `computeNetProfitTotals` in
+ * utils/netProfitCalc.js — the SAME calculation used by the web Net Profit page
+ * (routes/net_profit.js), for [1st of current month .. today]. This is intentionally the one
+ * shared source: any future fix or formula change to net-profit logic there is picked up here
+ * automatically, no separate edit needed. NGR here = that page's "Net Profit" (grand_net_profit)
+ * summed for the month so far — matches the Monthly tab's current-month row on /net_profit.
+ *
+ * Cage Rolling / Casino Rolling use the same month-to-date range and the same formulas already
+ * used by GET /api/monthly-accumulated's monthly_accumulated_rolling_games /
+ * monthly_accumulated_rolling_casino (computeRollingGameListStyle over game_record, and
+ * junket_total_chips TRANSACTION_ID=2 for casino rolling) — so all these fields share one
+ * consistent [1st of month .. today] window.
+ *
+ * additional_commission: this app's schema has no additional_commission table (unlike some other
+ * cage apps), so it is always 0 and total_commission simply equals game_commission.
+ */
+router.get('/dashboard-summary', async (req, res) => {
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const monthStartStr = `${todayStr.slice(0, 8)}01`;
+
+    const [totals, rollRecs, chipsCashoutRow] = await Promise.all([
+      computeNetProfitTotals(monthStartStr, todayStr),
+      pool.execute(
+        `SELECT GAME_ID, CAGE_TYPE, COALESCE(AMOUNT, 0) AS AMOUNT, COALESCE(NN_CHIPS, 0) AS NN_CHIPS, COALESCE(CC_CHIPS, 0) AS CC_CHIPS,
+         COALESCE(ROLLER_CC_CHIPS, 0) AS ROLLER_CC_CHIPS, ROLLER_TRANSACTION
+         FROM game_record WHERE ACTIVE != 0 AND DATE(ENCODED_DT) BETWEEN ? AND ?`,
+        [monthStartStr, todayStr]
+      ).then(([rows]) => rows),
+      pool.execute(
+        `SELECT COALESCE(SUM(TOTAL_CHIPS), 0) AS v FROM junket_total_chips
+         WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND DATE(ENCODED_DT) BETWEEN ? AND ?`,
+        [monthStartStr, todayStr]
+      ).then(([rows]) => rows).catch(() => [{ v: 0 }]),
+    ]);
+
+    const { totalRollingSum: cageRolling } = computeRollingGameListStyle(rollRecs);
+    const casinoRolling = Number(chipsCashoutRow[0]?.v) || 0;
+    // additional_commission table doesn't exist in this app's schema
+    const additionalCommission = 0;
+    const totalCommission = Math.round(totals.commission + additionalCommission);
+
+    res.json({
+      success: true,
+      date: todayStr,
+      date_from: monthStartStr,
+      date_to: todayStr,
+      win_loss: totals.win_loss,
+      ngr: totals.grand_net_profit,
+      total_commission: totalCommission,
+      game_commission: totals.commission,
+      additional_commission: additionalCommission,
+      expenses: totals.house_expenses_settled,
+      cage_rolling: cageRolling,
+      casino_rolling: casinoRolling,
+    });
+  } catch (err) {
+    console.error('Error in GET /api/dashboard-summary:', err);
+    res.status(500).json({ success: false, error: 'Error fetching dashboard summary' });
+  }
+});
+
+/**
+ * GET /api/monthly-statistics
+ * Per-month Win/Loss, Share, Commission, Expenses, NGR for a year — for the Flutter home
+ * screen's "statistics" popup.
+ *
+ * Reuses `computeNetProfitRows` + `aggregateRowsByMonth` from utils/netProfitCalc.js — the SAME
+ * per-day/per-month rollup used by the web Net Profit page's Monthly tab (routes/net_profit.js).
+ * One shared calculation; any future fix there is picked up here too.
+ *
+ * Query: year (optional, defaults to current year). Range is Jan 1 of that year through today
+ * (or Dec 31 for past years).
+ */
+router.get('/monthly-statistics', async (req, res) => {
+  try {
+    const now = new Date();
+    const year = parseInt(req.query.year, 10) || now.getFullYear();
+    const todayStr = now.toISOString().slice(0, 10);
+    const startStr = `${year}-01-01`;
+    const endStr = year === now.getFullYear() ? todayStr : `${year}-12-31`;
+
+    const rowsAsc = await computeNetProfitRows(startStr, endStr);
+    // Newest month first — same as the web Net Profit page (routes/net_profit.js reverses
+    // displayRowsAsc before responding).
+    const months = aggregateRowsByMonth(rowsAsc).reverse();
+
+    res.json({
+      success: true,
+      year,
+      months: months.map((m) => ({
+        month_key: m.month_key,
+        program_label: m.settlement_label,
+        win_loss: m.win_loss,
+        share_percentage: m.share_percentage,
+        share: m.casino_share,
+        commission: m.commission,
+        expenses: m.house_expenses_settled,
+        ngr: m.grand_net_profit,
+      })),
+    });
+  } catch (err) {
+    console.error('Error in GET /api/monthly-statistics:', err);
+    res.status(500).json({ success: false, error: 'Error fetching monthly statistics' });
   }
 });
 
@@ -998,6 +1237,142 @@ router.get('/daily-settlement', async (req, res) => {
   } catch (err) {
     console.error('Error in GET /api/daily-settlement:', err);
     res.status(500).json({ success: false, error: 'Error fetching daily settlement' });
+  }
+});
+
+/**
+ * Same per-date aggregation as the single-date branch of GET /api/daily-settlement
+ * (buy_in, win_loss, commission via computeRollingGameListStyle + per-game commission formula),
+ * factored out for reuse. cash_out is derived (buy_in - win_loss) since win_loss = buyin - cashout.
+ */
+async function computeDailySettlementTotals(dateStr, todayStr) {
+  const gameIds = await getGameIdsForDate(dateStr, todayStr);
+  let buy_in = 0;
+  let win_loss = 0;
+  let commission = 0;
+
+  if (gameIds.length > 0) {
+    const ph = gameIds.map(() => '?').join(',');
+    const [recs] = await pool.execute(
+      `SELECT GAME_ID, CAGE_TYPE, COALESCE(AMOUNT, 0) AS AMOUNT, COALESCE(NN_CHIPS, 0) AS NN_CHIPS, COALESCE(CC_CHIPS, 0) AS CC_CHIPS,
+       COALESCE(ROLLER_CC_CHIPS, 0) AS ROLLER_CC_CHIPS, ROLLER_TRANSACTION
+       FROM game_record WHERE ACTIVE != 0 AND GAME_ID IN (${ph})`,
+      gameIds
+    );
+    const { byGame } = computeRollingGameListStyle(recs);
+    Object.keys(byGame).forEach((gid) => {
+      buy_in += byGame[gid].buyin;
+      win_loss += byGame[gid].buyin - byGame[gid].cashout;
+    });
+
+    const [commRows] = await pool.execute(
+      `SELECT gl.IDNo, gl.COMMISSION_PERCENTAGE, gl.COMMISSION_TYPE FROM game_list gl WHERE gl.IDNo IN (${ph}) AND gl.ACTIVE != 0 AND gl.SETTLED = 1`,
+      gameIds
+    );
+    for (const row of commRows) {
+      const [cr] = await pool.execute(
+        `SELECT SUM(CASE WHEN CAGE_TYPE IN (3,4) THEN NN_CHIPS+CC_CHIPS WHEN CAGE_TYPE=5 AND ROLLER_TRANSACTION=2 THEN ROLLER_CC_CHIPS ELSE 0 END) AS r,
+          SUM(CASE WHEN CAGE_TYPE=2 THEN NN_CHIPS ELSE 0 END) AS c FROM game_record WHERE ACTIVE!=0 AND GAME_ID=?`,
+        [row.IDNo]
+      );
+      const rolling = Number(cr[0]?.r) || 0;
+      const cashout = Number(cr[0]?.c) || 0;
+      if (row.COMMISSION_TYPE === 1) commission += (rolling - cashout) * (row.COMMISSION_PERCENTAGE / 100);
+      else if (row.COMMISSION_TYPE === 2) commission += (byGame[row.IDNo] ? (byGame[row.IDNo].buyin - byGame[row.IDNo].cashout) : 0) * (row.COMMISSION_PERCENTAGE / 100);
+    }
+    commission = Math.round(commission);
+  }
+
+  return {
+    date: dateStr,
+    game_count: gameIds.length,
+    buy_in,
+    cash_out: buy_in - win_loss,
+    commission,
+    win_loss,
+  };
+}
+
+/**
+ * Fetches currently ongoing (active/unsettled) games with per-game buy-in, cash-out, commission,
+ * and win/loss, plus settled totals for today and yesterday.
+ * Ongoing games: same base query as getRealtimeData()'s ongoing_games (game_list ACTIVE NOT IN
+ * (0,1)), joined with game_record for the same rolling formula as computeRollingGameListStyle,
+ * and per-game commission using the same type1/3=rolling*rate, type2=winloss*rate formula as
+ * computeRollingAndWinlossByAgent (GET /api/ranking).
+ * Settled totals: same per-day aggregation as GET /api/daily-settlement (computeDailySettlementTotals).
+ */
+async function getMonthlyGames() {
+  const [ongoingBase] = await pool.execute(
+    `SELECT gl.IDNo AS game_id, gl.COMMISSION_TYPE, gl.COMMISSION_PERCENTAGE,
+            ag.AGENT_CODE, ag.NAME AS agent_name
+     FROM game_list gl
+     JOIN account a ON gl.ACCOUNT_ID = a.IDNo
+     JOIN agent ag ON a.AGENT_ID = ag.IDNo
+     WHERE gl.ACTIVE NOT IN (0, 1)
+     ORDER BY gl.IDNo ASC`
+  );
+
+  let ongoing = [];
+  if (ongoingBase.length > 0) {
+    const gameIds = ongoingBase.map((r) => r.game_id);
+    const ph = gameIds.map(() => '?').join(',');
+    const [recs] = await pool.execute(
+      `SELECT GAME_ID, CAGE_TYPE, COALESCE(AMOUNT, 0) AS AMOUNT, COALESCE(NN_CHIPS, 0) AS NN_CHIPS, COALESCE(CC_CHIPS, 0) AS CC_CHIPS,
+       COALESCE(ROLLER_CC_CHIPS, 0) AS ROLLER_CC_CHIPS, ROLLER_TRANSACTION
+       FROM game_record WHERE ACTIVE != 0 AND GAME_ID IN (${ph})`,
+      gameIds
+    );
+    const { byGame } = computeRollingGameListStyle(recs);
+    ongoing = ongoingBase.map((row) => {
+      const g = byGame[row.game_id] || { buyin: 0, cashout: 0, rolling: 0 };
+      const winloss = g.buyin - g.cashout;
+      const commType = row.COMMISSION_TYPE != null ? Number(row.COMMISSION_TYPE) : null;
+      const commPct = row.COMMISSION_PERCENTAGE != null ? Number(row.COMMISSION_PERCENTAGE) : null;
+      let commission = 0;
+      if (commType != null && commPct != null && commPct > 0) {
+        if (commType === 1 || commType === 3) commission = Math.round((g.rolling * commPct) / 100);
+        else if (commType === 2) commission = Math.round((winloss * commPct) / 100);
+      }
+      const agentName = (row.agent_name || '').toString().trim();
+      const agentCode = (row.AGENT_CODE || '').toString().trim();
+      const account = agentName && agentCode ? `${agentName} (${agentCode})` : (agentCode || agentName);
+      return {
+        game_id: row.game_id,
+        account,
+        buy_in: Math.round(g.buyin),
+        cash_out: Math.round(g.cashout),
+        commission,
+        win_loss: Math.round(winloss),
+      };
+    });
+  }
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const prev = new Date();
+  prev.setUTCDate(prev.getUTCDate() - 1);
+  const prevStr = prev.toISOString().slice(0, 10);
+
+  const [settledToday, settledPrevious] = await Promise.all([
+    computeDailySettlementTotals(todayStr, todayStr),
+    computeDailySettlementTotals(prevStr, todayStr),
+  ]);
+
+  return { success: true, ongoing, settled_today: settledToday, settled_previous: settledPrevious };
+}
+
+/**
+ * GET /api/monthly-games
+ * Ongoing (active/unsettled) games with per-game buy-in/cash-out/commission/win-loss, plus
+ * settled totals for today and yesterday. No query params required.
+ */
+router.get('/monthly-games', async (req, res) => {
+  try {
+    const data = await getMonthlyGames();
+    res.json(data);
+  } catch (err) {
+    console.error('Error in GET /api/monthly-games:', err);
+    res.status(500).json({ success: false, error: 'Error fetching monthly games' });
   }
 });
 
