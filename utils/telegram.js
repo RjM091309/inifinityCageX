@@ -50,6 +50,21 @@ function formatTelegramLogTime() {
   });
 }
 
+/** Bold the 잔고 label and amount in Telegram (HTML <strong>). */
+function withTelegramHtmlBalanceStrong(text) {
+  if (text == null) return text;
+  return String(text).replace(/^(잔고\s*:\s*)(.+)$/gm, '<strong>$1$2</strong>');
+}
+
+function telegramTextPayload(chatId, text) {
+  const formatted = withTelegramHtmlBalanceStrong(text);
+  const payload = { chat_id: chatId, text: formatted };
+  if (formatted !== String(text)) {
+    payload.parse_mode = 'HTML';
+  }
+  return payload;
+}
+
 // Send a message with retry logic for network/API issues (GUEST bot only)
 // options: { retries?: number, throwOnFailure?: boolean, logPreview?: string, logMeta?: { accountCode, guestName, amount } }
 //  - logPreview is stored in telegram_send_log.message_preview instead of the full Telegram body
@@ -111,7 +126,7 @@ async function sendTelegramMessage(text, telegramId, options = {}) {
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: telegramId, text }),
+        body: JSON.stringify(telegramTextPayload(telegramId, text)),
         signal: controller.signal
       });
 
@@ -182,7 +197,7 @@ async function sendGuestBotTextMessageStrict(text, telegramId) {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: String(telegramId).trim(), text }),
+      body: JSON.stringify(telegramTextPayload(String(telegramId).trim(), text)),
       signal: controller.signal
     });
     if (!response.ok) {
@@ -273,7 +288,7 @@ async function sendTelegramToEmployees(text, options = {}) {
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: id, text })
+        body: JSON.stringify(telegramTextPayload(id, text))
       });
 
       if (!response.ok) {
@@ -376,7 +391,7 @@ async function sendTelegramToManagement(text, options = {}) {
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: id, text })
+        body: JSON.stringify(telegramTextPayload(id, text))
       });
 
       if (!response.ok) {
@@ -712,7 +727,8 @@ async function startGuestBot() {
       const time_now = new Date().toLocaleTimeString();
 
       const msg = `Infinity Cage\n\n* 잔고 확인 *\n\n계정: ${AGENT_CODE} - ${NAME}\n잔고: ${balanceFormatted}\n\n날짜: ${date_now}\n시간: ${time_now}`;
-      bot.sendMessage(telegramId, msg);
+      const payload = telegramTextPayload(telegramId, msg);
+      bot.sendMessage(telegramId, payload.text, payload.parse_mode ? { parse_mode: payload.parse_mode } : undefined);
     } catch (err) {
       console.error('❌ Error:', err);
       bot.sendMessage(telegramId, '❌ Error getting balance.');
