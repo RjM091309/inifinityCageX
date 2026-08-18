@@ -89,49 +89,49 @@
 
 										<thead>
 											<tr>
-												<th class="d-none d-sm-table-cell text-start game-start-th col-game-start">
+												<th class="d-none d-sm-table-cell text-center game-start-th col-game-start">
 													<span class="game-list-select-all-slot">
 														<input type="checkbox" id="game-list-select-all" class="game-list-select-all-cb" />
 													</span>
 													<span class="game-start-th-label"><%= __('gamelist.game_start') %></span>
 												</th>
-												<th class="d-none d-sm-table-cell text-start col-type">
+												<th class="d-none d-sm-table-cell text-center col-type">
 													<%= __('gamelist.type') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-start col-game-no">
+												<th class="d-none d-sm-table-cell text-center col-game-no">
 													<%= __('gamelist.game#') %>
 												</th>
-											<th class="d-none d-sm-table-cell text-start col-acct-no">
+											<th class="d-none d-sm-table-cell text-center col-acct-no">
 												<%= __('gamelist.acct_no') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-start col-guest">
+											<th class="d-none d-sm-table-cell text-center col-guest">
 												<%= __('gamelist.guest') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-end col-buyin">
+											<th class="d-none d-sm-table-cell text-center col-buyin">
 												<%= __('gamelist.buyin') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-end col-cash-out">
+											<th class="d-none d-sm-table-cell text-center col-cash-out">
 												<%= __('gamelist.cash_out') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-end col-total-rolling">
+											<th class="d-none d-sm-table-cell text-center col-total-rolling">
 												<%= __('gamelist.total_rolling') %>
 											</th>
-											<th class="d-none d-sm-table-cell text-end col-roller-chips">
+											<th class="d-none d-sm-table-cell text-center col-roller-chips">
 												<%= __('gamelist.roller_chips') %>
 											</th>
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.game_rate') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-end col-commission">
+												<th class="d-none d-sm-table-cell text-center col-commission">
 													<%= __('gamelist.commission') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-end col-winloss">
+												<th class="d-none d-sm-table-cell text-center col-winloss">
 													<%= __('gamelist.win_loss') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
 													<%= __('gamelist.game_source') %>
 												</th>
-												<th class="d-none d-sm-table-cell text-start col-game-end">
+												<th class="d-none d-sm-table-cell text-center col-game-end">
 													<%= __('gamelist.game_end') %>
 												</th>
 												<th class="d-none d-sm-table-cell text-center">
@@ -144,18 +144,18 @@
 										</tbody>
 										<tfoot>
 											<tr>
-											<th class="d-none d-sm-table-cell text-start col-game-start"><%= __('gamelist.grand_total') %></th>
+											<th class="d-none d-sm-table-cell text-center col-game-start"><%= __('gamelist.grand_total') %></th>
 											<th class="d-none d-sm-table-cell col-type"></th>
 											<th class="d-none d-sm-table-cell col-game-no"></th>
 											<th class="d-none d-sm-table-cell col-acct-no"></th>
 											<th class="d-none d-sm-table-cell col-guest"></th>
-											<th class="d-none d-sm-table-cell text-end col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
-											<th class="d-none d-sm-table-cell text-end col-cash-out" id="GRAND_CHIPS_RETURN">0.00</th>
-											<th class="d-none d-sm-table-cell text-end col-total-rolling" id="GRAND_TOTAL_ROLLING">0.00</th>
-											<th class="d-none d-sm-table-cell text-end col-roller-chips" id="GRAND_ROLLER_CHIPS">0.00</th>
+											<th class="d-none d-sm-table-cell text-center col-buyin" id="GRAND_TOTAL_AMOUNT">0.00</th>
+											<th class="d-none d-sm-table-cell text-center col-cash-out" id="GRAND_CHIPS_RETURN">0.00</th>
+											<th class="d-none d-sm-table-cell text-center col-total-rolling" id="GRAND_TOTAL_ROLLING">0.00</th>
+											<th class="d-none d-sm-table-cell text-center col-roller-chips" id="GRAND_ROLLER_CHIPS">0.00</th>
 											<th class="d-none d-sm-table-cell"></th>
-											<th class="d-none d-sm-table-cell text-end col-commission" id="GRAND_COMMISSION">0.00</th>
-											<th class="d-none d-sm-table-cell text-end col-winloss" id="GRAND_WIN_LOSS">0.00</th>
+											<th class="d-none d-sm-table-cell text-center col-commission" id="GRAND_COMMISSION">0.00</th>
+											<th class="d-none d-sm-table-cell text-center col-winloss" id="GRAND_WIN_LOSS">0.00</th>
 											<th class="d-none d-sm-table-cell"></th>
 											<th class="d-none d-sm-table-cell col-game-end"></th>
 											<th class="d-none d-sm-table-cell"></th>
@@ -620,7 +620,7 @@ body.merge-settle-mode .merge-settle-checkbox-wrap {
 #game_list-tbl td.col-acct-no,
 #game_list-tbl th.col-guest,
 #game_list-tbl td.col-guest {
-	text-align: left !important;
+	text-align: center !important;
 }
 
 #game_list-tbl td.col-buyin,
@@ -629,7 +629,7 @@ body.merge-settle-mode .merge-settle-checkbox-wrap {
 #game_list-tbl td.col-roller-chips,
 #game_list-tbl td.col-commission,
 #game_list-tbl td.col-winloss {
-	text-align: right !important;
+	text-align: center !important;
 }
 
 #game_list-tbl thead th.col-buyin,
@@ -638,7 +638,7 @@ body.merge-settle-mode .merge-settle-checkbox-wrap {
 #game_list-tbl thead th.col-roller-chips,
 #game_list-tbl thead th.col-commission,
 #game_list-tbl thead th.col-winloss {
-	text-align: right !important;
+	text-align: center !important;
 }
 
 #game_list-tbl td.col-buyin .btn-link,
@@ -647,14 +647,14 @@ body.merge-settle-mode .merge-settle-checkbox-wrap {
 #game_list-tbl td.col-roller-chips .btn-link {
 	display: block;
 	width: 100%;
-	text-align: right;
+	text-align: center;
 	padding-left: 0;
 	padding-right: 0;
 	border: 0;
 }
 
 #game_list-tbl td.col-game-start .d-inline-flex {
-	justify-content: flex-start;
+	justify-content: center;
 }
 
 .game-list-select-all-slot {
@@ -748,7 +748,7 @@ body.open-pool-select-mode .game-list-select-all-slot {
 #game_list-tbl tfoot th.col-roller-chips,
 #game_list-tbl tfoot th.col-commission,
 #game_list-tbl tfoot th.col-winloss {
-    text-align: right !important;
+    text-align: center !important;
 }
 
 /* Highlight row animation */

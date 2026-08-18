@@ -631,7 +631,7 @@ $(document).ready(function () {
 		},
 		order: [[0, 'asc']],
 		columnDefs: [
-			{ targets: [6, 7, 8], className: 'text-end' },
+			{ targets: [6, 7, 8], className: 'text-center' },
 			{ targets: 9, className: 'text-center', orderable: false, searchable: false }
 		],
 		columns: [

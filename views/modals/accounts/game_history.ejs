@@ -18,12 +18,12 @@
                 <th class="text-center col-guest">GUEST</th>
                 <th class="text-center">TYPE</th>
                 <th class="text-center">GAME #</th>
-                <th class="text-end col-buyin">BUY-IN</th>
-                <th class="text-end col-cash-out">CASH-OUT</th>
-                <th class="text-end col-total-rolling">ROLLING</th>
+                <th class="text-center col-buyin">BUY-IN</th>
+                <th class="text-center col-cash-out">CASH-OUT</th>
+                <th class="text-center col-total-rolling">ROLLING</th>
                 <th class="text-center">RATE</th>
-                <th class="text-end col-commission">COMMISSION</th>
-                <th class="text-end col-winloss">WIN/LOSS</th>
+                <th class="text-center col-commission">COMMISSION</th>
+                <th class="text-center col-winloss">WIN/LOSS</th>
                 <th class="text-center">SOURCE</th>
                 <th class="text-center">GAME END</th>
               </tr>
@@ -33,12 +33,12 @@
             <tfoot class="game-history-tfoot-total">
               <tr id="game-history-totals-row">
                 <td class="text-center" id="game-history-tfoot-label" colspan="5">TOTAL</td>
-                <td class="text-end col-buyin" id="gh-total-buyin">0</td>
-                <td class="text-end col-cash-out" id="gh-total-cashout">0</td>
-                <td class="text-end col-total-rolling" id="gh-total-total-rolling">0</td>
+                <td class="text-center col-buyin" id="gh-total-buyin">0</td>
+                <td class="text-center col-cash-out" id="gh-total-cashout">0</td>
+                <td class="text-center col-total-rolling" id="gh-total-total-rolling">0</td>
                 <td class="text-center">—</td>
-                <td class="text-end col-commission" id="gh-total-commission">0</td>
-                <td class="text-end col-winloss" id="gh-total-winloss">0</td>
+                <td class="text-center col-commission" id="gh-total-commission">0</td>
+                <td class="text-center col-winloss" id="gh-total-winloss">0</td>
                 <td class="text-center" colspan="2">—</td>
               </tr>
             </tfoot>
@@ -195,7 +195,7 @@
 #game-history-tbl tfoot #gh-total-total-rolling,
 #game-history-tbl tfoot #gh-total-commission,
 #game-history-tbl tfoot #gh-total-winloss {
-    text-align: right !important;
+    text-align: center !important;
 }
 
 /* BUY-IN: default = normal table cell; marker buy-in only (CAGE_TYPE=1 & TRANSACTION=3) */
@@ -326,10 +326,13 @@
         return Number.isInteger(numericGuestId) && numericGuestId > 0;
     }
 
-    function setGameHistoryFooterLabelColspan(showGuestColumn) {
+    // The colspan must cover every column, hidden GUEST included: DataTables shrinks it
+    // itself to the visible count on draw, and overwrites the attribute while doing so,
+    // so it has to be restored before each re-init.
+    function resetGameHistoryFooterLabelColspan() {
         const footerLabel = document.getElementById('game-history-tfoot-label');
         if (footerLabel) {
-            footerLabel.colSpan = showGuestColumn ? 5 : 4;
+            footerLabel.colSpan = 5;
         }
     }
 
@@ -373,7 +376,7 @@
             },
             {
                 data: 'BUY_IN',
-                className: 'text-end col-buyin',
+                className: 'text-center col-buyin',
                 createdCell: function (td, _cellData, rowData) {
                     if (rowData && rowData.HAS_MARKER_BUYIN) {
                         td.classList.add('col-buyin-marker');
@@ -385,12 +388,12 @@
             },
             {
                 data: 'CASH_OUT',
-                className: 'text-end col-cash-out',
+                className: 'text-center col-cash-out',
                 render: function (data) { return formatAmount(data); }
             },
             {
                 data: 'TOTAL_ROLLING',
-                className: 'text-end col-total-rolling',
+                className: 'text-center col-total-rolling',
                 render: function (data) { return formatAmount(data); }
             },
             {
@@ -410,12 +413,12 @@
             },
             {
                 data: 'COMMISSION',
-                className: 'text-end col-commission',
+                className: 'text-center col-commission',
                 render: function (data) { return formatAmount(data); }
             },
             {
                 data: 'WIN_LOSS',
-                className: 'text-end col-winloss',
+                className: 'text-center col-winloss',
                 render: function (data) {
                     const amount = Number(data || 0);
                     return formatAmount(amount);
@@ -470,7 +473,7 @@
             const rows = await res.json();
             const dataRows = rows || [];
             const showGuestColumn = !shouldHideGameHistoryGuestColumn(guestId);
-            setGameHistoryFooterLabelColspan(showGuestColumn);
+            resetGameHistoryFooterLabelColspan();
 
             if (gameHistoryDataTable) {
                 gameHistoryDataTable.destroy();
