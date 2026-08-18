@@ -645,6 +645,22 @@ function initHouseExpenseCellTooltips() {
     });
 }
 
+function initHouseExpenseCategoryTooltips() {
+    $('#expense-main-cat-list .house-expense-cat-tip, #expense-sub-cat-list .house-expense-cat-tip').each(function () {
+        var el = this;
+        var text = ($(el).attr('data-full-text') || $(el).text() || '').trim();
+        bindHouseExpenseTooltip(el, text, true);
+    });
+}
+
+function setHouseExpenseCategoryListHtml($list, html) {
+    if (!$list || !$list.length) return;
+    $list.find('.house-expense-cat-tip').each(function () {
+        disposeHouseExpenseTooltip(this);
+    });
+    $list.html(html);
+}
+
 function applyHouseExpenseExplorerDataTableFilter() {
     if (!$.fn.DataTable.isDataTable('#expense-tbl')) return;
     var dt = $('#expense-tbl').DataTable();
@@ -1028,7 +1044,7 @@ function renderHouseExpenseCategoryLists(data) {
         '<div class="expense-cat-item js-expense-main-cat' +
             (!st.mainCategory && !st.subCategory ? ' is-active' : '') +
             '" data-main="">' +
-            '<span class="expense-cat-name">All categories</span>' +
+            '<span class="expense-cat-name house-expense-cat-tip" data-full-text="All categories">All categories</span>' +
             '<span class="expense-cat-count">' +
             allRows.length +
             '</span>' +
@@ -1048,7 +1064,7 @@ function renderHouseExpenseCategoryLists(data) {
                 '" data-category-id="' +
                 attrEncode(id || '') +
                 '">' +
-                '<span class="expense-cat-name" title="' +
+                '<span class="expense-cat-name house-expense-cat-tip" data-full-text="' +
                 attrEncode(mainName) +
                 '">' +
                 houseExpenseHtmlEscape(mainName) +
@@ -1080,14 +1096,16 @@ function renderHouseExpenseCategoryLists(data) {
 
     pushMainCategoryItem(HOUSE_EXPENSE_RETURN_MONEY_LABEL, returnMoneyCount);
 
+    var $mainList = $('#expense-main-cat-list');
     if (mainHtml.length <= 1 && allRows.length === 0) {
-        $('#expense-main-cat-list').html('<div class="text-muted small p-2">No categories</div>');
+        setHouseExpenseCategoryListHtml($mainList, '<div class="text-muted small p-2">No categories</div>');
     } else {
-        $('#expense-main-cat-list').html(mainHtml.join(''));
+        setHouseExpenseCategoryListHtml($mainList, mainHtml.join(''));
     }
 
     renderHouseExpenseSubCategoryList(tree, byMain, bySub, st);
     syncHouseExpenseCategoryAddButtons();
+    initHouseExpenseCategoryTooltips();
 }
 
 function renderHouseExpenseSubCategoryList(tree, byMain, bySub, st) {
@@ -1097,13 +1115,13 @@ function renderHouseExpenseSubCategoryList(tree, byMain, bySub, st) {
     if (!$subList.length) return;
 
     if (!st.mainCategory) {
-        $subList.html('<div class="expense-cat-empty-hint">Select a main category</div>');
+        setHouseExpenseCategoryListHtml($subList, '<div class="expense-cat-empty-hint">Select a main category</div>');
         return;
     }
 
     var mainName = String(st.mainCategory).trim();
     if (isHouseExpenseReturnMoneyMain(mainName)) {
-        $subList.html('<div class="expense-cat-empty-hint">No sub categories for this main</div>');
+        setHouseExpenseCategoryListHtml($subList, '<div class="expense-cat-empty-hint">No sub categories for this main</div>');
         return;
     }
 
@@ -1114,7 +1132,7 @@ function renderHouseExpenseSubCategoryList(tree, byMain, bySub, st) {
     var subs = mainNode && mainNode.children ? mainNode.children : [];
 
     if (!subs.length) {
-        $subList.html('<div class="expense-cat-empty-hint">No sub categories for this main</div>');
+        setHouseExpenseCategoryListHtml($subList, '<div class="expense-cat-empty-hint">No sub categories for this main</div>');
         return;
     }
 
@@ -1125,7 +1143,7 @@ function renderHouseExpenseSubCategoryList(tree, byMain, bySub, st) {
             '" data-main="' +
             attrEncode(mainName) +
             '" data-sub="">' +
-            '<span class="expense-cat-name">All</span>' +
+            '<span class="expense-cat-name house-expense-cat-tip" data-full-text="All">All</span>' +
             '<span class="expense-cat-count">' +
             mainTotal +
             '</span>' +
@@ -1150,7 +1168,7 @@ function renderHouseExpenseSubCategoryList(tree, byMain, bySub, st) {
                 '" data-category-id="' +
                 attrEncode(sub.IDNo || '') +
                 '">' +
-                '<span class="expense-cat-name" title="' +
+                '<span class="expense-cat-name house-expense-cat-tip" data-full-text="' +
                 attrEncode(subName) +
                 '">' +
                 houseExpenseHtmlEscape(subName) +
@@ -1160,7 +1178,7 @@ function renderHouseExpenseSubCategoryList(tree, byMain, bySub, st) {
         );
     });
 
-    $subList.html(subHtml.join(''));
+    setHouseExpenseCategoryListHtml($subList, subHtml.join(''));
 }
 
 function refreshHouseExpenseDashboard(data, totalExpense, totalReturnMoney) {
@@ -1417,7 +1435,10 @@ $(document).ready(function () {
         initHouseExpenseCellTooltips();
         $(window).off('resize.houseExpenseTooltips').on('resize.houseExpenseTooltips', function () {
             clearTimeout(window._houseExpenseTooltipResizeTimer);
-            window._houseExpenseTooltipResizeTimer = setTimeout(initHouseExpenseCellTooltips, 150);
+            window._houseExpenseTooltipResizeTimer = setTimeout(function () {
+                initHouseExpenseCellTooltips();
+                initHouseExpenseCategoryTooltips();
+            }, 150);
         });
 
         // 2. reloadData function - Supports both settlement date and date range modes
