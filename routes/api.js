@@ -18,6 +18,10 @@ const {
   EXPENSE_ROW_CATEGORY_FIELDS,
   RETURN_MONEY_CATEGORY_FIELDS,
 } = require('../utils/expenseCategoryHierarchy');
+const {
+  computeDashboardCommissionSettlement,
+  computeDashboardRollingKpis,
+} = require('../utils/dashboardKpi');
 
 // --- Helper: compute total rolling per game using same formula as game list ---
 // Formula: total_rolling_nn + total_roller_return_cc + total_rolling_amount + total_rolling_real + total_rolling_nn_real + total_rolling_cc_real - total_cash_out_nn
@@ -529,50 +533,25 @@ router.get('/expense_breakdown', async (req, res) => {
 
 /**
  * GET /api/dashboard-summary
- * Single combined snapshot for the Flutter home screen: current-month-to-date Win/Loss, NGR,
- * Commission (total/game/additional), expenses, and rolling (cage vs casino).
+ * Flutter Gen Info snapshot.
  *
- * Win/Loss, Game Commission, Expenses, and NGR come from `computeNetProfitTotals` in
- * utils/netProfitCalc.js — the SAME calculation used by the web Net Profit page
- * (routes/net_profit.js), for [1st of current month .. today]. This is intentionally the one
- * shared source: any future fix or formula change to net-profit logic there is picked up here
- * automatically, no separate edit needed. NGR here = that page's "Net Profit" (grand_net_profit)
- * summed for the month so far — matches the Monthly tab's current-month row on /net_profit.
- *
- * Cage Rolling / Casino Rolling use the same month-to-date range and the same formulas already
- * used by GET /api/monthly-accumulated's monthly_accumulated_rolling_games /
- * monthly_accumulated_rolling_casino (computeRollingGameListStyle over game_record, and
- * junket_total_chips TRANSACTION_ID=2 for casino rolling) — so all these fields share one
- * consistent [1st of month .. today] window.
- *
- * additional_commission: this app's schema has no additional_commission table (unlike some other
- * cage apps), so it is always 0 and total_commission simply equals game_commission.
+ * Commission, Cage Rolling, and House Rolling use the same formulas as the web dashboard
+ * (routes/dashboard.js / dashboard.ejs). Win/Loss, Expenses, and NGR still come from
+ * computeNetProfitTotals for [1st of current month .. today].
  */
 router.get('/dashboard-summary', async (req, res) => {
   try {
     const todayStr = new Date().toISOString().slice(0, 10);
     const monthStartStr = `${todayStr.slice(0, 8)}01`;
 
-    const [totals, rollRecs, chipsCashoutRow] = await Promise.all([
+    const [totals, dashboardCommission, rollingKpis] = await Promise.all([
       computeNetProfitTotals(monthStartStr, todayStr),
-      pool.execute(
-        `SELECT GAME_ID, CAGE_TYPE, COALESCE(AMOUNT, 0) AS AMOUNT, COALESCE(NN_CHIPS, 0) AS NN_CHIPS, COALESCE(CC_CHIPS, 0) AS CC_CHIPS,
-         COALESCE(ROLLER_CC_CHIPS, 0) AS ROLLER_CC_CHIPS, ROLLER_TRANSACTION
-         FROM game_record WHERE ACTIVE != 0 AND DATE(ENCODED_DT) BETWEEN ? AND ?`,
-        [monthStartStr, todayStr]
-      ).then(([rows]) => rows),
-      pool.execute(
-        `SELECT COALESCE(SUM(TOTAL_CHIPS), 0) AS v FROM junket_total_chips
-         WHERE ACTIVE = 1 AND TRANSACTION_ID = 2 AND DATE(ENCODED_DT) BETWEEN ? AND ?`,
-        [monthStartStr, todayStr]
-      ).then(([rows]) => rows).catch(() => [{ v: 0 }]),
+      computeDashboardCommissionSettlement(),
+      computeDashboardRollingKpis(),
     ]);
 
-    const { totalRollingSum: cageRolling } = computeRollingGameListStyle(rollRecs);
-    const casinoRolling = Number(chipsCashoutRow[0]?.v) || 0;
-    // additional_commission table doesn't exist in this app's schema
     const additionalCommission = 0;
-    const totalCommission = Math.round(totals.commission + additionalCommission);
+    const totalCommission = Math.round(dashboardCommission + additionalCommission);
 
     res.json({
       success: true,
@@ -582,11 +561,12 @@ router.get('/dashboard-summary', async (req, res) => {
       win_loss: totals.win_loss,
       ngr: totals.grand_net_profit,
       total_commission: totalCommission,
-      game_commission: totals.commission,
+      game_commission: totalCommission,
       additional_commission: additionalCommission,
       expenses: totals.house_expenses_settled,
-      cage_rolling: cageRolling,
-      casino_rolling: casinoRolling,
+      cage_rolling: rollingKpis.cageRolling,
+      house_rolling: rollingKpis.houseRolling,
+      casino_rolling: rollingKpis.houseRolling,
     });
   } catch (err) {
     console.error('Error in GET /api/dashboard-summary:', err);
