@@ -25,6 +25,7 @@ const HIERARCHY_LEVEL_2_LABEL = 'Level 2 (Agent)';
 const HIERARCHY_LEVEL_3_LABEL = 'Level 3 (Guest)';
 let agencyAgentSortDir = 'asc';
 let agencyGuestSortState = { sortKey: 'guest_name', sortDir: 'asc' };
+let guestStatsRequestId = 0;
 
 const agencyGuestNumericSortKeys = {
   balance: true,
@@ -1814,6 +1815,76 @@ function applyGuestSearchLineStats() {
   });
 }
 
+function mergeGuestStatsIntoRows(rows, statsRows) {
+  const statsMap = {};
+  (statsRows || []).forEach(function (row) {
+    statsMap[String(row.guest_id)] = row;
+  });
+  (rows || []).forEach(function (row) {
+    const stats = statsMap[String(row.guest_id)];
+    if (!stats) return;
+    row.total_games = Number(stats.total_games) || 0;
+    row.total_rolling = Number(stats.total_rolling) || 0;
+    row.total_winloss = Number(stats.total_winloss) || 0;
+    row.total_commission = Number(stats.total_commission) || 0;
+    row._statsPending = false;
+  });
+  return rows;
+}
+
+function markGuestRowsStatsPending(rows) {
+  (rows || []).forEach(function (row) {
+    row._statsPending = true;
+    row.total_games = 0;
+    row.total_rolling = 0;
+    row.total_winloss = 0;
+    row.total_commission = 0;
+  });
+  return rows;
+}
+
+function loadGuestStatsInBackground(guestRows, requestId) {
+  const guestIds = (guestRows || []).map(function (row) {
+    return row.guest_id;
+  }).filter(Boolean);
+  if (!guestIds.length) return;
+
+  $.ajax({
+    url: '/guest_data?statsOnly=1&guestIds=' + guestIds.map(encodeURIComponent).join(','),
+    method: 'GET',
+    success: function (statsRows) {
+      if (requestId !== guestStatsRequestId) return;
+      mergeGuestStatsIntoRows(guestRows, statsRows);
+      applyGuestPanelView();
+    }
+  });
+}
+
+function loadGuestRowsProgressive(baseUrl, assignRows, onError) {
+  guestStatsRequestId += 1;
+  const requestId = guestStatsRequestId;
+  const liteUrl = baseUrl + (baseUrl.indexOf('?') >= 0 ? '&' : '?') + 'lite=1';
+
+  $.ajax({
+    url: liteUrl,
+    method: 'GET',
+    success: function (rows) {
+      if (requestId !== guestStatsRequestId) return;
+      const guestRows = Array.isArray(rows) ? rows : [];
+      markGuestRowsStatsPending(guestRows);
+      assignRows(guestRows);
+      applyGuestPanelView();
+      loadGuestStatsInBackground(guestRows, requestId);
+    },
+    error: function () {
+      if (requestId !== guestStatsRequestId) return;
+      assignRows([]);
+      applyGuestPanelView();
+      if (typeof onError === 'function') onError();
+    }
+  });
+}
+
 function getGuestRowById(guestId) {
   const id = String(guestId);
   return currentAllGuestRows.find(function (row) {
@@ -1857,11 +1928,16 @@ function ensureAllGuestsLoadedForSearch(done) {
   if (allGuestsSearchLoading) return;
 
   allGuestsSearchLoading = true;
+  guestStatsRequestId += 1;
+  const requestId = guestStatsRequestId;
+
   $.ajax({
-    url: '/guest_data?all=1',
+    url: '/guest_data?all=1&lite=1',
     method: 'GET',
     success: function (rows) {
+      if (requestId !== guestStatsRequestId) return;
       currentAllGuestRows = Array.isArray(rows) ? rows : [];
+      markGuestRowsStatsPending(currentAllGuestRows);
       allGuestsSearchLoaded = true;
       allGuestsSearchLoading = false;
       const callbacks = allGuestsSearchLoadCallbacks.splice(0);
@@ -1872,8 +1948,10 @@ function ensureAllGuestsLoadedForSearch(done) {
         applyGuestPanelView();
         applyGuestSearchReactions();
       }
+      loadGuestStatsInBackground(currentAllGuestRows, requestId);
     },
     error: function () {
+      if (requestId !== guestStatsRequestId) return;
       currentAllGuestRows = [];
       allGuestsSearchLoading = false;
       allGuestsSearchLoadCallbacks.splice(0);
@@ -1891,18 +1969,12 @@ function loadGuestsForAgency() {
     applyGuestPanelView();
     return;
   }
-  $.ajax({
-    url: '/guest_data?agencyId=' + encodeURIComponent(selectedAgencyId),
-    method: 'GET',
-    success: function (rows) {
-      currentAgencyGuestRows = Array.isArray(rows) ? rows : [];
-      applyGuestPanelView();
-    },
-    error: function () {
-      currentAgencyGuestRows = [];
-      applyGuestPanelView();
+  loadGuestRowsProgressive(
+    '/guest_data?agencyId=' + encodeURIComponent(selectedAgencyId),
+    function (rows) {
+      currentAgencyGuestRows = rows;
     }
-  });
+  );
 }
 
 function loadGuestsForSelectedAgent() {
@@ -1911,16 +1983,12 @@ function loadGuestsForSelectedAgent() {
     applyGuestPanelView();
     return;
   }
-  $.ajax({
-    url: '/guest_data?agentId=' + encodeURIComponent(selectedAgentId),
-    method: 'GET',
-    success: function (rows) {
-      currentGuestRows = Array.isArray(rows) ? rows : [];
-      applyGuestPanelView();
+  loadGuestRowsProgressive(
+    '/guest_data?agentId=' + encodeURIComponent(selectedAgentId),
+    function (rows) {
+      currentGuestRows = rows;
     },
-    error: function () {
-      currentGuestRows = [];
-      applyGuestPanelView();
+    function () {
       Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -1928,15 +1996,15 @@ function loadGuestsForSelectedAgent() {
         confirmButtonText: 'OK'
       });
     }
-  });
+  );
 }
 
 function refreshGuestPanels() {
-  loadGuestsForAgency();
   if (selectedAgentId) {
     loadGuestsForSelectedAgent();
   } else {
     currentGuestRows = [];
+    loadGuestsForAgency();
     applyGuestPanelView();
   }
 }
@@ -2039,9 +2107,9 @@ function renderGuestPanel(guests, options) {
     const permissions = parseInt($('#user-role').data('permissions'), 10);
     const name = row.guest_name || row.NAME || '-';
     const remarks = String(row.guest_remarks || row.REMARKS || '').trim();
-    const rolling = formatLineStatNumber(row.total_rolling || row.rolling || 0);
-    const winloss = formatLineStatNumber(row.total_winloss || row.winloss || 0);
-    const commission = formatLineStatNumber(row.total_commission || row.commission || 0);
+    const rolling = row._statsPending ? '—' : formatLineStatNumber(row.total_rolling || row.rolling || 0);
+    const winloss = row._statsPending ? '—' : formatLineStatNumber(row.total_winloss || row.winloss || 0);
+    const commission = row._statsPending ? '—' : formatLineStatNumber(row.total_commission || row.commission || 0);
     const safeName = String(name).toUpperCase();
     const membershipNo = String(row.membership_no || row.MEMBERSHIP_NO || '').trim();
     const membershipDisplay = membershipNo || '-';
@@ -2465,7 +2533,7 @@ function loadTransferAgentGuestList(agentId) {
   }
 
   $.ajax({
-    url: '/guest_data?agentId=' + encodeURIComponent(numericAgentId),
+    url: '/guest_data?agentId=' + encodeURIComponent(numericAgentId) + '&lite=1',
     method: 'GET',
     success: function (rows) {
       const filtered = (Array.isArray(rows) ? rows : []).filter(function (row) {

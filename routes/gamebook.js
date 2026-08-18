@@ -7,6 +7,7 @@ const { sendTelegramMessage, sendTelegramToAdditionalChats, sendTelegramToManage
 const dashboardQueries = require('../utils/dashboardQueries');
 const { getAgentTelegramChatId } = require('../utils/agentTelegram');
 const { getGuestTelegramChatId } = require('../utils/guestTelegram');
+const { invalidateGuestFinancialStatsCache } = require('../utils/guestFinancialStats');
 const { getCurrentBalance } = require('../utils/accountBalance');
 const { getEnabledChatIds } = require('../utils/telegramChatIds');
 
@@ -634,6 +635,7 @@ router.post('/add_game_list', async (req, res) => {
 			]);
 		}
 
+		invalidateGuestFinancialStatsCache();
 		res.redirect('/game_list');
 	} catch (err) {
 		console.error('Error in /add_game_list:', err);
@@ -850,6 +852,7 @@ router.post('/add_game_list_split', async (req, res) => {
 			console.error('Telegram block after add_game_list_split:', tgErr);
 		}
 
+		invalidateGuestFinancialStatsCache();
 		return res.redirect('/game_list');
 	} catch (err) {
 		try {

@@ -26,6 +26,12 @@ async function ensureAgencyLineIndexes(pool) {
 	);
 	await ensureIndex(
 		pool,
+		'game_record',
+		'idx_game_record_game_active_cage',
+		'ALTER TABLE game_record ADD INDEX idx_game_record_game_active_cage (GAME_ID, ACTIVE, CAGE_TYPE)'
+	);
+	await ensureIndex(
+		pool,
 		'agent',
 		'idx_agent_agency_active',
 		'ALTER TABLE agent ADD INDEX idx_agent_agency_active (AGENCY, ACTIVE)'
@@ -41,6 +47,12 @@ async function ensureAgencyLineIndexes(pool) {
 		'game_list',
 		'idx_game_list_account_active',
 		'ALTER TABLE game_list ADD INDEX idx_game_list_account_active (ACCOUNT_ID, ACTIVE)'
+	);
+	await ensureIndex(
+		pool,
+		'game_list',
+		'idx_game_list_guest_active',
+		'ALTER TABLE game_list ADD INDEX idx_game_list_guest_active (GUEST_ID, ACTIVE)'
 	);
 	await ensureIndex(
 		pool,

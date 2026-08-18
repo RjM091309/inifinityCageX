@@ -98,7 +98,7 @@ function loadGuestsForSelectedAccount(preselectGuestId) {
 	}
 
 	$.ajax({
-		url: '/guest_data?agentId=' + encodeURIComponent(agentId),
+		url: '/guest_data?agentId=' + encodeURIComponent(agentId) + '&lite=1',
 		method: 'GET',
 		success: function (rows) {
 			var guests = Array.isArray(rows) ? rows : [];
@@ -671,7 +671,7 @@ function loadAssignGameGuestSelect(agentId, currentGuestId, onReady) {
 	$('#submit-assign-game-guest-btn').prop('disabled', true);
 
 	$.ajax({
-		url: '/guest_data?agentId=' + encodeURIComponent(agentId),
+		url: '/guest_data?agentId=' + encodeURIComponent(agentId) + '&lite=1',
 		method: 'GET',
 		success: function (rows) {
 			var guests = Array.isArray(rows) ? rows : [];

@@ -4,6 +4,7 @@ const HIERARCHY_LEVEL_3_LABEL = 'Level 3 (Guest)';
 
 let guestPageRows = [];
 let guestPageAgencies = [];
+let guestPageDataTable = null;
 
 function escapeHtml(s) {
 	const div = document.createElement('div');
@@ -546,6 +547,37 @@ function renderGuestActionCell(row, readOnly) {
 	return html;
 }
 
+function loadGuestPageStats(guestIds) {
+	if (!Array.isArray(guestIds) || !guestIds.length || !guestPageDataTable) return;
+
+	$.ajax({
+		url: '/guest_data?statsOnly=1&guestIds=' + guestIds.map(encodeURIComponent).join(','),
+		method: 'GET',
+		success: function (statsRows) {
+			const statsMap = {};
+			(statsRows || []).forEach(function (row) {
+				statsMap[String(row.guest_id)] = row;
+			});
+
+			let changed = false;
+			guestPageRows.forEach(function (row) {
+				const stats = statsMap[String(row.guest_id)];
+				if (!stats) return;
+				row.total_games = Number(stats.total_games) || 0;
+				row.total_rolling = Number(stats.total_rolling) || 0;
+				row.total_winloss = Number(stats.total_winloss) || 0;
+				row.total_commission = Number(stats.total_commission) || 0;
+				row._statsPending = false;
+				changed = true;
+			});
+
+			if (changed) {
+				guestPageDataTable.rows().invalidate('data').draw(false);
+			}
+		}
+	});
+}
+
 function loadGuestPageAgencies(done) {
 	$.ajax({
 		url: '/agency_data',
@@ -571,12 +603,23 @@ $(document).ready(function () {
 	const translations = window.translations?.guest_page || {};
 
 	const dataTable = $('#guest-tbl').DataTable({
-		ajax: {
-			url: '/guest_data?all=1',
-			dataSrc: function (json) {
-				guestPageRows = Array.isArray(json) ? json : [];
-				return guestPageRows;
-			}
+		ajax: function (_data, callback, _settings) {
+			$.ajax({
+				url: '/guest_data?all=1&lite=1',
+				method: 'GET',
+				success: function (json) {
+					guestPageRows = Array.isArray(json) ? json : [];
+					guestPageRows.forEach(function (row) {
+						row._statsPending = true;
+					});
+					callback({ data: guestPageRows });
+					loadGuestPageStats(guestPageRows.map(function (row) { return row.guest_id; }));
+				},
+				error: function () {
+					guestPageRows = [];
+					callback({ data: [] });
+				}
+			});
 		},
 		language: {
 			search: translations.search || 'Search:',
@@ -646,21 +689,24 @@ $(document).ready(function () {
 			},
 			{
 				data: 'total_winloss',
-				render: function (data, type) {
+				render: function (data, type, row) {
+					if (type === 'display' && row._statsPending) return '—';
 					if (type === 'sort' || type === 'type') return Number(data) || 0;
 					return formatGuestStatNumber(data);
 				}
 			},
 			{
 				data: 'total_rolling',
-				render: function (data, type) {
+				render: function (data, type, row) {
+					if (type === 'display' && row._statsPending) return '—';
 					if (type === 'sort' || type === 'type') return Number(data) || 0;
 					return formatGuestStatNumber(data);
 				}
 			},
 			{
 				data: 'total_commission',
-				render: function (data, type) {
+				render: function (data, type, row) {
+					if (type === 'display' && row._statsPending) return '—';
 					if (type === 'sort' || type === 'type') return Number(data) || 0;
 					return formatGuestStatNumber(data);
 				}
@@ -698,6 +744,8 @@ $(document).ready(function () {
 			});
 		}
 	});
+
+	guestPageDataTable = dataTable;
 
 	window.reloadGuestTable = function () {
 		dataTable.ajax.reload(null, false);

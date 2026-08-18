@@ -4,36 +4,7 @@
 
 const ExcelJS = require('exceljs');
 const { applyCommaThousandsToNumericCells, autoFitExcelWorksheetColumns } = require('./excelAmountFormat');
-
-const GUEST_DATA_GAME_QUERY = `
-	SELECT
-		gl.GUEST_ID AS guest_id,
-		gl.IDNo AS game_id,
-		COALESCE(gl.COMMISSION_TYPE, 0) AS commission_type,
-		COALESCE(gl.COMMISSION_PERCENTAGE, 0) AS commission_percentage,
-		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 1 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_amount,
-		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS + gr.CC_CHIPS ELSE 0 END), 0) AS total_cash_out_chips,
-		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 2 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_cash_out_nn,
-		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_amount,
-		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 3 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn,
-		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.AMOUNT ELSE 0 END), 0) AS total_rolling_real,
-		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.NN_CHIPS ELSE 0 END), 0) AS total_rolling_nn_real,
-		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 4 THEN gr.CC_CHIPS ELSE 0 END), 0) AS total_rolling_cc_real,
-		COALESCE(SUM(CASE WHEN gr.CAGE_TYPE = 5 AND COALESCE(gr.ROLLER_TRANSACTION, 1) = 2 THEN gr.ROLLER_CC_CHIPS ELSE 0 END), 0) AS total_roller_return_cc
-	FROM game_list gl
-	INNER JOIN account acc ON acc.IDNo = gl.ACCOUNT_ID
-	INNER JOIN agent ag ON ag.IDNo = acc.AGENT_ID
-	LEFT JOIN game_record gr ON gr.GAME_ID = gl.IDNo AND gr.ACTIVE = 1
-	WHERE ag.ACTIVE = 1
-	  AND acc.ACTIVE = 1
-	  AND gl.ACTIVE IN (1, 2)
-	  AND {{SCOPE_FILTER}}
-	GROUP BY
-		gl.GUEST_ID,
-		gl.IDNo,
-		gl.COMMISSION_TYPE,
-		gl.COMMISSION_PERCENTAGE
-`;
+const { fetchGuestFinancialStats, invalidateGuestFinancialStatsCache } = require('./guestFinancialStats');
 
 function aggregateGuestDataRows(guestRows, gameRows, balanceCreditMap) {
 	const resultMap = {};
@@ -93,6 +64,38 @@ function aggregateGuestDataRows(guestRows, gameRows, balanceCreditMap) {
 	});
 
 	return Object.values(resultMap);
+}
+
+function mergeGuestDataRows(guestRows, statsRows, balanceCreditMap) {
+	const statsMap = {};
+	(statsRows || []).forEach((row) => {
+		statsMap[String(row.guest_id)] = row;
+	});
+
+	return (guestRows || []).map((g) => {
+		const key = String(g.guest_id);
+		const stats = statsMap[key] || {};
+		const balanceCredit = (balanceCreditMap && balanceCreditMap[key]) || {};
+		return {
+			guest_id: g.guest_id,
+			agent_id: g.agent_id,
+			guest_name: g.guest_name,
+			membership_no: g.membership_no,
+			guest_telegram: g.guest_telegram || null,
+			telegram_enabled: g.telegram_enabled,
+			guest_remarks: g.guest_remarks,
+			agent_code: g.agent_code || null,
+			agent_name: g.agent_name || null,
+			agency_id: g.agency_id || null,
+			agency_name: g.agency_name || null,
+			total_balance: Number(balanceCredit.total_balance) || 0,
+			total_credit: Number(balanceCredit.total_credit) || 0,
+			total_games: Number(stats.total_games) || 0,
+			total_rolling: Number(stats.total_rolling) || 0,
+			total_winloss: Number(stats.total_winloss) || 0,
+			total_commission: Number(stats.total_commission) || 0
+		};
+	});
 }
 
 function emptyFinancialStats() {
@@ -721,6 +724,20 @@ function registerAgencyLineRoutes(router, pool, checkSession) {
 			const agencyId = parseInt(req.query.agencyId, 10);
 			const allGuests = String(req.query.all || '') === '1';
 			const lite = String(req.query.lite || '') === '1';
+			const skipLedger = String(req.query.skipLedger || '') === '1';
+			const statsOnly = String(req.query.statsOnly || '') === '1';
+
+			if (statsOnly) {
+				const guestIds = String(req.query.guestIds || '')
+					.split(',')
+					.map((id) => parseInt(id, 10))
+					.filter(Boolean);
+				if (!guestIds.length) {
+					return res.json([]);
+				}
+				const statsRows = await fetchGuestFinancialStats(pool, guestIds);
+				return res.json(statsRows);
+			}
 
 			if (!agentId && !agencyId && !allGuests) {
 				return res.json([]);
@@ -742,8 +759,6 @@ function registerAgencyLineRoutes(router, pool, checkSession) {
 
 			let guestQuery;
 			let guestParams;
-			let gameQuery;
-			let gameParams;
 
 			if (allGuests) {
 				guestQuery = `
@@ -755,8 +770,6 @@ function registerAgencyLineRoutes(router, pool, checkSession) {
 					ORDER BY g.IDNo DESC
 				`;
 				guestParams = [];
-				gameQuery = GUEST_DATA_GAME_QUERY.replace('{{SCOPE_FILTER}}', '1=1');
-				gameParams = [];
 			} else if (agencyId) {
 				guestQuery = `
 					SELECT ${guestSelect}
@@ -767,8 +780,6 @@ function registerAgencyLineRoutes(router, pool, checkSession) {
 					ORDER BY g.IDNo DESC
 				`;
 				guestParams = [agencyId];
-				gameQuery = GUEST_DATA_GAME_QUERY.replace('{{SCOPE_FILTER}}', 'ag.AGENCY = ?');
-				gameParams = [agencyId];
 			} else {
 				guestQuery = `
 					SELECT ${guestSelect}
@@ -779,8 +790,6 @@ function registerAgencyLineRoutes(router, pool, checkSession) {
 					ORDER BY g.IDNo DESC
 				`;
 				guestParams = [agentId];
-				gameQuery = GUEST_DATA_GAME_QUERY.replace('{{SCOPE_FILTER}}', 'ag.IDNo = ?');
-				gameParams = [agentId];
 			}
 
 			const [guestRows] = await pool.execute(guestQuery, guestParams);
@@ -789,15 +798,23 @@ function registerAgencyLineRoutes(router, pool, checkSession) {
 				return res.json([]);
 			}
 
+			const guestIds = guestRows.map((row) => row.guest_id).filter(Boolean);
+
 			if (lite) {
 				return res.json(aggregateGuestDataRows(guestRows, [], {}));
 			}
 
-			const [gameRows] = await pool.execute(gameQuery, gameParams);
-			const guestIds = guestRows.map((row) => row.guest_id).filter(Boolean);
-			const balanceCreditMap = await fetchGuestBalanceCreditMap(pool, guestIds);
+			if (skipLedger) {
+				const statsRows = await fetchGuestFinancialStats(pool, guestIds);
+				return res.json(mergeGuestDataRows(guestRows, statsRows, {}));
+			}
 
-			return res.json(aggregateGuestDataRows(guestRows, gameRows, balanceCreditMap));
+			const [statsRows, balanceCreditMap] = await Promise.all([
+				fetchGuestFinancialStats(pool, guestIds),
+				fetchGuestBalanceCreditMap(pool, guestIds)
+			]);
+
+			return res.json(mergeGuestDataRows(guestRows, statsRows, balanceCreditMap));
 		} catch (err) {
 			console.error('Error fetching guest_data:', err);
 			return res.status(500).json({ error: 'Failed to load guest data.' });
