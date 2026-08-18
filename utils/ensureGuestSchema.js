@@ -40,7 +40,7 @@ async function cleanupMigrationPlaceholderGuests(pool) {
 				flag_key VARCHAR(64) NOT NULL,
 				applied_at DATETIME NOT NULL,
 				PRIMARY KEY (flag_key)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 		`);
 	}
 
@@ -109,7 +109,7 @@ async function ensureGuestSchema(pool) {
 				PRIMARY KEY (IDNo),
 				KEY idx_guest_agent_id (AGENT_ID, ACTIVE),
 				KEY idx_guest_active (ACTIVE)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 		`);
 		console.log('[guest] Created table guest');
 	}
@@ -165,7 +165,7 @@ async function ensureGuestSchema(pool) {
 				ENCODED_DT DATETIME NOT NULL,
 				PRIMARY KEY (IDNo),
 				KEY idx_ggh_game_dt (GAME_ID, ENCODED_DT)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 		`);
 		console.log('[guest] Created table game_guest_history');
 	}

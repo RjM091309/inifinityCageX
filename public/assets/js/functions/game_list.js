@@ -623,12 +623,12 @@ function appendAssignGameGuestOption($guestSelect, guest) {
 	$guestSelect.append($opt);
 }
 
-function updateAssignGameGuestMembershipDisplay() {
-	var $display = $('#assign_game_guest_membership_display');
+function updateAssignGameGuestRemarksDisplay() {
+	var $display = $('#assign_game_guest_remarks_display');
 	if (!$display.length) return;
 	var $option = $('#assign_game_guest_select option:selected');
-	var membership = String($option.attr('data-membership-no') || '').trim();
-	$display.text(membership || '—');
+	var remarks = String($option.attr('data-guest-remarks') || '').trim();
+	$display.text(remarks || '—');
 }
 
 function updateAssignGameGuestSaveState() {
@@ -638,7 +638,7 @@ function updateAssignGameGuestSaveState() {
 	$('#btn-assign-guest-game-history').prop('disabled', !hasGuest);
 	$('#btn-assign-game-guest-edit').prop('disabled', !hasGuest);
 	$('#assign_game_guest_select').toggleClass('is-invalid', !hasGuest);
-	updateAssignGameGuestMembershipDisplay();
+	updateAssignGameGuestRemarksDisplay();
 }
 
 function resetAssignGameGuestModal() {
@@ -651,7 +651,7 @@ function resetAssignGameGuestModal() {
 	$('#submit-assign-game-guest-btn').prop('disabled', true);
 	$('#btn-assign-guest-game-history').prop('disabled', true);
 	$('#btn-assign-game-guest-edit').prop('disabled', true);
-	$('#assign_game_guest_membership_display').text('—');
+	$('#assign_game_guest_remarks_display').text('—');
 	if ($('#assign_game_guest_form')[0]) {
 		$('#assign_game_guest_form')[0].reset();
 	}

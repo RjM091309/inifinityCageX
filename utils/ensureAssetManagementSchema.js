@@ -45,7 +45,7 @@ async function ensureAssetManagementSchema(pool) {
 				PRIMARY KEY (IDNo),
 				KEY idx_company_asset_active (ACTIVE),
 				KEY idx_company_asset_type (ASSET_TYPE, ACTIVE)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 		`);
 		console.log('[asset_management] company_asset table ready');
 	}
@@ -72,7 +72,7 @@ async function ensureAssetManagementSchema(pool) {
 				PRIMARY KEY (IDNo),
 				KEY idx_company_liability_active (ACTIVE),
 				KEY idx_company_liability_type (LIABILITY_TYPE, ACTIVE)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 		`);
 		console.log('[asset_management] company_liability table ready');
 	}
@@ -91,7 +91,7 @@ async function ensureAssetManagementSchema(pool) {
 				EDITED_DT DATETIME NULL DEFAULT NULL,
 				PRIMARY KEY (IDNo),
 				KEY idx_company_capital_active (ACTIVE)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 		`);
 		console.log('[asset_management] company_capital table ready');
 	} else if (!(await columnExists(pool, 'company_capital', 'DESCRIPTION'))) {
@@ -111,7 +111,7 @@ async function ensureAssetManagementSchema(pool) {
 				EDITED_DT DATETIME NULL DEFAULT NULL,
 				PRIMARY KEY (IDNo),
 				KEY idx_income_statement_active (ACTIVE)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 		`);
 		console.log('[asset_management] income_statement table ready');
 	}
@@ -131,7 +131,7 @@ async function ensureAssetManagementSchema(pool) {
 				EDITED_DT DATETIME NULL DEFAULT NULL,
 				PRIMARY KEY (IDNo),
 				KEY idx_income_opex_stmt (INCOME_STATEMENT_ID, ACTIVE)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 		`);
 		console.log('[asset_management] income_statement_opex table ready');
 	}

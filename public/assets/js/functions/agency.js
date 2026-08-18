@@ -76,8 +76,8 @@ function getAgencyGuestSortValue(row, key) {
   if (key === 'guest_name') {
     return String(row.guest_name || row.NAME || '').trim().toLowerCase();
   }
-  if (key === 'membership_no') {
-    return String(row.membership_no || row.MEMBERSHIP_NO || '').trim().toLowerCase();
+  if (key === 'guest_remarks') {
+    return String(row.guest_remarks || row.REMARKS || '').trim().toLowerCase();
   }
   if (key === 'balance') return Number(row.total_balance || row.balance) || 0;
   if (key === 'credit') return Number(row.total_credit || row.credit) || 0;
@@ -802,13 +802,6 @@ $(document).ready(function() {
 
   $(document).on('change', '#transfer_agent_guest_list .transfer-agent-guest-check', function () {
     updateTransferAgentGuestSelectionCount();
-  });
-
-  $('#btn-open-transfer-from-edit-guest').on('click', function () {
-    const guestId = parseInt($('#edit_guest_id').val(), 10);
-    if (!guestId) return;
-    $('#modal-edit-guest-table').modal('hide');
-    openTransferGuestModal(guestId);
   });
 
   $('#transfer_guest_form').on('submit', function (e) {
@@ -2111,23 +2104,25 @@ function renderGuestPanel(guests, options) {
     const winloss = row._statsPending ? '—' : formatLineStatNumber(row.total_winloss || row.winloss || 0);
     const commission = row._statsPending ? '—' : formatLineStatNumber(row.total_commission || row.commission || 0);
     const safeName = String(name).toUpperCase();
-    const membershipNo = String(row.membership_no || row.MEMBERSHIP_NO || '').trim();
-    const membershipDisplay = membershipNo || '-';
+    const remarksDisplay = remarks ? escapeHtml(remarks) : '-';
     const agentCode = String(row.agent_code || '').trim().toUpperCase();
     const showAgentCode = !selectedAgentId && agentCode;
-    const guestNameHtml = permissions !== 2
+    const guestNameHtml = `<button
+          type="button"
+          class="btn btn-link p-0 agency-guest-cell-link"
+          title="View Membership No"
+          onclick="openGuestMembershipNo(${row.guest_id || 0})">${safeName}</button>`;
+    const remarksHtml = permissions !== 2
       ? `<button
           type="button"
-          class="btn btn-link p-0 agency-guest-remarks-link"
-          title="${remarks ? 'View / Edit Remarks' : 'Add Remarks'}"
-          onclick="openGuestRemarks(${row.guest_id || 0})">${safeName}</button>`
+          class="btn btn-link p-0 agency-guest-cell-link"
+          onclick="openGuestRemarks(${row.guest_id || 0})">${remarksDisplay}</button>`
       : (remarks
           ? `<button
               type="button"
-              class="btn btn-link p-0 agency-guest-remarks-link"
-              title="View Remarks"
-              onclick="openGuestRemarks(${row.guest_id || 0})">${safeName}</button>`
-          : safeName);
+              class="btn btn-link p-0 agency-guest-cell-link"
+              onclick="openGuestRemarks(${row.guest_id || 0})">${remarksDisplay}</button>`
+          : remarksDisplay);
     const guestCellHtml = showAgentCode
       ? `<span class="agency-guest-name-row">${guestNameHtml}<span class="agency-guest-agent-code text-muted"> · ${agentCode}</span></span>`
       : guestNameHtml;
@@ -2159,7 +2154,7 @@ function renderGuestPanel(guests, options) {
     return `
       <tr>
         <td class="agency-guest-col">${guestCellHtml}</td>
-        <td class="agency-guest-membership-col">${membershipDisplay}</td>
+        <td class="agency-guest-remarks-col" title="${escapeHtmlAttr(remarks)}">${remarksHtml}</td>
         ${SHOW_GUEST_BALANCE_CREDIT_COLUMNS ? `<td>${formatLineStatNumber(row.total_balance || row.balance || 0)}</td><td>${formatLineStatNumber(row.total_credit || row.credit || 0)}</td>` : ''}
         <td>${winloss}</td>
         <td>${rolling}</td>
@@ -2192,7 +2187,7 @@ function renderGuestPanel(guests, options) {
         <thead>
           <tr>
             <th class="agency-guest-col sortable-col" data-sort-key="guest_name">${HIERARCHY_LEVEL_3_LABEL} <span class="sort-indicator"></span></th>
-            <th class="agency-guest-membership-col sortable-col" data-sort-key="membership_no">Membership No <span class="sort-indicator"></span></th>
+            <th class="agency-guest-remarks-col sortable-col" data-sort-key="guest_remarks">Remarks <span class="sort-indicator"></span></th>
             ${SHOW_GUEST_BALANCE_CREDIT_COLUMNS ? '<th class="sortable-col" data-sort-key="balance">Balance <span class="sort-indicator"></span></th><th class="sortable-col" data-sort-key="credit">Credit <span class="sort-indicator"></span></th>' : ''}
             <th class="sortable-col" data-sort-key="winloss">Winloss <span class="sort-indicator"></span></th>
             <th class="sortable-col" data-sort-key="rolling">Rolling <span class="sort-indicator"></span></th>
@@ -2212,6 +2207,22 @@ function renderGuestPanel(guests, options) {
   syncAgencyGuestSortHeaders();
 }
 
+function openGuestMembershipNo(guestId) {
+  const numericGuestId = parseInt(guestId, 10);
+  const target = getGuestRowById(numericGuestId);
+  if (!target || !numericGuestId) return;
+
+  const membershipNo = String(target.membership_no || target.MEMBERSHIP_NO || '').trim();
+  const guestName = String(target.guest_name || target.NAME || '').trim();
+
+  Swal.fire({
+    icon: 'info',
+    title: guestName || 'Membership No',
+    text: membershipNo || 'No membership no.',
+    confirmButtonText: 'OK'
+  });
+}
+
 function openGuestRemarks(guestId) {
   const numericGuestId = parseInt(guestId, 10);
   const target = getGuestRowById(numericGuestId);
@@ -2226,6 +2237,7 @@ function openGuestRemarks(guestId) {
         onSuccess: function () {
           target.guest_remarks = newVal;
           target.REMARKS = newVal;
+          applyGuestPanelView();
         },
         onError: function (err) {
           if (window.Swal) {

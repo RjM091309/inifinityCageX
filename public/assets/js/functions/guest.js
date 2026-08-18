@@ -899,13 +899,6 @@ $(document).ready(function () {
 		});
 	});
 
-	$('#btn-open-transfer-from-edit-guest').on('click', function () {
-		const guestId = parseInt($('#edit_guest_id').val(), 10);
-		if (!guestId) return;
-		$('#modal-edit-guest-table').modal('hide');
-		openTransferGuestModal(guestId);
-	});
-
 	$('#transfer_guest_form').on('submit', function (e) {
 		e.preventDefault();
 		const guestId = parseInt($('#transfer_guest_id').val(), 10);
