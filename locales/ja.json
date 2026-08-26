@@ -1046,7 +1046,7 @@
 		"cc_placeholder": "CCチップ",
 		"cash_game": "キャッシュ",
 		"deposit_game": "デポジット",
-		"coin_game": "Coin",
+		"coin_game": "Pending",
 		"coin_amount": "Coin Amount",
 		"coin_amount_placeholder": "Coins given by guest",
 		"coin_amount_hint": "Coin face amount only — peso value is assessed after the game.",
