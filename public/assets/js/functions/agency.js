@@ -532,7 +532,9 @@ $(document).ready(function() {
     applyGuestPanelView();
   });
 
-  $('#agent-panel-search').on('input', function () {
+  $('#agent-panel-search')
+    .attr('title', 'Search text, or an ACCOUNT NO. range like 399-450')
+    .on('input', function () {
     agentSearchQuery = $(this).val();
     if (isAgentSearchActive() && !selectedAgencyId) {
       ensureAllAgentsLoadedForSearch(function () {
@@ -1524,6 +1526,25 @@ function normalizeGuestSearchText(value) {
   return String(value || '').toLowerCase().trim();
 }
 
+// ACCOUNT NO. range search, e.g. "399-450" or "INF399-INF450".
+const ACCOUNT_NO_RANGE_RE = /^\s*[A-Za-z]{0,6}(\d+)\s*-\s*[A-Za-z]{0,6}(\d+)\s*$/;
+
+function parseAccountNoRange(text) {
+  const m = String(text || '').match(ACCOUNT_NO_RANGE_RE);
+  if (!m) return null;
+  const a = parseInt(m[1], 10);
+  const b = parseInt(m[2], 10);
+  // Only a genuine ascending range. Keeps sub-account codes like "INF305-1"
+  // as a normal (literal) search instead of the range 1–305.
+  if (!(b > a)) return null;
+  return { min: a, max: b };
+}
+
+function accountCodeNumber(code) {
+  const m = String(code || '').match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
 function isGuestSearchActive() {
   return normalizeGuestSearchText(guestSearchQuery).length > 0;
 }
@@ -1637,9 +1658,20 @@ function getAgentSearchableText(row) {
 }
 
 function filterAgentRows(rows, query) {
+  const list = Array.isArray(rows) ? rows : [];
+
+  // ACCOUNT NO. range, e.g. "399-450" — match on the numeric part of agent_code.
+  const range = parseAccountNoRange(query);
+  if (range) {
+    return list.filter(function (row) {
+      const num = accountCodeNumber(row.agent_code);
+      return num !== null && num >= range.min && num <= range.max;
+    });
+  }
+
   const normalizedQuery = normalizeGuestSearchText(query);
-  if (!normalizedQuery) return Array.isArray(rows) ? rows : [];
-  return (Array.isArray(rows) ? rows : []).filter(function (row) {
+  if (!normalizedQuery) return list;
+  return list.filter(function (row) {
     return getAgentSearchableText(row).indexOf(normalizedQuery) !== -1;
   });
 }
