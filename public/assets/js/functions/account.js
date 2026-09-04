@@ -1005,6 +1005,18 @@ function account_details(account_id_data, agent_code, account_name) {
             document.getElementById('account_name').textContent = account.account_name || 'N/A';
          //   document.getElementById('account_id').value = account.ACCOUNT_ID || '';
 
+            const createdEl = document.getElementById('account_created_date');
+            if (createdEl) {
+                const created = account.agent_created_dt;
+                const createdText = (created && moment(created).isValid())
+                    ? 'Created ' + moment(created).format('MMM D, YYYY')
+                    : '';
+                const createdTextEl = createdEl.querySelector('.account-created-badge-text');
+                if (createdTextEl) createdTextEl.textContent = createdText;
+                createdEl.style.display = createdText ? '' : 'none';
+                if (createdText) createdEl.setAttribute('title', 'Account created ' + moment(created).format('MMMM D, YYYY'));
+            }
+
             const remarksEl = document.getElementById('agent_remarks_notice');
             if (remarksEl) {
                 const ar = account.agent_remarks != null ? String(account.agent_remarks).trim() : '';
@@ -1041,6 +1053,7 @@ function account_details(account_id_data, agent_code, account_name) {
     
     $('#agent_code').text(agent_code);
 	$('#account_name').text(account_name);
+	$('#account_created_date').hide().find('.account-created-badge-text').text('');
 	$('#account_id').val(account_id_data);
 	$('#agent_remarks_notice').val('');
 	lastSavedAgentRemarks = '';

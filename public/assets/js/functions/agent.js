@@ -200,13 +200,15 @@ $(document).ready(function () {
 				}
 			},
 			{
-				data: 'active',
-				render: function (data) {
-					var val = Number(data);
-					var isActive = val === 1 || data === true || data === 'true' || data === '1';
-					return isActive
-						? '<span class="css-blue">' + activeText + '</span>'
-						: '<span class="css-red">' + inactiveText + '</span>';
+				data: 'agent_created_dt',
+				render: function (data, type) {
+					if (type === 'sort' || type === 'type') {
+						return data ? new Date(data).getTime() : 0;
+					}
+					if (!data) return '';
+					return moment(data).isValid()
+						? moment(data).format('MMMM D, YYYY')
+						: '';
 				}
 			},
 			{
@@ -247,6 +249,70 @@ $(document).ready(function () {
 	window.reloadAgentTable = function () {
 		dataTable.ajax.reload(null, false);
 	};
+
+	// --- ACCOUNT NO. range search (e.g. "399-450" or "INF399-INF450") ---
+	// Matches "399-450", "INF399-450", "inf399 - inf450", etc. Letters optional on each side.
+	var accountNoRangeRe = /^\s*[A-Za-z]{0,6}(\d+)\s*-\s*[A-Za-z]{0,6}(\d+)\s*$/;
+	var $agentSearch = $('#agent-tbl_filter input');
+
+	// The range currently typed in the box (kept in JS so it survives DataTables'
+	// redraws — on sort/paging DataTables re-runs ext.search AND syncs the box back
+	// to its own empty search value, which would otherwise wipe the range text).
+	var activeRangeText = '';
+
+	function parseAccountNoRange(text) {
+		var m = String(text || '').match(accountNoRangeRe);
+		if (!m) return null;
+		var a = parseInt(m[1], 10);
+		var b = parseInt(m[2], 10);
+		// Only a genuine ascending range. This keeps sub-account codes like
+		// "INF305-1" / "INF305-2" as a normal (literal) search instead of
+		// being read as the range 1–305.
+		if (!(b > a)) return null;
+		return { min: a, max: b };
+	}
+
+	$.fn.dataTable.ext.search.push(function (settings, data) {
+		if (settings.nTable.id !== 'agent-tbl') return true;
+		var range = parseAccountNoRange(activeRangeText);
+		if (!range) return true;
+		// data[1] = ACCOUNT NO. column, e.g. "INF399" or "INF305-1" — use the
+		// first number group so a sub-account suffix doesn't distort the value.
+		var m = String(data[1] || '').match(/(\d+)/);
+		if (!m) return false;
+		var num = parseInt(m[1], 10);
+		return num >= range.min && num <= range.max;
+	});
+
+	// Keep the range text visible in the box after every redraw (DataTables clears it
+	// during draw because our built-in search value is empty).
+	dataTable.on('draw.dt', function () {
+		if (activeRangeText && $agentSearch.val() !== activeRangeText) {
+			$agentSearch.val(activeRangeText);
+		}
+	});
+
+	// Take full control of the search input so range terms are not passed to the
+	// built-in (literal) filter, which would otherwise hide every row.
+	$agentSearch.attr('title', 'Search text, or an ACCOUNT NO. range like 399-450');
+	$agentSearch.off();
+	$agentSearch.on('keyup cut paste input search', function () {
+		var val = this.value;
+
+		if (parseAccountNoRange(val)) {
+			activeRangeText = val;
+			if (dataTable.search() !== '') {
+				dataTable.search('');
+			}
+			dataTable.draw();
+		} else {
+			activeRangeText = '';
+			if (dataTable.search() !== val) {
+				dataTable.search(val);
+			}
+			dataTable.draw();
+		}
+	});
 
 	$(document).on('change', '.btn-toggle-agent-telegram', function () {
 		if (isViewOnly) return;

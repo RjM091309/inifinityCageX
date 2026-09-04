@@ -1166,6 +1166,7 @@ router.get('/account_data', async (req, res) => {
 				ag.PHOTO AS PASSPORTPHOTO,
 				CAST(acc.ACTIVE AS UNSIGNED) AS active,
 				CAST(ag.ACTIVE AS UNSIGNED) AS agent_active,
+				ag.ENCODED_DT AS agent_created_dt,
 				agency.AGENCY AS agency_name,
 				agency.IDNo AS agency_id,
 				COALESCE(led.total_balance, 0) AS total_balance,
@@ -2573,11 +2574,12 @@ router.get('/account_passportphoto_data/:account_id', async (req, res) => {
 		const query = `
 			SELECT 
 				account.*, 
-				agent.NAME AS account_name, 
+				agent.NAME AS account_name,
 				agent.AGENT_CODE AS agent_code,
 				agent.PHOTO AS PASSPORTPHOTO,
-				agent.REMARKS AS agent_remarks
-			FROM account 
+				agent.REMARKS AS agent_remarks,
+				agent.ENCODED_DT AS agent_created_dt
+			FROM account
 			LEFT JOIN agent ON agent.IDNo = account.AGENT_ID 
 			WHERE account.IDNo = ?
 		`;

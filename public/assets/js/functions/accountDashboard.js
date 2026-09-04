@@ -25,6 +25,71 @@ function renderBalanceColumn(data, type) {
     return data;
 }
 
+// --- ACCOUNT NO. range search (e.g. "399-450" or "INF399-INF450") ---
+var accountNoRangeRe = /^\s*[A-Za-z]{0,6}(\d+)\s*-\s*[A-Za-z]{0,6}(\d+)\s*$/;
+
+function parseAccountNoRange(text) {
+    var m = String(text || '').match(accountNoRangeRe);
+    if (!m) return null;
+    var a = parseInt(m[1], 10);
+    var b = parseInt(m[2], 10);
+    // Only a genuine ascending range. Keeps sub-account codes like "INF305-1"
+    // as a normal (literal) search instead of the range 1–305.
+    if (!(b > a)) return null;
+    return { min: a, max: b };
+}
+
+/**
+ * Let the DataTables search box accept an ACCOUNT NO. range like "399-450".
+ * The range is kept in JS (not the box / built-in search) so it survives
+ * sort & paging redraws; the box text is re-applied after every draw.
+ */
+function setupAccountNoRangeSearch(dt, tableId, resetModalSelector) {
+    var $box = $('#' + tableId + '_filter input');
+    if (!$box.length) return;
+    var activeRangeText = '';
+
+    $.fn.dataTable.ext.search.push(function (settings, data) {
+        if (settings.nTable.id !== tableId) return true;
+        var range = parseAccountNoRange(activeRangeText);
+        if (!range) return true;
+        // data[1] = ACCOUNT NO. cell (may be an <a>…INF399</a> link) — take the
+        // first number after stripping tags so the onclick args are ignored.
+        var m = String(data[1] || '').replace(/<[^>]*>/g, ' ').match(/(\d+)/);
+        if (!m) return false;
+        var num = parseInt(m[1], 10);
+        return num >= range.min && num <= range.max;
+    });
+
+    dt.on('draw.dt', function () {
+        if (activeRangeText && $box.val() !== activeRangeText) {
+            $box.val(activeRangeText);
+        }
+    });
+
+    $box.attr('title', 'Search text, or an ACCOUNT NO. range like 399-450');
+    $box.off();
+    $box.on('keyup cut paste input search', function () {
+        var val = this.value;
+        if (parseAccountNoRange(val)) {
+            activeRangeText = val;
+            if (dt.search() !== '') dt.search('');
+            dt.draw();
+        } else {
+            activeRangeText = '';
+            if (dt.search() !== val) dt.search(val);
+            dt.draw();
+        }
+    });
+
+    if (resetModalSelector) {
+        $(resetModalSelector).on('hidden.bs.modal', function () {
+            activeRangeText = '';
+            $box.val('');
+        });
+    }
+}
+
 var guestAccountBalanceColumnDefs = [
     {
         targets: 5,
@@ -102,6 +167,9 @@ $(document).ready(function () {
             }
         }
     });
+
+    setupAccountNoRangeSearch(guestTableBalance, 'guestAccount-tbl-with-balance', '#modal-guestAccount');
+    setupAccountNoRangeSearch(guestTableAll, 'guestAccount-tbl-all', '#modal-guestAccount');
 
     function loadGuestAccounts() {
         guestTableBalance.clear();
