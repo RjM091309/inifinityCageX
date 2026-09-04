@@ -1230,6 +1230,7 @@ async function computeDailySettlementTotals(dateStr, todayStr) {
   let buy_in = 0;
   let win_loss = 0;
   let commission = 0;
+  const gameRows = [];
 
   if (gameIds.length > 0) {
     const ph = gameIds.map(() => '?').join(',');
@@ -1245,6 +1246,23 @@ async function computeDailySettlementTotals(dateStr, todayStr) {
       win_loss += byGame[gid].buyin - byGame[gid].cashout;
     });
 
+    // Per-game account label (agent name + code), same format used for the "ongoing" list above.
+    const [accountRows] = await pool.execute(
+      `SELECT gl.IDNo AS game_id, ag.AGENT_CODE, ag.NAME AS agent_name
+       FROM game_list gl
+       JOIN account a ON gl.ACCOUNT_ID = a.IDNo
+       JOIN agent ag ON a.AGENT_ID = ag.IDNo
+       WHERE gl.IDNo IN (${ph})`,
+      gameIds
+    );
+    const accountByGame = {};
+    for (const row of accountRows) {
+      const agentName = (row.agent_name || '').toString().trim();
+      const agentCode = (row.AGENT_CODE || '').toString().trim();
+      accountByGame[row.game_id] = agentName && agentCode ? `${agentName} (${agentCode})` : (agentCode || agentName);
+    }
+
+    const commissionByGame = {};
     const [commRows] = await pool.execute(
       `SELECT gl.IDNo, gl.COMMISSION_PERCENTAGE, gl.COMMISSION_TYPE FROM game_list gl WHERE gl.IDNo IN (${ph}) AND gl.ACTIVE != 0 AND gl.SETTLED = 1`,
       gameIds
@@ -1257,10 +1275,28 @@ async function computeDailySettlementTotals(dateStr, todayStr) {
       );
       const rolling = Number(cr[0]?.r) || 0;
       const cashout = Number(cr[0]?.c) || 0;
-      if (row.COMMISSION_TYPE === 1) commission += (rolling - cashout) * (row.COMMISSION_PERCENTAGE / 100);
-      else if (row.COMMISSION_TYPE === 2) commission += (byGame[row.IDNo] ? (byGame[row.IDNo].buyin - byGame[row.IDNo].cashout) : 0) * (row.COMMISSION_PERCENTAGE / 100);
+      let gCommission = 0;
+      if (row.COMMISSION_TYPE === 1) gCommission = (rolling - cashout) * (row.COMMISSION_PERCENTAGE / 100);
+      else if (row.COMMISSION_TYPE === 2) gCommission = (byGame[row.IDNo] ? (byGame[row.IDNo].buyin - byGame[row.IDNo].cashout) : 0) * (row.COMMISSION_PERCENTAGE / 100);
+      commissionByGame[row.IDNo] = gCommission;
+      commission += gCommission;
     }
     commission = Math.round(commission);
+
+    Object.keys(byGame)
+      .map((gid) => Number(gid))
+      .sort((a, b) => a - b)
+      .forEach((gid) => {
+        const g = byGame[gid];
+        gameRows.push({
+          game_id: gid,
+          account: accountByGame[gid] || '',
+          buy_in: Math.round(g.buyin),
+          cash_out: Math.round(g.cashout),
+          commission: Math.round(commissionByGame[gid] || 0),
+          win_loss: Math.round(g.buyin - g.cashout),
+        });
+      });
   }
 
   return {
@@ -1270,6 +1306,7 @@ async function computeDailySettlementTotals(dateStr, todayStr) {
     cash_out: buy_in - win_loss,
     commission,
     win_loss,
+    games: gameRows,
   };
 }
 

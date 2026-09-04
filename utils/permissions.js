@@ -14,7 +14,17 @@ const EXPENSE_ROUTE_PREFIXES = [
 	'/edit_return_money',
 	'/remove_return_money',
 	'/expense_settlement_info',
-	'/expense_daily_settlement'
+	'/expense_daily_settlement',
+	'/asset_management',
+	'/add_company_asset',
+	'/company_asset',
+	'/add_company_liability',
+	'/company_liability',
+	'/add_company_capital',
+	'/company_capital',
+	'/save_income_statement',
+	'/add_income_opex',
+	'/income_opex'
 ];
 
 function isExpenseRoute(path) {

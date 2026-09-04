@@ -18,7 +18,7 @@
     var DATA_ATTR = 'data-permissions';
     var DISABLE_ATTR = 'data-view-only-disable';
     var DISABLED_CLASS = 'view-only-disabled';
-    var EXPENSE_PATHS = ['/house_expense', '/expense_category'];
+    var EXPENSE_PATHS = ['/house_expense', '/expense_category', '/asset_management'];
 
     function getPermissions(roleSelector) {
         var el = document.querySelector(roleSelector || DEFAULT_ROLE_SELECTOR);
