@@ -652,7 +652,7 @@ function applyAccountDetailsTransactionFilter(regex) {
 	if (!table) return;
 	table.search('');
 	table.columns().search('');
-	table.column(1).search(regex, true, false).draw();
+	table.column(2).search(regex, true, false).draw();
 }
 
 // Deposit-only filter

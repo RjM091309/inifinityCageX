@@ -7115,6 +7115,9 @@ function edit_game_record_row(btnEl) {
 						}
 					});
 					$('#modal-edit-game-record').data('editIds', editIds);
+					// Bootstrap doesn't support two shown modals at once, so hide the
+					// history modal while editing and restore it once this one closes.
+					$('#modal-show-history').modal('hide');
 					$('#modal-edit-game-record').modal('show');
 				}
 			});
@@ -7173,6 +7176,10 @@ $(document).on('click', '#btn-save-edit-record', function () {
 	});
 });
 
+$(document).on('hidden.bs.modal', '#modal-edit-game-record', function () {
+	$('#modal-show-history').modal('show');
+});
+
 function viewRecord(id) {
 	record_id = id;
 	window.location.href = '/game_record/' + id;
@@ -7214,8 +7221,16 @@ function editService(id, service, amount, remarks, transaction) {
 		$(`input[name="services-edit-transaction"][value="${txnValue}"]`).prop('checked', true);
 	}
 
+	// Bootstrap doesn't support two shown modals at once (the still-open
+	// Services modal's focus trap steals focus/clicks from this one), so
+	// hide it while editing and restore it once the edit modal closes.
+	$('#modal-services').modal('hide');
 	$('#modal-services-edit').modal('show');
 }
+
+$(document).on('hidden.bs.modal', '#modal-services-edit', function () {
+	$('#modal-services').modal('show');
+});
 
 function deleteService(id) {
 	const gameId = $('#services-game-id-input').val();
