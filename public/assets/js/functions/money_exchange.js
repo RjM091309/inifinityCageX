@@ -8,6 +8,7 @@
 	const urlMxHistDeposit = '/money_exchange_deposit_history';
 	const urlMxHistReturn = '/money_exchange_return_history';
 	const urlMxDepositReturns = (id) => '/money_exchange_deposit/' + id + '/returns';
+	const urlMxOutstanding = '/money_exchange_outstanding_summary';
 	const urlMxTxn = (id) => '/money_exchange_transaction/' + id;
 	const urlMxTxnDelete = (id) => '/money_exchange_transaction/' + id + '/delete';
 	let currencyRowsCache = [];
@@ -426,7 +427,53 @@
 		initMxDepositHistoryDt();
 	}
 
+	function renderOutstandingSummary(rows) {
+		const $list = $('#mx-outstanding-list');
+		if (!rows || !rows.length) {
+			$list.html('<div class="text-muted small">No currencies.</div>');
+			return;
+		}
+		$list.html(
+			rows
+				.map(function (r) {
+					const cnt = Number(r.deposit_count) || 0;
+					return (
+						'<div class="mx-outstanding-card' + (cnt === 0 ? ' is-zero' : '') + '">' +
+						'<div class="mx-outstanding-code">' +
+						escapeHtml(r.foreign_code || '—') +
+						'</div>' +
+						'<div class="mx-outstanding-amount">' +
+						fmtWhole(r.outstanding_foreign) +
+						'</div>' +
+						'<div class="mx-outstanding-sub">' +
+						escapeHtml(r.return_code || '') +
+						' ' +
+						fmtWhole(r.outstanding_return) +
+						' · ' +
+						cnt +
+						(cnt === 1 ? ' deposit' : ' deposits') +
+						'</div>' +
+						'</div>'
+					);
+				})
+				.join('')
+		);
+	}
+
+	function loadOutstandingSummary() {
+		$.getJSON(urlMxOutstanding)
+			.done(renderOutstandingSummary)
+			.fail(function (xhr) {
+				$('#mx-outstanding-list').html(
+					'<div class="text-danger small">' +
+						escapeHtml(xhr.responseText || 'Failed to load outstanding totals.') +
+						'</div>'
+				);
+			});
+	}
+
 	function loadDepositHistory() {
+		loadOutstandingSummary();
 		$.getJSON(urlMxHistDeposit)
 			.done(renderDepositHistory)
 			.fail(function (xhr) {

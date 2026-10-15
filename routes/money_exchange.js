@@ -298,6 +298,88 @@ router.get('/money_exchange_deposit_history', checkSession, async (req, res) => 
 	}
 });
 
+/**
+ * GET outstanding (not yet returned) totals per currency (JSON).
+ * Foreign side = the non-return-base currency; its outstanding amount is pro-rated by remaining / base.
+ */
+router.get('/money_exchange_outstanding_summary', checkSession, async (req, res) => {
+	try {
+		const [rows] = await pool.query(
+			`SELECT
+				x.foreign_code,
+				x.return_code,
+				COUNT(*) AS deposit_count,
+				SUM(CASE WHEN x.base_amount > 0 THEN x.foreign_amount * x.remaining / x.base_amount ELSE 0 END) AS outstanding_foreign,
+				SUM(x.remaining) AS outstanding_return
+			FROM (
+				SELECT
+					CASE WHEN d.php_in THEN d.ex_code ELSE d.in_code END AS foreign_code,
+					CASE WHEN d.php_in THEN d.in_code ELSE d.ex_code END AS return_code,
+					CASE WHEN d.php_in THEN d.EXCHANGE_AMOUNT ELSE d.AMOUNT_IN END AS foreign_amount,
+					CASE WHEN d.php_in THEN d.AMOUNT_IN ELSE d.EXCHANGE_AMOUNT END AS base_amount,
+					GREATEST(
+						0,
+						(CASE WHEN d.php_in THEN d.AMOUNT_IN ELSE d.EXCHANGE_AMOUNT END) - IFNULL(ra.total_return_amount, 0)
+					) AS remaining
+				FROM (
+					SELECT
+						t.ID,
+						t.AMOUNT_IN,
+						t.EXCHANGE_AMOUNT,
+						IFNULL(c1.CODE, '') AS in_code,
+						IFNULL(c2.CODE, '') AS ex_code,
+						(UPPER(IFNULL(c1.CODE, '')) = 'PHP' AND UPPER(IFNULL(c2.CODE, '')) <> 'PHP') AS php_in
+					FROM money_exchange_transaction t
+					LEFT JOIN currency_master c1 ON c1.ID = t.IN_CURRENCY_ID
+					LEFT JOIN currency_master c2 ON c2.ID = t.EXCHANGE_CURRENCY_ID
+					WHERE t.TRANS_TYPE = 1 AND t.ACTIVE = 1
+				) d
+				LEFT JOIN (
+					SELECT SOURCE_DEPOSIT_ID, SUM(RETURN_AMOUNT) AS total_return_amount
+					FROM money_exchange_transaction
+					WHERE ACTIVE = 1 AND TRANS_TYPE = 2
+					GROUP BY SOURCE_DEPOSIT_ID
+				) ra ON ra.SOURCE_DEPOSIT_ID = d.ID
+			) x
+			WHERE x.remaining > 0
+			GROUP BY x.foreign_code, x.return_code
+			ORDER BY x.foreign_code, x.return_code`
+		);
+		// Show every active non-PHP currency, even with nothing outstanding (zero card)
+		const [currencies] = await pool.execute(
+			`SELECT CODE AS code
+			 FROM currency_master
+			 WHERE ACTIVE = 1 AND UPPER(CODE) <> 'PHP'
+			 ORDER BY SORT_ORDER ASC, CODE ASC`
+		);
+		const outstanding = rows || [];
+		const result = [];
+		(currencies || []).forEach((c) => {
+			const code = String(c.code || '').toUpperCase();
+			const matches = outstanding.filter((r) => String(r.foreign_code || '').toUpperCase() === code);
+			if (matches.length) {
+				result.push(...matches);
+			} else {
+				result.push({
+					foreign_code: c.code,
+					return_code: 'PHP',
+					deposit_count: 0,
+					outstanding_foreign: 0,
+					outstanding_return: 0,
+				});
+			}
+		});
+		// Keep outstanding rows whose currency is inactive / not in the master list
+		outstanding.forEach((r) => {
+			if (!result.includes(r)) result.push(r);
+		});
+		res.json(result);
+	} catch (err) {
+		console.error('money_exchange_outstanding_summary:', err);
+		res.status(500).send('Error loading outstanding summary');
+	}
+});
+
 /** GET returns for one deposit (JSON) */
 router.get('/money_exchange_deposit/:id/returns', checkSession, async (req, res) => {
 	try {
