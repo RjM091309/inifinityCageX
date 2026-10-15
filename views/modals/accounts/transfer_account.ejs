@@ -48,6 +48,12 @@
 						class="form-control txtAmount" name="txtAmount" placeholder="<%= __('modal_transfer_account.amount') %>" required>
 				</div>
 			</div>
+			<div class="row mb-2">
+				<div class="col-sm-12">
+					<textarea class="form-control" id="txtTransferRemarks" name="txtRemarks" rows="2" maxlength="255"
+						placeholder="<%= __('modal_transfer_account.remarks') %>"></textarea>
+				</div>
+			</div>
 		</div>
 		<div class="modal-footer">
 			<button type="submit" class="btn btn-sm btn-primary"><%= __('modal_transfer_account.save') %></button>
@@ -57,6 +63,16 @@
 		</form>
 	</div>
 	</div>
+
+	<script>
+		// Clear remarks whenever the transfer modal closes (modal is opened from several pages)
+		document.addEventListener('hidden.bs.modal', function (e) {
+			if (e.target && e.target.id === 'modal-transfer_account') {
+				var remarks = document.getElementById('txtTransferRemarks');
+				if (remarks) remarks.value = '';
+			}
+		});
+	</script>
 
 	<style>
 		.select2-container .select2-selection--single {

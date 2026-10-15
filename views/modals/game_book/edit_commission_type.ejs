@@ -2,7 +2,7 @@
 	<div class="modal-dialog modal-dialog-centered">
 		<div class="modal-content">
 			<div class="modal-header bg-primary">
-				<h5 class="modal-title text-white">Edit commission type - <span id="edit-commission-agent-code"></span></h5>
+				<h5 class="modal-title text-white"><span id="edit-commission-title">Edit commission type</span> -<span id="edit-commission-agent-code"></span></h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 			</div>
 			<form id="form-edit-commission-type">
@@ -10,11 +10,11 @@
 					<input type="hidden" id="edit-commission-game-id" />
 					<input type="hidden" id="edit-commission-type" />
 					<div class="row">
-						<div class="col-sm-7 mb-2">
+						<div class="col-sm-7 mb-2" id="edit-commission-type-col">
 							<label class="form-label">Type</label>
 							<input type="text" id="edit-commission-type-display" class="form-control" readonly />
 						</div>
-						<div class="col-sm-5 mb-2">
+						<div class="col-sm-5 mb-2" id="edit-commission-rate-col">
 							<label for="edit-commission-rate" class="form-label">Rate (%)</label>
 							<input id="edit-commission-rate" type="number" class="form-control" min="0" max="100" step="0.1" required />
 							<div class="invalid-feedback">Please input a valid rate.</div>

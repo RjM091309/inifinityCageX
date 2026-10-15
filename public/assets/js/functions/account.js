@@ -1133,6 +1133,54 @@ function renderTelegramResendButton(ledgerId) {
 	`;
 }
 
+function escapeRemarksHtml(text) {
+	return $('<div>').text(text == null ? '' : String(text)).html();
+}
+
+// Only manual entries (deposit/withdraw/transfer) are editable; system rows carry parse-dependent remarks
+function isLedgerRemarksEditable(row) {
+	const desc = String(row?.TRANSACTION_DESC || '').trim().toUpperCase();
+	return !!row?.account_details_id && (!desc || desc === 'ACCOUNT DETAILS');
+}
+
+function renderLedgerRemarksCell(row, displayText) {
+	const text = escapeRemarksHtml(displayText);
+	if (!isLedgerRemarksEditable(row)) return text;
+	// Whole remarks text is the click target (no icon)
+	return `<span class="btn-edit-ledger-remarks" role="button" tabindex="0" data-ledger-id="${row.account_details_id}"
+		data-remarks="${escapeRemarksHtml(row.REMARKS || '')}" title="Click to edit remarks">${text}</span>`;
+}
+
+$(document).off('click', '.btn-edit-ledger-remarks').on('click', '.btn-edit-ledger-remarks', function () {
+	const ledgerId = $(this).data('ledger-id');
+	const currentRemarks = String($(this).attr('data-remarks') || '');
+	if (!ledgerId) return;
+
+	Swal.fire({
+		title: 'Edit Remarks',
+		input: 'textarea',
+		inputValue: currentRemarks,
+		inputAttributes: { maxlength: 255 },
+		showCancelButton: true,
+		confirmButtonText: 'Save',
+		showLoaderOnConfirm: true,
+		preConfirm: function (value) {
+			return $.ajax({
+				url: '/account_details/' + encodeURIComponent(ledgerId) + '/remarks',
+				type: 'PUT',
+				data: { remarks: value }
+			}).catch(function (xhr) {
+				Swal.showValidationMessage((xhr.responseJSON && xhr.responseJSON.error) || 'Failed to update remarks.');
+			});
+		},
+		allowOutsideClick: function () { return !Swal.isLoading(); }
+	}).then(function (result) {
+		if (result.isConfirmed) {
+			reloadDataDetails();
+		}
+	});
+});
+
 function reloadDataDetails() {
 	if (!accountDetailsDataTable || !currentAccountDetailsId) return;
 
@@ -1184,7 +1232,7 @@ function reloadDataDetails() {
 									transactionCell,
 									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
 									formatAccountDetailsBalance(row.balance_after),
-									row.REMARKS,
+									renderLedgerRemarksCell(row, row.REMARKS),
 									renderTelegramResendButton(row.account_details_id)
 								]);
 								resolve();
@@ -1203,7 +1251,7 @@ function reloadDataDetails() {
 									transactionCell,
 									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
 									formatAccountDetailsBalance(row.balance_after),
-									row.REMARKS,
+									renderLedgerRemarksCell(row, row.REMARKS),
 									renderTelegramResendButton(row.account_details_id)
 								]);
 								resolve();
@@ -1241,7 +1289,7 @@ function reloadDataDetails() {
 							transactionCell,
 							`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
 							formatAccountDetailsBalance(row.balance_after),
-							formatCoinOverageDepositRemarks(row.REMARKS),
+							renderLedgerRemarksCell(row, formatCoinOverageDepositRemarks(row.REMARKS)),
 							renderTelegramResendButton(row.account_details_id)
 						]);
 						resolve();
@@ -1671,6 +1719,7 @@ function transfer_account() {
 	$('#modal-account-details').modal('hide');
 	$('#modal-transfer_account').modal('show');
 	$('.txtAmount').val('');
+	$('#txtTransferRemarks').val('');
 	$('#transfer_trans').prop('checked', true);
 
 	// Set modal title to current account name if available
@@ -1684,7 +1733,7 @@ function transfer_account() {
 	$('#account_id_add_trans').val(account_id_val);
 	
 
-	get_account();
+	get_transfer_accounts();
 
 	 // Fetch account details to calculate balance
 	 $.ajax({
@@ -1795,7 +1844,8 @@ function transaction_type() {
 	});
 }
 
-function get_account() {
+// Named differently from game_list.js get_account() (which fills #txtTrans) to avoid an override on pages loading both scripts
+function get_transfer_accounts() {
 	$.ajax({
 		url: '/account_data',
 		method: 'GET',
@@ -1822,7 +1872,11 @@ function get_account() {
 		}
 	});
 
-	$('.js-select2').select2({
+	var $transferSelect = $('#txtAccount');
+	if ($transferSelect.data('select2')) {
+		$transferSelect.select2('destroy');
+	}
+	$transferSelect.select2({
 		placeholder: 'Select an option',
 		dropdownParent: '#modal-transfer_account'
 	});

@@ -1262,6 +1262,7 @@
 		"total_balance": "TOTAL BALANCE",
 		"choose_account_placeholder": "Choose an Account...",
 		"amount": "Amount",
+		"remarks": "Remarks",
 		"save": "Save",
 		"close": "Close"
 	},

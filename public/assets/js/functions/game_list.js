@@ -825,12 +825,17 @@ function buildGameRateCell(row, userPermissions, isSettled) {
 		badgeText = 'L';
 	}
 	var badgePart;
+	var ratePart = formatCommissionRateDisplay(pct);
 	if (canEditType) {
-		badgePart = '<button type="button" class="btn btn-link p-0" style="line-height:1;" onclick="editGameCommissionType(' + row.game_list_id + ', ' + row.COMMISSION_TYPE + ', ' + pct + ', ' + (isSettled ? 1 : 0) + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\')" title="Edit commission type"><span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span></button>';
+		var editArgs = row.game_list_id + ', ' + row.COMMISSION_TYPE + ', ' + pct + ', ' + (isSettled ? 1 : 0) + ', \'' + (row.agent_code || '').replace(/'/g, "\\'") + '\'';
+		badgePart = '<button type="button" class="btn btn-link p-0" style="line-height:1;" onclick="editGameCommissionType(' + editArgs + ')" title="Edit commission type"><span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span></button>';
+		if ([1, 2].includes(parseInt(row.COMMISSION_TYPE, 10))) {
+			ratePart = '<a href="javascript:void(0)" onclick="editGameCommissionType(' + editArgs + ', true)" title="Edit rate">' + ratePart + '</a>';
+		}
 	} else {
 		badgePart = '<span class="badge commission-badge ' + badgeClass + '" title="' + badgeTitle + '">' + badgeText + '</span>';
 	}
-	return formatCommissionRateDisplay(pct) + ' ' + badgePart;
+	return ratePart + ' ' + badgePart;
 }
 
 function gameListStripHtmlCell(val) {
@@ -855,7 +860,7 @@ function getCommissionRateRules(typeVal) {
 	return { min: 0, max: 100, step: 0.05 };
 }
 
-function editGameCommissionType(gameId, currentType, currentPct, settledFlag, agentCode) {
+function editGameCommissionType(gameId, currentType, currentPct, settledFlag, agentCode, rateOnly) {
 	var userPermissions = parseInt(document.getElementById('user-role')?.getAttribute('data-permissions') || '99', 10);
 	var canEdit = (userPermissions === 0);
 	if (!canEdit) {
@@ -865,12 +870,16 @@ function editGameCommissionType(gameId, currentType, currentPct, settledFlag, ag
 	$('#edit-commission-agent-code').text(agentCode || '');
 	var $modal = $('#modal-edit-commission-type');
 	var currentTypeNum = parseInt(currentType, 10);
-	var targetType = currentTypeNum === 1 ? 2 : 1; // Toggle only: Rolling <-> Shared
+	// Rate-only edit keeps the current type; otherwise toggle Rolling <-> Shared
+	var targetType = rateOnly ? currentTypeNum : (currentTypeNum === 1 ? 2 : 1);
 	var targetTypeLabel = targetType === 2 ? 'Shared Game' : 'Rolling Game';
+	$('#edit-commission-title').text(rateOnly ? 'Edit commission rate' : 'Edit commission type');
 	$('#edit-commission-game-id').val(gameId);
 	$('#edit-commission-type').val(String(targetType));
 	$('#edit-commission-type-display').val(targetTypeLabel);
-	var defaultRate = targetType === 1 ? 1.45 : (Number(currentPct) || 0);
+	$('#edit-commission-type-col').toggle(!rateOnly);
+	$('#edit-commission-rate-col').toggleClass('col-sm-5', !rateOnly).toggleClass('col-12', !!rateOnly);
+	var defaultRate = (targetType === 1 && !rateOnly) ? 1.45 : (Number(currentPct) || 0);
 	$('#edit-commission-rate').val(defaultRate.toString());
 	$('#edit-commission-save-btn').prop('disabled', false).text('Update');
 	$('#edit-commission-rate').removeClass('is-invalid');
@@ -908,7 +917,7 @@ $(document).on('submit', '#form-edit-commission-type', function (e) {
 		icon: 'question',
 		title: 'Confirm update',
 		html: '<div class="text-center">' +
-			'<div><strong>Type:</strong> ' + typeLabel + '</div>' +
+			($('#edit-commission-type-col').is(':visible') ? '<div><strong>Type:</strong> ' + typeLabel + '</div>' : '') +
 			'<div><strong>Rate:</strong> ' + rateVal + '%</div>' +
 			'</div>',
 		showCancelButton: true,

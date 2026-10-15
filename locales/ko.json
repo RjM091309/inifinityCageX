@@ -1250,6 +1250,7 @@
 		"total_balance": "총 잔액",
 		"choose_account_placeholder": "계정 선택...",
 		"amount": "금액",
+		"remarks": "메모",
 		"save": "저장",
 		"close": "닫기"
 	},

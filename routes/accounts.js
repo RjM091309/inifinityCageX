@@ -2005,10 +2005,12 @@ router.post('/add_account_details/transfer', async (req, res) => {
 		txtAccount,
 		txtAmount,
 		txtTransferToBalance,
-		txtTransferFromBalance
+		txtTransferFromBalance,
+		txtRemarks
 	} = req.body;
 
 	const date_now = new Date();
+	const remarks = String(txtRemarks || '').trim().slice(0, 255);
 
 	// Normalize numeric inputs and default to 0 to avoid NaN in Telegram messages
 	const normalizeNumber = (val) => {
@@ -2020,7 +2022,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 	const transferFromBalance = normalizeNumber(txtTransferFromBalance);
 	const transferToBalance = normalizeNumber(txtTransferToBalance);
 
-	const query = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, TRANSFER, TRANSFER_AGENT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+	const query = `INSERT INTO account_ledger(ACCOUNT_ID, TRANSACTION_ID, TRANSACTION_TYPE, AMOUNT, TRANSFER, TRANSFER_AGENT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 	let connection;
 
@@ -2034,8 +2036,8 @@ router.post('/add_account_details/transfer', async (req, res) => {
 		const receiverBalanceBefore = await getCurrentBalance(txtAccount);
 
 		// Insert transaction details for both accounts within the transaction
-		const [withdrawResult] = await connection.execute(query, [txtAccountId, 2, 2, totalAmount, 1, txtAccount, req.session.user_id, date_now]);
-		const [depositResult] = await connection.execute(query, [txtAccount, 1, 2, totalAmount, 1, txtAccountId, req.session.user_id, date_now]);
+		const [withdrawResult] = await connection.execute(query, [txtAccountId, 2, 2, totalAmount, 1, txtAccount, remarks || null, req.session.user_id, date_now]);
+		const [depositResult] = await connection.execute(query, [txtAccount, 1, 2, totalAmount, 1, txtAccountId, remarks || null, req.session.user_id, date_now]);
 
 		const transactionNameWithdraw = await getTransactionName(2);
 		const transactionNameDeposit = await getTransactionName(1);
@@ -2050,7 +2052,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 			amount: totalAmount,
 			balanceBefore: senderBalanceBefore,
 			balanceAfter: senderBalanceAfter,
-			remarks: `Transfer to account ${txtAccount}`,
+			remarks: `Transfer to account ${txtAccount}${remarks ? ` - ${remarks}` : ''}`,
 			transferAccountId: parseInt(txtAccount, 10),
 			direction: mapDirection('TRANSFER_OUT'),
 			encodedBy: req.session.user_id,
@@ -2065,7 +2067,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 			amount: totalAmount,
 			balanceBefore: receiverBalanceBefore,
 			balanceAfter: receiverBalanceAfter,
-			remarks: `Transfer from account ${txtAccountId}`,
+			remarks: `Transfer from account ${txtAccountId}${remarks ? ` - ${remarks}` : ''}`,
 			transferAccountId: parseInt(txtAccountId, 10),
 			direction: mapDirection('TRANSFER_IN'),
 			encodedBy: req.session.user_id,
@@ -2107,7 +2109,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 			let updated_time = time_now.toLocaleTimeString();
 			let date_nowTG = new Date().toLocaleDateString();
 
-			const textFrom = `Infinity Cage\n\n* 이체 *\n\n계정: ${AGENT_CODE_FROM} - ${NAME_FROM}\n받으신분: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\n금액: -${totalAmount.toLocaleString()}\n잔고: ${SenderCurrentBalance.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			const textFrom = `Infinity Cage\n\n* 이체 *\n\n계정: ${AGENT_CODE_FROM} - ${NAME_FROM}\n받으신분: ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].NAME : 'N/A'}\n금액: -${totalAmount.toLocaleString()}\n잔고: ${SenderCurrentBalance.toLocaleString()}\n${remarks ? `메모: ${remarks}\n` : ''}\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
 			const toCode =
 				telegramIdResultsTo.length > 0 ? telegramIdResultsTo[0].AGENT_CODE : 'N/A';
@@ -2159,7 +2161,7 @@ router.post('/add_account_details/transfer', async (req, res) => {
 			let updated_time = time_now.toLocaleTimeString();
 			let date_nowTG = new Date().toLocaleDateString();
 
-			const textTo = `Infinity Cage\n\n* 이체 *\n\n받으신분: ${AGENT_CODE_TO} - ${NAME_TO}\n보내신분: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\n금액: ${totalAmount.toLocaleString()}\n잔고: ${ReceiverCurrentBalance.toLocaleString()}\n\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
+			const textTo = `Infinity Cage\n\n* 이체 *\n\n받으신분: ${AGENT_CODE_TO} - ${NAME_TO}\n보내신분: ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A'} - ${telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].NAME : 'N/A'}\n금액: ${totalAmount.toLocaleString()}\n잔고: ${ReceiverCurrentBalance.toLocaleString()}\n${remarks ? `메모: ${remarks}\n` : ''}\n날짜: ${date_nowTG}\n시간: ${updated_time}`;
 
 			const fromCode =
 				telegramIdResultsFrom.length > 0 ? telegramIdResultsFrom[0].AGENT_CODE : 'N/A';
@@ -2652,6 +2654,39 @@ router.put('/account_details/remove/:id', async (req, res) => {
 	} catch (err) {
 		console.error('Error updating Details:', err);
 		res.status(500).send('Error updating Details');
+	}
+});
+
+// UPDATE LEDGER REMARKS (Guest Portal — Transaction History row)
+// Only manual entries (deposit/withdraw/transfer) are editable; system rows keep parse-dependent remarks.
+router.put('/account_details/:id/remarks', async (req, res) => {
+	try {
+		const id = parseInt(req.params.id, 10);
+		if (Number.isNaN(id)) {
+			return res.status(400).json({ error: 'Invalid ledger id' });
+		}
+		const remarks = String((req.body && req.body.remarks) || '').trim().slice(0, 255);
+
+		const [[ledger]] = await pool.query(
+			'SELECT TRANSACTION_DESC FROM account_ledger WHERE IDNo = ? AND ACTIVE = 1',
+			[id]
+		);
+		if (!ledger) {
+			return res.status(404).json({ error: 'Transaction not found' });
+		}
+		const desc = String(ledger.TRANSACTION_DESC || '').trim().toUpperCase();
+		if (desc && desc !== 'ACCOUNT DETAILS') {
+			return res.status(400).json({ error: 'Remarks of this transaction cannot be edited.' });
+		}
+
+		await pool.execute(
+			'UPDATE account_ledger SET REMARKS = ?, EDITED_BY = ?, EDITED_DT = ? WHERE IDNo = ?',
+			[remarks || null, req.session.user_id, new Date(), id]
+		);
+		res.json({ success: true });
+	} catch (error) {
+		console.error('Error updating ledger remarks:', error);
+		res.status(500).json({ error: 'Error updating remarks' });
 	}
 });
 

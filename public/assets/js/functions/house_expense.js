@@ -2514,6 +2514,8 @@ function returnMoney() {
 function edit_expense(id, category_id, receipt_no, datetimeval, description, amount, oic) {
     var $modal = $('#modal-edit-house-expense');
     showBootstrapModal($modal);
+    // Clear any file left from a previous edit so it isn't uploaded to this record
+    $modal.find('input[type="file"][name="photo"]').val('');
     $modal.find('[name="txtReceiptNo"]').val(receipt_no);
 
     // ✅ Sanitize and format datetime properly

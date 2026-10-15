@@ -19,7 +19,8 @@ ensureExpenseCategoryParentIdColumn(pool).catch(() => {});
 const receiptStorage = multer.diskStorage({
 	destination: 'ReceiptUpload/',
 	filename: (req, file, cb) => {
-		const uniqueName = `${Date.now()}-${file.originalname}`; // Gumawa ng unique filename
+		// Random suffix: Date.now() lang ay puwedeng mag-collide (hal. dalawang "image.jpg" sa parehong ms → overwrite)
+		const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}-${file.originalname}`;
 		cb(null, uniqueName);
 	}
 });

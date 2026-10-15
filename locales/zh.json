@@ -1250,6 +1250,7 @@
 		"total_balance": "总余额",
 		"choose_account_placeholder": "选择账户...",
 		"amount": "金额",
+		"remarks": "备注",
 		"save": "保存",
 		"close": "关闭"
 	},
