@@ -2329,12 +2329,17 @@ router.get('/account_details_data_deposit/:id', async (req, res) => {
 		  transaction_type.TRANSACTION,
 		  account_ledger.IDNo AS account_details_id, 
 		  account_ledger.ENCODED_DT AS encoded_date,
-		  NULLIF(TRIM(guest.NAME), '') AS guest_name
-		FROM account_ledger 
+		  NULLIF(TRIM(guest.NAME), '') AS guest_name,
+		  transfer_agent.NAME AS transfer_agent_name,
+		  transfer_agent.AGENT_CODE AS transfer_agent_code
+		FROM account_ledger
 		JOIN transaction_type ON transaction_type.IDNo = account_ledger.TRANSACTION_ID
 		LEFT JOIN guest ON guest.IDNo = account_ledger.GUEST_ID
-		WHERE account_ledger.ACTIVE = 1 
-		  AND account_ledger.TRANSACTION_TYPE IN (2, 5, 3) 
+		-- Resolve transfer counterpart here instead of one request per row from the client
+		LEFT JOIN account AS transfer_account ON account_ledger.TRANSFER = 1 AND transfer_account.IDNo = account_ledger.TRANSFER_AGENT
+		LEFT JOIN agent AS transfer_agent ON transfer_agent.IDNo = transfer_account.AGENT_ID
+		WHERE account_ledger.ACTIVE = 1
+		  AND account_ledger.TRANSACTION_TYPE IN (2, 5, 3)
 		  AND account_ledger.ACCOUNT_ID = ?
 	  `;
   

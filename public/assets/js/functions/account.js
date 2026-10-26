@@ -1066,10 +1066,15 @@ function account_details(account_id_data, agent_code, account_name) {
 
 	account_id = account_id_data;
 
+	// destroy() leaves the old rows in the DOM, so the new table would show the previous account's ledger until reload
 	if ($.fn.DataTable.isDataTable('#accountDetails')) {
-		$('#accountDetails').DataTable().destroy();
+		$('#accountDetails').DataTable().clear().destroy();
 	}
-	
+	$('#accountDetails tbody').empty();
+	$('.total_deposit, .total_withdraw, .total_balance').text('');
+	$('#credit-iou-card').addClass('d-none');
+	$('.credit_balance').text('');
+
 	var dataTableDetails = $('#accountDetails').DataTable({
 		"order": [[0, 'desc']], // Set the first column (index 0) to be sorted in descending order
 		"columnDefs": [
@@ -1181,138 +1186,111 @@ $(document).off('click', '.btn-edit-ledger-remarks').on('click', '.btn-edit-ledg
 	});
 });
 
+// Bumped on every reload so a slow response for a previously opened account never overwrites the current one
+let accountDetailsRequestSeq = 0;
+
 function reloadDataDetails() {
 	if (!accountDetailsDataTable || !currentAccountDetailsId) return;
 
 	const accountId = currentAccountDetailsId;
+	const requestSeq = ++accountDetailsRequestSeq;
+	const isStale = () => requestSeq !== accountDetailsRequestSeq || accountId !== currentAccountDetailsId;
 
 	$.ajax({
 		url: '/account_details_data_deposit/' + accountId,
 		method: 'GET',
 		success: function (data) {
-			accountDetailsDataTable.clear();
+			if (isStale()) return;
 
 			let deposit_amount = 0;
 			let withdraw_amount = 0;
 			let marker_deposit_amount = 0;
 			let marker_return_deposit = 0;
 
-			let rowsToAdd = [];
+			const rowsToAdd = data.map(row => {
+				const amount = parseFloat(String(row.AMOUNT).replace(/,/g, '')) || 0;
 
-			const requests = data.map(row => {
-				return new Promise((resolve) => {
-					const amount = parseFloat(String(row.AMOUNT).replace(/,/g, '')) || 0;
+				if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
+				if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
+				if (row.TRANSACTION === 'MARKER REDEEM') marker_deposit_amount += amount;
+				if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
 
-					if (row.TRANSACTION === 'DEPOSIT') deposit_amount += amount;
-					if (row.TRANSACTION === 'WITHDRAW') withdraw_amount += amount;
-					if (row.TRANSACTION === 'MARKER REDEEM') marker_deposit_amount += amount;
-					if (row.TRANSACTION === 'IOU RETURN DEPOSIT') marker_return_deposit += amount;
+				const transactionDesc = row.TRANSACTION_DESC || '';
+				const dateFormat = moment(row.encoded_date).format('MMMM DD, YYYY HH:mm:ss');
 
-					const transactionDesc = row.TRANSACTION_DESC || '';
-					const dateFormat = moment(row.encoded_date).format('MMMM DD, YYYY HH:mm:ss');
+				if (row.TRANSFER === 1) {
+					// Transfer counterpart is joined server-side (transfer_agent_name / transfer_agent_code)
+					const transferAgentName = String(row.transfer_agent_name || '').trim() || 'Unknown';
+					const agentCode = String(row.transfer_agent_code || '').trim() || 'N/A';
+					const trans = row.TRANSACTION === 'DEPOSIT'
+						? `<strong>Received from ${agentCode} - ${transferAgentName}</strong>`
+						: `<strong>Transferred to ${agentCode} - ${transferAgentName}</strong>`;
+					const transactionCell = transactionDesc
+						? `${trans} - <strong>${transactionDesc}</strong>`
+						: trans;
 
-					if (row.TRANSFER === 1) {
-						$.ajax({
-							url: '/get-transfer-agent-name',
-							type: 'GET',
-							data: { transferAgentId: row.TRANSFER_AGENT },
-							success: function (response) {
-								const transferAgentName = response.transfer_agent_name?.trim() || 'Unknown';
-								const agentCode = response.agent_code?.trim() || 'N/A';
-								const trans = row.TRANSACTION === 'DEPOSIT'
-									? `<strong>Received from ${agentCode} - ${transferAgentName}</strong>`
-									: `<strong>Transferred to ${agentCode} - ${transferAgentName}</strong>`;
-								const transactionCell = transactionDesc
-									? `${trans} - <strong>${transactionDesc}</strong>`
-									: trans;
+					return [
+						dateFormat,
+						formatLedgerGuestName(row),
+						transactionCell,
+						`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
+						formatAccountDetailsBalance(row.balance_after),
+						renderLedgerRemarksCell(row, row.REMARKS),
+						renderTelegramResendButton(row.account_details_id)
+					];
+				}
 
-								rowsToAdd.push([
-									dateFormat,
-									formatLedgerGuestName(row),
-									transactionCell,
-									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
-									formatAccountDetailsBalance(row.balance_after),
-									renderLedgerRemarksCell(row, row.REMARKS),
-									renderTelegramResendButton(row.account_details_id)
-								]);
-								resolve();
-							},
-							error: function () {
-								const trans = row.TRANSACTION === 'DEPOSIT'
-									? `<strong>Received from Error fetching name</strong>`
-									: `<strong>Transferred to Error fetching name</strong>`;
-								const transactionCell = transactionDesc
-									? `${trans} - <strong>${transactionDesc}</strong>`
-									: trans;
+				let displayTransaction = row.TRANSACTION;
+				let displayDesc = transactionDesc;
 
-								rowsToAdd.push([
-									dateFormat,
-									formatLedgerGuestName(row),
-									transactionCell,
-									`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
-									formatAccountDetailsBalance(row.balance_after),
-									renderLedgerRemarksCell(row, row.REMARKS),
-									renderTelegramResendButton(row.account_details_id)
-								]);
-								resolve();
-							}
-						});
-					} else {
-						let displayTransaction = row.TRANSACTION;
-						let displayDesc = transactionDesc;
+				// Friendly label for IOU return tagged as CREDIT
+				if (row.TRANSACTION === 'IOU RETURN DEPOSIT' && transactionDesc === 'RETURN_SOURCE:CREDIT') {
+					displayTransaction = 'JUNKET CREDIT RETURN THRU DEPOSIT';
+					displayDesc = '';
+				}
 
-						// Friendly label for IOU return tagged as CREDIT
-						if (row.TRANSACTION === 'IOU RETURN DEPOSIT' && transactionDesc === 'RETURN_SOURCE:CREDIT') {
-							displayTransaction = 'JUNKET CREDIT RETURN THRU DEPOSIT';
-							displayDesc = '';
-						}
+				// Friendly label for IOU return tagged as BUYIN (Game)
+				if (row.TRANSACTION === 'IOU RETURN DEPOSIT' && transactionDesc === 'RETURN_SOURCE:BUYIN') {
+					displayTransaction = 'GAME CREDIT RETURN THRU DEPOSIT';
+					displayDesc = '';
+				}
 
-						// Friendly label for IOU return tagged as BUYIN (Game)
-						if (row.TRANSACTION === 'IOU RETURN DEPOSIT' && transactionDesc === 'RETURN_SOURCE:BUYIN') {
-							displayTransaction = 'GAME CREDIT RETURN THRU DEPOSIT';
-							displayDesc = '';
-						}
+				// Friendly label for coin settle overage credited to deposit
+				if (row.TRANSACTION === 'DEPOSIT' && transactionDesc === 'COIN_OVERAGE_DEPOSIT') {
+					displayTransaction = 'Coin Over';
+					displayDesc = '';
+				}
 
-						// Friendly label for coin settle overage credited to deposit
-						if (row.TRANSACTION === 'DEPOSIT' && transactionDesc === 'COIN_OVERAGE_DEPOSIT') {
-							displayTransaction = 'Coin Over';
-							displayDesc = '';
-						}
+				const transactionCell = displayDesc
+					? `${displayTransaction} - <strong>${displayDesc}</strong>`
+					: displayTransaction;
 
-						const transactionCell = displayDesc
-							? `${displayTransaction} - <strong>${displayDesc}</strong>`
-							: displayTransaction;
-
-						rowsToAdd.push([
-							dateFormat,
-							formatLedgerGuestName(row),
-							transactionCell,
-							`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
-							formatAccountDetailsBalance(row.balance_after),
-							renderLedgerRemarksCell(row, formatCoinOverageDepositRemarks(row.REMARKS)),
-							renderTelegramResendButton(row.account_details_id)
-						]);
-						resolve();
-					}
-				});
+				return [
+					dateFormat,
+					formatLedgerGuestName(row),
+					transactionCell,
+					`₱${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
+					formatAccountDetailsBalance(row.balance_after),
+					renderLedgerRemarksCell(row, formatCoinOverageDepositRemarks(row.REMARKS)),
+					renderTelegramResendButton(row.account_details_id)
+				];
 			});
 
-			Promise.all(requests).then(() => {
-				accountDetailsDataTable.rows.add(rowsToAdd).draw();
+			accountDetailsDataTable.clear().rows.add(rowsToAdd).draw();
 
-				// Total balance excludes Credit/IOU
-				const totalAmount = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return_deposit;
+			// Total balance excludes Credit/IOU
+			const totalAmount = deposit_amount + marker_deposit_amount - withdraw_amount - marker_return_deposit;
 
-				$('.total_deposit').text(`₱${deposit_amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
-				$('.total_withdraw').text(`₱${withdraw_amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
-				$('.total_balance').text(`₱${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
-				$('#total_balanceGuest').val(totalAmount);
-				currentAccountBalance = totalAmount;
-			});
+			$('.total_deposit').text(`₱${deposit_amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
+			$('.total_withdraw').text(`₱${withdraw_amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
+			$('.total_balance').text(`₱${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`);
+			$('#total_balanceGuest').val(totalAmount);
+			currentAccountBalance = totalAmount;
 
 			// CREDIT/IOU from backend formula: TRANSACTION_ID (3,10) - (11,12,1), TRANSACTION_TYPE (3,4)
 			$.get('/account_credit_balance/' + accountId)
 				.done(function (res) {
+					if (isStale()) return;
 					const creditAmount = parseFloat(res.credit_balance) || 0;
 					if (creditAmount > 0) {
 						$('#credit-iou-card').removeClass('d-none');
@@ -1323,6 +1301,7 @@ function reloadDataDetails() {
 					}
 				})
 				.fail(function () {
+					if (isStale()) return;
 					$('#credit-iou-card').addClass('d-none');
 					$('.credit_balance').text('');
 				});
