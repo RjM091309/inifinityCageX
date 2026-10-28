@@ -1538,7 +1538,7 @@ $(document).ready(function () {
                             btn = `
                                 <div class="house-expense-actions">
                                     <button type="button" class="btn btn-sm btn-alt-secondary"
-                                            onclick="viewReceipt('${row.photoUrl}')"
+                                            onclick="viewReceipt(${attrEncode(JSON.stringify(row.photoUrl || ''))})"
                                             ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                         <i class="fa fa-eye"></i>
@@ -1557,7 +1557,7 @@ $(document).ready(function () {
                                     </button>
                                     ${historyBtnHtml}
                                     <button type="button" class="btn btn-sm btn-alt-secondary"
-                                            onclick="downloadReceipt('${row.photoUrl}')"
+                                            onclick="downloadReceipt(${attrEncode(JSON.stringify(row.photoUrl || ''))})"
                                             ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                         <i class="fa fa-download"></i>
@@ -1572,7 +1572,7 @@ $(document).ready(function () {
                             btn = `
                                 <div class="house-expense-actions">
                                     <button type="button" class="btn btn-sm btn-primary"
-                                            onclick="viewReceipt('${row.photoUrl}')"
+                                            onclick="viewReceipt(${attrEncode(JSON.stringify(row.photoUrl || ''))})"
                                             ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                         <i class="fa fa-eye"></i>
@@ -1583,7 +1583,7 @@ $(document).ready(function () {
                                     </button>
                                     ${historyBtnHtml}
                                     <button type="button" class="btn btn-sm btn-secondary"
-                                            onclick="downloadReceipt('${row.photoUrl}')"
+                                            onclick="downloadReceipt(${attrEncode(JSON.stringify(row.photoUrl || ''))})"
                                             ${row.record_type === 'return_money' ? 'disabled' : ''}
                                             data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                         <i class="fa fa-download"></i>
@@ -2064,7 +2064,7 @@ $(document).ready(function () {
                                 btn = `
                                     <div class="house-expense-actions">
                                         <button type="button" class="btn btn-sm btn-alt-secondary"
-                                                onclick="viewReceipt('${row.photoUrl}')"
+                                                onclick="viewReceipt(${attrEncode(JSON.stringify(row.photoUrl || ''))})"
                                                 ${row.record_type === 'return_money' ? 'disabled' : ''}
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                             <i class="fa fa-eye"></i>
@@ -2083,7 +2083,7 @@ $(document).ready(function () {
                                         </button>
                                         ${historyBtnHtml}
                                         <button type="button" class="btn btn-sm btn-alt-secondary"
-                                                onclick="downloadReceipt('${row.photoUrl}')"
+                                                onclick="downloadReceipt(${attrEncode(JSON.stringify(row.photoUrl || ''))})"
                                                 ${row.record_type === 'return_money' ? 'disabled' : ''}
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                             <i class="fa fa-download"></i>
@@ -2098,7 +2098,7 @@ $(document).ready(function () {
                                 btn = `
                                     <div class="house-expense-actions">
                                         <button type="button" class="btn btn-sm btn-primary"
-                                                onclick="viewReceipt('${row.photoUrl}')"
+                                                onclick="viewReceipt(${attrEncode(JSON.stringify(row.photoUrl || ''))})"
                                                 ${row.record_type === 'return_money' ? 'disabled' : ''}
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.view_receipt || 'View Receipt'}">
                                             <i class="fa fa-eye"></i>
@@ -2109,7 +2109,7 @@ $(document).ready(function () {
                                         </button>
                                         ${historyBtnHtml}
                                         <button type="button" class="btn btn-sm btn-secondary"
-                                                onclick="downloadReceipt('${row.photoUrl}')"
+                                                onclick="downloadReceipt(${attrEncode(JSON.stringify(row.photoUrl || ''))})"
                                                 ${row.record_type === 'return_money' ? 'disabled' : ''}
                                                 data-bs-toggle="tooltip" data-bs-placement="top" title="${window.houseExpenseTranslations?.download_receipt || 'Download Receipt'}">
                                             <i class="fa fa-download"></i>
