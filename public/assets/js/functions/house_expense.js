@@ -2404,6 +2404,12 @@ $(document).ready(function () {
     });
 
     // Utility functions for receipt actions
+    // I-encode ang filename para hindi masira ang URL kapag may #, ?, % atbp. sa pangalan ng file
+    function receiptFileUrl(photoUrl) {
+        var idx = photoUrl.lastIndexOf('/');
+        return photoUrl.substring(0, idx + 1) + encodeURIComponent(photoUrl.substring(idx + 1));
+    }
+
     window.viewReceipt = function (photoUrl) {
         if (!photoUrl || photoUrl.trim() === "" || photoUrl === "null") {
         Swal.fire({
@@ -2416,7 +2422,7 @@ $(document).ready(function () {
         }
         Swal.fire({
             title: '',
-            imageUrl: photoUrl,
+            imageUrl: receiptFileUrl(photoUrl),
             imageAlt: window.houseExpenseTranslations?.receipt_image || 'Receipt Image',
             showCloseButton: true,
             showConfirmButton: false,
@@ -2427,8 +2433,9 @@ $(document).ready(function () {
     };
 
     window.downloadReceipt = function (photoUrl) {
+        if (!photoUrl || photoUrl.trim() === "" || photoUrl === "null") return;
         var a = document.createElement('a');
-        a.href = photoUrl;
+        a.href = receiptFileUrl(photoUrl);
         a.download = photoUrl.substring(photoUrl.lastIndexOf('/') + 1);
         document.body.appendChild(a);
         a.click();
