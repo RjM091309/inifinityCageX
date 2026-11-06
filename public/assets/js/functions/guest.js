@@ -81,60 +81,6 @@ function renderGuestTelegramToggle(row, readOnly) {
 	);
 }
 
-function promptManagerPasswordThen(actionText, onConfirmed) {
-	Swal.fire({
-		icon: 'warning',
-		title: 'Password required',
-		text: 'Enter the Super Admin password to ' + actionText,
-		input: 'password',
-		inputPlaceholder: 'Password',
-		inputAttributes: {
-			autocomplete: 'new-password',
-			name: 'guest-delete-override'
-		},
-		showCancelButton: true,
-		confirmButtonText: 'Continue',
-		confirmButtonColor: '#d33',
-		cancelButtonText: 'Cancel',
-		allowOutsideClick: function () {
-			return !Swal.isLoading();
-		},
-		preConfirm: function (password) {
-			if (!password) {
-				Swal.showValidationMessage('Password is required.');
-				return false;
-			}
-			return new Promise(function (resolve) {
-				$.ajax({
-					url: '/verify-superadmin-password',
-					type: 'POST',
-					data: { password: password },
-					success: function (response) {
-						if (response && Number(response.permissions) === 0) {
-							resolve();
-							return;
-						}
-						Swal.showValidationMessage('Incorrect password.');
-						resolve(false);
-					},
-					error: function (xhr) {
-						Swal.showValidationMessage(
-							(xhr && xhr.status === 403)
-								? 'Incorrect password.'
-								: 'Error during password verification.'
-						);
-						resolve(false);
-					}
-				});
-			});
-		}
-	}).then(function (result) {
-		if (result.isConfirmed && typeof onConfirmed === 'function') {
-			onConfirmed();
-		}
-	});
-}
-
 function populateAgencySelect($select, selectedId) {
 	$select.html('<option value="">Select ' + HIERARCHY_LEVEL_1_LABEL + '</option>');
 	guestPageAgencies.forEach(function (row) {
@@ -466,9 +412,14 @@ function openGuestGameHistory(guestId) {
 	});
 }
 
+// Super Admin (0), Administrator (1) and Manager (11) can archive guests; must match PUT /guest/remove/:id
+function canDeleteGuest(permissions) {
+	return permissions === 0 || permissions === 1 || permissions === 11;
+}
+
 function checkPermissionToDeleteGuest(id) {
 	const permissions = parseInt($('#user-role').data('permissions'), 10);
-	if (permissions !== 0) {
+	if (!canDeleteGuest(permissions)) {
 		Swal.fire({
 			title: 'Access Denied',
 			text: 'Not allowed to delete this data.',
@@ -488,11 +439,7 @@ function checkPermissionToDeleteGuest(id) {
 		confirmButtonColor: '#d33'
 	}).then(function (result) {
 		if (!result.isConfirmed) return;
-		setTimeout(function () {
-			promptManagerPasswordThen('delete this guest.', function () {
-				performGuestArchiveRemove(numericId);
-			});
-		}, 200);
+		performGuestArchiveRemove(numericId);
 	});
 }
 
@@ -537,11 +484,11 @@ function renderGuestActionCell(row, readOnly) {
 		html += '<button type="button" class="btn btn-link p-0 me-1" title="Transfer" onclick="openTransferGuestModal(' + guestId + ')"><i class="fa fa-exchange-alt"></i></button>';
 	}
 
-	if (permissions === 0) {
-		html += '<button type="button" class="btn btn-link p-0 me-1 text-danger" title="Delete" onclick="checkPermissionToDeleteGuest(' + guestId + ')"><i class="fa fa-trash"></i></button>';
-	}
+	html += '<button type="button" class="btn btn-link p-0 me-1" title="Game History" onclick="openGuestGameHistory(' + guestId + ')"><i class="fa fa-history"></i></button>';
 
-	html += '<button type="button" class="btn btn-link p-0" title="Game History" onclick="openGuestGameHistory(' + guestId + ')"><i class="fa fa-history"></i></button>';
+	if (canDeleteGuest(permissions)) {
+		html += '<button type="button" class="btn btn-link p-0 text-danger" title="Delete" onclick="checkPermissionToDeleteGuest(' + guestId + ')"><i class="fa fa-trash"></i></button>';
+	}
 
 	html += '</div>';
 	return html;

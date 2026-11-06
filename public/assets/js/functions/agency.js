@@ -2174,7 +2174,7 @@ function renderGuestPanel(guests, options) {
             <i class="fa fa-exchange-alt"></i>
           </button>
     ` : '';
-    const deleteButtonHtml = permissions === 0
+    const deleteButtonHtml = canDeleteGuest(permissions)
       ? `<button
             type="button"
             class="btn btn-link p-0 agency-guest-plus-btn text-danger"
@@ -3027,9 +3027,14 @@ function saveAgencyStayContext() {
   } catch (e) { /* ignore */ }
 }
 
+// Super Admin (0), Administrator (1) and Manager (11) can archive guests; must match PUT /guest/remove/:id
+function canDeleteGuest(permissions) {
+  return permissions === 0 || permissions === 1 || permissions === 11;
+}
+
 function checkPermissionToDeleteGuest(id) {
   const permissions = parseInt($('#user-role').data('permissions'), 10);
-  if (permissions !== 0) {
+  if (!canDeleteGuest(permissions)) {
     Swal.fire({
       title: 'Access Denied',
       text: 'Not allowed to delete this data.',
@@ -3050,11 +3055,7 @@ function checkPermissionToDeleteGuest(id) {
     confirmButtonColor: '#d33'
   }).then(function (result) {
     if (!result.isConfirmed) return;
-    setTimeout(function () {
-      promptManagerPasswordThen('delete this guest.', function () {
-        performGuestArchiveRemove(numericId);
-      });
-    }, 200);
+    performGuestArchiveRemove(numericId);
   });
 }
 

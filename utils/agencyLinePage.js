@@ -1155,8 +1155,8 @@ function registerAgencyLineRoutes(router, pool, checkSession) {
 	router.put('/guest/remove/:id', async (req, res) => {
 		try {
 			const permissions = req.session?.permissions;
-			if (permissions !== 0) {
-				return res.status(403).json({ success: false, message: 'Only Super Admin can delete guests.' });
+			if (permissions !== 0 && permissions !== 1 && permissions !== 11) {
+				return res.status(403).json({ success: false, message: 'Only Super Admin, Administrator or Manager can delete guests.' });
 			}
 
 			const id = parseInt(req.params.id, 10);
