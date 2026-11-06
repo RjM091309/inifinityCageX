@@ -1852,6 +1852,7 @@ router.get('/cash_out_details', async (req, res) => {
 				gr.IDNo,
 				gr.GAME_ID,
 				(COALESCE(gr.NN_CHIPS, 0) + COALESCE(gr.CC_CHIPS, 0)) AS AMOUNT,
+				gr.REMARKS AS RECORD_REMARKS,
 				gr.ENCODED_BY,
 				gr.ENCODED_DT,
 				ag.NAME AS AGENT_NAME,
@@ -1875,7 +1876,12 @@ router.get('/cash_out_details', async (req, res) => {
 			AMOUNT: row.AMOUNT,
 			CATEGORY: 'Game Cash-out',
 			TYPE: 2,
-			REMARKS: row.GAME_ID ? `Game - ${row.GAME_ID}` : '',
+			REMARKS: (() => {
+				const base = row.GAME_ID ? `Game - ${row.GAME_ID}` : '';
+				const extra = row.RECORD_REMARKS ? String(row.RECORD_REMARKS).trim() : '';
+				if (!extra) return base;
+				return base ? `${base} | ${extra}` : extra;
+			})(),
 			ENCODED_BY: row.ENCODED_BY,
 			ENCODED_DT: row.ENCODED_DT,
 			ENCODED_BY_NAME: row.ENCODED_BY_NAME,

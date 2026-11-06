@@ -4006,6 +4006,19 @@ router.post('/game_list/add/buyin_split', async (req, res) => {
 });
 
 
+// Optional cash-out remarks: trimmed, capped at 255 chars, NULL when empty (same as before remarks existed)
+function normalizeCashoutRemarks(raw) {
+	const text = String(raw == null ? '' : raw).trim();
+	return text ? text.slice(0, 255) : null;
+}
+
+// cash_transaction.REMARKS is VARCHAR(255) — keep "Game - X" prefix and cut the user text to fit
+function buildCashoutCashRemarks(gameId, remarks) {
+	const base = `Game - ${gameId}`;
+	if (!remarks) return base;
+	return `${base} | ${remarks}`.slice(0, 255);
+}
+
 // ADD GAME RECORD CASH OUT
 router.post('/game_list/add/cashout', async (req, res) => {
 	const {
@@ -4060,19 +4073,20 @@ router.post('/game_list/add/cashout', async (req, res) => {
 		: accountBalanceCashout;
 
 	let CashOutDESC = 'Chips Returned'; // TRANSACTION DETAILS
+	const cashoutRemarks = normalizeCashoutRemarks(req.body.txtRemarks);
 
 	try {
 		// First insert into game_record table (CAGE_TYPE = 2)
-		const query1 = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-		const [result1] = await pool.execute(query1, [game_id, date_now, 2, 0, txtNNamount, txtCCamount, txtTransType, req.session.user_id, date_now]);
+		const query1 = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+		const [result1] = await pool.execute(query1, [game_id, date_now, 2, 0, txtNNamount, txtCCamount, txtTransType, cashoutRemarks, req.session.user_id, date_now]);
 
 		const gameRecordId = result1.insertId;
 
 		const cashoutLedgerGuestId = await fetchGuestIdForGame(pool, game_id);
 
 		// Second insert into account_ledger table (GAME_ID for direct link)
-		const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, GUEST_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-		await pool.execute(query2, [txtAccountCode, game_id, cashoutLedgerGuestId, 1, txtTransType, CashOutDESC, txtNNamount + txtCCamount, req.session.user_id, date_now]);
+		const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, GUEST_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+		await pool.execute(query2, [txtAccountCode, game_id, cashoutLedgerGuestId, 1, txtTransType, CashOutDESC, txtNNamount + txtCCamount, cashoutRemarks, req.session.user_id, date_now]);
 
 		// Fetch agent info (also used for cash_transaction)
 		const agentQuery = `
@@ -4172,7 +4186,7 @@ router.post('/game_list/add/cashout', async (req, res) => {
 				chipsReturn.toString(),
 				'Game Cash-out',
 				2,
-				`Game - ${game_id}`,
+				buildCashoutCashRemarks(game_id, cashoutRemarks),
 				req.session.user_id,
 				date_now
 			]);
@@ -4242,9 +4256,10 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 	const date_now = new Date();
 	const CashOutDESC = 'Chips Returned';
 	const userId = req.session.user_id;
+	const cashoutRemarks = normalizeCashoutRemarks(req.body.txtRemarks);
 
-	const query1 = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-	const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, GUEST_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	const query1 = `INSERT INTO game_record(GAME_ID, TRADING_DATE, CAGE_TYPE, AMOUNT, NN_CHIPS, CC_CHIPS, TRANSACTION, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	const query2 = `INSERT INTO account_ledger(ACCOUNT_ID, GAME_ID, GUEST_ID, TRANSACTION_ID, TRANSACTION_TYPE, TRANSACTION_DESC, AMOUNT, REMARKS, ENCODED_BY, ENCODED_DT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 	const connection = await pool.getConnection();
 	const cashoutSplitLedgerGuestId = await fetchGuestIdForGame(pool, game_id);
@@ -4259,6 +4274,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			cashNn,
 			cashCc,
 			1,
+			cashoutRemarks,
 			userId,
 			date_now
 		]);
@@ -4271,6 +4287,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			1,
 			CashOutDESC,
 			cashNn + cashCc,
+			cashoutRemarks,
 			userId,
 			date_now
 		]);
@@ -4283,6 +4300,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			depNn,
 			depCc,
 			2,
+			cashoutRemarks,
 			userId,
 			date_now
 		]);
@@ -4294,6 +4312,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 			2,
 			CashOutDESC,
 			depNn + depCc,
+			cashoutRemarks,
 			userId,
 			date_now
 		]);
@@ -4318,7 +4337,7 @@ router.post('/game_list/add/cashout_split', async (req, res) => {
 				String(cashChipsReturn),
 				'Game Cash-out',
 				2,
-				`Game - ${game_id}`,
+				buildCashoutCashRemarks(game_id, cashoutRemarks),
 				userId,
 				date_now
 			]);
@@ -4765,7 +4784,7 @@ router.get("/game_record/:id", checkSession, async (req, res) => {
 // GET GAME RECORD
 router.get('/game_record_data/:id', checkSession, async (req, res) => {
 	const id = parseInt(req.params.id);
-	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE
+	const query = `SELECT *, game_list.IDNo AS game_list_id, game_record.IDNo AS game_record_id, game_record.ENCODED_DT AS record_date, game_list.ACTIVE AS game_status, account.IDNo AS account_no, agent.AGENT_CODE AS agent_code, agent.NAME AS agent_name, game_record.ROLLER_NN_CHIPS, game_record.ROLLER_CC_CHIPS, game_record.ROLLER_TRANSACTION, game_list.FAKE_SETTLE AS FAKE_SETTLE, game_record.REMARKS AS RECORD_REMARKS
 					FROM game_list 
 					JOIN account ON game_list.ACCOUNT_ID = account.IDNo 
 					JOIN agent ON agent.IDNo = account.AGENT_ID 

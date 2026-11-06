@@ -4372,8 +4372,21 @@ $('#add_buyin').submit(function (event) {
 				txttotal_balance_cashout: $('#total_balance_cashout').val(),
 				txtMarkerChipsReturn: $('#MarkerChipsReturn').val(),
 				txtTotalRolling: $('#TotalRollingCashout').val(),
-				dont_send_telegram: $('#dontSendCashoutTelegram').is(':checked') ? '1' : '0'
+				dont_send_telegram: $('#dontSendCashoutTelegram').is(':checked') ? '1' : '0',
+				txtRemarks: ($('#txtRemarksCashout').val() || '').trim()
 			};
+
+			var splitRemarks = commonPayload.txtRemarks;
+			if (splitRemarks) {
+				splitRows += '<tr>' +
+					'<td style="' + totalTitleCell + '">Remarks:<\/td>' +
+					'<td colspan="2" style="' + tableCell + 'text-align:left;white-space:pre-wrap;">' + escapeHtmlText(splitRemarks) + '<\/td>' +
+					'<\/tr>';
+				splitConfirmHtml =
+					'<div style="max-width:420px;margin:0 auto;text-align:left;">' +
+					'<div style="font-weight:600;margin-bottom:8px;text-align:center;">Confirm cash-out transaction:</div>' +
+					'<table style="margin:0 auto;border-collapse:collapse;min-width:300px;">' + splitRows + '</table></div>';
+			}
 
 			Swal.fire({
 				icon: 'question',
@@ -4513,6 +4526,10 @@ $('#add_buyin').submit(function (event) {
 		}
 		if ((txtNN + txtCC) > 0) {
 			confirmationRows += buildRow('Total Amount:', parseFloat(txtNN + txtCC).toLocaleString());
+		}
+		var cashoutRemarks = ($('#txtRemarksCashout').val() || '').trim();
+		if (cashoutRemarks) {
+			confirmationRows += buildRow('Remarks:', '<span style="white-space:pre-wrap;">' + escapeHtmlText(cashoutRemarks) + '</span>');
 		}
 
 		var confirmationMessage = `
@@ -5726,6 +5743,7 @@ function addCashout(id, account, total_rolling_chips, agentCode) {
 	}
 
 	$('#nnCashAmount, #nnDepositAmount, #ccCashAmount, #ccDepositAmount').val('');
+	$('#txtRemarksCashout').val('');
 
 	$('.game_list_id').val(id);
 	$('.txtAccountCode').val(account);
@@ -6070,7 +6088,7 @@ function reloadDataRecord() {
                         cc: 0,
                         roller_nn: 0,
                         roller_cc: 0,
-                        remarks: row.REMARKS || '',
+                        remarks: '',
                         action: row.game_record_id,
                         timestamp: new Date(row.record_date).getTime(),
                         sortId: row.game_record_id || 0,
@@ -6090,6 +6108,14 @@ function reloadDataRecord() {
                 } else {
                     mergedData[mergeKey].is_marker = mergedData[mergeKey].is_marker || (row.TRANSACTION == 3);
                     mergedData[mergeKey].is_deposit = mergedData[mergeKey].is_deposit || (row.TRANSACTION == 2);
+                }
+
+                // Record-level remarks (e.g. cash-out remarks) — only game_record.REMARKS, never game_list/agent remarks
+                var recordRemarks = String(row.RECORD_REMARKS || '').trim();
+                if (recordRemarks && mergedData[mergeKey].remarks.indexOf(recordRemarks) === -1) {
+                    mergedData[mergeKey].remarks = mergedData[mergeKey].remarks
+                        ? mergedData[mergeKey].remarks + ' / ' + recordRemarks
+                        : recordRemarks;
                 }
 
                 // Track edit IDs per CAGE_TYPE (Super Admin only) - single edit opens combined modal (buy-in + roller)
@@ -6260,6 +6286,7 @@ function reloadDataRecord() {
 				'',
 				'',
                 '<strong>' + totalRollerChips.toLocaleString() + '</strong>',
+                '', // Empty for remarks column
                 ''  // Empty for action column
             ]);
 
@@ -6312,6 +6339,9 @@ function reloadDataRecord() {
                     rowData.nn.toLocaleString(),
                     rowData.cc.toLocaleString(),
                     rollerChips.toLocaleString(),
+                    rowData.remarks
+                        ? '<span class="d-inline-block text-start" style="white-space:pre-wrap;max-width:180px;">' + escapeHtmlText(rowData.remarks) + '</span>'
+                        : '',
                     buildActionButtons(rowData)
                 ]);
             }

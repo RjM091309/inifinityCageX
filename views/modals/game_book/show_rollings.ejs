@@ -1,5 +1,5 @@
 <div class="modal fade" id="modal-show-history" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLiveLabel" aria-hidden="true">
-	<div class="modal-dialog modal-dialog-centered modal-xl">
+	<div class="modal-dialog modal-dialog-centered modal-xl" style="max-width: min(1320px, 95vw);">
 		<div class="modal-content">
 		<div class="modal-header bg-primary">
 			<h5 class="modal-title text-white" id="staticBackdropLiveLabel"><%= __('modal_show_rolling.title') %> - <span id="show-rolling-agent-code"></span></h5>
@@ -21,6 +21,7 @@
 								<th class="text-center"><%= __('modal_show_rolling.nn') %></th>
 								<th class="text-center"><%= __('modal_show_rolling.cc') %></th>
 								<th class="text-center">R/C</th>
+								<th class="text-center">REMARKS</th>
 								<th class="text-center" ><%= __('modal_show_rolling.action') %></th>
 							</tr>
 						</thead>
