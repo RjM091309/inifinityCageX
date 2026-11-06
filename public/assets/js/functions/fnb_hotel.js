@@ -176,6 +176,25 @@ $(document).ready(function() {
 		return Number.isNaN(n) ? null : n;
 	}
 
+	// Sum the Amount column for all rows matching the current filters (date range, service type, search)
+	function updateFnbTotal(api) {
+		let total = 0;
+		api.column(4, { search: 'applied' }).data().each(function (raw) {
+			const text = $('<div>').html(raw == null ? '' : String(raw)).text();
+			const n = parseFnbAmountCell(text);
+			if (n !== null) total += n;
+		});
+		const rounded = Math.round(total * 100) / 100;
+		const hasDecimals = rounded % 1 !== 0;
+		const formatted = rounded.toLocaleString('en-US', {
+			minimumFractionDigits: hasDecimals ? 2 : 0,
+			maximumFractionDigits: 2
+		});
+		$('#fnb-hotel-total-amount')
+			.text(formatted)
+			.toggleClass('text-danger', rounded < 0);
+	}
+
 	function exportFnbHotelToXlsx() {
 		if (typeof ExcelJS === 'undefined') {
 			if (typeof Swal !== 'undefined') {
@@ -310,6 +329,9 @@ $(document).ready(function() {
 			},
 			initComplete: function () {
 				mountDateFilterInToolbar();
+			},
+			drawCallback: function () {
+				updateFnbTotal(this.api());
 			}
 		});
 
