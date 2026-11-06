@@ -359,8 +359,8 @@
 
 /* Upload icon: ensure clickable (keep hope-ui .upload-icone position: absolute) */
 #modal-account-details .modal-dialog {
-    width: min(98vw, 86rem);
-    max-width: 86rem;
+    width: min(98vw, 90rem);
+    max-width: 90rem;
 }
 @media (min-width: 1200px) {
     #modal-account-details .modal-dialog {
@@ -559,6 +559,8 @@ body.guest-portal-child-open .modal-backdrop.show {
     text-align: right !important;
     font-variant-numeric: tabular-nums;
 }
+/* Fixed alignment so host pages (e.g. Game Book centers all td) don't override it */
+#modal-account-details #accountDetails tbody td:nth-child(3),
 #modal-account-details #accountDetails tbody td:nth-child(6) {
     text-align: left !important;
 }

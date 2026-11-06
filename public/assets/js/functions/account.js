@@ -1142,26 +1142,49 @@ function escapeRemarksHtml(text) {
 	return $('<div>').text(text == null ? '' : String(text)).html();
 }
 
-// Only manual entries (deposit/withdraw/transfer) are editable; system rows carry parse-dependent remarks
+// Remarks are editable on every row except system rows whose REMARKS text is parsed by server logic
+// (coin overage pairing, IOU/credit return sources, legacy buy-in detection by remarks prefix)
+function isLedgerRemarksParsed(desc, remarks) {
+	const d = String(desc || '').trim().toUpperCase();
+	const r = String(remarks || '').trim().toUpperCase();
+	return d === 'COIN_OVERAGE_DEPOSIT'
+		|| d.startsWith('RETURN_SOURCE:')
+		|| r.startsWith('BUY-IN GAME:')
+		|| r.startsWith('ADD BUY-IN GAME:');
+}
+
 function isLedgerRemarksEditable(row) {
-	const desc = String(row?.TRANSACTION_DESC || '').trim().toUpperCase();
-	return !!row?.account_details_id && (!desc || desc === 'ACCOUNT DETAILS');
+	return !!row?.account_details_id && !isLedgerRemarksParsed(row.TRANSACTION_DESC, row.REMARKS);
 }
 
 function renderLedgerRemarksCell(row, displayText) {
 	const text = escapeRemarksHtml(displayText);
 	if (!isLedgerRemarksEditable(row)) return text;
-	// Whole remarks text is the click target (no icon)
+	// Whole remarks text is the click target; empty cells stay blank but fill the cell so they're still clickable
+	const hasText = !!String(displayText || '').trim();
+	const content = hasText ? text : '&nbsp;';
+	const emptyStyle = hasText ? '' : ' style="display:block;min-height:1.25em;"';
 	return `<span class="btn-edit-ledger-remarks" role="button" tabindex="0" data-ledger-id="${row.account_details_id}"
-		data-remarks="${escapeRemarksHtml(row.REMARKS || '')}" title="Click to edit remarks">${text}</span>`;
+		data-remarks="${escapeRemarksHtml(row.REMARKS || '')}" title="Click to edit remarks"${emptyStyle}>${content}</span>`;
 }
+
+$(document).off('keydown', '.btn-edit-ledger-remarks').on('keydown', '.btn-edit-ledger-remarks', function (e) {
+	if (e.key === 'Enter' || e.key === ' ') {
+		e.preventDefault();
+		$(this).trigger('click');
+	}
+});
 
 $(document).off('click', '.btn-edit-ledger-remarks').on('click', '.btn-edit-ledger-remarks', function () {
 	const ledgerId = $(this).data('ledger-id');
 	const currentRemarks = String($(this).attr('data-remarks') || '');
 	if (!ledgerId) return;
 
+	// Render inside the open Bootstrap modal; otherwise its focus trap steals focus from the textarea
+	const modalEl = $(this).closest('.modal')[0];
+
 	Swal.fire({
+		target: modalEl || document.body,
 		title: 'Edit Remarks',
 		input: 'textarea',
 		inputValue: currentRemarks,

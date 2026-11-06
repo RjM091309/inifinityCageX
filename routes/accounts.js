@@ -2673,14 +2673,20 @@ router.put('/account_details/:id/remarks', async (req, res) => {
 		const remarks = String((req.body && req.body.remarks) || '').trim().slice(0, 255);
 
 		const [[ledger]] = await pool.query(
-			'SELECT TRANSACTION_DESC FROM account_ledger WHERE IDNo = ? AND ACTIVE = 1',
+			'SELECT TRANSACTION_DESC, REMARKS FROM account_ledger WHERE IDNo = ? AND ACTIVE = 1',
 			[id]
 		);
 		if (!ledger) {
 			return res.status(404).json({ error: 'Transaction not found' });
 		}
+		// Block only system rows whose REMARKS text is parsed by server logic
 		const desc = String(ledger.TRANSACTION_DESC || '').trim().toUpperCase();
-		if (desc && desc !== 'ACCOUNT DETAILS') {
+		const oldRemarks = String(ledger.REMARKS || '').trim().toUpperCase();
+		const isParsed = desc === 'COIN_OVERAGE_DEPOSIT'
+			|| desc.startsWith('RETURN_SOURCE:')
+			|| oldRemarks.startsWith('BUY-IN GAME:')
+			|| oldRemarks.startsWith('ADD BUY-IN GAME:');
+		if (isParsed) {
 			return res.status(400).json({ error: 'Remarks of this transaction cannot be edited.' });
 		}
 
