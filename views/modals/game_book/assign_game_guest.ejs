@@ -62,9 +62,16 @@ body.assign-guest-child-open .modal-backdrop.show {
 									</button>
 								</div>
 							</div>
-							<select class="form-select" id="assign_game_guest_select" name="guest_id" style="width: 100%;" data-placeholder="Select Level 3 (Guest)" required>
-								<option value="">-- Select Level 3 (Guest) --</option>
-							</select>
+							<div class="d-flex align-items-center gap-2">
+								<div class="flex-grow-1" style="min-width: 0;">
+									<select class="form-select" id="assign_game_guest_select" name="guest_id" style="width: 100%;" data-placeholder="Select Level 3 (Guest)" required>
+										<option value="">-- Select Level 3 (Guest) --</option>
+									</select>
+								</div>
+								<button type="button" id="btn-assign-game-guest-remove" class="btn btn-sm btn-danger-subtle assign-game-guest-action-btn flex-shrink-0 d-none" title="Remove Guest" aria-label="Remove Guest">
+									<i class="fa fa-times" aria-hidden="true"></i>
+								</button>
+							</div>
 							<small class="text-muted d-block mt-1 mb-0">Remarks: <span id="assign_game_guest_remarks_display">—</span></small>
 						</div>
 					</div>

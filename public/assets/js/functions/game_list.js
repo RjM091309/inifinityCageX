@@ -651,6 +651,8 @@ function resetAssignGameGuestModal() {
 	$('#submit-assign-game-guest-btn').prop('disabled', true);
 	$('#btn-assign-guest-game-history').prop('disabled', true);
 	$('#btn-assign-game-guest-edit').prop('disabled', true);
+	$('#btn-assign-game-guest-remove').addClass('d-none');
+	$('#modal-assign-game-guest').data('currentGuestId', null);
 	$('#assign_game_guest_remarks_display').text('—');
 	if ($('#assign_game_guest_form')[0]) {
 		$('#assign_game_guest_form')[0].reset();
@@ -771,6 +773,10 @@ function openAssignGameGuestDialog(gameId, accountId, agentId, currentGuestId, a
 	$('#modal-assign-game-guest')
 		.data('agentCode', agentCode || '')
 		.data('agentName', agentName || '');
+
+	var assignedGuestId = parseInt(currentGuestId, 10) || null;
+	$('#modal-assign-game-guest').data('currentGuestId', assignedGuestId);
+	$('#btn-assign-game-guest-remove').toggleClass('d-none', !assignedGuestId);
 
 	loadAssignGameGuestSelect(agentId, currentGuestId, function () {
 		$('#modal-assign-game-guest').modal('show');
@@ -8426,6 +8432,59 @@ $(document).ready(function () {
 				Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load game history.' });
 			});
 		}
+	});
+
+	$(document).on('click', '#btn-assign-game-guest-remove', function () {
+		if (!canAssignGameGuest()) {
+			Swal.fire({ icon: 'warning', title: 'Not allowed', text: 'You cannot remove a guest.' });
+			return;
+		}
+		var gameId = parseInt($('#assign_guest_game_id').val(), 10);
+		var currentGuestId = $('#modal-assign-game-guest').data('currentGuestId');
+		if (!gameId || !currentGuestId) return;
+		var $removeBtn = $(this);
+		Swal.fire({
+			icon: 'warning',
+			title: 'Remove guest?',
+			html: 'Remove the assigned Level 3 (Guest) from Game #' + gameId + '?',
+			showCancelButton: true,
+			confirmButtonText: 'Yes, remove',
+			cancelButtonText: 'Cancel',
+			confirmButtonColor: '#d33'
+		}).then(function (result) {
+			if (!result.isConfirmed) return;
+			$removeBtn.prop('disabled', true);
+			$.ajax({
+				url: '/game_list/' + gameId + '/guest',
+				method: 'PUT',
+				contentType: 'application/json',
+				data: JSON.stringify({ guest_id: null }),
+				success: function () {
+					if (typeof window.reloadData === 'function') {
+						window.reloadData();
+					}
+					Swal.fire({
+						icon: 'success',
+						title: 'Guest removed',
+						timer: 1200,
+						showConfirmButton: false
+					}).then(function () {
+						$('#modal-assign-game-guest').modal('hide');
+						resetAssignGameGuestModal();
+					});
+				},
+				error: function (xhr) {
+					Swal.fire({
+						icon: 'error',
+						title: 'Error',
+						text: (xhr.responseJSON && xhr.responseJSON.error) || 'Failed to remove guest.'
+					});
+				},
+				complete: function () {
+					$removeBtn.prop('disabled', false);
+				}
+			});
+		});
 	});
 
 	$('#assign_game_guest_form').on('submit', function (event) {

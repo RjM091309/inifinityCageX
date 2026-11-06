@@ -30,6 +30,28 @@ async function indexExists(pool, tableName, indexName) {
 	return Number(rows[0]?.cnt || 0) > 0;
 }
 
+/**
+ * Repair tables imported without AUTO_INCREMENT on IDNo (inserts then all get IDNo = 0
+ * and fail with "Duplicate entry '0' for key 'PRIMARY'").
+ */
+async function ensureIdAutoIncrement(pool, tableName) {
+	const [cols] = await pool.execute(
+		`SELECT EXTRA FROM information_schema.COLUMNS
+		 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'IDNo'`,
+		[tableName]
+	);
+	if (!cols.length) return;
+	if (String(cols[0].EXTRA || '').toLowerCase().includes('auto_increment')) return;
+
+	// Move an existing IDNo = 0 row out of the way so it is not renumbered unpredictably.
+	const [maxRows] = await pool.execute(`SELECT COALESCE(MAX(IDNo), 0) AS maxId FROM \`${tableName}\``);
+	const nextId = Number(maxRows[0]?.maxId || 0) + 1;
+	await pool.execute(`UPDATE \`${tableName}\` SET IDNo = ? WHERE IDNo = 0`, [nextId]);
+
+	await pool.execute(`ALTER TABLE \`${tableName}\` MODIFY IDNo INT NOT NULL AUTO_INCREMENT`);
+	console.log(`[guest] Enabled AUTO_INCREMENT on ${tableName}.IDNo`);
+}
+
 /** One-time: remove guests that were auto-copied from agent name/code during migration. */
 async function cleanupMigrationPlaceholderGuests(pool) {
 	if (!(await tableExists(pool, 'guest'))) return;
@@ -168,6 +190,8 @@ async function ensureGuestSchema(pool) {
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 		`);
 		console.log('[guest] Created table game_guest_history');
+	} else {
+		await ensureIdAutoIncrement(pool, 'game_guest_history');
 	}
 
 	return false;
