@@ -10,7 +10,6 @@ const ExcelJS = require('exceljs');
 
 
 router.get("/dashboard", checkSession, async (req, res) => {
-	console.log("Session Data:", req.session);
 
 	const permissions = req.session.permissions;
 	if (permissions === undefined) {

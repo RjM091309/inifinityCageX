@@ -147,7 +147,6 @@ pageRouter.get("/login", function (req, res) {
 });
 
 pageRouter.get("/", checkSession, function (req, res) {
-	console.log("Session Data:", req.session); // Debugging line
 
 	const permissions = req.session.permissions;
 
@@ -159,7 +158,6 @@ pageRouter.get("/", checkSession, function (req, res) {
 });
 
 pageRouter.get("/dashboard", checkSession, function (req, res) {
-	console.log("Session Data:", req.session); // Debugging line
 
 	const permissions = req.session.permissions;
 

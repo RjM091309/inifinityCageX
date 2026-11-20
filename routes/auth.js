@@ -34,9 +34,9 @@ const checkSession = async (req, res, next) => {
     if (!req.session || !req.session.username || !req.session.user_id) {
         console.warn('Session missing on request', {
             path: req.originalUrl,
-            sessionId: req.sessionID,
             hasCookie: Boolean(req.headers?.cookie),
-            cookies: req.cookies
+            hasSessionCookie: Boolean(req.cookies?.['infinity.sid']),
+            ip: getClientIp(req)
         });
         return res.redirect('/login');
     }
@@ -122,7 +122,11 @@ router.get("/manage_users", checkSession, function (req, res) {
 
 // Login route
 router.post('/login', async (req, res) => {
-    const { username, password } = req.body;
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      req.flash('error', 'Username and password are required');
+      return res.redirect('/login');
+    }
     const query = 'SELECT * FROM user_info WHERE USERNAME = ? AND ACTIVE = 1';
   
     try {
